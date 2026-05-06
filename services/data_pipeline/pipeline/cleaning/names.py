@@ -544,12 +544,9 @@ OPERATOR_CANONICAL: dict[str, str] = {
 
     # ── Meliá Hotels International ──
     "melia": "Meliá Hotels International",
-    "meliá": "Meliá Hotels International",
     "melia hotels": "Meliá Hotels International",
     "melia hotels international": "Meliá Hotels International",
-    "meliá hotels international": "Meliá Hotels International",
     "gran melia": "Meliá Hotels International",
-    "gran meliá": "Meliá Hotels International",
     "me by melia": "Meliá Hotels International",
     "me hotels": "Meliá Hotels International",
     "paradisus": "Meliá Hotels International",
@@ -577,9 +574,7 @@ OPERATOR_CANONICAL: dict[str, str] = {
 
     # ── Barceló Hotel Group ──
     "barcelo": "Barceló Hotel Group",
-    "barceló": "Barceló Hotel Group",
     "barcelo hotel group": "Barceló Hotel Group",
-    "barceló hotel group": "Barceló Hotel Group",
     "royal hideaway": "Barceló Hotel Group",
     "allegro hotels": "Barceló Hotel Group",
 
@@ -627,7 +622,6 @@ OPERATOR_CANONICAL: dict[str, str] = {
 
     # ── Relais & Châteaux ──
     "relais & chateaux": "Relais & Châteaux",
-    "relais & châteaux": "Relais & Châteaux",
     "relais chateaux": "Relais & Châteaux",
     "relais and chateaux": "Relais & Châteaux",
 
@@ -676,12 +670,10 @@ def normalize_operator(raw: str | None) -> str | None:
 REGION_ALIASES: dict[str, str] = {
     # Spain
     "cataluna": "Catalonia",
-    "cataluña": "Catalonia",
     "catalonia": "Catalonia",
     "catalunya": "Catalonia",
     "cat": "Catalonia",
     "andalucia": "Andalusia",
-    "andalucía": "Andalusia",
     "andalusia": "Andalusia",
     "and": "Andalusia",
     "comunidad de madrid": "Community of Madrid",
@@ -693,15 +685,12 @@ REGION_ALIASES: dict[str, str] = {
     "valencian community": "Valencian Community",
     "comunitat valenciana": "Valencian Community",
     "pais vasco": "Basque Country",
-    "país vasco": "Basque Country",
     "basque country": "Basque Country",
     "euskadi": "Basque Country",
     "euskal herria": "Basque Country",
     "galicia": "Galicia",
     "aragon": "Aragón",
-    "aragón": "Aragón",
     "castilla y leon": "Castile and León",
-    "castilla y león": "Castile and León",
     "castile and leon": "Castile and León",
     "castile leon": "Castile and León",
     "castilla-la mancha": "Castile-La Mancha",

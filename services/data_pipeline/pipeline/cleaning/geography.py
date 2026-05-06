@@ -64,7 +64,7 @@ CITY_CANONICAL: dict[str, str] = {
     "san sebastián de la gomera": "San Sebastián de la Gomera",
     "ibiza": "Ibiza", "eivissa": "Ibiza",
     # Europe
-    "london": "London", "Londres": "London",
+    "london": "London", "londres": "London",
     "paris": "Paris",
     "berlin": "Berlin",
     "amsterdam": "Amsterdam",
