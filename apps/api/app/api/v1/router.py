@@ -13,7 +13,7 @@ from app.api.v1.imports.costar import router as costar_router
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
-api_router.include_router(hotels_router, prefix="/assets/hotels", tags=["hotels"])
+api_router.include_router(hotels_router, prefix="/assets/hotels", tags=["hotel-assets"])
 api_router.include_router(flex_router, prefix="/assets/flex-living", tags=["flex-living"])
 api_router.include_router(dcf_router, prefix="/valuations/dcf", tags=["dcf"])
 api_router.include_router(underwriting_router, prefix="/valuations/underwriting", tags=["underwriting"])

@@ -5,85 +5,135 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.exceptions import NotFoundError
-from app.models.hotel import Hotel, HotelFinancial
+from app.core.exceptions import ConflictError, NotFoundError
+from app.models.hotel import HotelAsset, HotelFinancial
 from app.models.flex_living import FlexLivingAsset
 from app.schemas.common import PagedResponse, Pagination
-from app.schemas.hotel import HotelCreate, HotelFinancialCreate, HotelListItem, HotelUpdate
+from app.schemas.hotel import (
+    HotelAssetCreate,
+    HotelAssetListItem,
+    HotelAssetUpdate,
+    HotelFinancialCreate,
+)
 
 
-class HotelService:
+class HotelAssetService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def list_hotels(
+    # ── Queries ───────────────────────────────────────────────────────────────
+
+    async def _get_or_404(self, asset_id: UUID, *, load_financials: bool = False) -> HotelAsset:
+        q = select(HotelAsset).where(HotelAsset.id == asset_id)
+        if load_financials:
+            q = q.options(selectinload(HotelAsset.financials))
+        asset = await self.db.scalar(q)
+        if not asset:
+            raise NotFoundError(f"Hotel asset {asset_id} not found.")
+        return asset
+
+    async def list(
         self,
+        *,
         city: str | None,
+        country: str | None,
+        submarket: str | None,
+        asset_type: str | None,
+        status: str | None,
         chain_scale: str | None,
-        asset_status: str | None,
         limit: int,
         offset: int,
-    ) -> PagedResponse[HotelListItem]:
-        q = select(Hotel)
+    ) -> PagedResponse[HotelAssetListItem]:
+        q = select(HotelAsset)
         if city:
-            q = q.where(Hotel.city.ilike(f"%{city}%"))
+            q = q.where(HotelAsset.city.ilike(f"%{city}%"))
+        if country:
+            q = q.where(HotelAsset.country.ilike(f"%{country}%"))
+        if submarket:
+            q = q.where(HotelAsset.submarket.ilike(f"%{submarket}%"))
+        if asset_type:
+            q = q.where(HotelAsset.asset_type == asset_type)
+        if status:
+            q = q.where(HotelAsset.status == status)
         if chain_scale:
-            q = q.where(Hotel.chain_scale == chain_scale)
-        if asset_status:
-            q = q.where(Hotel.asset_status == asset_status)
+            q = q.where(HotelAsset.chain_scale == chain_scale)
+
+        q = q.order_by(HotelAsset.asset_name)
 
         total = await self.db.scalar(select(func.count()).select_from(q.subquery()))
         rows = await self.db.scalars(q.offset(offset).limit(limit))
-        items = [HotelListItem.model_validate(h) for h in rows]
+        items = [HotelAssetListItem.model_validate(h) for h in rows]
         return PagedResponse(
             data=items,
-            meta=Pagination(total=total or 0, limit=limit, offset=offset, has_next=(offset + limit) < (total or 0)),
+            meta=Pagination(
+                total=total or 0,
+                limit=limit,
+                offset=offset,
+                has_next=(offset + limit) < (total or 0),
+            ),
         )
 
-    async def get_hotel(self, hotel_id: UUID) -> Hotel:
-        hotel = await self.db.scalar(
-            select(Hotel)
-            .where(Hotel.id == hotel_id)
-            .options(selectinload(Hotel.financials))
-        )
-        if not hotel:
-            raise NotFoundError(f"Hotel {hotel_id} not found.")
-        return hotel
+    async def get(self, asset_id: UUID) -> HotelAsset:
+        return await self._get_or_404(asset_id, load_financials=True)
 
-    async def create_hotel(self, payload: HotelCreate) -> Hotel:
-        slug = slugify(payload.name)
-        existing = await self.db.scalar(select(Hotel).where(Hotel.slug == slug))
-        if existing:
-            slug = f"{slug}-{str(payload.city).lower()}"
-        hotel = Hotel(**payload.model_dump(), slug=slug)
-        self.db.add(hotel)
+    # ── Mutations ─────────────────────────────────────────────────────────────
+
+    async def create(self, payload: HotelAssetCreate) -> HotelAsset:
+        base_slug = slugify(payload.asset_name)
+        slug = base_slug
+        if await self.db.scalar(select(HotelAsset).where(HotelAsset.slug == base_slug)):
+            slug = f"{base_slug}-{payload.city.lower()}"
+            if await self.db.scalar(select(HotelAsset).where(HotelAsset.slug == slug)):
+                raise ConflictError(
+                    f"A hotel asset with slug '{slug}' already exists in {payload.city}."
+                )
+
+        asset = HotelAsset(**payload.model_dump(), slug=slug)
+        self.db.add(asset)
         await self.db.flush()
-        return await self.get_hotel(hotel.id)
+        return await self._get_or_404(asset.id, load_financials=True)
 
-    async def update_hotel(self, hotel_id: UUID, payload: HotelUpdate) -> Hotel:
-        hotel = await self.get_hotel(hotel_id)
+    async def update(self, asset_id: UUID, payload: HotelAssetUpdate) -> HotelAsset:
+        asset = await self._get_or_404(asset_id, load_financials=True)
         for field, value in payload.model_dump(exclude_none=True).items():
-            setattr(hotel, field, value)
+            setattr(asset, field, value)
         await self.db.flush()
-        return hotel
+        return asset
 
-    async def delete_hotel(self, hotel_id: UUID) -> None:
-        hotel = await self.get_hotel(hotel_id)
-        await self.db.delete(hotel)
+    async def delete(self, asset_id: UUID) -> None:
+        asset = await self._get_or_404(asset_id)
+        await self.db.delete(asset)
 
-    async def add_financials(self, hotel_id: UUID, payload: HotelFinancialCreate) -> HotelFinancial:
-        await self.get_hotel(hotel_id)
-        record = HotelFinancial(hotel_id=hotel_id, **payload.model_dump())
+    # ── Financials ────────────────────────────────────────────────────────────
+
+    async def add_financial(
+        self, asset_id: UUID, payload: HotelFinancialCreate
+    ) -> HotelFinancial:
+        await self._get_or_404(asset_id)
+        record = HotelFinancial(asset_id=asset_id, **payload.model_dump())
         self.db.add(record)
         await self.db.flush()
         return record
 
+    async def list_financials(self, asset_id: UUID) -> list[HotelFinancial]:
+        await self._get_or_404(asset_id)
+        rows = await self.db.scalars(
+            select(HotelFinancial)
+            .where(HotelFinancial.asset_id == asset_id)
+            .order_by(HotelFinancial.year.desc(), HotelFinancial.period)
+        )
+        return list(rows)
+
+
+# ── FlexLiving (kept here for colocation with hotel service) ──────────────────
 
 class FlexLivingService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def list_assets(self, city, asset_type, limit, offset) -> dict:
+    async def list_assets(
+        self, city: str | None, asset_type: str | None, limit: int, offset: int
+    ) -> dict:
         q = select(FlexLivingAsset)
         if city:
             q = q.where(FlexLivingAsset.city.ilike(f"%{city}%"))
@@ -92,7 +142,10 @@ class FlexLivingService:
         total = await self.db.scalar(select(func.count()).select_from(q.subquery()))
         rows = list(await self.db.scalars(q.offset(offset).limit(limit)))
         return {
-            "data": [{"id": str(a.id), "name": a.name, "city": a.city, "total_units": a.total_units} for a in rows],
+            "data": [
+                {"id": str(a.id), "name": a.name, "city": a.city, "total_units": a.total_units}
+                for a in rows
+            ],
             "meta": {"total": total, "limit": limit, "offset": offset},
         }
 

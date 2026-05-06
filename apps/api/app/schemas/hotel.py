@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -5,6 +6,13 @@ from pydantic import field_validator
 
 from app.schemas.common import ValoraBase
 
+_VALID_STATUSES = frozenset({"operating", "pipeline", "under_renovation", "distressed"})
+_VALID_ASSET_TYPES = frozenset(
+    {"full_service", "select_service", "extended_stay", "resort", "boutique", "apart_hotel"}
+)
+
+
+# ── Financials ────────────────────────────────────────────────────────────────
 
 class HotelFinancialBase(ValoraBase):
     year: int
@@ -29,60 +37,110 @@ class HotelFinancialCreate(HotelFinancialBase):
 
 class HotelFinancialRead(HotelFinancialBase):
     id: UUID
-    hotel_id: UUID
+    asset_id: UUID
+    created_at: datetime
+    updated_at: datetime
 
 
-class HotelBase(ValoraBase):
-    name: str
+# ── HotelAsset ────────────────────────────────────────────────────────────────
+
+class HotelAssetBase(ValoraBase):
+    asset_name: str
+    asset_type: str | None = None
     brand: str | None = None
     chain_scale: str | None = None
+    operator: str | None = None
+    owner: str | None = None
     address: str | None = None
     city: str
-    state: str | None = None
-    country: str = "US"
-    zip_code: str | None = None
+    country: str = "ES"
+    submarket: str | None = None
     latitude: Decimal | None = None
     longitude: Decimal | None = None
+    keys: int
     star_rating: Decimal | None = None
-    total_keys: int
     meeting_space_sqft: int | None = None
-    year_built: int | None = None
+    opening_year: int | None = None
     year_renovated: int | None = None
     gfa_sqft: int | None = None
-    asset_status: str = "operating"
-    management_company: str | None = None
+    status: str = "operating"
     franchise_agreement: str | None = None
-    owner_entity: str | None = None
     meta: dict = {}
 
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in _VALID_STATUSES:
+            raise ValueError(f"status must be one of {sorted(_VALID_STATUSES)}")
+        return v
 
-class HotelCreate(HotelBase):
+    @field_validator("asset_type")
+    @classmethod
+    def validate_asset_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_ASSET_TYPES:
+            raise ValueError(f"asset_type must be one of {sorted(_VALID_ASSET_TYPES)}")
+        return v
+
+
+class HotelAssetCreate(HotelAssetBase):
     pass
 
 
-class HotelUpdate(ValoraBase):
-    name: str | None = None
+class HotelAssetUpdate(ValoraBase):
+    asset_name: str | None = None
+    asset_type: str | None = None
     brand: str | None = None
     chain_scale: str | None = None
-    total_keys: int | None = None
-    asset_status: str | None = None
+    operator: str | None = None
+    owner: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = None
+    submarket: str | None = None
+    keys: int | None = None
+    star_rating: Decimal | None = None
+    meeting_space_sqft: int | None = None
+    opening_year: int | None = None
+    year_renovated: int | None = None
+    gfa_sqft: int | None = None
+    status: str | None = None
+    franchise_agreement: str | None = None
     meta: dict | None = None
 
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_STATUSES:
+            raise ValueError(f"status must be one of {sorted(_VALID_STATUSES)}")
+        return v
 
-class HotelRead(HotelBase):
+    @field_validator("asset_type")
+    @classmethod
+    def validate_asset_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _VALID_ASSET_TYPES:
+            raise ValueError(f"asset_type must be one of {sorted(_VALID_ASSET_TYPES)}")
+        return v
+
+
+class HotelAssetRead(HotelAssetBase):
     id: UUID
     slug: str
+    created_at: datetime
+    updated_at: datetime
     financials: list[HotelFinancialRead] = []
 
 
-class HotelListItem(ValoraBase):
+class HotelAssetListItem(ValoraBase):
     id: UUID
-    name: str
+    asset_name: str
     slug: str
+    asset_type: str | None
     brand: str | None
     city: str
-    state: str | None
     country: str
-    total_keys: int
-    asset_status: str
+    submarket: str | None
+    keys: int
+    status: str
     star_rating: Decimal | None
+    operator: str | None
+    opening_year: int | None
