@@ -1,0 +1,9 @@
+name,city,country,total_keys,brand,chain_scale,year_built,star_rating,asset_status,operator,submarket,latitude,longitude
+Hotel Arts Barcelona,Barcelona,ES,483,Ritz-Carlton,Luxury,1994,5.0,operating,Four Seasons Hotels and Resorts,Barcelona Beach,41.3857,2.1974
+Hotel W Barcelona,Barcelona,ES,473,W Hotels,Luxury,2009,5.0,operating,Marriott International,Barcelona Beach,41.3743,2.1897
+Hilton Diagonal Mar Barcelona,Barcelona,ES,433,Hilton,Upscale,2002,4.0,operating,Hilton Worldwide,Barcelona Beach,41.4098,2.2183
+NH Collection Madrid Eurobuilding,Madrid,ES,342,NH Collection,Upper Upscale,2014,5.0,operating,NH Hotel Group,Madrid CBD,40.4543,-3.6892
+Meliá Castilla,Madrid,ES,936,Meliá,Upper Upscale,1976,4.0,operating,Meliá Hotels International,Madrid CBD,40.459,-3.6877
+Gran Hotel Miramar,Málaga,ES,204,Gran Hotel Miramar,Luxury,1926,5.0,operating,GL Hotels,Málaga Centro,36.7157,-4.4073
+Hotel Alfonso XIII,Sevilla,ES,148,A Luxury Collection,Luxury,1928,5.0,operating,Marriott International,Sevilla Centro,37.3838,-5.9939
+,Valencia,ES,220,Marriott,Upscale,2010,9.0,operating,,,,
