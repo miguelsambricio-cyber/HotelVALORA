@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.schemas.alias import HotelAliasEntryCreate, HotelAliasEntryListItem, HotelAliasEntryRead
 from app.schemas.common import PagedResponse, SingleResponse
 from app.schemas.hotel import (
     HotelAssetCreate,
@@ -13,6 +14,7 @@ from app.schemas.hotel import (
     HotelFinancialCreate,
     HotelFinancialRead,
 )
+from app.services.alias_service import HotelAliasService
 from app.services.hotel_service import HotelAssetService
 
 router = APIRouter()
@@ -133,3 +135,41 @@ async def add_hotel_financial(
     svc = HotelAssetService(db)
     record = await svc.add_financial(asset_id, payload)
     return SingleResponse(data=HotelFinancialRead.model_validate(record))
+
+
+# ── Aliases sub-resource ──────────────────────────────────────────────────────
+
+@router.get(
+    "/{asset_id}/aliases",
+    response_model=PagedResponse[HotelAliasEntryListItem],
+    summary="List aliases for a hotel asset",
+)
+async def list_asset_aliases(
+    asset_id: UUID,
+    active_only: bool = Query(default=True),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+) -> PagedResponse[HotelAliasEntryListItem]:
+    svc = HotelAliasService(db)
+    return await svc.list_for_asset(asset_id, active_only=active_only, limit=limit, offset=offset)
+
+
+@router.post(
+    "/{asset_id}/aliases",
+    response_model=SingleResponse[HotelAliasEntryRead],
+    status_code=status.HTTP_201_CREATED,
+    summary="Add an alias to a hotel asset",
+    description=(
+        "alias_key is computed automatically. If the key is already held by a "
+        "different asset, an AliasConflict record is created for review."
+    ),
+)
+async def add_asset_alias(
+    asset_id: UUID,
+    payload: HotelAliasEntryCreate,
+    db: AsyncSession = Depends(get_db),
+) -> SingleResponse[HotelAliasEntryRead]:
+    svc = HotelAliasService(db)
+    entry = await svc.create(asset_id, payload)
+    return SingleResponse(data=HotelAliasEntryRead.model_validate(entry))
