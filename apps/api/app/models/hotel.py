@@ -62,6 +62,12 @@ class HotelAsset(BaseModel):
     scenarios: Mapped[list["FinancialScenario"]] = relationship(  # noqa: F821
         back_populates="asset", cascade="all, delete-orphan"
     )
+    aliases: Mapped[list["HotelAliasEntry"]] = relationship(  # noqa: F821
+        "HotelAliasEntry",
+        back_populates="asset",
+        cascade="all, delete-orphan",
+        foreign_keys="HotelAliasEntry.asset_id",
+    )
 
 
 class HotelFinancial(BaseModel):

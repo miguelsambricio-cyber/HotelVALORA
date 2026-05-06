@@ -6,6 +6,12 @@ from app.models.market import Market, MarketSnapshot
 from app.models.transaction import ComparableTransaction
 from app.models.scenario import FinancialScenario, DCFModelOutput
 from app.models.valuation import Valuation, Underwriting
+from app.models.alias import (
+    HotelAliasEntry,
+    OperatorAlias,
+    HotelMergeHistory,
+    AliasConflict,
+)
 
 __all__ = [
     "BaseModel",
@@ -20,4 +26,8 @@ __all__ = [
     "DCFModelOutput",
     "Valuation",
     "Underwriting",
+    "HotelAliasEntry",
+    "OperatorAlias",
+    "HotelMergeHistory",
+    "AliasConflict",
 ]
