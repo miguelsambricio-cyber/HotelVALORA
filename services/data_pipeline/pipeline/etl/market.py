@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipeline.cleaning.geography import normalize_city, normalize_country
+from pipeline.cleaning.names import normalize_market, normalize_submarket
 from pipeline.cleaning.numeric import parse_percent, safe_float, safe_int
 from pipeline.cleaning.text import clean_string
 from pipeline.core.result import RowError
@@ -65,9 +66,10 @@ class MarketSnapshotETL(BaseETL[MarketSnapshotImportRow]):
         if r.get("period_type"):
             period_type = str(r["period_type"]).strip().lower()
 
+        raw_city = r.get("city") or normalize_market(r.get("submarket"))
         cleaned = {
-            "submarket": clean_string(r.get("submarket"), 255),
-            "city": normalize_city(r.get("city")),
+            "submarket": normalize_submarket(r.get("submarket")),
+            "city": normalize_city(raw_city),
             "country": normalize_country(r.get("country"), "ES"),
             "period_year": safe_int(r.get("period_year")),
             "period_month": period_month,
@@ -94,15 +96,22 @@ class MarketSnapshotETL(BaseETL[MarketSnapshotImportRow]):
 
     async def _find_duplicate(self, row: MarketSnapshotImportRow) -> UUID | None:
         from app.models.market import MarketSnapshot
-        stmt = select(MarketSnapshot.id).where(
-            MarketSnapshot.submarket == row.submarket,
+        from pipeline.cleaning.names import _key
+        # Both sides go through normalize_submarket before storage, so the
+        # canonical form should match exactly. _key() comparison is a safety net
+        # for rows inserted before normalization was enforced.
+        stmt = select(MarketSnapshot.id, MarketSnapshot.submarket).where(
             MarketSnapshot.period_year == row.period_year,
             MarketSnapshot.source == row.source,
         )
         if row.period_month is not None:
             stmt = stmt.where(MarketSnapshot.period_month == row.period_month)
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        incoming_key = _key(row.submarket)
+        for existing_id, existing_sub in result.fetchall():
+            if _key(existing_sub) == incoming_key:
+                return existing_id
+        return None
 
     async def _insert_record(self, row: MarketSnapshotImportRow) -> None:
         from app.models.market import MarketSnapshot

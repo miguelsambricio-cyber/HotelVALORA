@@ -13,6 +13,8 @@ from typing import Any
 
 import pandas as pd
 
+from pipeline.cleaning.names import normalize_region
+
 
 # ─── Master field maps ──────────────────────────────────────────────────────
 
@@ -91,6 +93,8 @@ def normalize_properties(df: pd.DataFrame) -> pd.DataFrame:
         df["market_occupancy"] = df["market_occupancy"].apply(_pct_to_decimal)
     if "star_rating" in df.columns:
         df["star_rating"] = pd.to_numeric(df["star_rating"], errors="coerce")
+    if "state" in df.columns:
+        df["state"] = df["state"].apply(lambda v: normalize_region(v) if pd.notna(v) else v)
     return df
 
 
@@ -100,6 +104,8 @@ def normalize_transactions(df: pd.DataFrame) -> pd.DataFrame:
         df["sale_date"] = pd.to_datetime(df["sale_date"], errors="coerce").dt.strftime("%Y-%m-%d")
     if "cap_rate" in df.columns:
         df["cap_rate"] = df["cap_rate"].apply(_pct_to_decimal)
+    if "state" in df.columns:
+        df["state"] = df["state"].apply(lambda v: normalize_region(v) if pd.notna(v) else v)
     return df
 
 
@@ -108,6 +114,8 @@ def normalize_market_stats(df: pd.DataFrame) -> pd.DataFrame:
     for pct_col in ("market_occupancy", "revpar_growth_yoy"):
         if pct_col in df.columns:
             df[pct_col] = df[pct_col].apply(_pct_to_decimal)
+    if "state" in df.columns:
+        df["state"] = df["state"].apply(lambda v: normalize_region(v) if pd.notna(v) else v)
     return df
 
 

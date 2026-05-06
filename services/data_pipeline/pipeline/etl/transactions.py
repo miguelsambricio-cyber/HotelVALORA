@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipeline.cleaning.geography import normalize_city, normalize_country
+from pipeline.cleaning.names import hotel_dedup_key, normalize_hotel_name
 from pipeline.cleaning.numeric import parse_currency, parse_percent, safe_float, safe_int
 from pipeline.cleaning.text import clean_string, normalize_chain_scale
 from pipeline.core.result import RowError
@@ -82,7 +83,7 @@ class TransactionETL(BaseETL[TransactionImportRow]):
                 ))
 
         cleaned = {
-            "property_name": clean_string(r.get("property_name"), 255),
+            "property_name": normalize_hotel_name(r.get("property_name")) or clean_string(r.get("property_name"), 255),
             "city": normalize_city(r.get("city")),
             "country": normalize_country(r.get("country"), "ES"),
             "transaction_date": transaction_date,
@@ -118,8 +119,9 @@ class TransactionETL(BaseETL[TransactionImportRow]):
 
     async def _find_duplicate(self, row: TransactionImportRow) -> UUID | None:
         from app.models.transaction import ComparableTransaction
-        stmt = select(ComparableTransaction.id).where(
-            ComparableTransaction.property_name == row.property_name,
+        # Query by city + date (exact), then compare property_name via dedup_key
+        # to catch accent/prefix variants ("Meliá Castilla" == "Melia Castilla").
+        stmt = select(ComparableTransaction.id, ComparableTransaction.property_name).where(
             ComparableTransaction.city == row.city,
             ComparableTransaction.transaction_date == row.transaction_date,
         )
@@ -128,7 +130,11 @@ class TransactionETL(BaseETL[TransactionImportRow]):
                 ComparableTransaction.transaction_price == row.transaction_price
             )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        incoming_key = hotel_dedup_key(row.property_name, row.city)
+        for existing_id, existing_name in result.fetchall():
+            if hotel_dedup_key(existing_name, row.city) == incoming_key:
+                return existing_id
+        return None
 
     async def _insert_record(self, row: TransactionImportRow) -> None:
         from app.models.transaction import ComparableTransaction

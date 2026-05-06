@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipeline.cleaning.geography import normalize_city, normalize_country
+from pipeline.cleaning.names import hotel_dedup_key, normalize_hotel_name, normalize_operator, normalize_submarket
 from pipeline.cleaning.numeric import safe_float, safe_int
 from pipeline.cleaning.text import (
     clean_string, make_slug,
@@ -65,17 +66,17 @@ class HotelETL(BaseETL[HotelImportRow]):
         r = alias(raw, _ALIASES)
 
         cleaned = {
-            "asset_name": clean_string(r.get("asset_name"), 255),
+            "asset_name": normalize_hotel_name(r.get("asset_name")) or clean_string(r.get("asset_name"), 255),
             "city": normalize_city(r.get("city")),
             "country": normalize_country(r.get("country"), "ES"),
             "keys": safe_int(r.get("keys")),
             "asset_type": normalize_asset_type(r.get("asset_type")),
             "brand": clean_string(r.get("brand"), 255),
             "chain_scale": normalize_chain_scale(r.get("chain_scale")),
-            "operator": clean_string(r.get("operator"), 255),
+            "operator": normalize_operator(r.get("operator")),
             "owner": clean_string(r.get("owner"), 255),
             "address": clean_string(r.get("address"), 500),
-            "submarket": clean_string(r.get("submarket"), 255),
+            "submarket": normalize_submarket(r.get("submarket")),
             "latitude": safe_float(r.get("latitude")),
             "longitude": safe_float(r.get("longitude")),
             "star_rating": safe_float(r.get("star_rating")),
@@ -98,12 +99,18 @@ class HotelETL(BaseETL[HotelImportRow]):
 
     async def _find_duplicate(self, row: HotelImportRow) -> UUID | None:
         from app.models.hotel import HotelAsset
-        stmt = select(HotelAsset.id).where(
-            HotelAsset.asset_name == row.asset_name,
+        # Fetch all hotels in the same city and compare dedup keys in Python.
+        # This handles accent and prefix variations that exact SQL == misses
+        # (e.g. "Gran Hotel Miramar" == "Hotel Miramar", "Meliá" == "Melia").
+        stmt = select(HotelAsset.id, HotelAsset.asset_name).where(
             HotelAsset.city == row.city,
         )
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        incoming_key = hotel_dedup_key(row.asset_name, row.city)
+        for existing_id, existing_name in result.fetchall():
+            if hotel_dedup_key(existing_name, row.city) == incoming_key:
+                return existing_id
+        return None
 
     async def _insert_record(self, row: HotelImportRow) -> None:
         from app.models.hotel import HotelAsset
