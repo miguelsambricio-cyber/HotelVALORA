@@ -39,6 +39,9 @@ build/
 # Keep versions tracked; ignore only auto-generated temp files
 alembic/versions/*.pyc
 
+# ─── Claude Code ──────────────────────────────────────────────────────────────
+.claude/
+
 # ─── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
