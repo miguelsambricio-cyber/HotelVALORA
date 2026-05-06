@@ -1,227 +1,178 @@
+from __future__ import annotations
+
 import io
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 import pandas as pd
+import structlog
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ImportError
-from app.models.hotel import Hotel, HotelFinancial
-from app.models.transaction import ComparableTransaction
-from app.models.market import MarketSnapshot
+# Pipeline service on sys.path so the API can import ETL modules
+_PIPELINE_PATH = str(Path(__file__).parents[5] / "services" / "data_pipeline")
+if _PIPELINE_PATH not in sys.path:
+    sys.path.insert(0, _PIPELINE_PATH)
 
-# ─── CoStar column → internal field mappings ────────────────────────────────
+from pipeline.core.result import ImportResult
+from pipeline.excel.parser import ParseError, coerce_types, parse_excel
+from pipeline.excel.validator import validate_dataframe
+from pipeline.etl.financials import FinancialETL
+from pipeline.etl.hotels import HotelETL
+from pipeline.etl.market import MarketSnapshotETL
+from pipeline.etl.transactions import TransactionETL
+from pipeline.costar.normalizer import (
+    normalize_market_stats,
+    normalize_properties,
+    normalize_transactions,
+)
 
-COSTAR_PROPERTY_MAP = {
-    "Property Name": "name",
-    "City": "city",
-    "State": "state",
-    "Zip": "zip_code",
-    "Number of Rooms": "total_keys",
-    "Year Built": "year_built",
-    "Star Rating": "star_rating",
-    "Property Type": "chain_scale",
-    "Brand": "brand",
-    "Latitude": "latitude",
-    "Longitude": "longitude",
-}
+from app.models.import_job import ImportJob, ImportStagingRow
 
-COSTAR_TRANSACTION_MAP = {
-    "Property Name": "property_name",
-    "City": "city",
-    "State": "state",
-    "Close Date": "sale_date",
-    "Sale Price": "sale_price",
-    "Price/Key": "price_per_key",
-    "Going-In Cap Rate": "cap_rate",
-    "Buyer": "buyer",
-    "Seller": "seller",
-    "Number of Rooms": "total_keys",
-    "CoStar Property ID": "source_id",
-}
+log = structlog.get_logger(__name__)
+MODE = str  # "insert" | "upsert" | "dry_run"
 
-COSTAR_MARKET_MAP = {
-    "Submarket": "submarket",
-    "City": "city",
-    "State": "state",
-    "Year": "period_year",
-    "Occupancy": "market_occupancy",
-    "ADR": "market_adr",
-    "RevPAR": "market_revpar",
-    "Supply": "market_supply",
-    "Demand": "market_demand",
-    "RevPAR Change": "revpar_growth_yoy",
-}
 
+# ── Job lifecycle helpers ──────────────────────────────────────────────────────
+
+async def _create_job(db: AsyncSession, source_type: str, file_name: str) -> ImportJob:
+    job = ImportJob(
+        source_type=source_type,
+        file_name=file_name,
+        status="parsing",
+        started_at=datetime.now(timezone.utc),
+    )
+    db.add(job)
+    await db.flush()
+    return job
+
+
+async def _finish_job(db: AsyncSession, job: ImportJob, result: ImportResult) -> None:
+    job.status = "completed"
+    job.total_rows = result.total_rows
+    job.valid_rows = result.valid_rows
+    job.invalid_rows = result.invalid_rows
+    job.duplicate_rows = result.duplicate_rows
+    job.inserted_rows = result.inserted_rows
+    job.updated_rows = result.updated_rows
+    job.completed_at = datetime.now(timezone.utc)
+    for row in result.rows:
+        db.add(ImportStagingRow(job_id=job.id, **row.to_staging_dict()))
+    await db.commit()
+
+
+async def _fail_job(db: AsyncSession, job: ImportJob, message: str) -> None:
+    job.status = "failed"
+    job.error_message = message[:2000]
+    job.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+
+def _read_file(content: bytes) -> pd.DataFrame:
+    try:
+        return pd.read_excel(io.BytesIO(content))
+    except Exception:
+        return pd.read_csv(io.BytesIO(content))
+
+
+# ── Excel import service ───────────────────────────────────────────────────────
 
 class ExcelImportService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def _read_excel(self, file: UploadFile) -> pd.DataFrame:
+    async def import_hotels(self, file: UploadFile, mode: MODE = "upsert") -> dict:
+        job = await _create_job(self.db, "excel_hotels", file.filename or "")
         try:
             content = await file.read()
-            return pd.read_excel(io.BytesIO(content))
-        except Exception as e:
-            raise ImportError(f"Cannot parse Excel file: {e}")
+            df = parse_excel(content, "hotels")
+            df = coerce_types(df, "hotels")
+            validate_dataframe(df, "hotels")
 
-    async def import_hotels(self, file: UploadFile) -> dict:
-        df = await self._read_excel(file)
-        required = {"name", "city", "total_keys"}
-        missing = required - set(df.columns.str.strip().str.lower())
-        if missing:
-            raise ImportError(f"Missing required columns: {missing}")
+            result = await HotelETL(self.db).run(df, mode=mode, file_name=file.filename or "")
+            await _finish_job(self.db, job, result)
+            return {"job_id": str(job.id), **result.summary()}
+        except Exception as exc:
+            await _fail_job(self.db, job, str(exc))
+            log.exception("import_hotels_failed", error=str(exc))
+            raise
 
-        created, errors = 0, []
-        for i, row in df.iterrows():
-            try:
-                from python_slugify import slugify
-                name = str(row.get("name", "")).strip()
-                hotel = Hotel(
-                    name=name,
-                    slug=slugify(name),
-                    city=str(row.get("city", "")).strip(),
-                    total_keys=int(row.get("total_keys", 0)),
-                    brand=str(row.get("brand", "")).strip() or None,
-                    year_built=int(row["year_built"]) if pd.notna(row.get("year_built")) else None,
-                )
-                self.db.add(hotel)
-                created += 1
-            except Exception as e:
-                errors.append({"row": i + 2, "error": str(e)})
-        await self.db.flush()
-        return {"created": created, "errors": errors, "total_rows": len(df)}
+    async def import_financials(
+        self, hotel_id: str, file: UploadFile, mode: MODE = "upsert"
+    ) -> dict:
+        job = await _create_job(self.db, "excel_financials", file.filename or "")
+        try:
+            content = await file.read()
+            df = parse_excel(content, "financials")
+            df = coerce_types(df, "financials")
 
-    async def import_financials(self, hotel_id: str, file: UploadFile) -> dict:
-        df = await self._read_excel(file)
-        created, errors = 0, []
-        for i, row in df.iterrows():
-            try:
-                record = HotelFinancial(
-                    hotel_id=UUID(hotel_id),
-                    year=int(row["year"]),
-                    rooms_revenue=float(row["rooms_revenue"]) if pd.notna(row.get("rooms_revenue")) else None,
-                    total_revenue=float(row["total_revenue"]) if pd.notna(row.get("total_revenue")) else None,
-                    occupancy_rate=float(row["occupancy_rate"]) if pd.notna(row.get("occupancy_rate")) else None,
-                    adr=float(row["adr"]) if pd.notna(row.get("adr")) else None,
-                    revpar=float(row["revpar"]) if pd.notna(row.get("revpar")) else None,
-                    noi=float(row["noi"]) if pd.notna(row.get("noi")) else None,
-                    source="import",
-                )
-                self.db.add(record)
-                created += 1
-            except Exception as e:
-                errors.append({"row": i + 2, "error": str(e)})
-        await self.db.flush()
-        return {"created": created, "errors": errors}
+            result = await FinancialETL(self.db, asset_id=UUID(hotel_id)).run(
+                df, mode=mode, file_name=file.filename or ""
+            )
+            await _finish_job(self.db, job, result)
+            return {"job_id": str(job.id), **result.summary()}
+        except Exception as exc:
+            await _fail_job(self.db, job, str(exc))
+            raise
 
-    async def import_transactions(self, file: UploadFile) -> dict:
-        df = await self._read_excel(file)
-        created, errors = 0, []
-        for i, row in df.iterrows():
-            try:
-                comp = ComparableTransaction(
-                    property_name=str(row["property_name"]).strip(),
-                    city=str(row["city"]).strip(),
-                    sale_date=str(row["sale_date"]).strip()[:10],
-                    total_keys=int(row["total_keys"]) if pd.notna(row.get("total_keys")) else None,
-                    sale_price=float(row["sale_price"]) if pd.notna(row.get("sale_price")) else None,
-                    price_per_key=float(row["price_per_key"]) if pd.notna(row.get("price_per_key")) else None,
-                    cap_rate=float(row["cap_rate"]) if pd.notna(row.get("cap_rate")) else None,
-                    source="import",
-                )
-                self.db.add(comp)
-                created += 1
-            except Exception as e:
-                errors.append({"row": i + 2, "error": str(e)})
-        await self.db.flush()
-        return {"created": created, "errors": errors}
+    async def import_transactions(self, file: UploadFile, mode: MODE = "upsert") -> dict:
+        job = await _create_job(self.db, "excel_transactions", file.filename or "")
+        try:
+            content = await file.read()
+            df = parse_excel(content, "transactions")
+            df = coerce_types(df, "transactions")
 
+            result = await TransactionETL(self.db).run(df, mode=mode, file_name=file.filename or "")
+            await _finish_job(self.db, job, result)
+            return {"job_id": str(job.id), **result.summary()}
+        except Exception as exc:
+            await _fail_job(self.db, job, str(exc))
+            raise
+
+
+# ── CoStar import service ──────────────────────────────────────────────────────
 
 class CoStarImportService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    def _normalize(self, df: pd.DataFrame, col_map: dict) -> pd.DataFrame:
-        df = df.rename(columns={k: v for k, v in col_map.items() if k in df.columns})
-        df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
-        return df
-
-    async def _read(self, file: UploadFile) -> pd.DataFrame:
-        content = await file.read()
+    async def import_properties(self, file: UploadFile, mode: MODE = "upsert") -> dict:
+        job = await _create_job(self.db, "costar_properties", file.filename or "")
         try:
-            return pd.read_excel(io.BytesIO(content))
-        except Exception:
-            return pd.read_csv(io.BytesIO(content))
+            df = normalize_properties(_read_file(await file.read()))
+            etl = HotelETL(self.db)
+            etl.SOURCE_TYPE = "costar_properties"
+            result = await etl.run(df, mode=mode, file_name=file.filename or "")
+            await _finish_job(self.db, job, result)
+            return {"job_id": str(job.id), **result.summary()}
+        except Exception as exc:
+            await _fail_job(self.db, job, str(exc))
+            raise
 
-    async def import_properties(self, file: UploadFile) -> dict:
-        df = self._normalize(await self._read(file), COSTAR_PROPERTY_MAP)
-        created, errors = 0, []
-        for i, row in df.iterrows():
-            try:
-                from python_slugify import slugify
-                name = str(row.get("name", "")).strip()
-                hotel = Hotel(
-                    name=name,
-                    slug=slugify(name),
-                    city=str(row.get("city", "")).strip(),
-                    total_keys=int(row["total_keys"]) if pd.notna(row.get("total_keys")) else 0,
-                    brand=str(row.get("brand", "")).strip() or None,
-                    source_id=str(row.get("costar_property_id", "")) or None,
-                    meta={"source": "costar"},
-                )
-                self.db.add(hotel)
-                created += 1
-            except Exception as e:
-                errors.append({"row": i + 2, "error": str(e)})
-        await self.db.flush()
-        return {"created": created, "errors": errors}
+    async def import_transactions(self, file: UploadFile, mode: MODE = "upsert") -> dict:
+        job = await _create_job(self.db, "costar_transactions", file.filename or "")
+        try:
+            df = normalize_transactions(_read_file(await file.read()))
+            etl = TransactionETL(self.db)
+            etl.SOURCE_TYPE = "costar_transactions"
+            result = await etl.run(df, mode=mode, file_name=file.filename or "")
+            await _finish_job(self.db, job, result)
+            return {"job_id": str(job.id), **result.summary()}
+        except Exception as exc:
+            await _fail_job(self.db, job, str(exc))
+            raise
 
-    async def import_transactions(self, file: UploadFile) -> dict:
-        df = self._normalize(await self._read(file), COSTAR_TRANSACTION_MAP)
-        created, errors = 0, []
-        for i, row in df.iterrows():
-            try:
-                comp = ComparableTransaction(
-                    property_name=str(row["property_name"]).strip(),
-                    city=str(row.get("city", "")).strip(),
-                    sale_date=str(row.get("sale_date", ""))[:10],
-                    total_keys=int(row["total_keys"]) if pd.notna(row.get("total_keys")) else None,
-                    sale_price=float(row["sale_price"]) if pd.notna(row.get("sale_price")) else None,
-                    price_per_key=float(row["price_per_key"]) if pd.notna(row.get("price_per_key")) else None,
-                    cap_rate=float(row["cap_rate"]) if pd.notna(row.get("cap_rate")) else None,
-                    buyer=str(row.get("buyer", "")) or None,
-                    seller=str(row.get("seller", "")) or None,
-                    source="costar",
-                    source_id=str(row.get("source_id", "")) or None,
-                )
-                self.db.add(comp)
-                created += 1
-            except Exception as e:
-                errors.append({"row": i + 2, "error": str(e)})
-        await self.db.flush()
-        return {"created": created, "errors": errors}
-
-    async def import_market_stats(self, file: UploadFile) -> dict:
-        df = self._normalize(await self._read(file), COSTAR_MARKET_MAP)
-        created, errors = 0, []
-        for i, row in df.iterrows():
-            try:
-                snap = MarketSnapshot(
-                    submarket=str(row.get("submarket", "")).strip(),
-                    city=str(row.get("city", "")).strip(),
-                    state=str(row.get("state", "")).strip() or None,
-                    period_year=int(row["period_year"]),
-                    period_type="annual",
-                    market_occupancy=float(row["market_occupancy"]) if pd.notna(row.get("market_occupancy")) else None,
-                    market_adr=float(row["market_adr"]) if pd.notna(row.get("market_adr")) else None,
-                    market_revpar=float(row["market_revpar"]) if pd.notna(row.get("market_revpar")) else None,
-                    revpar_growth_yoy=float(row["revpar_growth_yoy"]) if pd.notna(row.get("revpar_growth_yoy")) else None,
-                    source="costar",
-                )
-                self.db.add(snap)
-                created += 1
-            except Exception as e:
-                errors.append({"row": i + 2, "error": str(e)})
-        await self.db.flush()
-        return {"created": created, "errors": errors}
+    async def import_market_stats(self, file: UploadFile, mode: MODE = "upsert") -> dict:
+        job = await _create_job(self.db, "costar_market_stats", file.filename or "")
+        try:
+            df = normalize_market_stats(_read_file(await file.read()))
+            etl = MarketSnapshotETL(self.db)
+            etl.SOURCE_TYPE = "costar_market_stats"
+            result = await etl.run(df, mode=mode, file_name=file.filename or "")
+            await _finish_job(self.db, job, result)
+            return {"job_id": str(job.id), **result.summary()}
+        except Exception as exc:
+            await _fail_job(self.db, job, str(exc))
+            raise
