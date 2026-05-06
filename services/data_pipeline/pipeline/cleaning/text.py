@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from python_slugify import slugify as _slugify
+from slugify import slugify as _slugify
 
 _WHITESPACE = re.compile(r"\s+")
 

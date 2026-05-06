@@ -94,6 +94,12 @@ class HotelAliasEntryUpdate(ValoraBase):
             raise ValueError("confidence must be between 0 and 1")
         return v
 
+    @model_validator(mode="after")
+    def valid_to_after_valid_from(self) -> "HotelAliasEntryUpdate":
+        if self.valid_from and self.valid_to and self.valid_to < self.valid_from:
+            raise ValueError("valid_to must be on or after valid_from")
+        return self
+
 
 class HotelAliasEntryRead(ValoraBase):
     id: UUID

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from python_slugify import slugify
+from slugify import slugify
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

@@ -48,7 +48,7 @@ class Valuation(BaseModel):
 
     notes: Mapped[str | None] = mapped_column(Text)
 
-    hotel: Mapped["Hotel"] = relationship(back_populates="valuations")  # noqa: F821
+    hotel: Mapped["HotelAsset"] = relationship(back_populates="valuations")  # noqa: F821
     flex_asset: Mapped["FlexLivingAsset"] = relationship(back_populates="valuations")  # noqa: F821
     underwriting: Mapped["Underwriting"] = relationship(
         back_populates="valuation", uselist=False, cascade="all, delete-orphan"
