@@ -1,13 +1,13 @@
 "use client";
 
-import { AlertTriangle, CheckCircle, TrendingDown } from "lucide-react";
+import { AlertTriangle, CheckCircle, GitMerge, TrendingDown } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { useReviewSummary } from "@/lib/api/review";
 
 interface CardDef {
   label: string;
-  valueKey: "open_conflicts" | "low_confidence_aliases";
+  valueKey: "open_conflicts" | "low_confidence_aliases" | "pending_merge_recommendations";
   icon: React.ElementType;
   iconClass: string;
   borderClass: string;
@@ -27,6 +27,13 @@ const CARDS: CardDef[] = [
     icon: TrendingDown,
     iconClass: "text-rose-500",
     borderClass: "border-l-4 border-l-rose-400",
+  },
+  {
+    label: "Pending Merges",
+    valueKey: "pending_merge_recommendations",
+    icon: GitMerge,
+    iconClass: "text-violet-500",
+    borderClass: "border-l-4 border-l-violet-400",
   },
 ];
 

@@ -10,6 +10,7 @@ from app.api.v1.auth.auth import router as auth_router
 from app.api.v1.imports.costar import router as costar_router
 from app.api.v1.imports.excel import router as excel_router
 from app.api.v1.review.router import router as review_router
+from app.api.v1.dedup.router import router as dedup_router
 from app.api.v1.market.comparables import router as comps_router
 from app.api.v1.market.intelligence import router as market_router
 from app.api.v1.valuations.dcf import router as dcf_router
@@ -38,6 +39,9 @@ api_router.include_router(comps_router, prefix="/market/comparables", tags=["com
 
 # ── Review queue ─────────────────────────────────────────────────────────────
 api_router.include_router(review_router, prefix="/review", tags=["review"])
+
+# ── Dedup / merge recommendations ─────────────────────────────────────────────
+api_router.include_router(dedup_router, prefix="/dedup", tags=["dedup"])
 
 # ── Imports ───────────────────────────────────────────────────────────────────
 api_router.include_router(excel_router, prefix="/imports/excel", tags=["imports"])

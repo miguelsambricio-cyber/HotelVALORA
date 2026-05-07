@@ -5,14 +5,20 @@ import { ClipboardList } from "lucide-react";
 
 import { ConflictQueue } from "@/components/review/conflict-queue";
 import { LowConfidenceQueue } from "@/components/review/low-confidence-queue";
+import { MergeQueue } from "@/components/review/merge-queue";
 import { ReviewSummaryCards } from "@/components/review/summary-cards";
 import { useReviewSummary } from "@/lib/api/review";
 
-type Tab = "conflicts" | "low-confidence";
+type Tab = "conflicts" | "low-confidence" | "merges";
 
-const TABS: { id: Tab; label: string; countKey: "open_conflicts" | "low_confidence_aliases" }[] = [
+const TABS: {
+  id: Tab;
+  label: string;
+  countKey: "open_conflicts" | "low_confidence_aliases" | "pending_merge_recommendations";
+}[] = [
   { id: "conflicts", label: "Alias Conflicts", countKey: "open_conflicts" },
   { id: "low-confidence", label: "Low Confidence", countKey: "low_confidence_aliases" },
+  { id: "merges", label: "Merge Recommendations", countKey: "pending_merge_recommendations" },
 ];
 
 export default function ReviewPage() {
@@ -29,7 +35,7 @@ export default function ReviewPage() {
             <h1 className="font-display text-2xl font-bold tracking-tight">Review Queue</h1>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
-            Alias conflicts and low-confidence matches that need human attention
+            Alias conflicts, low-confidence matches, and duplicate recommendations needing attention
           </p>
         </div>
       </div>
@@ -73,6 +79,7 @@ export default function ReviewPage() {
         <div className="mt-4">
           {activeTab === "conflicts" && <ConflictQueue />}
           {activeTab === "low-confidence" && <LowConfidenceQueue />}
+          {activeTab === "merges" && <MergeQueue />}
         </div>
       </div>
     </div>

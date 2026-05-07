@@ -2,6 +2,7 @@ export interface ReviewSummary {
   open_conflicts: number;
   low_confidence_aliases: number;
   low_confidence_threshold: number;
+  pending_merge_recommendations: number;
 }
 
 export interface AliasConflict {

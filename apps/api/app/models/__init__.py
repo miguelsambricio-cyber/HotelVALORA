@@ -12,6 +12,7 @@ from app.models.alias import (
     HotelMergeHistory,
     AliasConflict,
 )
+from app.models.merge_recommendation import MergeRecommendation
 
 __all__ = [
     "BaseModel",
@@ -30,4 +31,5 @@ __all__ = [
     "OperatorAlias",
     "HotelMergeHistory",
     "AliasConflict",
+    "MergeRecommendation",
 ]

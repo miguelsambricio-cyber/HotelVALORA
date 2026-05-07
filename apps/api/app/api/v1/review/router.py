@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.alias import AliasConflict, HotelAliasEntry
+from app.models.merge_recommendation import MergeRecommendation
 from app.schemas.common import SingleResponse
 from app.schemas.review import ReviewSummary
 
@@ -46,10 +47,16 @@ async def get_review_summary(
             HotelAliasEntry.confidence < LOW_CONFIDENCE_THRESHOLD,
         )
     )
+    pending_merges = await db.scalar(
+        select(func.count()).select_from(MergeRecommendation).where(
+            MergeRecommendation.status == "pending_review"
+        )
+    )
     return SingleResponse(
         data=ReviewSummary(
             open_conflicts=open_conflicts or 0,
             low_confidence_aliases=low_confidence_aliases or 0,
             low_confidence_threshold=float(LOW_CONFIDENCE_THRESHOLD),
+            pending_merge_recommendations=pending_merges or 0,
         )
     )
