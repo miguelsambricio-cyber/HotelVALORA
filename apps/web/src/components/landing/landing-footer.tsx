@@ -1,24 +1,22 @@
 import Link from "next/link";
 
-const NAV_LINKS = [
-  { href: "#", label: "Términos" },
-  { href: "#", label: "Privacidad" },
-  { href: "#", label: "Contacto" },
-  { href: "#", label: "Institucional" },
+const FOOTER_LINKS = [
+  { href: "/terms",       label: "Términos"      },
+  { href: "/privacy",     label: "Privacidad"    },
+  { href: "/contact",     label: "Contacto"      },
+  { href: "/institutional", label: "Institucional" },
 ] as const;
 
 export function LandingFooter() {
   return (
     <footer className="w-full bg-forest-900 py-8 px-8 border-t border-white/10">
-      <div className="max-w-7xl mx-auto flex flex-col items-center">
-        <div className="mb-4">
-          <span className="font-display font-bold text-xl text-white tracking-tight">
-            HotelVALORA
-          </span>
-        </div>
+      <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
+        <span className="font-display font-bold text-xl text-white tracking-tight">
+          HotelVALORA
+        </span>
 
-        <nav className="flex flex-wrap justify-center gap-6 mb-4">
-          {NAV_LINKS.map(({ href, label }) => (
+        <nav aria-label="Footer" className="flex flex-wrap justify-center gap-6">
+          {FOOTER_LINKS.map(({ href, label }) => (
             <Link
               key={label}
               href={href}

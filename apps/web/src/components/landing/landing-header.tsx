@@ -1,8 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import Link from "next/link";
 import { User, Menu, X } from "lucide-react";
+
+const NAV_LINKS = [
+  { href: "#biblioteca", label: "Biblioteca" },
+] as const;
 
 export function LandingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -19,13 +23,16 @@ export function LandingHeader() {
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-10">
-          <Link
-            href="#"
-            className="text-sm font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
-          >
-            Biblioteca
-          </Link>
+        <nav aria-label="Navegación principal" className="hidden md:flex items-center gap-10">
+          {NAV_LINKS.map(({ href, label }) => (
+            <Link
+              key={label}
+              href={href}
+              className="text-sm font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
+            >
+              {label}
+            </Link>
+          ))}
           <Link
             href="/login"
             className="text-sm font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
@@ -36,15 +43,18 @@ export function LandingHeader() {
             href="/dashboard"
             className="flex items-center gap-2 px-4 py-2 bg-forest-900 text-white rounded-lg text-sm font-bold shadow-sm hover:shadow-md transition-all"
           >
-            <User size={18} />
+            <User size={18} aria-hidden />
             USUARIO
           </Link>
         </nav>
 
         {/* Mobile toggle */}
         <button
-          className="md:hidden text-forest-900"
+          type="button"
+          className="md:hidden text-forest-900 p-1"
           onClick={() => setMobileOpen((v) => !v)}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-nav"
           aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
         >
           {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -53,27 +63,37 @@ export function LandingHeader() {
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-slate-200 px-6 py-4 flex flex-col gap-4">
-          <Link
-            href="#"
-            className="text-sm font-semibold text-slate-500 uppercase tracking-wide hover:text-forest-900 transition-colors"
-          >
-            Biblioteca
-          </Link>
+        <nav
+          id="mobile-nav"
+          aria-label="Navegación móvil"
+          className="md:hidden bg-white border-t border-slate-200 px-6 py-4 flex flex-col gap-4"
+        >
+          {NAV_LINKS.map(({ href, label }) => (
+            <Link
+              key={label}
+              href={href}
+              className="text-sm font-semibold text-slate-500 uppercase tracking-wide hover:text-forest-900 transition-colors"
+              onClick={() => setMobileOpen(false)}
+            >
+              {label}
+            </Link>
+          ))}
           <Link
             href="/login"
             className="text-sm font-semibold text-slate-500 uppercase tracking-wide hover:text-forest-900 transition-colors"
+            onClick={() => setMobileOpen(false)}
           >
             Login
           </Link>
           <Link
             href="/dashboard"
             className="flex items-center gap-2 px-4 py-2 bg-forest-900 text-white rounded-lg text-sm font-bold w-fit"
+            onClick={() => setMobileOpen(false)}
           >
-            <User size={16} />
+            <User size={16} aria-hidden />
             USUARIO
           </Link>
-        </div>
+        </nav>
       )}
     </header>
   );
