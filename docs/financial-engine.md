@@ -2,69 +2,101 @@
 
 **Location:** `services/financial_engine/`  
 **Runtime:** Python, NumPy, SciPy  
-**Invocation:** Direct import or via Celery task from the API
+**Invocation:** direct import by `app/services/valuation_service.py` or via Celery task
 
-## Modules
+---
+
+## Module Map
 
 ```
 engine/
 ├── dcf/
-│   ├── models.py        # Pydantic I/O schemas
-│   ├── projections.py   # Core DCF calculation
-│   └── sensitivity.py   # Sensitivity grid
+│   ├── models.py        Pydantic I/O schemas: DCFInput, DCFResult, CashFlowYear, TerminalValue
+│   ├── projections.py   Core DCF calculation
+│   └── sensitivity.py   Grid: discount_rate × terminal_cap_rate → NPV
 ├── metrics/
-│   ├── adr.py           # Average Daily Rate
-│   └── revpar.py        # Revenue Per Available Room
+│   ├── adr.py           ADR = Rooms Revenue / Rooms Sold
+│   └── revpar.py        RevPAR = Occupancy × ADR
 └── underwriting/
-    ├── noi.py           # Net Operating Income
-    └── metrics.py       # Return metrics (IRR, equity multiple, DSCR)
+    ├── noi.py           NOI = Total Revenue − Total Operating Expenses
+    └── metrics.py       IRR, equity multiple, DSCR
 ```
 
-## DCF Engine
+---
 
-### Inputs (`DCFInput`)
+## DCF Inputs (`DCFInput`)
 
-| Field | Type | Description |
+| Field | Default | Notes |
 |---|---|---|
-| total_keys | int | Number of hotel rooms |
-| projection_years | int | Default: 10 |
-| discount_rate | float | WACC / required return |
-| terminal_cap_rate | float | Exit capitalization rate |
-| stabilized_occupancy | float | Stabilized occupancy (0–1) |
-| stabilized_adr | float | Average daily rate at stabilization |
-| revenue_growth_rates | list[float] | Per-year growth vector |
-| expense_ratio | float | Total expenses / revenue. Default: 0.65 |
-| capex_reserve_pct | float | Default: 0.04 |
-| management_fee_pct | float | Default: 0.03 |
-| franchise_fee_pct | float | Default: 0.05 |
+| `total_keys` | required | Room count |
+| `projection_years` | 10 | |
+| `discount_rate` | 0.10 | WACC / required return |
+| `terminal_cap_rate` | 0.07 | Exit capitalisation rate |
+| `stabilized_occupancy` | 0.70 | 0–1 |
+| `stabilized_adr` | 150.0 | Average daily rate at stabilisation |
+| `revenue_growth_rates` | [0.03] | Per-year growth vector |
+| `noi_margin` | 0.35 | NOI / revenue |
+| `capex_reserve_pct` | 0.04 | % of NOI |
+| `management_fee_pct` | 0.03 | % of revenue |
+| `franchise_fee_pct` | 0.05 | % of revenue |
 
-### Outputs (`DCFResult`)
+Defaults configurable via env: `DEFAULT_DISCOUNT_RATE`, `DEFAULT_TERMINAL_CAP_RATE`, `DEFAULT_PROJECTION_YEARS`.
+
+---
+
+## DCF Calculation Logic
+
+Implemented in `ValuationService._compute_dcf()` (`app/services/valuation_service.py`) and mirrored in `services/financial_engine/engine/dcf/projections.py`.
+
+```
+base_noi = keys × 365 × occupancy × ADR × noi_margin
+
+for each year:
+    noi_year   = base_noi × (1 + growth)^year
+    capex      = noi_year × capex_reserve_pct
+    FCF        = noi_year − capex
+    PV(FCF)    = FCF / (1 + discount_rate)^year
+
+terminal_noi = base_noi × (1 + growth)^(years+1)
+TV           = terminal_noi / terminal_cap_rate
+PV(TV)       = TV / (1 + discount_rate)^years
+
+NPV = Σ PV(FCF) + PV(TV)
+```
+
+---
+
+## DCF Output (`DCFResult`)
 
 | Field | Description |
 |---|---|
-| npv | Net present value of all cash flows + terminal |
-| value_per_key | NPV / total_keys |
-| implied_cap_rate | Year 1 NOI / NPV |
-| cash_flows | List of `CashFlowYear` objects |
-| terminal_value | `TerminalValue` (terminal NOI, TV, PV of TV) |
+| `npv` | Net present value |
+| `value_per_key` | NPV / total_keys |
+| `implied_cap_rate` | Year-1 NOI / NPV |
+| `cash_flows` | List of `CashFlowYear` objects |
+| `terminal_value` | `TerminalValue` (terminal_noi, TV, PV_of_TV) |
 
-### Calculation Logic
+Stored in `valuations.cash_flows` (JSONB) and `valuations.concluded_value`.
 
-1. **Base revenue** = `total_keys × 365 × stabilized_occupancy × stabilized_adr`
-2. **Per year**: apply cumulative growth, deduct expenses (ratio + mgmt + franchise), deduct capex reserve → Free Cash Flow
-3. **Discount** each FCF at the given `discount_rate`
-4. **Terminal value** = Year N+1 NOI / `terminal_cap_rate`, discounted back to present
-5. **NPV** = sum of PV(FCF) + PV(Terminal Value)
+---
 
-### Sensitivity Analysis
+## Sensitivity Analysis
 
-The engine generates a grid varying `discount_rate` and `terminal_cap_rate` to produce NPV and value-per-key at each combination. Stored as JSONB in `dcf_model_outputs.sensitivity`.
+Grid of NPV values varying `discount_rate` and `terminal_cap_rate`:
+
+```python
+table[str(dr)][str(cr)] = npv   # for each (dr, cr) combination
+```
+
+Stored as JSONB in `valuations.sensitivity`. Exposed at `GET /valuations/dcf/{id}/sensitivity`.
+
+---
 
 ## Key Metrics
 
 ### RevPAR
-`RevPAR = Occupancy × ADR`  
-Measures revenue efficiency per available room, independent of occupancy.
+`RevPAR = Occupancy Rate × ADR`  
+Measures revenue efficiency per available room. Independent of whether rooms are sold.
 
 ### ADR (Average Daily Rate)
 `ADR = Rooms Revenue / Rooms Sold`  
@@ -72,16 +104,8 @@ Measures pricing power; excludes unsold rooms.
 
 ### NOI (Net Operating Income)
 `NOI = Total Revenue − Total Operating Expenses`  
-Excludes debt service, taxes, and capital expenditures.  
-NOI margin is the primary driver of cap rate valuation.
+Excludes debt service, income taxes, and capital expenditures. Primary driver of cap rate valuation.
 
-## Default Assumptions
-
-| Parameter | Default |
-|---|---|
-| Discount rate | 10% |
-| Terminal cap rate | 7% |
-| Projection years | 10 |
-| Currency | USD |
-
-Defaults are configurable via environment variables (`DEFAULT_DISCOUNT_RATE`, `DEFAULT_TERMINAL_CAP_RATE`, `DEFAULT_PROJECTION_YEARS`).
+### DSCR (Debt Service Coverage Ratio)
+`DSCR = NOI / Annual Debt Service`  
+Values ≥ 1.25 considered healthy for hotel lending.
