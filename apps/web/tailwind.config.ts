@@ -10,7 +10,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Brand palette
+        // Landing palette — deep emerald design system
+        forest: {
+          50:  "#f0f9f4",
+          700: "#0E4B31",
+          900: "#062C1C",
+        },
+        // Dashboard brand palette
         brand: {
           50:  "#f0f4ff",
           100: "#e0ebff",
