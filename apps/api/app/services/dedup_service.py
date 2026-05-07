@@ -41,6 +41,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.hotel import HotelAsset
 from app.models.merge_recommendation import MergeRecommendation
 from app.schemas.merge_recommendation import ScanResult
+from app.services.audit_service import AuditService
 
 # ── Inline normalisation (mirrors pipeline.cleaning.multilingual) ─────────────
 
@@ -339,7 +340,21 @@ def _build_rationale(
     return " ".join(parts)
 
 
-# ── Asset snapshot helper ─────────────────────────────────────────────────────
+# ── Snapshot helpers ──────────────────────────────────────────────────────────
+
+def _rec_snapshot(rec: MergeRecommendation) -> dict:
+    return {
+        "id": str(rec.id),
+        "asset_a_id": str(rec.asset_a_id),
+        "asset_b_id": str(rec.asset_b_id),
+        "status": rec.status,
+        "final_score": float(rec.final_score),
+        "confidence_label": rec.confidence_label,
+        "recommendation": rec.recommendation,
+        "reviewed_at": rec.reviewed_at.isoformat() if rec.reviewed_at else None,
+        "review_notes": rec.review_notes,
+    }
+
 
 def _snapshot(asset: HotelAsset) -> dict:
     return {
@@ -474,7 +489,7 @@ class DedupService:
         )
         total_pending = (await self._db.execute(count_q)).scalar() or 0
 
-        return ScanResult(
+        scan_result = ScanResult(
             assets_scanned=len(assets),
             pairs_evaluated=counters["evaluated"],
             new_recommendations=counters["new"],
@@ -482,6 +497,22 @@ class DedupService:
             skipped_human_reviewed=counters["skipped"],
             total_pending=total_pending,
         )
+
+        await AuditService(self._db).log(
+            event_type="merge.scan",
+            actor_type="system",
+            meta={
+                "city_filter": city,
+                "assets_scanned": scan_result.assets_scanned,
+                "pairs_evaluated": scan_result.pairs_evaluated,
+                "new_recommendations": scan_result.new_recommendations,
+                "updated_recommendations": scan_result.updated_recommendations,
+                "skipped_human_reviewed": scan_result.skipped_human_reviewed,
+                "total_pending": scan_result.total_pending,
+            },
+        )
+        await self._db.commit()
+        return scan_result
 
     # ── List / get ────────────────────────────────────────────────────────────
 
@@ -535,7 +566,10 @@ class DedupService:
     # ── Accept ────────────────────────────────────────────────────────────────
 
     async def accept(
-        self, rec_id: uuid.UUID, notes: Optional[str] = None
+        self,
+        rec_id: uuid.UUID,
+        notes: Optional[str] = None,
+        actor_id: Optional[uuid.UUID] = None,
     ):
         from app.core.exceptions import NotFoundError, ConflictError
         from app.schemas.merge_recommendation import MergeRecommendationRead
@@ -549,10 +583,23 @@ class DedupService:
                 f"Recommendation is already '{rec.status}' — cannot accept"
             )
 
+        before = _rec_snapshot(rec)
         rec.status = "accepted"
         rec.review_notes = notes
         rec.reviewed_at = datetime.now(timezone.utc)
         rec.updated_at = datetime.now(timezone.utc)
+        await self._db.flush()
+        await AuditService(self._db).log(
+            event_type="merge.accepted",
+            actor_type="user" if actor_id else "system",
+            actor_id=actor_id,
+            entity_type="merge_recommendation",
+            entity_id=rec.id,
+            before_state=before,
+            after_state=_rec_snapshot(rec),
+            meta={"score_breakdown": rec.score_breakdown, "false_positive_signals": rec.false_positive_signals},
+            reversible=True,
+        )
         await self._db.commit()
         await self._db.refresh(rec)
         return MergeRecommendationRead.model_validate(rec)
@@ -560,7 +607,10 @@ class DedupService:
     # ── Dismiss ───────────────────────────────────────────────────────────────
 
     async def dismiss(
-        self, rec_id: uuid.UUID, notes: Optional[str] = None
+        self,
+        rec_id: uuid.UUID,
+        notes: Optional[str] = None,
+        actor_id: Optional[uuid.UUID] = None,
     ):
         from app.core.exceptions import NotFoundError, ConflictError
         from app.schemas.merge_recommendation import MergeRecommendationRead
@@ -574,10 +624,23 @@ class DedupService:
                 f"Recommendation is already '{rec.status}' — cannot dismiss"
             )
 
+        before = _rec_snapshot(rec)
         rec.status = "dismissed"
         rec.review_notes = notes
         rec.reviewed_at = datetime.now(timezone.utc)
         rec.updated_at = datetime.now(timezone.utc)
+        await self._db.flush()
+        await AuditService(self._db).log(
+            event_type="merge.dismissed",
+            actor_type="user" if actor_id else "system",
+            actor_id=actor_id,
+            entity_type="merge_recommendation",
+            entity_id=rec.id,
+            before_state=before,
+            after_state=_rec_snapshot(rec),
+            meta={"score_breakdown": rec.score_breakdown, "false_positive_signals": rec.false_positive_signals},
+            reversible=True,
+        )
         await self._db.commit()
         await self._db.refresh(rec)
         return MergeRecommendationRead.model_validate(rec)

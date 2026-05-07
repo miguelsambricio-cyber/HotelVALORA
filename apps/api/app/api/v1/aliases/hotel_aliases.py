@@ -4,11 +4,13 @@ Flat hotel alias entry endpoints.
 Nested alias endpoints (scoped to a specific asset) live in
 assets/hotels.py under /{asset_id}/aliases.
 """
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import get_optional_actor_id
 from app.database import get_db
 from app.schemas.alias import (
     HotelAliasEntryListItem,
@@ -95,10 +97,11 @@ async def get_hotel_alias(
 async def update_hotel_alias(
     alias_id: UUID,
     payload: HotelAliasEntryUpdate,
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     db: AsyncSession = Depends(get_db),
 ) -> SingleResponse[HotelAliasEntryRead]:
     svc = HotelAliasService(db)
-    entry = await svc.update(alias_id, payload)
+    entry = await svc.update(alias_id, payload, actor_id=actor_id)
     return SingleResponse(data=HotelAliasEntryRead.model_validate(entry))
 
 
@@ -113,6 +116,7 @@ async def update_hotel_alias(
 )
 async def deactivate_hotel_alias(
     alias_id: UUID,
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    await HotelAliasService(db).deactivate(alias_id)
+    await HotelAliasService(db).deactivate(alias_id, actor_id=actor_id)

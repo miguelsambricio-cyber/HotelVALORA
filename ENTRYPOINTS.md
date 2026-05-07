@@ -71,6 +71,17 @@ Maps tasks to exact files. Start here before scanning.
 | Conflict routes | `apps/api/app/api/v1/aliases/conflicts.py` |
 | Merge history routes | `apps/api/app/api/v1/aliases/merges.py` |
 
+## Domain — Audit Log
+
+| Task | File(s) |
+|---|---|
+| Audit model | `apps/api/app/models/audit_log.py` |
+| Audit schemas | `apps/api/app/schemas/audit_log.py` |
+| Audit service (log, rollback, list) | `apps/api/app/services/audit_service.py` |
+| Audit routes | `apps/api/app/api/v1/audit/router.py` |
+| Optional actor dependency | `apps/api/app/core/security.py` → `get_optional_actor_id` |
+| Migration | `apps/api/alembic/versions/0005_audit_log.py` |
+
 ## Domain — Valuations
 
 | Task | File(s) |

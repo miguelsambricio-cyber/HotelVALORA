@@ -7,6 +7,7 @@ from app.api.v1.aliases.operator_aliases import router as operator_aliases_route
 from app.api.v1.assets.hotels import router as hotels_router
 from app.api.v1.assets.flex_living import router as flex_router
 from app.api.v1.auth.auth import router as auth_router
+from app.api.v1.audit.router import router as audit_router
 from app.api.v1.imports.costar import router as costar_router
 from app.api.v1.imports.excel import router as excel_router
 from app.api.v1.review.router import router as review_router
@@ -46,3 +47,6 @@ api_router.include_router(dedup_router, prefix="/dedup", tags=["dedup"])
 # ── Imports ───────────────────────────────────────────────────────────────────
 api_router.include_router(excel_router, prefix="/imports/excel", tags=["imports"])
 api_router.include_router(costar_router, prefix="/imports/costar", tags=["imports"])
+
+# ── Audit log ─────────────────────────────────────────────────────────────────
+api_router.include_router(audit_router, prefix="/audit", tags=["audit"])

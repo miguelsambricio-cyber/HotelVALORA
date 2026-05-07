@@ -1,8 +1,10 @@
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import get_optional_actor_id
 from app.database import get_db
 from app.schemas.alias import (
     BulkCreateResult,
@@ -57,10 +59,11 @@ async def list_operator_aliases(
 )
 async def create_operator_alias(
     payload: OperatorAliasCreate,
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     db: AsyncSession = Depends(get_db),
 ) -> SingleResponse[OperatorAliasRead]:
     svc = OperatorAliasService(db)
-    entry = await svc.create(payload)
+    entry = await svc.create(payload, created_by_id=actor_id)
     return SingleResponse(data=OperatorAliasRead.model_validate(entry))
 
 
@@ -109,10 +112,11 @@ async def get_operator_alias(
 async def update_operator_alias(
     alias_id: UUID,
     payload: OperatorAliasUpdate,
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     db: AsyncSession = Depends(get_db),
 ) -> SingleResponse[OperatorAliasRead]:
     svc = OperatorAliasService(db)
-    entry = await svc.update(alias_id, payload)
+    entry = await svc.update(alias_id, payload, actor_id=actor_id)
     return SingleResponse(data=OperatorAliasRead.model_validate(entry))
 
 
@@ -123,6 +127,7 @@ async def update_operator_alias(
 )
 async def deactivate_operator_alias(
     alias_id: UUID,
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    await OperatorAliasService(db).deactivate(alias_id)
+    await OperatorAliasService(db).deactivate(alias_id, actor_id=actor_id)

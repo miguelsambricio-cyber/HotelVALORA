@@ -52,7 +52,7 @@ All models inherit `BaseModel` from `app/models/base.py`:
 All Pydantic schemas extend `ValoraBase` (`from_attributes=True`, `populate_by_name=True`).
 
 ### Migrations
-`apps/api/alembic/versions/` — sequential IDs: `0001`, `0002`, `0003`, `0004`. Next migration: `0005`.
+`apps/api/alembic/versions/` — sequential IDs: `0001`–`0005`. Next migration: `0006`.
 Run via `alembic upgrade head`. All models must be imported in `alembic/env.py` for auto-detection.
 
 ---
@@ -75,6 +75,16 @@ All server state lives in TanStack Query hooks under `src/lib/api/`. Each domain
 ### Routing
 `src/app/(dashboard)/` — all authenticated pages. Layout: fixed sidebar + header + scrollable main.
 Pages: `assets/hotels`, `valuations`, `underwriting`, `transactions`, `market`, `review`.
+
+---
+
+## Audit Log Domain
+
+Append-only `audit_log` table tracks all normalization and merge operations.  
+Event types (dotted notation): `alias.created`, `alias.updated`, `alias.deactivated`, `operator_alias.*`, `normalization.alias_key`, `conflict.resolved`, `conflict.ignored`, `merge.scan`, `merge.accepted`, `merge.dismissed`, `<event>.rollback`.  
+`AuditService(db).log(...)` is called in the same DB transaction as the triggering mutation.  
+Reversible events store `before_state`/`after_state` JSONB snapshots; `POST /audit/{id}/rollback` restores them.  
+Actor threading: `get_optional_actor_id(request)` in `core/security.py` extracts user UUID from Bearer token (returns `None` for system events).
 
 ---
 

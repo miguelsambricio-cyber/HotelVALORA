@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
+from app.core.security import get_optional_actor_id
 from app.database import get_db
 from app.schemas.common import PagedResponse, SingleResponse
 from app.schemas.merge_recommendation import (
@@ -74,9 +75,10 @@ async def get_recommendation(
 async def accept_recommendation(
     rec_id: UUID,
     body: ReviewAction = ReviewAction(),
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     svc: DedupService = Depends(_svc),
 ):
-    return SingleResponse(data=await svc.accept(rec_id, notes=body.notes))
+    return SingleResponse(data=await svc.accept(rec_id, notes=body.notes, actor_id=actor_id))
 
 
 @router.post(
@@ -86,6 +88,7 @@ async def accept_recommendation(
 async def dismiss_recommendation(
     rec_id: UUID,
     body: ReviewAction = ReviewAction(),
+    actor_id: Optional[UUID] = Depends(get_optional_actor_id),
     svc: DedupService = Depends(_svc),
 ):
-    return SingleResponse(data=await svc.dismiss(rec_id, notes=body.notes))
+    return SingleResponse(data=await svc.dismiss(rec_id, notes=body.notes, actor_id=actor_id))

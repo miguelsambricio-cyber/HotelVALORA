@@ -13,6 +13,7 @@ from app.models.alias import (
     AliasConflict,
 )
 from app.models.merge_recommendation import MergeRecommendation
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "BaseModel",
@@ -32,4 +33,5 @@ __all__ = [
     "HotelMergeHistory",
     "AliasConflict",
     "MergeRecommendation",
+    "AuditLog",
 ]

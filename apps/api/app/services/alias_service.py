@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.models.alias import AliasConflict, HotelAliasEntry, HotelMergeHistory, OperatorAlias
 from app.models.hotel import HotelAsset
+from app.services.audit_service import AuditService
 from app.schemas.alias import (
     AliasConflictListItem,
     AliasConflictRead,
@@ -48,6 +49,55 @@ def _key(raw: str) -> str:
     nfd = unicodedata.normalize("NFKD", raw.strip().lower())
     stripped = "".join(c for c in nfd if not unicodedata.combining(c))
     return _COLLAPSE_RE.sub(" ", stripped).strip()
+
+
+def _alias_snapshot(entry: HotelAliasEntry) -> dict:
+    return {
+        "id": str(entry.id),
+        "asset_id": str(entry.asset_id) if entry.asset_id else None,
+        "alias_text": entry.alias_text,
+        "alias_key": entry.alias_key,
+        "alias_type": entry.alias_type,
+        "language": entry.language,
+        "source": entry.source,
+        "is_active": entry.is_active,
+        "is_manual_override": entry.is_manual_override,
+        "confidence": float(entry.confidence) if entry.confidence is not None else None,
+        "valid_from": entry.valid_from.isoformat() if entry.valid_from else None,
+        "valid_to": entry.valid_to.isoformat() if entry.valid_to else None,
+        "notes": entry.notes,
+    }
+
+
+def _operator_snapshot(entry: OperatorAlias) -> dict:
+    return {
+        "id": str(entry.id),
+        "alias_text": entry.alias_text,
+        "alias_key": entry.alias_key,
+        "canonical_operator": entry.canonical_operator,
+        "brand_family": entry.brand_family,
+        "chain_scale": entry.chain_scale,
+        "parent_company": entry.parent_company,
+        "source": entry.source,
+        "is_active": entry.is_active,
+        "is_manual_override": entry.is_manual_override,
+        "notes": entry.notes,
+    }
+
+
+def _conflict_snapshot(conflict: AliasConflict) -> dict:
+    return {
+        "id": str(conflict.id),
+        "alias_key": conflict.alias_key,
+        "alias_text": conflict.alias_text,
+        "conflicting_asset_ids": [str(i) for i in (conflict.conflicting_asset_ids or [])],
+        "status": conflict.status,
+        "resolved_asset_id": str(conflict.resolved_asset_id) if conflict.resolved_asset_id else None,
+        "resolution_strategy": conflict.resolution_strategy,
+        "resolution_notes": conflict.resolution_notes,
+        "resolved_at": conflict.resolved_at.isoformat() if conflict.resolved_at else None,
+        "resolved_by_id": str(conflict.resolved_by_id) if conflict.resolved_by_id else None,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -204,21 +254,43 @@ class HotelAliasService:
             created_by_id=created_by_id,
         )
         self.db.add(entry)
-        await self.db.flush()  # get the id, surface unique-constraint violations early
+        await self.db.flush()
 
         await self._detect_and_record_conflict(computed_key, payload.alias_text.strip(), asset_id)
+
+        audit = AuditService(self.db)
+        await audit.log(
+            event_type="alias.created",
+            actor_type="user" if created_by_id else "system",
+            actor_id=created_by_id,
+            entity_type="hotel_alias_entry",
+            entity_id=entry.id,
+            after_state=_alias_snapshot(entry),
+            meta={
+                "normalization": {
+                    "raw": payload.alias_text,
+                    "alias_key": computed_key,
+                }
+            },
+            reversible=True,
+        )
         return entry
 
     async def update(
-        self, alias_id: UUID, payload: HotelAliasEntryUpdate
+        self,
+        alias_id: UUID,
+        payload: HotelAliasEntryUpdate,
+        actor_id: UUID | None = None,
     ) -> HotelAliasEntry:
         entry = await self._get_or_404(alias_id)
+        before = _alias_snapshot(entry)
         updates = payload.model_dump(exclude_none=True)
 
+        normalization_meta: dict | None = None
         if "alias_text" in updates:
             new_key = _key(updates["alias_text"])
             updates["alias_key"] = new_key
-            # Conflict detection for the new key (if asset_id is set)
+            normalization_meta = {"raw": updates["alias_text"], "alias_key": new_key}
             if entry.asset_id:
                 await self._detect_and_record_conflict(
                     new_key, updates["alias_text"], entry.asset_id
@@ -228,13 +300,37 @@ class HotelAliasService:
             setattr(entry, field, value)
 
         await self.db.flush()
+
+        meta = {"normalization": normalization_meta} if normalization_meta else None
+        await AuditService(self.db).log(
+            event_type="alias.updated",
+            actor_type="user" if actor_id else "system",
+            actor_id=actor_id,
+            entity_type="hotel_alias_entry",
+            entity_id=entry.id,
+            before_state=before,
+            after_state=_alias_snapshot(entry),
+            meta=meta,
+            reversible=True,
+        )
         return entry
 
-    async def deactivate(self, alias_id: UUID) -> None:
+    async def deactivate(self, alias_id: UUID, actor_id: UUID | None = None) -> None:
         entry = await self._get_or_404(alias_id)
+        before = _alias_snapshot(entry)
         entry.is_active = False
         entry.valid_to = entry.valid_to or date.today()
         await self.db.flush()
+        await AuditService(self.db).log(
+            event_type="alias.deactivated",
+            actor_type="user" if actor_id else "system",
+            actor_id=actor_id,
+            entity_type="hotel_alias_entry",
+            entity_id=entry.id,
+            before_state=before,
+            after_state=_alias_snapshot(entry),
+            reversible=True,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -316,12 +412,29 @@ class OperatorAliasService:
         )
         self.db.add(entry)
         await self.db.flush()
+        await AuditService(self.db).log(
+            event_type="operator_alias.created",
+            actor_type="user" if created_by_id else "system",
+            actor_id=created_by_id,
+            entity_type="operator_alias",
+            entity_id=entry.id,
+            after_state=_operator_snapshot(entry),
+            meta={"normalization": {"raw": payload.alias_text, "alias_key": computed_key}},
+            reversible=True,
+        )
         return entry
 
-    async def update(self, alias_id: UUID, payload: OperatorAliasUpdate) -> OperatorAlias:
+    async def update(
+        self,
+        alias_id: UUID,
+        payload: OperatorAliasUpdate,
+        actor_id: UUID | None = None,
+    ) -> OperatorAlias:
         entry = await self._get_or_404(alias_id)
+        before = _operator_snapshot(entry)
         updates = payload.model_dump(exclude_none=True)
 
+        normalization_meta: dict | None = None
         if "alias_text" in updates:
             new_key = _key(updates["alias_text"])
             existing = await self.db.scalar(
@@ -335,17 +448,41 @@ class OperatorAliasService:
                     f"Operator alias key '{new_key}' is already taken by another entry."
                 )
             updates["alias_key"] = new_key
+            normalization_meta = {"raw": updates["alias_text"], "alias_key": new_key}
 
         for field, value in updates.items():
             setattr(entry, field, value)
 
         await self.db.flush()
+        meta = {"normalization": normalization_meta} if normalization_meta else None
+        await AuditService(self.db).log(
+            event_type="operator_alias.updated",
+            actor_type="user" if actor_id else "system",
+            actor_id=actor_id,
+            entity_type="operator_alias",
+            entity_id=entry.id,
+            before_state=before,
+            after_state=_operator_snapshot(entry),
+            meta=meta,
+            reversible=True,
+        )
         return entry
 
-    async def deactivate(self, alias_id: UUID) -> None:
+    async def deactivate(self, alias_id: UUID, actor_id: UUID | None = None) -> None:
         entry = await self._get_or_404(alias_id)
+        before = _operator_snapshot(entry)
         entry.is_active = False
         await self.db.flush()
+        await AuditService(self.db).log(
+            event_type="operator_alias.deactivated",
+            actor_type="user" if actor_id else "system",
+            actor_id=actor_id,
+            entity_type="operator_alias",
+            entity_id=entry.id,
+            before_state=before,
+            after_state=_operator_snapshot(entry),
+            reversible=True,
+        )
 
     async def bulk_create(
         self,
@@ -533,6 +670,7 @@ class AliasConflictService:
                 f"resolved_asset_id {payload.resolved_asset_id} is not among the "
                 "conflicting assets for this record."
             )
+        before = _conflict_snapshot(row)
         row.status = "resolved_manual"
         row.resolved_asset_id = payload.resolved_asset_id
         row.resolution_strategy = payload.resolution_strategy
@@ -540,6 +678,16 @@ class AliasConflictService:
         row.resolved_at = datetime.now(timezone.utc)
         row.resolved_by_id = payload.resolved_by_id
         await self.db.flush()
+        await AuditService(self.db).log(
+            event_type="conflict.resolved",
+            actor_type="user" if payload.resolved_by_id else "system",
+            actor_id=payload.resolved_by_id,
+            entity_type="alias_conflict",
+            entity_id=row.id,
+            before_state=before,
+            after_state=_conflict_snapshot(row),
+            reversible=True,
+        )
         return row
 
     async def ignore(
@@ -548,10 +696,21 @@ class AliasConflictService:
         row = await self._get_or_404(conflict_id)
         if row.status != "open":
             raise ValidationError(f"Conflict {conflict_id} is already {row.status!r}.")
+        before = _conflict_snapshot(row)
         row.status = "ignored"
         row.resolution_strategy = "ignored"
         row.resolution_notes = payload.resolution_notes
         row.resolved_at = datetime.now(timezone.utc)
         row.resolved_by_id = payload.resolved_by_id
         await self.db.flush()
+        await AuditService(self.db).log(
+            event_type="conflict.ignored",
+            actor_type="user" if payload.resolved_by_id else "system",
+            actor_id=payload.resolved_by_id,
+            entity_type="alias_conflict",
+            entity_id=row.id,
+            before_state=before,
+            after_state=_conflict_snapshot(row),
+            reversible=True,
+        )
         return row

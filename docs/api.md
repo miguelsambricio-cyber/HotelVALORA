@@ -160,3 +160,13 @@ Paginated responses: `{ "data": [...], "meta": { total, limit, offset, has_next 
 |---|---|
 | `X-Request-ID` | `RequestIDMiddleware` — UUID per request |
 | `X-Process-Time` | `TimingMiddleware` — seconds elapsed |
+
+---
+
+## Audit Log — `/audit`
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/audit` | Paginated event list; filter by `entity_type`, `entity_id`, `event_type`, `actor_id` |
+| GET | `/audit/{id}` | Full event detail including `before_state`, `after_state`, `meta` |
+| POST | `/audit/{id}/rollback` | Reverse a `reversible=true` event; actor inferred from Bearer token |
