@@ -6,18 +6,9 @@ Project-level instructions for Claude Code. These override defaults for every se
 
 ## AI Documentation — Mandatory Maintenance
 
-After any task that introduces a **significant architectural or feature change**, update the relevant AI docs before closing the task. Do this incrementally — edit only the sections that changed, never rewrite entire files.
+Documentation updates are **NOT optional**. After every completed feature, integrated page, architectural change, reusable component, routing update, report/print update, business logic change, API integration, or DB schema change — update all relevant docs before closing the task.
 
-**What counts as significant:**
-- New API route group or prefix
-- New DB model or migration
-- New service or domain
-- New frontend page or major component
-- Changed response contracts or conventions
-- New external dependency or integration
-- Changed env vars or infrastructure topology
-
-**Files to maintain:**
+### Root AI docs (always check first)
 
 | File | Update when |
 |---|---|
@@ -25,14 +16,37 @@ After any task that introduces a **significant architectural or feature change**
 | `RULES.md` | New constraints, changed patterns, new file-placement rules |
 | `ENTRYPOINTS.md` | New files that are task entry points; remove stale paths |
 
-**How to update:**
-- Use `Edit` to patch the specific section — do not rewrite the full file.
-- Never append duplicate information — check the existing content first.
-- Keep `AI_CONTEXT.md` under 300 lines, `RULES.md` under 300 lines, `ENTRYPOINTS.md` under 200 lines.
-- Preserve the existing structure and headings.
-- One tight sentence per new fact — optimize for low-token future reads.
+Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md` ≤ 200 lines.
 
-**When NOT to update:**
+### `/docs` files (domain-specific, always in sync)
+
+| File | Update when |
+|---|---|
+| `docs/architecture.md` | New service, topology change, app flow change |
+| `docs/routing.md` | New route, layout shell change, navigation wiring |
+| `docs/frontend.md` | New component area, data-fetching pattern, auth change |
+| `docs/report-system.md` | New report section, section hierarchy change, shell change |
+| `docs/print-system.md` | Print CSS change, scale/zoom change, new print variant |
+| `docs/design-system.md` | New color token, typography rule, spacing convention |
+| `docs/components.md` | New reusable component, prop API change |
+| `docs/business-rules.md` | New tier/gate rule, premium logic, workflow constraint |
+| `docs/financial.md` | New metric, formula change, valuation display rule |
+| `docs/workflows.md` | User flow change, new CTA wire-up, step added/removed |
+| `docs/changelog.md` | After every task — one entry per feature/fix |
+| `docs/database.md` | New table, column, migration, FK |
+| `docs/api.md` | New endpoint, changed contract, new response shape |
+| `docs/backend.md` | New service, middleware, config key |
+
+### How to update
+
+- Use `Edit` to patch only the changed section — never rewrite the full file.
+- Never append duplicate information — check existing content first.
+- One tight sentence per new fact — optimize for low-token future reads.
+- Preserve structure and headings.
+- At end of every implementation: update docs → summarize what changed → list modified files.
+
+### When NOT to update
+
 - Bug fixes with no structural change
 - UI copy / style tweaks
 - Test additions that mirror existing patterns
@@ -48,12 +62,21 @@ AI_CONTEXT.md      compressed AI context (≤300 lines)
 RULES.md           Claude coding rules (≤300 lines)
 ENTRYPOINTS.md     task → file map (≤200 lines)
 docs/
-  architecture.md     system topology, services, runtime infra, ports
+  architecture.md     system topology, services, runtime infra, ports, app flow
+  routing.md          all routes, layout shells, navigation wiring
+  frontend.md         Next.js structure, components, data fetching, auth flow
+  report-system.md    report shell, sections, hierarchy, locked gates, print
+  print-system.md     A4 print CSS, zoom/scale, @page, print variants
+  design-system.md    color tokens, typography, spacing, Tailwind conventions
+  components.md       reusable component catalog with file paths and props
+  business-rules.md   premium tiers, locked gates, upgrade CTAs, gating logic
+  financial.md        valuation metrics, KPIs, display formulas, report values
+  workflows.md        user flows: Landing → CompSet → Report and beyond
+  changelog.md        feature history — one entry per completed task
   database.md         schema reference — all tables, columns, conventions
   api.md              all REST endpoints, request/response shapes
-  frontend.md         Next.js structure, components, data fetching, auth flow
   backend.md          FastAPI structure, service pattern, config, middleware
-  financial-engine.md DCF engine, metrics, module map
+  financial-engine.md DCF engine internals, metrics, module map (Python)
   underwriting.md     valuation/underwriting models, DCF logic, sensitivity
   data-pipeline.md    ETL flow, import modes, staging tables, module map
   normalization.md    multilingual normalisation pipeline, _key(), geography

@@ -25,7 +25,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
     <article
       aria-label={`Plan ${plan.name}`}
       className={cn(
-        "relative bg-white p-10 rounded-3xl group overflow-hidden transition-all",
+        "relative bg-white p-8 rounded-3xl group overflow-hidden transition-all flex flex-col justify-between",
         plan.featured
           ? "border-2 border-forest-900 shadow-2xl scale-105 z-20"
           : "border border-slate-200 shadow-sm hover:shadow-xl"
@@ -45,7 +45,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           {plan.featured ? (
             <span className="inline-block px-3 py-1 bg-forest-900 text-white text-[10px] font-bold tracking-[0.2em] rounded-full uppercase mb-4">
               {plan.tier}
@@ -73,7 +73,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
         </div>
 
         {/* Features */}
-        <ul className="space-y-4 mb-10 flex-grow" aria-label={`Características del plan ${plan.name}`}>
+        <ul className="space-y-3 mb-8 flex-grow" aria-label={`Características del plan ${plan.name}`}>
           {plan.features.map((feature) => (
             <li
               key={feature.text}
@@ -94,7 +94,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
         <Link
           href={plan.href}
           className={cn(
-            "block w-full py-4 text-center font-bold rounded-xl transition-all uppercase text-sm tracking-widest",
+            "block w-full py-3 text-center font-bold rounded-xl transition-all uppercase text-xs tracking-widest",
             plan.featured
               ? "bg-forest-900 text-white shadow-lg shadow-forest-900/20 hover:brightness-110"
               : "border-2 border-forest-900 text-forest-900 group-hover:bg-forest-900 group-hover:text-white"
@@ -102,6 +102,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
         >
           {plan.ctaLabel}
         </Link>
+
       </div>
     </article>
   );

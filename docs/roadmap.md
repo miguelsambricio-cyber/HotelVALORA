@@ -37,7 +37,16 @@ Planned features and improvements. Update this file when items are shipped or pr
 - [ ] Comp selection assistant (filter by submarket, date range, star rating)
 - [ ] Pipeline supply tracker per submarket
 
-### Frontend
+### Frontend — Report Module
+- [ ] `/report/asset-analysis` page (section 2 — hotel personalizado, CAPEX, renders)
+- [ ] `/report/market-overview` page (section 4 — overview, transactions, projects, dynamics)
+- [ ] `/report/financials` page (section 5 — finance structure, P&L, underwriting IRR)
+- [ ] `/report/methodology` page (section 6)
+- [ ] Replace all mock data (`getMockCompetitiveSet`, `getExecutiveSummaryMock`) with real API calls to `GET /api/v1/reports/{id}`
+- [ ] Mobile print testing — verify `print:col-span-*` pattern holds on different OS/browser print engines
+- [ ] Auth wiring — gate report pages behind JWT; redirect to `/` if unauthenticated
+
+### Frontend — General
 - [ ] Token refresh interceptor in `lib/api/client.ts`
 - [ ] Dark mode
 - [ ] Export to PDF / Excel (valuations, underwriting reports)

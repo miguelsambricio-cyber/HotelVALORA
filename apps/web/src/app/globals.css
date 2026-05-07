@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Strip default Mapbox popup chrome — we render our own glass card inside */
+.mapboxgl-popup-content {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+.mapboxgl-popup-tip { display: none !important; }
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -59,8 +68,127 @@
 }
 
 @layer utilities {
+  /* Report paper background — subtle forest green grid */
+  .graph-paper {
+    background-color: #ffffff;
+    background-image:
+      linear-gradient(rgba(0, 51, 30, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 51, 30, 0.05) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
   .bg-grid-dots {
     background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
     background-size: 48px 48px;
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(12px);
+    background-color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  /* Report print container — fills page, removes chrome */
+  .print-container {
+    width: 100%;
+  }
+
+  /* Stronger glass for map controls, legend, and pins */
+  .glass-overlay {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* Viewport-optimized landing layout — fills screen on tall desktops */
+@media (min-height: 800px) {
+  .landing-viewport {
+    height: 100vh;
+    overflow: hidden;
+  }
+  .landing-scroll {
+    flex: 1;
+    overflow-y: auto;
+  }
+}
+
+/* ── Report module — print / PDF export ──────────────────────────────────── */
+@media print {
+  /* ── A4 portrait, 8 × 10 mm margins
+     Printable area: 190 mm × 281 mm  ≈  718 × 1063 px at 96 dpi            */
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  /* Preserve colour fidelity for backgrounds, charts, images */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    /* Remove any scrollbar / overflow artefacts */
+    overflow: hidden;
+  }
+
+  /* ── PRINT DESKTOP CANVAS ───────────────────────────────────────────────
+     Forces the report content to render at a fixed 960 px desktop width,
+     then scales the whole canvas to fit the 718 px A4 printable column.
+
+     Scale factor: 718 / 960 = 0.748  → rounded to 0.74 for 2 px safety gap
+     Visual width after zoom : 960 × 0.74 = 710 px  (inside 718 px) ✓
+  */
+  .report-print-canvas {
+    width: 960px !important;
+    min-width: 960px !important;
+    max-width: 960px !important;
+    /* CSS zoom: scales layout AND rendering, no float/transform side-effects */
+    zoom: 0.74;
+    /* Align to the left edge of the page box */
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Strip decorative graph-paper grid */
+  .graph-paper { background-image: none !important; }
+
+  /* Remove the screen-only map min-height so print:h-* classes take effect */
+  .compset-map-container { min-height: 0 !important; }
+
+  /* Hard-block any page split inside a section or table */
+  section,
+  table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* Compset page — map always has a usable height */
+.compset-map-container {
+  min-height: 450px;
+}
+
+/* Compset page viewport layout */
+@media (min-height: 800px) {
+  .compset-main {
+    display: flex;
+    flex-direction: column;
+    /* subtract header (84px) + footer (~72px) */
+    height: calc(100vh - 84px - 72px);
+  }
+  .compset-map-container {
+    flex: 1 1 50%;
+    min-height: 350px;
+  }
+  .compset-monetization {
+    flex: 0 0 auto;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
   }
 }

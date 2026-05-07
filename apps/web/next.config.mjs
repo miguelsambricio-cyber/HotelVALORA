@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  transpilePackages: ["mapbox-gl"],
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   images: {
     remotePatterns: [

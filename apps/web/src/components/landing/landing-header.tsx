@@ -13,7 +13,7 @@ export function LandingHeader() {
 
   return (
     <header className="w-full sticky top-0 z-50 backdrop-blur-md bg-white/60 border-b border-slate-200/50">
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-20 py-5">
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-20 py-4">
         {/* Logo */}
         <Link
           href="/"
@@ -28,20 +28,20 @@ export function LandingHeader() {
             <Link
               key={label}
               href={href}
-              className="text-sm font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
+              className="text-xs font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
             >
               {label}
             </Link>
           ))}
           <Link
             href="/login"
-            className="text-sm font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
+            className="text-xs font-semibold text-slate-500 hover:text-forest-900 transition-colors tracking-wide uppercase"
           >
             Login
           </Link>
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 px-4 py-2 bg-forest-900 text-white rounded-lg text-sm font-bold shadow-sm hover:shadow-md transition-all"
+            className="flex items-center gap-2 px-4 py-1.5 bg-forest-900 text-white rounded-lg text-xs font-bold shadow-sm hover:shadow-md transition-all"
           >
             <User size={18} aria-hidden />
             USUARIO

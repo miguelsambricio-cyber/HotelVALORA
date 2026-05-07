@@ -73,8 +73,21 @@ Run via `alembic upgrade head`. All models must be imported in `alembic/env.py` 
 All server state lives in TanStack Query hooks under `src/lib/api/`. Each domain has its own file (`review.ts`, `dedup.ts`). Query keys follow `["domain", "sub", ...filters]` hierarchy so `invalidateQueries({ queryKey: ["domain"] })` cascades correctly.
 
 ### Routing
-`src/app/(dashboard)/` — all authenticated pages. Layout: fixed sidebar + header + scrollable main.
-Pages: `assets/hotels`, `valuations`, `underwriting`, `transactions`, `market`, `review`.
+`src/app/(dashboard)/` — authenticated pages (sidebar + header shell).
+`src/app/compset/` — competitor map step (Mapbox GL, react-map-gl v8). LandingHeader/Footer.
+`src/app/report/executive-summary/` — standalone Executive Summary page (ReportShell). Step 3 of workflow.
+`src/app/report/[reportId]/[section]/` — dynamic report sections.
+`src/app/` (root) — public landing page.
+Primary user flow: `/` → `/compset` → `/report/executive-summary`.
+
+### Report Module
+Shell: `ReportShell` → `ReportPaper` → section components. `<main>` has `report-print-canvas` class for A4 print scaling.
+Section registry: `src/lib/report/report-nav.ts` — 6 groups, 15 items.
+Executive Summary: `AssetSection` + `MarketSection` + `ValuationSection` + `MethodologicalNote`.
+Each section uses 12-col grid with both `md:col-span-*` AND `print:col-span-*` (Chrome print viewport < 768px).
+Print system: `@page { size: A4; margin: 8mm 10mm }` + `.report-print-canvas { width: 960px; zoom: 0.74 }`.
+Locked gates (`LockedGate`) are `print:hidden` — removed from PDF.
+Mock data: `lib/report/executive-summary-data.ts` → replace with `GET /api/v1/reports/{id}`.
 
 ---
 

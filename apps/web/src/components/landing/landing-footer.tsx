@@ -9,13 +9,13 @@ const FOOTER_LINKS = [
 
 export function LandingFooter() {
   return (
-    <footer className="w-full bg-forest-900 py-8 px-8 border-t border-white/10">
-      <div className="max-w-7xl mx-auto flex flex-col items-center gap-4">
-        <span className="font-display font-bold text-xl text-white tracking-tight">
+    <footer className="w-full bg-forest-900 py-6 px-8 border-t border-white/10 flex-shrink-0">
+      <div className="max-w-7xl mx-auto flex flex-col items-center gap-2">
+        <span className="font-display font-bold text-lg text-white tracking-tight">
           HotelVALORA
         </span>
 
-        <nav aria-label="Footer" className="flex flex-wrap justify-center gap-6">
+        <nav aria-label="Footer" className="flex flex-wrap justify-center gap-4">
           {FOOTER_LINKS.map(({ href, label }) => (
             <Link
               key={label}

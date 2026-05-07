@@ -19,6 +19,8 @@ interface SearchBarProps {
   onSelect?: (hotel: HotelSearchHit) => void;
   /** Called when user presses Enter with no result selected, or clicks "Ver todos". */
   onViewAll?: (query: string) => void;
+  /** Called when user clicks the map button. */
+  onMapView?: () => void;
   placeholder?: string;
   className?: string;
 }
@@ -86,6 +88,7 @@ function ResultItem({
 export function SearchBar({
   onSelect,
   onViewAll,
+  onMapView,
   placeholder = "Nombre o dirección del hotel...",
   className,
 }: SearchBarProps) {
@@ -153,10 +156,10 @@ export function SearchBar({
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       {/* ── Input shell ─────────────────────────────────────────────────── */}
-      <div className="backdrop-blur-md bg-white/60 border border-white/80 p-2 rounded-2xl shadow-[0_32px_64px_-12px_rgba(6,44,28,0.08)]">
-        <div className="flex flex-col md:flex-row gap-2 bg-white/40 rounded-xl p-1">
+      <div className="glass-effect p-1.5 rounded-2xl shadow-[0_20px_40px_-12px_rgba(6,44,28,0.08)] border border-white">
+        <div className="flex flex-col md:flex-row gap-1 bg-white/40 rounded-xl p-1">
           {/* Text field */}
-          <label className="flex-grow flex items-center px-6 py-4 gap-4">
+          <label className="flex-grow flex items-center px-5 py-3 gap-3">
             {isLoading ? (
               <Loader2
                 size={20}
@@ -186,7 +189,7 @@ export function SearchBar({
                 if (results.length > 0) setIsOpen(true);
               }}
               placeholder={placeholder}
-              className="w-full bg-transparent border-none focus:ring-0 outline-none text-lg font-medium placeholder:text-slate-400 text-slate-800"
+              className="w-full bg-transparent border-none focus:ring-0 outline-none text-base font-medium placeholder:text-slate-400 text-slate-800"
               autoComplete="off"
               spellCheck={false}
             />
@@ -204,11 +207,12 @@ export function SearchBar({
           </label>
 
           {/* Map action */}
-          <div className="flex gap-2 p-1">
+          <div className="flex gap-1 p-0.5">
             <button
               type="button"
               aria-label="Ver en mapa"
-              className="flex items-center justify-center aspect-square md:px-6 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+              onClick={onMapView}
+              className="flex items-center justify-center h-10 w-10 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200 transition-colors"
             >
               <Map size={20} />
             </button>

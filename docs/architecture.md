@@ -48,6 +48,30 @@ Browser → Nginx → Next.js (SSR)
                                       → data_pipeline → S3
 ```
 
+## Application Flow (Frontend)
+
+```
+/ (Landing)
+  → /compset                        (CompSet map — competitor selection)
+      → /report/executive-summary   (Report — step 3; sidebar nav between report pages)
+          ↔ /report/competitive-set (Competitive Set — sidebar item 3)
+          ↔ /report/asset-analysis  (planned)
+          ↔ /report/market-overview (planned)
+          ↔ /report/financials      (planned)
+          ↔ /report/methodology     (planned)
+```
+
+Three layout shells: `LandingHeader/Footer` (public), `ReportShell` (standalone report), `(dashboard)` shell (authenticated).
+
+Report sidebar navigation is driven by `src/lib/report/report-nav.ts` (6 sections). All report pages share the same `ReportShell` → `ReportPaper` pattern.
+
+### Hybrid Gallery+Map Pattern (Competitive Set)
+
+Gallery top block uses CSS grid stretch to align 2×2 image grid with full-height `ReportMap`:
+- Parent: `grid-cols-12 min-h-[460px]` — `min-h` satisfies map's `min-height: 450px` CSS constraint
+- Left (`col-span-5`): `grid-rows-2 grid-cols-2 h-full` — images fill cells with `h-full aspect-auto`
+- Right (`col-span-7`): `ReportMap h-full` — map stretches to match left height via CSS grid default `align-items: stretch`
+
 ## Key Design Decisions
 
 - **Async throughout**: FastAPI with `asyncpg` for non-blocking DB access.

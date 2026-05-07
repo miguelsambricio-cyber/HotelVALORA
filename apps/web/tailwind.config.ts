@@ -10,6 +10,40 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // shadcn/ui CSS variable tokens — required for @apply border-border etc.
+        border:      "hsl(var(--border))",
+        input:       "hsl(var(--input))",
+        ring:        "hsl(var(--ring))",
+        background:  "hsl(var(--background))",
+        foreground:  "hsl(var(--foreground))",
+        primary: {
+          DEFAULT:    "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT:    "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT:    "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT:    "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        destructive: {
+          DEFAULT:    "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        card: {
+          DEFAULT:    "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT:    "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
         // Landing palette — deep emerald design system
         forest: {
           50:  "#f0f9f4",
@@ -36,8 +70,12 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        display: ["var(--font-manrope)", "system-ui", "sans-serif"],
+        sans:     ["var(--font-inter)", "system-ui", "sans-serif"],
+        display:  ["var(--font-manrope)", "system-ui", "sans-serif"],
+        // Alias used by Stitch designs ("font-headline" = Manrope)
+        headline: ["var(--font-manrope)", "system-ui", "sans-serif"],
+        body:     ["var(--font-inter)", "system-ui", "sans-serif"],
+        label:    ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",

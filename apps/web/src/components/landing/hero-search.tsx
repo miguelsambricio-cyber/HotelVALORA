@@ -28,11 +28,16 @@ export function HeroSearch({ className }: HeroSearchProps) {
     router.push(`/assets/hotels?search=${encodeURIComponent(query)}`);
   }
 
+  function handleMapView() {
+    router.push("/compset");
+  }
+
   return (
     <SearchBar
       className={className}
       onSelect={handleSelect}
       onViewAll={handleViewAll}
+      onMapView={handleMapView}
     />
   );
 }

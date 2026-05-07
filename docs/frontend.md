@@ -14,7 +14,13 @@
 src/
 ├── app/
 │   ├── layout.tsx                Root layout — fonts (Inter + Manrope), <Providers>, <Toaster>
-│   ├── page.tsx                  Landing page
+│   ├── page.tsx                  Landing page (public)
+│   ├── compset/
+│   │   └── page.tsx              CompSet selection — step 2 of valuation workflow
+│   ├── report/
+│   │   ├── executive-summary/
+│   │   │   └── page.tsx          Standalone Executive Summary — step 3 of workflow
+│   │   └── [reportId]/           Dynamic report routes (parametric)
 │   └── (dashboard)/
 │       ├── layout.tsx            Authenticated shell — Sidebar + Header + main scroll area
 │       ├── page.tsx              Dashboard overview
@@ -25,20 +31,24 @@ src/
 │       ├── market/               Market intelligence
 │       └── review/               Data quality queue (3 tabs)
 ├── components/
+│   ├── landing/                  LandingHeader, LandingFooter, HeroSection, PricingSection
+│   ├── compset/                  CompsetMap, CompetitorPanel, CompetitorCard, MapControls, MapLegend
+│   ├── maps/                     CompsetMapGL (Mapbox GL, dynamic import)
+│   ├── report/
+│   │   ├── shell/                ReportShell, ReportTopNav, ReportSidebar, ReportFooter, ReportPaper
+│   │   ├── executive-summary/    AssetSection, MarketSection, ValuationSection, SparklineGroup,
+│   │   │                         HotelPhotoCarousel, ActionBar, SubSectionHeading
+│   │   ├── charts/               SparklineBar, SparklineLine
+│   │   └── ui/                   LockedGate, LockedUpgradeCard, MethodologicalNote, ReportMap
 │   ├── layout/
-│   │   ├── sidebar.tsx           Navigation sidebar
-│   │   └── header.tsx            Top bar with user menu
+│   │   ├── sidebar.tsx           Navigation sidebar (dashboard)
+│   │   └── header.tsx            Top bar with user menu (dashboard)
 │   ├── dashboard/                KPI cards, portfolio map, RevPAR chart, recent transactions
-│   ├── hotels/                   Hotel data table
-│   ├── valuations/               Valuation results table
-│   ├── transactions/             Transaction table
-│   ├── market/                   Market analysis dashboard
-│   ├── underwriting/             Underwriting workbench UI
 │   ├── review/
-│   │   ├── summary-cards.tsx     4 KPI cards (conflicts, low-conf, pending merges, threshold)
+│   │   ├── summary-cards.tsx     4 KPI cards
 │   │   ├── conflict-queue.tsx    Alias conflicts tab
-│   │   ├── low-confidence-queue.tsx  Low-confidence aliases tab
-│   │   └── merge-queue.tsx       Merge recommendations tab (ScoreBar, DetailDialog, etc.)
+│   │   ├── low-confidence-queue.tsx
+│   │   └── merge-queue.tsx       ScoreBar, DetailDialog, etc.
 │   ├── providers.tsx             QueryClient, theme
 │   └── ui/                       Radix-based primitives (Button, Card, Badge, Dialog, …)
 ├── lib/
@@ -46,12 +56,22 @@ src/
 │   │   ├── client.ts             Axios instance — auth interceptors, 401 redirect
 │   │   ├── review.ts             useReviewSummary, useConflicts, useLowConfidence hooks
 │   │   └── dedup.ts              useDedupSummary, useMergeRecommendations, useRunScan, etc.
+│   ├── hooks/
+│   │   └── use-compset.ts        CompSet state — competitors, suggested, layers, panel
+│   ├── report/
+│   │   ├── executive-summary-data.ts  Types, mock data, formatters
+│   │   ├── report-nav.ts         6-section navigation registry (15 items)
+│   │   └── pdf-export.ts         window.print() wrapper — swap for react-pdf/Puppeteer
 │   └── utils.ts                  cn() and general utilities
+├── hooks/
+│   └── maps/
+│       └── use-map-viewport.ts   Mapbox viewport state + zoomIn/zoomOut
 └── types/
     ├── hotel.ts
     ├── valuation.ts
-    ├── review.ts                 ReviewSummary, AliasConflict, LowConfidenceAlias, PagedResponse, SingleResponse
-    └── dedup.ts                  MergeRecommendationListItem, MergeRecommendationDetail, DedupSummary, etc.
+    ├── compset.ts                CompetitorHotel, CompsetLayer
+    ├── review.ts                 ReviewSummary, AliasConflict, etc.
+    └── dedup.ts                  MergeRecommendationListItem, etc.
 ```
 
 ---

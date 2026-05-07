@@ -1,0 +1,136 @@
+"use client";
+
+import { ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import type { CompetitorHotel } from "@/types/compset";
+import { CompetitorCard } from "./competitor-card";
+
+interface CompetitorPanelProps {
+  referenceHotel: CompetitorHotel;
+  competitors: CompetitorHotel[];
+  suggested: CompetitorHotel[];
+  isLoading: boolean;
+  panelOpen: boolean;
+  onToggle: () => void;
+  onAdd: (hotel: CompetitorHotel) => void;
+  onRemove: (id: string) => void;
+  className?: string;
+}
+
+export function CompetitorPanel({
+  referenceHotel,
+  competitors,
+  suggested,
+  isLoading,
+  panelOpen,
+  onToggle,
+  onAdd,
+  onRemove,
+  className,
+}: CompetitorPanelProps) {
+  return (
+    /*
+     * flex-row-reverse: panel body renders on the RIGHT, toggle tab on the LEFT.
+     * Container is absolute right-4, so it naturally hugs the right edge of the map.
+     * When panel closes (w-0), only the toggle tab (w-8) remains visible near the edge.
+     */
+    <div className={cn("flex flex-row-reverse items-start h-full", className)}>
+      {/* Panel body */}
+      <div
+        className={cn(
+          "h-full overflow-hidden transition-all duration-300",
+          panelOpen ? "w-72" : "w-0"
+        )}
+      >
+        <div className="w-72 h-full glass-overlay border border-white/50 rounded-xl shadow-xl flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-slate-200/60 flex-shrink-0">
+            <p className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+              CompSet Activo
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <Building2 size={14} className="text-forest-900 flex-shrink-0" />
+              <p className="text-xs font-bold text-forest-900 truncate">
+                {referenceHotel.name}
+              </p>
+            </div>
+          </div>
+
+          {/* Scrollable list */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-4 min-h-0">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="w-5 h-5 rounded-full border-2 border-forest-900/30 border-t-forest-900 animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Active competitors */}
+                <section>
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
+                    Seleccionados ({competitors.length})
+                  </p>
+                  {competitors.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-4">
+                      Sin competidores seleccionados
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {competitors.map((h) => (
+                        <CompetitorCard
+                          key={h.id}
+                          hotel={h}
+                          variant="active"
+                          onRemove={onRemove}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Suggested by AI */}
+                {suggested.length > 0 && (
+                  <section>
+                    <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
+                      Sugeridos por IA
+                    </p>
+                    <div className="space-y-2">
+                      {suggested.map((h) => (
+                        <CompetitorCard
+                          key={h.id}
+                          hotel={h}
+                          variant="suggested"
+                          onAdd={onAdd}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* CTA footer */}
+          <div className="px-3 py-3 border-t border-slate-200/60 flex-shrink-0">
+            <Link
+              href="/report/executive-summary"
+              className="block w-full py-2.5 bg-forest-900 text-white text-xs font-bold rounded-lg tracking-widest uppercase hover:brightness-110 transition-all shadow-lg shadow-forest-900/20 text-center"
+            >
+              Confirmar CompSet →
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Toggle tab — sits to the left of the panel body */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={panelOpen ? "Cerrar panel" : "Abrir panel de competidores"}
+        className="flex-shrink-0 mt-4 w-8 h-12 glass-overlay rounded-l-xl flex items-center justify-center text-forest-900 shadow-md border-y border-l border-white/50"
+      >
+        {panelOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
+    </div>
+  );
+}

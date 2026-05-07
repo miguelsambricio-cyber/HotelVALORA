@@ -24,11 +24,13 @@ export const metadata: Metadata = {
  */
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800 selection:bg-forest-900/20 selection:text-forest-900">
+    <div className="landing-viewport flex flex-col min-h-screen bg-slate-100 text-slate-800 selection:bg-forest-900/20 selection:text-forest-900">
       <LandingHeader />
-      <HeroSection />
-      <PricingSection />
-      <LandingFooter />
+      <div className="landing-scroll flex flex-col">
+        <HeroSection />
+        <PricingSection />
+        <LandingFooter />
+      </div>
     </div>
   );
 }
