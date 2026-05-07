@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -120,6 +121,7 @@ class HotelAliasService:
         alias_type: str | None,
         language: str | None,
         active_only: bool,
+        confidence_max: float | None = None,
         limit: int,
         offset: int,
     ) -> PagedResponse[HotelAliasEntryListItem]:
@@ -134,6 +136,11 @@ class HotelAliasService:
             q = q.where(HotelAliasEntry.language == language)
         if active_only:
             q = q.where(HotelAliasEntry.is_active.is_(True))
+        if confidence_max is not None:
+            q = q.where(
+                HotelAliasEntry.confidence.is_not(None),
+                HotelAliasEntry.confidence <= Decimal(str(confidence_max)),
+            )
         q = q.order_by(HotelAliasEntry.alias_key)
 
         total = await self.db.scalar(select(func.count()).select_from(q.subquery()))

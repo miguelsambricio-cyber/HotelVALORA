@@ -45,6 +45,12 @@ async def list_hotel_aliases(
         default=None, description="BCP-47 language tag e.g. 'es', 'en', 'ca'"
     ),
     active_only: bool = Query(default=True, description="When true, returns only is_active=true rows"),
+    confidence_max: float | None = Query(
+        default=None,
+        description="Return only entries with a non-null confidence ≤ this value (e.g. 0.65 for the review queue)",
+        ge=0.0,
+        le=1.0,
+    ),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
@@ -56,6 +62,7 @@ async def list_hotel_aliases(
         alias_type=alias_type,
         language=language,
         active_only=active_only,
+        confidence_max=confidence_max,
         limit=limit,
         offset=offset,
     )

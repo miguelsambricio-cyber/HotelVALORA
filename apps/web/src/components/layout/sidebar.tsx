@@ -10,6 +10,7 @@ import {
   BarChart3,
   Calculator,
   ArrowLeftRight,
+  ClipboardList,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/underwriting", label: "Underwriting", icon: Calculator },
   { href: "/dashboard/market", label: "Market Intel", icon: BarChart3 },
   { href: "/dashboard/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/dashboard/review", label: "Review Queue", icon: ClipboardList },
 ];
 
 export function Sidebar() {

@@ -9,6 +9,7 @@ from app.api.v1.assets.flex_living import router as flex_router
 from app.api.v1.auth.auth import router as auth_router
 from app.api.v1.imports.costar import router as costar_router
 from app.api.v1.imports.excel import router as excel_router
+from app.api.v1.review.router import router as review_router
 from app.api.v1.market.comparables import router as comps_router
 from app.api.v1.market.intelligence import router as market_router
 from app.api.v1.valuations.dcf import router as dcf_router
@@ -34,6 +35,9 @@ api_router.include_router(underwriting_router, prefix="/valuations/underwriting"
 # ── Market intelligence ───────────────────────────────────────────────────────
 api_router.include_router(market_router, prefix="/market/intelligence", tags=["market"])
 api_router.include_router(comps_router, prefix="/market/comparables", tags=["comparables"])
+
+# ── Review queue ─────────────────────────────────────────────────────────────
+api_router.include_router(review_router, prefix="/review", tags=["review"])
 
 # ── Imports ───────────────────────────────────────────────────────────────────
 api_router.include_router(excel_router, prefix="/imports/excel", tags=["imports"])
