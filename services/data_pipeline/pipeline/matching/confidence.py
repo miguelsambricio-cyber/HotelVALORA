@@ -27,17 +27,11 @@ unavailable (rapidfuzz missing) or has no data (operator/address = None).
 """
 from __future__ import annotations
 
-import re
-import unicodedata
 from dataclasses import dataclass, field
 from typing import Optional
 
-from pipeline.cleaning.names import (
-    _HOTEL_PREFIXES,
-    _HOTEL_SUFFIXES,
-    _key,
-    normalize_operator,
-)
+from pipeline.cleaning.multilingual import normalize_for_matching
+from pipeline.cleaning.names import _key, normalize_operator
 from pipeline.cleaning.geography import normalize_city
 
 try:
@@ -130,23 +124,10 @@ class ConfidenceResult:
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-_PUNCT_RE = re.compile(r"[-,'\"()]")
-
 
 def _name_core(name: str) -> str:
-    """Strip hotel prefixes/suffixes and return the _key()-normalised core."""
-    if not name:
-        return ""
-    k = _key(name)
-    for prefix in _HOTEL_PREFIXES:
-        if k.startswith(prefix):
-            k = k[len(prefix):]
-            break
-    for suffix in _HOTEL_SUFFIXES:
-        if k.endswith(suffix):
-            k = k[: -len(suffix)]
-            break
-    return _PUNCT_RE.sub("", k).strip()
+    """Full multilingual normalization of a hotel name for comparison."""
+    return normalize_for_matching(name)
 
 
 def _compute_final(components: list[ComponentScore]) -> float:

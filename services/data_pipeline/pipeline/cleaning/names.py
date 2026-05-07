@@ -19,6 +19,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from pipeline.cleaning.multilingual import normalize_for_matching  # noqa: E402
+
 
 # ── Shared helpers ──────────────────────────────────────────────────────────────
 
@@ -102,18 +104,7 @@ def hotel_dedup_key(name: str, city: str) -> str:
         hotel_dedup_key("Gran Hotel Miramar", "Málaga")     -> "miramar|malaga"
         hotel_dedup_key("Meliá Castilla", "Madrid")         -> "melia castilla|madrid"
     """
-    k = _key(name)
-    for prefix in _HOTEL_PREFIXES:
-        if k.startswith(prefix):
-            k = k[len(prefix):]
-            break
-    for suffix in _HOTEL_SUFFIXES:
-        if k.endswith(suffix):
-            k = k[: -len(suffix)]
-            break
-    k = re.sub(r"[-,'\"()]", " ", k)
-    k = re.sub(r"\s+", " ", k).strip()
-
+    k = normalize_for_matching(name, remove_stopwords=False)
     city_k = _key(city)
     return f"{k}|{city_k}"
 

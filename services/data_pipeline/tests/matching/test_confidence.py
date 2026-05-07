@@ -123,7 +123,8 @@ class TestNameCore:
         assert _name_core("") == ""
 
     def test_punctuation_removed(self):
-        assert _name_core("Hotel O'Callaghan") == "ocallaghan"
+        # apostrophe becomes space; "o" removed as stopword → distinguishing part kept
+        assert _name_core("Hotel O'Callaghan") == "callaghan"
 
     def test_accents_normalised(self):
         assert _name_core("Meliá") == _name_core("Melia")
