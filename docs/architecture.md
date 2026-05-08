@@ -52,18 +52,21 @@ Browser → Nginx → Next.js (SSR)
 
 ```
 / (Landing)
-  → /compset                        (CompSet map — competitor selection)
-      → /report/executive-summary   (Report — step 3; sidebar nav between report pages)
-          ↔ /report/competitive-set (Competitive Set — sidebar item 3)
-          ↔ /report/asset-analysis  (planned)
-          ↔ /report/market-overview (planned)
-          ↔ /report/financials      (planned)
-          ↔ /report/methodology     (planned)
+  → /compset                                  (CompSet map — competitor selection)
+      → /report/executive-summary             ✅ shipped
+      ↔ /report/asset-analysis                ✅ shipped (Hotel personalizado)
+      ↔ /report/asset-analysis/capex          ✅ shipped (CAPEX & Renders, single page)
+      ↔ /report/competitive-set               ✅ shipped
+      ↔ /report/market-overview               ✅ shipped (Country / Market / Submarket / Class)
+      ↔ /report/financials                    ⏸ planned
+      ↔ /report/methodology                   ⏸ planned
 ```
 
-Three layout shells: `LandingHeader/Footer` (public), `ReportShell` (standalone report), `(dashboard)` shell (authenticated).
+Three layout shells: `LandingHeader/Footer` (public), `ReportShell` (standalone report — supports `printOrientation: "portrait" | "landscape"`), `(dashboard)` shell (authenticated).
 
-Report sidebar navigation is driven by `src/lib/report/report-nav.ts` (6 sections). All report pages share the same `ReportShell` → `ReportPaper` pattern.
+Report sidebar navigation is driven by the canonical `src/lib/report/sections.ts` registry. Sub-items support absolute paths AND hash anchors. Two-pass active-detection picks the right sub-anchor: prefer a sub-route whose path matches; fall back to the first hash-anchor whose parent path matches.
+
+All report pages share the same `ReportShell` → `ReportPaper` (or `ReportSection`) pattern. See `docs/report-system.md` for the full architecture, `docs/print-pdf.md` for the print/PDF system, `docs/maps.md` for the map system, `REPORT_PAGES.md` for per-page composition, and `docs/component-library.md` / `UI_COMPONENTS.md` for the primitives surface.
 
 ### Hybrid Gallery+Map Pattern (Competitive Set)
 

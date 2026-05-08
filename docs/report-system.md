@@ -1,162 +1,207 @@
 # Report System
 
-The report module is a standalone section of the app (no dashboard chrome). It renders institutional-quality hotel valuation reports, supports PDF export via browser print, and gates sections behind premium tiers.
+**Status:** canonical (Phase 0 stabilization + 4 section integrations, 2026-05-08).
+
+The report module renders institutional-quality hotel valuation reports. There is **one** shell, **one** sidebar, **one** paper card, **one** PDF pipeline, **one** section registry. Adding a new section is a one-line registry edit + a new page file — no shell, sidebar, or print changes required.
+
+---
+
+## Implemented sections
+
+| # | Section | Route | File |
+|---|---|---|---|
+| 1 | Executive Summary | `/report/executive-summary` | `app/report/executive-summary/page.tsx` |
+| 2 | Asset Analysis · Hotel personalizado | `/report/asset-analysis` | `app/report/asset-analysis/page.tsx` |
+| 2a | Asset Analysis · CAPEX & Renders | `/report/asset-analysis/capex` | `app/report/asset-analysis/capex/page.tsx` |
+| 3 | Competitive Set | `/report/competitive-set` | `app/report/competitive-set/page.tsx` |
+| 4 | Market Overview | `/report/market-overview` | `app/report/market-overview/page.tsx` |
+| 5 | Financials | `/report/financials` | (planned) |
+| 6 | Methodology | `/report/methodology` | (planned) |
+
+`REPORT_PAGES.md` holds the full per-page composition tree.
+
+---
+
+## Single Source of Truth
+
+| Concern | File |
+|---|---|
+| Section registry (id, number, group, page-break, sub-anchors) | `src/lib/report/sections.ts` |
+| Section taxonomy types | `src/types/report/index.ts` |
+| Page chrome | `src/components/report/shell/report-shell.tsx` (accepts `printOrientation: "portrait" \| "landscape"`) |
+| Sidebar (Stitch glass-card, registry-driven, two-pass active detection) | `src/components/report/shell/report-sidebar.tsx` |
+| Paper card | `src/components/report/shell/report-paper.tsx` |
+| Page header | `src/components/report/primitives/report-header.tsx` (supports `layout: "inline" \| "stacked"`) |
+| Section page wrapper (preferred for new pages) | `src/components/report/primitives/report-section.tsx` |
+| PDF export entry | `src/lib/report/pdf-export.ts` (`exportReport(metadata?)`) |
+| PDF button | `src/components/report/primitives/pdf-export-button.tsx` |
+| Print canvas + page rules + Firefox fallback | `src/app/globals.css` (see `docs/print-pdf.md`) |
 
 ---
 
 ## Shell Hierarchy
 
 ```
-ReportShell                          components/report/shell/report-shell.tsx
-├── ReportTopNav (print:hidden)      components/report/shell/report-top-nav.tsx
-├── ReportSidebar (print:hidden)     components/report/shell/report-sidebar.tsx
-├── <main class="report-print-canvas">
+ReportShell (printOrientation: "portrait" | "landscape")
+├── ReportTopNav (print:hidden)
+├── ReportSidebar (print:hidden, driven by sections.ts)
+├── <main class="report-print-canvas" or "report-print-canvas-landscape">
 │   └── [page children]
-│       ├── ReportPaper              components/report/shell/report-paper.tsx
-│       │   ├── PaperHeader          (internal — PDF export button + section label + h2)
-│       │   └── [section children]
-│       └── ActionBar (print:hidden) components/report/executive-summary/action-bar.tsx
-└── ReportFooter (print:hidden)      components/report/shell/report-footer.tsx
+│       └── ReportPaper (or ReportSection)
+│           ├── ReportHeader (layout: inline | stacked)
+│           │   └── PdfExportButton
+│           └── [section content]
+└── ReportFooter (print:hidden)
+```
+
+`<main>` carries `report-print-canvas` (default A4 portrait) or `report-print-canvas-landscape` (A4 landscape with named-page rule). All other report routes are portrait.
+
+---
+
+## Section Registry (`sections.ts`)
+
+```ts
+{
+  id: ReportSectionId;
+  number: number;                  // 1–6 display order
+  group: ReportSectionGroup;       // overview | asset | compset | market | financials | methodology
+  label: string;
+  shortLabel?: string;
+  description?: string;
+  printPageBreak: boolean;
+  implemented: boolean;
+  subItems?: { href: string; label: string }[];  // sub-route OR hash anchor
+}
+```
+
+### Sub-item href contract
+
+- `/report/...` → absolute sub-route (Asset Analysis: `Hotel personalizado` / `CAPEX` are real routes).
+- `/report/x#anchor` → absolute path with hash anchor.
+- `#anchor` → hash anchor relative to the parent section href.
+
+### Sidebar active-detection (two-pass)
+
+1. **Pass 1** — prefer a sub-item with no hash whose path matches the current pathname (sub-route case).
+2. **Pass 2** — fall back to the first sub-item whose path-part matches AND has a hash (in-page anchor case).
+
+Prevents the "all hash-anchors active" bug that occurred when every sub-item resolved to the same path.
+
+### Helpers
+
+```ts
+getSectionHref(id: ReportSectionId): string
+getSectionById(id: string): ReportSection | undefined
+getAdjacentSections(currentId: ReportSectionId): { prev?, next? }
+getImplementedSections(): ReportSection[]
 ```
 
 ---
 
-## Executive Summary Page
+## Page composition patterns
 
-**Route:** `/report/executive-summary`  
-**File:** `app/report/executive-summary/page.tsx`  
-**Data:** `src/lib/report/executive-summary-data.ts` (mock; replace with `GET /api/v1/reports/{id}`)
+### Standard page (Executive Summary, Competitive Set)
 
-### Section order (within ReportPaper)
-
-1. **AssetSection** — Hotel facts table + `HotelPhotoCarousel`
-2. **MarketSection** — Market metrics table + `ReportMap` (full CompSet map)
-3. **ValuationSection** — Valuation table + `SparklineGroup`
-4. **MethodologicalNote** — Disclaimer text block
-
-### Section grid pattern
-
-Every section uses a 12-col grid with explicit `print:` variants:
 ```tsx
-<div className="grid grid-cols-1 md:grid-cols-12 print:grid-cols-12 gap-8 print:gap-4">
-  <div className="md:col-span-7 print:col-span-7">  {/* left — table */}
-  <div className="md:col-span-5 print:col-span-5">  {/* right — visual */}
+<ReportShell>
+  <div className="space-y-6 print:space-y-0">
+    <ReportPaper sectionLabel="..." title="..." titleSize="..." actions={...}>
+      ...sections...
+    </ReportPaper>
+    <ActionBar />
+  </div>
+</ReportShell>
 ```
-`md:` variants handle screen layout; `print:` variants handle PDF layout (Chrome print viewport < 768px breakpoint).
+
+### Stacked-header page (Asset Analysis, CAPEX & Renders)
+
+```tsx
+<ReportPaper
+  sectionLabel="hotel valuation"
+  title="..."
+  titleSize="4xl"
+  headerLayout="stacked"   // PDF button on row 1; label + title row 2-3
+  closed                   // full rounded + bordered (no flow into ActionBar)
+  actions={<HotelLabel + HotelToggle>}
+>
+  ...
+</ReportPaper>
+```
+
+### Carousel page (Market Overview)
+
+```tsx
+<ReportShell>  {/* default portrait */}
+  <ReportPaper closed headerLayout="stacked" actions={...}>
+    <HorizontalInsightScroller>
+      {data.insights.map(insight => <MarketInsightCard ... />)}
+    </HorizontalInsightScroller>
+    <CorporateSportsCard />
+    <DemandGeneratorsBlock />
+    <DemandGeneratorsGallery />
+  </ReportPaper>
+  <ActionBar />
+</ReportShell>
+```
+
+The `HorizontalInsightScroller` runs in three modes:
+- **Mobile / tablet:** free swipe (`overflow-x-auto scroll-snap-type: x mandatory`).
+- **Desktop:** paged carousel (`overflow: hidden`, transform driven by `--page` CSS variable, floating arrows move 2 cards per click).
+- **Print:** static 2 × 2 grid (`break-inside: avoid` keeps it on one A4 page).
+
+See `docs/print-pdf.md` for the canvas math and `docs/component-library.md` for the primitive surface.
 
 ---
 
-## Components
+## Adding a new section
 
-### SparklineGroup
-File: `components/report/executive-summary/sparkline-group.tsx`  
-Renders 3 `MiniChartCard` (h-24 each): Occupancy TTM (bar), ADR TTM (line), RevPAR TTM (area).
+1. **Flip `implemented: true`** in `sections.ts`. Adjust `subItems` if applicable.
+2. **Create the page** at `app/report/<section-id>/page.tsx`. Compose with `ReportShell` + `ReportPaper`/`ReportSection` + primitives:
+   ```tsx
+   import { ReportShell } from "@/components/report/shell/report-shell";
+   import { ReportPaper } from "@/components/report/shell/report-paper";
+   import { MetricRow, MetricTable, StatGrid /* ... */ } from "@/components/report/primitives";
+   ```
+3. **Add the data file** at `lib/report/<section-id>-data.ts` with TypeScript types + `getMock<Section>()`.
+4. **No** edits to the sidebar, the shell, the print system, or the PDF pipeline.
+5. Update `REPORT_PAGES.md`, `UI_COMPONENTS.md`, `docs/changelog.md`.
 
-### HotelPhotoCarousel
-File: `components/report/executive-summary/hotel-photo-carousel.tsx`  
-Client component. `aspect-[4/3]`, bottom-right nav arrows, `1/5` counter. Photos from `photos[]` prop; defaults to 5 Unsplash hotel images.
-
-### ReportMap
-File: `components/report/ui/report-map.tsx`  
-Client component. Full CompSet map — uses `useCompset()` + `useMapViewport()`. Includes `CompsetMapGL` (dynamic, ssr:false), `MapControls` (zoom), `MapLegend` (layer toggles). No `CompetitorPanel` in report view.
-
-### ActionBar
-File: `components/report/executive-summary/action-bar.tsx`  
-3-col grid, h-16, `print:hidden`. Buttons (text only): FAVORITOS | GUARDAR (with "Página X de Y") | UPGRADE (`bg-[#005db7]`).
-
-### LockedGate
-File: `components/report/ui/locked-gate.tsx`  
-Displays blurred locked rows + tier badge + upgrade CTA. Has `print:hidden` — upgrade gates are removed from PDF.
-
-### SubSectionHeading
-File: `components/report/executive-summary/sub-section-heading.tsx`  
-Uppercase label for each section. `print:text-xs print:mb-1`.
-
-### MethodologicalNote
-File: `components/report/ui/methodological-note.tsx`  
-Disclaimer / data sources block. `print:p-3 print:bg-white`, `print:text-[8px]`.
+If a new section requires touching anything outside the section's own folder, the architecture is leaking — fall back to the primitives.
 
 ---
 
-## Sparkline Charts
+## Mock vs API
 
-| Component | File | Type |
-|---|---|---|
-| `SparklineBar` | `components/report/charts/sparkline-bar.tsx` | SVG bar chart |
-| `SparklineLine` | `components/report/charts/sparkline-line.tsx` | SVG line / area chart |
+Phase 0 + 4 section integrations keep mock data in place. The five existing pages call `getMock<Section>()` directly. When `lib/api/reports.ts` lands, those calls are replaced by TanStack Query hooks (`useReport`, `useReportSection`) without touching the section components.
 
-Both are pure SVG, no external chart lib. `SparklineLine` accepts `showArea` + `gradientId` for area fill.
-
----
-
-## Competitive Set Page
-
-**Route:** `/report/competitive-set`  
-**File:** `app/report/competitive-set/page.tsx`  
-**Data:** `src/lib/report/competitive-set-data.ts` (mock; replace with API)
-
-### Structure (within ReportPaper)
-
-1. **CompetitiveSetTable** — 7-column comparison table (property name, stars, keys, submarket, facilities, location score, distance)
-2. **HotelGalleryGrid** — 4-col grid of `HotelGalleryCard` (20 images, `aspect-[4/3]`)
-
-### Header
-- `titleSize="4xl"` → `text-4xl font-extrabold` (Stitch design spec)
-- `headerRight={<PrimeToggle />}` — emerald toggle switch, client component, `print:hidden`
-
-### Table row variants
-- **Subject Property**: `bg-emerald-50/50` row, green dot, `text-emerald-500` stars, `text-emerald-600` facilities, `bg-emerald-200/600` score bar
-- **Competitor**: normal row, `text-amber-400` stars, `text-slate-500` facilities, `bg-slate-200/600` score bar
-- Unavailable facility: `opacity-30` on icon
-
-### Facility icons (Lucide)
-`bar → Wine` | `restaurant → UtensilsCrossed` | `rooftop → Sun` | `meeting → Users` | `gym → Dumbbell` | `spa → Leaf`
-
-### Gallery card
-`aspect-[4/3]`, `rounded-xl`, `border border-slate-200 shadow-sm`. Arrow button `absolute bottom-2 right-2`, frosted glass bg, `group-hover:scale-110`. Image scales `group-hover:scale-105`.
-
-### Gallery layout
-
-**Top block:** `grid-cols-12 min-h-[460px]`
-- Left (`col-span-5`): `grid grid-cols-2 grid-rows-2 h-full` — 4 images fill the 2×2 cells with `h-full aspect-auto object-cover`
-- Right (`col-span-7`): `ReportMap` with `h-full` — same height as 2×2 block. `min-h-[460px]` on parent satisfies the map's `min-height: 450px` CSS constraint.
-
-**Bottom block:** `grid-cols-4` — remaining 16 images with standard `aspect-[4/3]` cards.
-
-### Print
-- Table: natural table layout at 960px canvas — no column collapse needed
-- Top block: `print:min-h-0 print:h-80` → caps at 320px on the 960px canvas
-- Map in print: `compset-map-container { min-height: 0 !important }` already in globals.css
-- Gallery bottom: `print:grid-cols-4` to prevent column collapse
-- `PrimeToggle`: `print:hidden`
+Outstanding for Phase 4:
+- `lib/api/reports.ts` with `useReport(reportId)` + `useReportSection(reportId, sectionId)`.
+- `apps/api/app/api/v1/reports/router.py` stub returning the same mock shape.
 
 ---
 
 ## Premium Gating
 
-See `docs/business-rules.md` for tier definitions.  
-`LockedGate rows={[...]} tier="PRO"|"PREMIUM"` — renders after the visible table rows.  
-In print (`print:hidden`): locked sections are removed entirely from PDF output.
+`UpgradeGate` (canonical) wraps the legacy `LockedGate` implementation. Always `print:hidden`. See `docs/business-rules.md` for tier definitions and per-section locked rows.
 
 ---
 
-## Data Formatters
+## Print orientation
 
-File: `src/lib/report/executive-summary-data.ts`
+| Page | Orientation | Why |
+|---|---|---|
+| Executive Summary, Competitive Set, Asset Analysis × 2, Market Overview | Portrait | Institutional standard |
+| (none currently) | Landscape | Available via `<ReportShell printOrientation="landscape">` for sections that benefit (e.g. wide tables, flow diagrams) |
 
-| Function | Output |
-|---|---|
-| `fmtMillionsEUR(n)` | `€12.5M` |
-| `fmtThousandsEUR(n)` | `€125K` |
-| `fmtEURPerSqm(n)` | `€3,200/m²` |
-| `fmtPercent(n, decimals?)` | `72.5%` |
-| `fmtADR(n)` | `€185` |
-| `fmtOccupancy(n)` | `74.2%` |
-| `fmtRevPAR(n)` | `€137` |
+Market Overview was prototyped in landscape and reverted to portrait per institutional standard. The landscape canvas, named-page rule, and Firefox fallback all remain wired in `globals.css` for future use.
 
 ---
 
-## Report Navigation
+## See Also
 
-Registry: `src/lib/report/report-nav.ts`  
-6 sections, 15 items total. Sidebar uses this registry to render nav links. Add new sections here first.
+- `REPORT_PAGES.md` — per-page composition trees, web↔print contracts, future-proofing notes.
+- `docs/print-pdf.md` — A4 canvas math, both orientations, Firefox fallback, print utilities.
+- `docs/component-library.md` and `UI_COMPONENTS.md` — primitives + section family catalogs.
+- `docs/maps.md` — Mapbox + stylised map systems.
+- `docs/design-system.md` — typography, spacing, colour tokens.
+- `docs/workflows.md` — Landing → CompSet → Report user flow.

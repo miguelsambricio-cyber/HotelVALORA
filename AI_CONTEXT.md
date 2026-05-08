@@ -80,14 +80,36 @@ All server state lives in TanStack Query hooks under `src/lib/api/`. Each domain
 `src/app/` (root) — public landing page.
 Primary user flow: `/` → `/compset` → `/report/executive-summary`.
 
-### Report Module
-Shell: `ReportShell` → `ReportPaper` → section components. `<main>` has `report-print-canvas` class for A4 print scaling.
-Section registry: `src/lib/report/report-nav.ts` — 6 groups, 15 items.
-Executive Summary: `AssetSection` + `MarketSection` + `ValuationSection` + `MethodologicalNote`.
-Each section uses 12-col grid with both `md:col-span-*` AND `print:col-span-*` (Chrome print viewport < 768px).
-Print system: `@page { size: A4; margin: 8mm 10mm }` + `.report-print-canvas { width: 960px; zoom: 0.74 }`.
-Locked gates (`LockedGate`) are `print:hidden` — removed from PDF.
-Mock data: `lib/report/executive-summary-data.ts` → replace with `GET /api/v1/reports/{id}`.
+### Report Module (canonical, 5 of 6 sections shipped, 2026-05-08)
+One shell, one sidebar, one paper, one PDF pipeline, one section registry.
+
+Implemented routes:
+- `/report/executive-summary`
+- `/report/asset-analysis` (Hotel personalizado)
+- `/report/asset-analysis/capex` (CAPEX & Renders, single page)
+- `/report/competitive-set`
+- `/report/market-overview` (Country / Market / Submarket / Class + shared modules)
+- `/report/financials` ⏸ planned · `/report/methodology` ⏸ planned
+
+Shell: `ReportShell` (`printOrientation: "portrait" \| "landscape"`) → `ReportPaper` (or `ReportSection`) → section content. `<main>` carries `report-print-canvas` (portrait, 960 px / `zoom: 0.74`) or `report-print-canvas-landscape` (landscape, 1400 px / `zoom: 0.76`). All shipped pages use portrait.
+
+Section registry: `src/lib/report/sections.ts` — 6 sections, each with `printPageBreak`, `implemented`, optional `subItems`. Sub-items support absolute paths AND hash anchors. Sidebar uses two-pass active-detection (prefer matching sub-route → fall back to first hash-anchor with matching parent path).
+
+Primitives barrel: `src/components/report/primitives/index.ts` exposes `ReportSection`, `ReportHeader`, `MetricRow`, `MetricTable`, `StatCard`/`StatGrid`, `UpgradeGate`/`UpgradeCard`, `ImageGallery`, `ReportMap`, `PrintPage`, `PdfExportButton`.
+
+Section families layered on top: `components/report/asset-analysis/`, `asset-analysis/capex/`, `competitive-set/`, `executive-summary/`, `market-overview/`. Each family has its own data file under `lib/report/`.
+
+Carousel pattern (Market Overview): `HorizontalInsightScroller` runs 3 modes via `.market-carousel-*` CSS — mobile/tablet free swipe, desktop paged carousel (transform driven by `--page` CSS variable + floating arrows), print static 2 × 2 grid. See `docs/print-pdf.md`.
+
+PDF export: `src/lib/report/pdf-export.ts` (`exportReport(metadata?)`) — single entry, swap to server-side later without touching call sites.
+
+Print system: `@page { size: A4 portrait; margin: 10mm }` (default) + `.report-print-canvas` portrait + `.report-print-canvas-landscape` (named-page rule + `transform: scale` Firefox fallback for both). See `docs/print-pdf.md`.
+
+Premium gating (`UpgradeGate` / `UpgradeCard`) is `print:hidden`.
+
+Mock data: `lib/report/<section>-data.ts` per section. Real API hooks (`lib/api/reports.ts`) still pending — Phase 4.
+
+Adding a new section is a one-line registry edit + a new `app/report/<id>/page.tsx` — no shell, sidebar, print, or PDF changes needed.
 
 ---
 

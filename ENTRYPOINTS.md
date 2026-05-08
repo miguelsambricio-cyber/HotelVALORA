@@ -42,28 +42,46 @@ Maps tasks to exact files. Start here before scanning.
 
 | Task | File(s) |
 |---|---|
-| Report shell (layout, nav, footer) | `apps/web/src/components/report/shell/` |
-| Report page — Executive Summary | `apps/web/src/app/report/executive-summary/page.tsx` |
-| Report page — Competitive Set | `apps/web/src/app/report/competitive-set/page.tsx` |
-| Competitive Set data + types | `apps/web/src/lib/report/competitive-set-data.ts` |
-| Competitive Set sub-components | `apps/web/src/components/report/competitive-set/` |
-| Report paper card + header | `apps/web/src/components/report/shell/report-paper.tsx` |
+| Section registry (canonical, 6 sections + sub-anchors + printPageBreak) | `apps/web/src/lib/report/sections.ts` |
+| Section taxonomy types | `apps/web/src/types/report/index.ts` |
+| Report shell (top-nav, sidebar, footer, main canvas) — `printOrientation: "portrait" \| "landscape"` | `apps/web/src/components/report/shell/report-shell.tsx` |
+| Report paper card (`closed`, `headerLayout`, `actions`) | `apps/web/src/components/report/shell/report-paper.tsx` |
+| Report sidebar (driven by sections.ts, two-pass active detection) | `apps/web/src/components/report/shell/report-sidebar.tsx` |
 | Report top nav | `apps/web/src/components/report/shell/report-top-nav.tsx` |
-| Report sidebar | `apps/web/src/components/report/shell/report-sidebar.tsx` |
 | Report footer | `apps/web/src/components/report/shell/report-footer.tsx` |
-| Report section nav registry | `apps/web/src/lib/report/report-nav.ts` |
-| Executive Summary data + formatters | `apps/web/src/lib/report/executive-summary-data.ts` |
+| **Canonical primitives barrel** | `apps/web/src/components/report/primitives/index.ts` |
+| Section page wrapper (preferred for new pages) | `apps/web/src/components/report/primitives/report-section.tsx` |
+| Page header bar | `apps/web/src/components/report/primitives/report-header.tsx` |
+| MetricRow / MetricTable | `apps/web/src/components/report/primitives/metric-row.tsx` / `metric-table.tsx` |
+| StatCard / StatGrid | `apps/web/src/components/report/primitives/stat-card.tsx` |
+| UpgradeGate / UpgradeCard | `apps/web/src/components/report/primitives/upgrade-gate.tsx` |
+| ImageGallery | `apps/web/src/components/report/primitives/image-gallery.tsx` |
+| ReportMap | `apps/web/src/components/report/primitives/report-map.tsx` (re-exports `ui/report-map.tsx`) |
+| PrintPage | `apps/web/src/components/report/primitives/print-page.tsx` |
+| PdfExportButton | `apps/web/src/components/report/primitives/pdf-export-button.tsx` |
+| PDF export entry | `apps/web/src/lib/report/pdf-export.ts` (`exportReport`) |
+| A4 print CSS (canvas, scaling, Firefox fallback, utilities) | `apps/web/src/app/globals.css` |
+| Report page — Executive Summary | `apps/web/src/app/report/executive-summary/page.tsx` |
+| Report page — Asset Analysis · Hotel personalizado | `apps/web/src/app/report/asset-analysis/page.tsx` |
+| Report page — Asset Analysis · CAPEX & Renders | `apps/web/src/app/report/asset-analysis/capex/page.tsx` |
+| Report page — Competitive Set | `apps/web/src/app/report/competitive-set/page.tsx` |
+| Report page — Market Overview | `apps/web/src/app/report/market-overview/page.tsx` |
+| Executive Summary data + locale formatters | `apps/web/src/lib/report/executive-summary-data.ts` |
+| Competitive Set data + types | `apps/web/src/lib/report/competitive-set-data.ts` |
+| Asset Analysis data | `apps/web/src/lib/report/asset-analysis-data.ts` |
+| CAPEX & Renders data | `apps/web/src/lib/report/capex-renders-data.ts` |
+| Market Overview data | `apps/web/src/lib/report/market-overview-data.ts` |
+| Intl-based formatter library | `apps/web/src/lib/report/formatting.ts` |
 | Executive Summary sub-components | `apps/web/src/components/report/executive-summary/` |
-| Hotel photo carousel | `apps/web/src/components/report/executive-summary/hotel-photo-carousel.tsx` |
-| Action bar (Favoritos/Guardar/Upgrade) | `apps/web/src/components/report/executive-summary/action-bar.tsx` |
-| Sparkline bar chart | `apps/web/src/components/report/charts/sparkline-bar.tsx` |
-| Sparkline line/area chart | `apps/web/src/components/report/charts/sparkline-line.tsx` |
-| Premium lock gate overlay | `apps/web/src/components/report/ui/locked-gate.tsx` |
-| Report map (CompSet in report) | `apps/web/src/components/report/ui/report-map.tsx` |
-| Methodological note | `apps/web/src/components/report/ui/methodological-note.tsx` |
-| PDF export | `apps/web/src/lib/report/pdf-export.ts` |
-| A4 print CSS | `apps/web/src/app/globals.css` — `.report-print-canvas`, `@page`, `@media print` |
-| Dynamic report section | `apps/web/src/app/report/[reportId]/[section]/page.tsx` |
+| Asset Analysis sub-components (Hotel personalizado) | `apps/web/src/components/report/asset-analysis/` |
+| CAPEX & Renders sub-components | `apps/web/src/components/report/asset-analysis/capex/` |
+| Competitive Set sub-components | `apps/web/src/components/report/competitive-set/` |
+| Market Overview sub-components (insight card, charts, carousel, demand generators) | `apps/web/src/components/report/market-overview/` |
+| KPICard / KPIGrid (used by StatCard primitive) | `apps/web/src/components/report/kpi/` |
+| Sparkline bar / line charts | `apps/web/src/components/report/charts/` |
+| Methodological note (full-width endcap) | `apps/web/src/components/report/ui/methodological-note.tsx` |
+| Methodology note (inline column-fitted variant) | `apps/web/src/components/report/asset-analysis/methodology-note.tsx` |
+| Locked gate / upgrade card (raw — prefer `UpgradeGate` primitive) | `apps/web/src/components/report/ui/locked-gate.tsx` / `locked-upgrade-card.tsx` |
 
 ---
 
@@ -160,10 +178,13 @@ Maps tasks to exact files. Start here before scanning.
 | `docs/architecture.md` | Service topology, runtime infra, ports, app flow |
 | `docs/routing.md` | All routes, layout shells, navigation wiring |
 | `docs/frontend.md` | App Router, component map, auth flow |
-| `docs/report-system.md` | Report shell, sections, hierarchy, gating, print |
-| `docs/print-system.md` | A4 print CSS, zoom/scale math, print variants |
+| `docs/report-system.md` | Canonical report architecture: shell, sidebar, 5 implemented sections |
+| `docs/print-pdf.md` | A4 portrait + landscape canvases, named-page rules, Firefox fallback, carousel ↔ static-grid logic |
+| `docs/maps.md` | Mapbox CompSet map + stylised pin map (Market Overview) |
 | `docs/design-system.md` | Color tokens, typography, spacing, Tailwind conventions |
-| `docs/components.md` | Reusable component catalog, props, file paths |
+| `docs/component-library.md` | Canonical primitives catalog (preferred for new pages) |
+| `REPORT_PAGES.md` | Per-page composition trees, web↔print contracts (root-level) |
+| `UI_COMPONENTS.md` | All component families grouped by import surface (root-level) |
 | `docs/business-rules.md` | Premium tiers, locked gates, workflow constraints |
 | `docs/financial.md` | Valuation metrics, formatters, display rules |
 | `docs/workflows.md` | User flows, CTA wiring, navigation state |

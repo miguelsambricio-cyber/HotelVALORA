@@ -26,9 +26,10 @@ Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md
 | `docs/routing.md` | New route, layout shell change, navigation wiring |
 | `docs/frontend.md` | New component area, data-fetching pattern, auth change |
 | `docs/report-system.md` | New report section, section hierarchy change, shell change |
-| `docs/print-system.md` | Print CSS change, scale/zoom change, new print variant |
+| `docs/print-pdf.md` | Print/PDF change, scale/zoom change, new print variant, browser fallback |
+| `docs/maps.md` | Map system change (CompSet Mapbox or stylised pin map for Market Overview) |
 | `docs/design-system.md` | New color token, typography rule, spacing convention |
-| `docs/components.md` | New reusable component, prop API change |
+| `docs/component-library.md` | New canonical primitive, prop API change on a primitive |
 | `docs/business-rules.md` | New tier/gate rule, premium logic, workflow constraint |
 | `docs/financial.md` | New metric, formula change, valuation display rule |
 | `docs/workflows.md` | User flow change, new CTA wire-up, step added/removed |
@@ -65,10 +66,11 @@ docs/
   architecture.md     system topology, services, runtime infra, ports, app flow
   routing.md          all routes, layout shells, navigation wiring
   frontend.md         Next.js structure, components, data fetching, auth flow
-  report-system.md    report shell, sections, hierarchy, locked gates, print
-  print-system.md     A4 print CSS, zoom/scale, @page, print variants
+  report-system.md    canonical report architecture: shell, sidebar, 5 implemented sections
+  print-pdf.md        A4 portrait + landscape canvases, named-page rules, Firefox fallback
+  maps.md             Mapbox CompSet map + stylised pin map (Market Overview)
   design-system.md    color tokens, typography, spacing, Tailwind conventions
-  components.md       reusable component catalog with file paths and props
+  component-library.md  canonical primitives catalog (preferred for new pages)
   business-rules.md   premium tiers, locked gates, upgrade CTAs, gating logic
   financial.md        valuation metrics, KPIs, display formulas, report values
   workflows.md        user flows: Landing → CompSet → Report and beyond
