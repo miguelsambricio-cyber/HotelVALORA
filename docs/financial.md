@@ -29,6 +29,28 @@ For DCF engine internals (Python), see `docs/financial-engine.md`.
 
 ---
 
+## 5-Year P&L Forecast scenario model (`/report/financials/pl`)
+
+Each underwriting scenario is an independent constant RevPAR growth rate, stored on `PLAssumptions.scenarioGrowth: Record<UnderwritingScenario, number>`. The live P&L is computed with the `base` (Mercado) rate; `downside` and `upside` are committee sensitivity inputs that future scenario comparison views (IRR bands, DSCR sensitivity, exit cap matrix) will consume.
+
+| Scenario internal | UI label | Default growth |
+|---|---|---|
+| `downside` | Conservador | 8.5% |
+| `base`     | Mercado     | 6.0% (drives the live table) |
+| `upside`   | Optimista   | 3.0% |
+
+`computePL(a)` applies `a.scenarioGrowth.base` as a constant year-over-year RevPAR multiplier across all 5 years. Occupancy still follows absolute pp deltas (`occupancyGrowth.yr2..yr5`); ADR is derived as `RevPAR / Occupancy`. Per-line ratios (operating revenue, departmental + undistributed expense %) stay constant across years in v1.
+
+### EBITDA Stabilized card
+The big-number metric is the Year-3 EBITDA % margin from `computed.results.ebitdaMargin[2]`. It auto-tracks any edit to assumptions or scenario rates — the analyst doesn't type a target.
+
+### Tier permissions
+- **FREE**: no access (page-level gate). FREE is Executive Summary only.
+- **PRO**: full table + cards visible, all inputs render `readOnly` (including the 3 scenario rates).
+- **PREMIUM**: editable.
+
+---
+
 ## Market Metrics (Market Overview)
 
 | Field | Type | Display format |

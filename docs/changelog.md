@@ -4,6 +4,35 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-09 — 5-Year P&L Forecast: Lectura A scenario architecture
+
+Refactored `/report/financials/pl` so each underwriting scenario is an independent committee growth parameter instead of a globally-selected lens. Removed the global `ScenarioToggle` from the report header and the Zustand store under `lib/underwriting/scenario.ts` (kept the type + display labels for reuse).
+
+### Changes
+- **Sidebar**: `Financials → P&L` → `Financials → 5-Year P&L`.
+- **RevparScenarioCard**: 3-tile readout → 3 editable inputs (Conservador / Mercado / Optimista). Each one a constant RevPAR growth rate.
+- **EbitdaStabilizedCard**: assumption value `50.5%` → derived from `computed.results.ebitdaMargin[2]` (Year 3 % margin). Auto-tracks edits.
+- **Header**: `ScenarioToggle` removed from header actions.
+- **Calc model change**: `computePL(a, scenario)` → `computePL(a)`. Uses `a.scenarioGrowth.base` as a constant year-over-year multiplier (no more yr2/yr3/yr4-5 differentiation). Year 5 RevPAR ≈ €143.59 (vs prior €138.69 from differentiated growth).
+
+### Data layer
+- `PLAssumptions.revparGrowth { yr2; yr3; yr4to5 }` and `PLAssumptions.revparScenario` removed.
+- New: `PLAssumptions.scenarioGrowth: Record<UnderwritingScenario, number>` — 3 independent constant growth rates.
+- Defaults: `{ downside: 0.085, base: 0.060, upside: 0.030 }` (preserves Stitch reference values).
+
+### Tier behaviour (unchanged)
+FREE → page-level upgrade gate. PRO → all inputs (including the 3 scenario rates) render `readOnly`. PREMIUM → editable.
+
+### Files
+- `EDIT` `apps/web/src/lib/report/financials/{types,assumptions,calculations,index}.ts`
+- `EDIT` `apps/web/src/lib/underwriting/scenario.ts` (drop store, keep type + labels)
+- `EDIT` `apps/web/src/components/report/financials/pl-top-cards.tsx`
+- `EDIT` `apps/web/src/app/report/financials/pl/{page,pl-content}.tsx`
+- `EDIT` `apps/web/src/lib/report/sections.ts`
+- `DELETE` `apps/web/src/components/report/scenario-toggle.tsx`
+
+---
+
 ## 2026-05-09 — Projects page (sub-route under Market Overview)
 
 Second sub-route under Market Overview. Mirrors Transactions structure with project-specific extensions.
