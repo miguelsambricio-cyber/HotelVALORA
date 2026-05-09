@@ -21,12 +21,22 @@
 //    assumption store but doesn't yet drive the table (future hook for
 //    fixed-currency expense lines).
 
+import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
 import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types";
 import { SCENARIO_GROWTH } from "./assumptions";
 
 const YEARS = 5 as const;
 
-export function computePL(a: PLAssumptions): PLComputed {
+/**
+ * Pure function: given the per-hotel assumption store and the active
+ * underwriting scenario (downside / base / upside), returns the computed
+ * 5-year P&L. The scenario is passed explicitly so the same `assumptions`
+ * struct can be re-projected through different scenarios without mutation.
+ */
+export function computePL(
+  a: PLAssumptions,
+  scenario: UnderwritingScenario,
+): PLComputed {
   // ── 1. Year-by-year RevPAR / Occupancy / ADR ──────────────────────────
   const revpar: number[] = new Array(YEARS);
   const occupancy: number[] = new Array(YEARS);
@@ -36,7 +46,7 @@ export function computePL(a: PLAssumptions): PLComputed {
   adr[0] = a.adrYear1;
   revpar[0] = adr[0] * occupancy[0];
 
-  const growth = SCENARIO_GROWTH[a.revparScenario];
+  const growth = SCENARIO_GROWTH[scenario];
   const revparMult: [number, number, number, number] = [
     1 + growth.yr2,
     1 + growth.yr3,

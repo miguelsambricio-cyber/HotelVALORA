@@ -16,6 +16,7 @@ import {
   type PLAssumptions,
   type PLLineItemId,
 } from "@/lib/report/financials";
+import { useScenario } from "@/lib/underwriting/scenario";
 import {
   canEditAssumptions,
   canViewFinancials,
@@ -23,23 +24,27 @@ import {
 } from "@/lib/report/use-tier";
 
 /**
- * P&L body — owns assumption state, tier resolution, and recompute.
+ * P&L body — reads the active scenario from the global underwriting store
+ * and re-projects the per-hotel assumptions through it on every render.
  *
- * Lives in a separate file so the page wrapper can stay server-rendered
- * (shell + paper + ActionBar prerender statically). This component reads
- * the tier via `useTier()` (which calls `useSearchParams`) and is wrapped
- * in `<Suspense>` by its parent — that boundary keeps the static prerender
- * working for the rest of the page.
+ * The local `assumptions` state holds the hotel-specific operating ratios
+ * (rooms, ADR, expense %, etc.) — the scenario lens is global and lives
+ * in `useScenarioStore` so the future IRR / debt / sensitivity pages see
+ * the exact same lens without needing local state.
  */
 export function PLContent() {
   const tier = useTier();
   const editable = canEditAssumptions(tier);
   const canView = canViewFinancials(tier);
 
+  const [scenario] = useScenario();
   const [assumptions, setAssumptions] = useState<PLAssumptions>(() =>
     getDefaultAssumptions(),
   );
-  const computed = useMemo(() => computePL(assumptions), [assumptions]);
+  const computed = useMemo(
+    () => computePL(assumptions, scenario),
+    [assumptions, scenario],
+  );
 
   const handleLineItemChange = (id: PLLineItemId, next: number) => {
     setAssumptions((a) => applyAssumptionChange(a, id, next));
@@ -49,15 +54,11 @@ export function PLContent() {
 
   return (
     <div className="space-y-8 print:space-y-3">
-      {/* TOP STRIP — 3 institutional summary cards */}
+      {/* TOP STRIP — 3 institutional summary cards.
+          RevparScenarioCard is now a read-only readout — the scenario itself
+          is changed via the global toggle in the report header. */}
       <FinancialSummaryStrip>
-        <RevparScenarioCard
-          value={assumptions.revparScenario}
-          editable={editable}
-          onChange={(revparScenario) =>
-            setAssumptions((a) => ({ ...a, revparScenario }))
-          }
-        />
+        <RevparScenarioCard scenario={scenario} />
         <ExpenseInflationCard
           values={assumptions.expenseInflation}
           editable={editable}

@@ -6,18 +6,18 @@
 // ratios). When the Excel ingestion ships, replace `getDefaultAssumptions`
 // with `getAssumptionsFromCoStar(market, class)`.
 
-import type { PLAssumptions, RevparScenario } from "./types";
+import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
+import type { PLAssumptions } from "./types";
 
 /**
  * RevPAR growth profile per scenario. The "base" profile preserves the
- * Madrid Upper Upscale baseline that previously lived inside
- * `getDefaultAssumptions`; downside / upside flank it symmetrically.
+ * Madrid Upper Upscale baseline; downside / upside flank it symmetrically.
  *
  * Future: this table will be sourced from CoStar dataset rows keyed by
  * (country × market × class) so each report carries its own scenario band.
  */
 export const SCENARIO_GROWTH: Record<
-  RevparScenario,
+  UnderwritingScenario,
   { yr2: number; yr3: number; yr4to5: number }
 > = {
   downside: { yr2: 0.03, yr3: 0.02, yr4to5: 0.01 },
@@ -34,8 +34,7 @@ export function getDefaultAssumptions(): PLAssumptions {
     occupancyYear1: 0.65,
     adrYear1: 175,
 
-    // Top-card scenario state
-    revparScenario: "base",
+    // Top-card assumptions (scenario lives in the global store, not here)
     occupancyGrowth: { yr2: 0.03, yr3: 0.02, yr4: 0.01, yr5: 0 },
     expenseInflation: { payroll: 0.045, utilities: 0.035, other: 0.025 },
 

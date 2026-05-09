@@ -109,12 +109,13 @@ export interface PLAssumptions {
   adrYear1: number; // currency unit
 
   // ── Year-over-year drivers (top cards) ──
-  /**
-   * RevPAR growth scenario. Internal label only — UI shows
-   * Conservador / Mercado / Optimista. Resolved to per-year growth ratios
-   * via the `SCENARIO_GROWTH` lookup table at calc time.
-   */
-  revparScenario: RevparScenario;
+  // Note: the active underwriting scenario lives in the global Zustand
+  // store (`useScenarioStore` from `@/lib/underwriting/scenario`) so it can
+  // be shared across P&L, IRR, debt and sensitivity. `computePL` takes the
+  // scenario as a separate argument; it is intentionally NOT a field on
+  // `PLAssumptions` (which describes only the hotel-specific operating
+  // ratios — same regardless of which analytical lens is applied).
+
   /** Absolute occupancy delta in percentage points per year */
   occupancyGrowth: { yr2: number; yr3: number; yr4: number; yr5: number };
   /**
@@ -155,16 +156,7 @@ export interface PLAssumptions {
   daysInYear: number;
 }
 
-// ── RevPAR scenario (internal mapping, not surfaced in UI text) ────────────
-
-/**
- * Internal scenario labels. The UI never shows these — instead it surfaces
- * "Conservador" / "Mercado" / "Optimista" segmented buttons that map onto
- * `downside` / `base` / `upside` respectively.
- */
-export type RevparScenario = "downside" | "base" | "upside";
-
-// ── Computed shape returned by `computePL(assumptions)` ─────────────────────
+// ── Computed shape returned by `computePL(assumptions, scenario)` ──────────
 
 export type FiveYears = readonly [number, number, number, number, number];
 

@@ -1,83 +1,76 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart3, Coins } from "lucide-react";
+import { ArrowUp, BarChart3, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   formatPercent,
   parseAssumption,
+  SCENARIO_GROWTH,
   type Currency,
   type PLAssumptions,
-  type RevparScenario,
 } from "@/lib/report/financials";
+import {
+  SCENARIO_LABELS,
+  type UnderwritingScenario,
+} from "@/lib/underwriting/scenario";
 import { FinancialMetricCard } from "./financial-metric-card";
 
-// ── RevPAR Scenario (segmented institutional selector) ──────────────────────
+// ── RevPAR Scenario (read-only readout of the global scenario) ──────────────
 //
-// Replaces the prior 3-input "RevPAR Growth (YoY)" card. UI surfaces three
-// committee-grade choices (Conservador / Mercado / Optimista) that map
-// internally onto `downside` / `base` / `upside` — the visible labels never
-// expose those internal terms.
-//
-// Selected button: forest-900 background + white text (HotelVALORA primary).
-// Tier handling: PREMIUM toggles freely; PRO/FREE see the active scenario
-// but can't change it (buttons render as `aria-disabled` non-interactive).
-
-const SCENARIO_OPTIONS: { id: RevparScenario; label: string }[] = [
-  { id: "downside", label: "Conservador" },
-  { id: "base", label: "Mercado" },
-  { id: "upside", label: "Optimista" },
-];
+// This card was previously an interactive selector. With the global
+// `ScenarioToggle` living in the page header, the card now acts as a
+// committee-grade readout — surfacing the YoY growth values implied by the
+// active scenario across the 5-year horizon. No buttons, no inputs.
 
 export interface RevparScenarioCardProps {
-  value: RevparScenario;
-  editable: boolean;
-  onChange: (next: RevparScenario) => void;
+  /** Active scenario from the global underwriting store */
+  scenario: UnderwritingScenario;
 }
 
-export function RevparScenarioCard({
-  value,
-  editable,
-  onChange,
-}: RevparScenarioCardProps) {
+export function RevparScenarioCard({ scenario }: RevparScenarioCardProps) {
+  const growth = SCENARIO_GROWTH[scenario];
   return (
     <FinancialMetricCard variant="light">
-      <CardHeader title="RevPAR Scenario" icon={<BarChart3 className="text-blue-600" size={20} />} />
-      <div
-        role="radiogroup"
-        aria-label="RevPAR scenario"
-        className={cn(
-          "inline-flex w-full gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1",
-          "print:border-slate-200 print:p-0.5",
-        )}
-      >
-        {SCENARIO_OPTIONS.map((opt) => {
-          const isActive = opt.id === value;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              aria-disabled={!editable}
-              disabled={!editable && !isActive}
-              onClick={() => editable && onChange(opt.id)}
-              className={cn(
-                "flex-1 rounded-md px-3 py-2 text-xs font-bold uppercase tracking-wider transition-all",
-                "print:py-1 print:text-[8px] print:tracking-normal",
-                isActive
-                  ? "bg-forest-900 text-white shadow-sm"
-                  : "text-slate-500",
-                editable && !isActive && "hover:bg-white hover:text-slate-700 cursor-pointer",
-                !editable && !isActive && "cursor-default opacity-60",
-              )}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
+      <CardHeader
+        title="RevPAR Scenario"
+        icon={<BarChart3 className="text-blue-600" size={20} />}
+      />
+      <div className="grid grid-cols-3 gap-3 print:gap-2">
+        <ReadoutTile label="YR 2" value={growth.yr2} />
+        <ReadoutTile label="YR 3" value={growth.yr3} />
+        <ReadoutTile label="YR 4-5" value={growth.yr4to5} />
       </div>
+      <p className="mt-3 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 print:mt-1.5 print:text-[7px]">
+        <ArrowUp size={10} strokeWidth={2.5} className="print:hidden" />
+        Active scenario
+        <span className="font-bold text-forest-900">
+          · {SCENARIO_LABELS[scenario]}
+        </span>
+        <span className="ml-auto print:hidden">Adjust from header</span>
+      </p>
     </FinancialMetricCard>
+  );
+}
+
+interface ReadoutTileProps {
+  label: string;
+  /** Growth ratio (0..1) — rendered as "+X.X%" */
+  value: number;
+}
+
+function ReadoutTile({ label, value }: ReadoutTileProps) {
+  const sign = value >= 0 ? "+" : "";
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-center print:py-1">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[7px]">
+        {label}
+      </p>
+      <p className="mt-0.5 text-base font-extrabold text-slate-800 font-headline print:text-xs">
+        {sign}
+        {(value * 100).toFixed(1)}%
+      </p>
+    </div>
   );
 }
 
