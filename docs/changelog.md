@@ -4,6 +4,85 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-09 — Projects page (sub-route under Market Overview)
+
+Second sub-route under Market Overview. Mirrors Transactions structure with project-specific extensions.
+
+### New page — `/report/market-overview/projects`
+- Sub-route, sidebar two-pass detection picks it via Pass 1.
+- Same shell pattern as Transactions: `<ReportShell>` → `<ReportPaper closed headerLayout="stacked">` → KPI row + projects table + gallery → `<ActionBar>`.
+
+### Sidebar
+- `sections.ts` Market Overview: `Projects` switched from `#projects` hash anchor → `/report/market-overview/projects` real sub-route.
+
+### Reuse — no duplicate components built
+- `TransactionsKpiCard` (cross-folder import) — same dual-metric shape; renders projects pipeline KPIs.
+- `TransactionHotelCard` (cross-folder import) — same gallery card.
+- `DualMetric`, `TransactionClass`, `TransactionHotelGalleryItem` types — re-imported.
+
+### New section family — `components/report/market-overview/projects/`
+- `ProjectsTable` — 19-column institutional table (one more than Transactions: STATUS pill column). Renames `Buyer→Owner`, `Seller→Developer`, `CAPEX→Construction Type`.
+- `StatusBadge` — emerald (Complete) / blue (Under Construction) pill.
+
+### Data layer — `lib/report/projects-data.ts`
+- `ProjectRow` adds `status: ProjectStatus` and `constructionType: ConstructionType` discriminated unions.
+- 5 mock projects (same Madrid hotels for cross-page consistency).
+- 4 gallery items using real Stitch CDN URLs.
+
+### Side-effect
+- `TransactionsKpiCardData.scope` widened from union literal to `string` so `ProjectsKpiCardData.scope` (`"market" | "category"`) flows through the same component without TypeScript variance complaints. Component only uses `scope` as a DOM id key.
+
+### Verification
+- `pnpm typecheck` passes.
+- HTTP 200 on `/report/market-overview/projects` and on every other report route.
+- SSR confirms: 2 KPI titles, 5 status badges (3 Complete + 2 Under Construction), 5 construction types (3 Conversion + 2 New Development), all owner/developer fields. Sidebar Projects active.
+
+---
+
+## 2026-05-09 — Transactions page (sub-route under Market Overview)
+
+New report sub-section integrated. Web layout + responsive shipped per priority order; print compaction will be the next pass.
+
+### New page — `/report/market-overview/transactions`
+- Sub-route under Market Overview (sidebar two-pass detection picks it via Pass 1 — sub-route match).
+- `<ReportShell>` (default portrait) → `<ReportPaper closed headerLayout="stacked" actions={<HotelLabel + HotelToggle>}>` → KPI row + comp-set table + gallery → `<ActionBar>`.
+
+### Sidebar
+- `sections.ts` Market Overview sub-items updated:
+  - `Market overview` → `/report/market-overview` (sub-route, was `#overview` hash anchor)
+  - **`Transactions` → `/report/market-overview/transactions`** (NEW sub-route, was `#transactions` hash anchor)
+  - `Projects` and `Market dynamics` remain hash-anchor placeholders.
+
+### New section family — `components/report/market-overview/transactions/` (4 components)
+- `TransactionsKpiCard` — header + `InsightBadge` + 2×2 dual-metric grid. Same chrome as Market Overview insight cards.
+- `DualMetricCell` — twin label+value pair via `flex justify-between` (replaces Stitch's whitespace-padding hack).
+- `TransactionsTable` — institutional 18-column comp-set table with sticky-style header bar, "Add" placeholder CTA, divide-y rows, soft hover, asset-name highlight on row hover, local checkbox state for the Inc. column.
+- `TransactionHotelCard` — 4:3 image card with dark gradient, white headline caption (bottom-left) + glass arrow button (bottom-right).
+
+### Data layer — `lib/report/transactions-data.ts`
+- 2 KPI cards × 4 dual metrics, 5 table rows (Madrid luxury hotels), 4 gallery items.
+- Discriminated union `TransactionClass`. Numeric values pre-formatted strings (`€130,000,000`, `€849,673`).
+
+### Reuse
+- `ReportShell`, `ReportPaper`, `HotelToggle`, `InsightBadge`, `ActionBar` — all canonical, no changes.
+- Print canvas portrait by default (no orientation prop on this page).
+
+### Web priority — done
+- ✅ Layout web: KPI row 2-col + table + gallery 4-col.
+- ✅ Responsive: KPI `grid-cols-1 md:grid-cols-2`, gallery `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`, table `overflow-x-auto whitespace-nowrap`.
+- ✅ Visual integration: same badge styling, same card chrome, sub-route under Market Overview.
+
+### Print — basic only (next-pass focus)
+- `print:break-inside-avoid` on KPI cards and table rows; `print:hidden` on Inc. checkbox column, "Add" CTA, gallery arrow button.
+- Pending: column subset for portrait OR landscape opt-in, thead repeat (`display: table-header-group`), font-size compaction.
+
+### Verification
+- `pnpm typecheck` passes.
+- HTTP 200 on `/report/market-overview/transactions` and all other report routes.
+- SSR: 2 KPI cards · 2 badges · table title · 5 table rows · 4 gallery cards. Sidebar `Transactions` active (`text-emerald-900 font-bold`), `Market overview` inactive (`text-slate-500`).
+
+---
+
 ## 2026-05-08 — Documentation pass (state-of-the-system refresh)
 
 Full sweep refreshing every architecture / report / print / map doc to reflect the post-Phase-0 + 4-section-integration state. No code changes.
