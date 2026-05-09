@@ -2,28 +2,10 @@
 //
 // In production this comes from a CoStar dataset row keyed by (country,
 // market, submarket, class). Today it's hand-tuned to roughly match the
-// Stitch P&L numbers while staying internally consistent (no contradictory
-// ratios). When the Excel ingestion ships, replace `getDefaultAssumptions`
-// with `getAssumptionsFromCoStar(market, class)`.
+// Stitch P&L reference. When the Excel ingestion ships, replace
+// `getDefaultAssumptions` with `getAssumptionsFromCoStar(market, class)`.
 
-import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
 import type { PLAssumptions } from "./types";
-
-/**
- * RevPAR growth profile per scenario. The "base" profile preserves the
- * Madrid Upper Upscale baseline; downside / upside flank it symmetrically.
- *
- * Future: this table will be sourced from CoStar dataset rows keyed by
- * (country × market × class) so each report carries its own scenario band.
- */
-export const SCENARIO_GROWTH: Record<
-  UnderwritingScenario,
-  { yr2: number; yr3: number; yr4to5: number }
-> = {
-  downside: { yr2: 0.03, yr3: 0.02, yr4to5: 0.01 },
-  base: { yr2: 0.085, yr3: 0.06, yr4to5: 0.03 },
-  upside: { yr2: 0.12, yr3: 0.09, yr4to5: 0.05 },
-};
 
 export function getDefaultAssumptions(): PLAssumptions {
   return {
@@ -34,7 +16,17 @@ export function getDefaultAssumptions(): PLAssumptions {
     occupancyYear1: 0.65,
     adrYear1: 175,
 
-    // Top-card assumptions (scenario lives in the global store, not here)
+    // ── Three scenario growth rates ──
+    // Each rate is applied as a constant RevPAR growth across all 5 years.
+    // The committee tunes these independently; the live P&L uses `base`.
+    // Defaults preserve the prior baseline (Mercado = 6%) so the table
+    // stays in the same order of magnitude.
+    scenarioGrowth: {
+      downside: 0.085, // Conservador
+      base: 0.06, // Mercado — drives the live P&L
+      upside: 0.03, // Optimista
+    },
+
     occupancyGrowth: { yr2: 0.03, yr3: 0.02, yr4: 0.01, yr5: 0 },
     expenseInflation: { payroll: 0.045, utilities: 0.035, other: 0.025 },
 
@@ -63,7 +55,11 @@ export function getDefaultAssumptions(): PLAssumptions {
       expFfeReserve: 0.04,
     },
 
-    // Hero-card informational metrics (stabilized year, not Year-1)
+    // Hero-card informational metrics — `ebitdaStabilizedTarget` is no
+    // longer surfaced in the UI (the card now displays the derived Year-3
+    // EBITDA margin from `computePL`). Kept here so the assumption store
+    // stays a complete underwriting input set; downstream sensitivities
+    // can reference the analyst's target if they need to.
     ebitdaStabilizedTarget: 0.505,
     staffCostShare: 0.317,
 

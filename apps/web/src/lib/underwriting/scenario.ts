@@ -1,42 +1,18 @@
-// Global underwriting scenario state.
+// Underwriting scenario type + display labels.
 //
-// Single source of truth for the analytical lens applied across the entire
-// financial model: P&L, Underwriting IRR, debt service / DSCR, exit cap,
-// and sensitivity analyses all read from this store.
+// Per Lectura A (institutional underwriting model): no active "selected"
+// scenario at the global level. Each scenario is an independent growth
+// parameter the analyst tunes — the calc layer uses the base/Mercado rate
+// for the live P&L; downside / upside rates are stored for future
+// sensitivity views (committee scenario comparison, IRR bands, etc.).
 //
-// UI labels are localised at the component layer (e.g. ScenarioToggle shows
-// "Conservador / Mercado / Optimista") — the canonical internal terms stay
-// `downside / base / upside` so the calc layer is language-agnostic.
-//
-// Implementation: Zustand. The hook is consumed exclusively by client
-// components; server components may import the type but must not call the
-// hook (would error at runtime).
-
-import { create } from "zustand";
+// The type stays here as the canonical underwriting vocabulary so that the
+// future Underwriting IRR / debt service / sensitivity modules speak the
+// same language.
 
 export type UnderwritingScenario = "downside" | "base" | "upside";
 
-interface ScenarioState {
-  scenario: UnderwritingScenario;
-  setScenario: (next: UnderwritingScenario) => void;
-}
-
-export const useScenarioStore = create<ScenarioState>()((set) => ({
-  scenario: "base",
-  setScenario: (scenario) => set({ scenario }),
-}));
-
-/** Convenience hook — equivalent to `useScenarioStore()` but typed as a tuple. */
-export function useScenario(): [
-  UnderwritingScenario,
-  (next: UnderwritingScenario) => void,
-] {
-  const scenario = useScenarioStore((s) => s.scenario);
-  const setScenario = useScenarioStore((s) => s.setScenario);
-  return [scenario, setScenario];
-}
-
-/** Display labels — used by ScenarioToggle and any read-only readouts. */
+/** Display labels — UI never exposes the internal english terms. */
 export const SCENARIO_LABELS: Record<UnderwritingScenario, string> = {
   downside: "Conservador",
   base: "Mercado",

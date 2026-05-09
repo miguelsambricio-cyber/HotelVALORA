@@ -14,29 +14,23 @@
 // 5. Undistributed + non-operating expenses = ratio × Total revenue.
 // 6. GOP = Total − Departmental − Undistributed.
 // 7. EBITDA = GOP − Non-operating.
-// 8. Year-on-year propagation: RevPAR grows by `revparGrowth.yr2/yr3/yr4to5`
-//    (yr4to5 applies to both yr4 and yr5). Occupancy follows absolute pp
-//    deltas. ADR is then derived as RevPAR / Occupancy. All ratios stay
-//    constant across years in v1 — `expenseInflation` is captured in the
-//    assumption store but doesn't yet drive the table (future hook for
-//    fixed-currency expense lines).
+// 8. Year-on-year propagation: RevPAR grows by the live `base` (Mercado)
+//    scenario rate, applied as a constant across all 5 years. Occupancy
+//    follows absolute pp deltas. ADR is then derived as RevPAR / Occupancy.
+//    All ratios stay constant across years in v1 — `expenseInflation` is
+//    captured in the assumption store but doesn't yet drive the table.
 
-import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
 import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types";
-import { SCENARIO_GROWTH } from "./assumptions";
 
 const YEARS = 5 as const;
 
 /**
- * Pure function: given the per-hotel assumption store and the active
- * underwriting scenario (downside / base / upside), returns the computed
- * 5-year P&L. The scenario is passed explicitly so the same `assumptions`
- * struct can be re-projected through different scenarios without mutation.
+ * Pure function: given the per-hotel assumption store, returns the computed
+ * 5-year P&L. The active scenario is the `base` rate inside
+ * `assumptions.scenarioGrowth` — downside / upside are stored for future
+ * sensitivity comparison views and don't affect the live table.
  */
-export function computePL(
-  a: PLAssumptions,
-  scenario: UnderwritingScenario,
-): PLComputed {
+export function computePL(a: PLAssumptions): PLComputed {
   // ── 1. Year-by-year RevPAR / Occupancy / ADR ──────────────────────────
   const revpar: number[] = new Array(YEARS);
   const occupancy: number[] = new Array(YEARS);
@@ -46,13 +40,11 @@ export function computePL(
   adr[0] = a.adrYear1;
   revpar[0] = adr[0] * occupancy[0];
 
-  const growth = SCENARIO_GROWTH[scenario];
-  const revparMult: [number, number, number, number] = [
-    1 + growth.yr2,
-    1 + growth.yr3,
-    1 + growth.yr4to5,
-    1 + growth.yr4to5,
-  ];
+  // Live scenario for the table = base/Mercado, applied as a constant
+  // year-over-year growth multiplier.
+  const baseGrowth = a.scenarioGrowth.base;
+  const revparMult = 1 + baseGrowth;
+
   const occDelta: [number, number, number, number] = [
     a.occupancyGrowth.yr2,
     a.occupancyGrowth.yr3,
@@ -60,7 +52,7 @@ export function computePL(
     a.occupancyGrowth.yr5,
   ];
   for (let y = 1; y < YEARS; y++) {
-    revpar[y] = revpar[y - 1] * revparMult[y - 1];
+    revpar[y] = revpar[y - 1] * revparMult;
     occupancy[y] = occupancy[y - 1] + occDelta[y - 1];
     adr[y] = occupancy[y] > 0 ? revpar[y] / occupancy[y] : 0;
   }

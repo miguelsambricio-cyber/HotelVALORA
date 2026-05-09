@@ -16,7 +16,6 @@ import {
   type PLAssumptions,
   type PLLineItemId,
 } from "@/lib/report/financials";
-import { useScenario } from "@/lib/underwriting/scenario";
 import {
   canEditAssumptions,
   canViewFinancials,
@@ -24,27 +23,19 @@ import {
 } from "@/lib/report/use-tier";
 
 /**
- * P&L body — reads the active scenario from the global underwriting store
- * and re-projects the per-hotel assumptions through it on every render.
- *
- * The local `assumptions` state holds the hotel-specific operating ratios
- * (rooms, ADR, expense %, etc.) — the scenario lens is global and lives
- * in `useScenarioStore` so the future IRR / debt / sensitivity pages see
- * the exact same lens without needing local state.
+ * P&L body — owns the per-hotel assumption store and recomputes
+ * `PLComputed` on every change. Three scenario rates live inside the
+ * assumption store; the live P&L uses the `base` (Mercado) rate.
  */
 export function PLContent() {
   const tier = useTier();
   const editable = canEditAssumptions(tier);
   const canView = canViewFinancials(tier);
 
-  const [scenario] = useScenario();
   const [assumptions, setAssumptions] = useState<PLAssumptions>(() =>
     getDefaultAssumptions(),
   );
-  const computed = useMemo(
-    () => computePL(assumptions, scenario),
-    [assumptions, scenario],
-  );
+  const computed = useMemo(() => computePL(assumptions), [assumptions]);
 
   const handleLineItemChange = (id: PLLineItemId, next: number) => {
     setAssumptions((a) => applyAssumptionChange(a, id, next));
@@ -52,13 +43,21 @@ export function PLContent() {
 
   if (!canView) return <FreeTierGate />;
 
+  // EBITDA Stabilized = derived from Year-3 of the computed P&L
+  // (index 2 = Year 3 in the 5-year FiveYears tuple)
+  const year3EbitdaMargin = computed.results.ebitdaMargin[2];
+
   return (
     <div className="space-y-8 print:space-y-3">
-      {/* TOP STRIP — 3 institutional summary cards.
-          RevparScenarioCard is now a read-only readout — the scenario itself
-          is changed via the global toggle in the report header. */}
+      {/* TOP STRIP — 3 institutional summary cards */}
       <FinancialSummaryStrip>
-        <RevparScenarioCard scenario={scenario} />
+        <RevparScenarioCard
+          values={assumptions.scenarioGrowth}
+          editable={editable}
+          onChange={(scenarioGrowth) =>
+            setAssumptions((a) => ({ ...a, scenarioGrowth }))
+          }
+        />
         <ExpenseInflationCard
           values={assumptions.expenseInflation}
           editable={editable}
@@ -67,7 +66,7 @@ export function PLContent() {
           }
         />
         <EbitdaStabilizedCard
-          target={assumptions.ebitdaStabilizedTarget}
+          margin={year3EbitdaMargin}
           staffCostShare={assumptions.staffCostShare}
           currency={assumptions.currency}
         />
@@ -94,7 +93,7 @@ function FreeTierGate() {
       </div>
       <div className="space-y-1">
         <h3 className="font-headline text-xl font-extrabold uppercase tracking-tight text-forest-900">
-          P&amp;L 5 Years — Premium feature
+          5-Year P&amp;L Forecast — Premium feature
         </h3>
         <p className="max-w-md text-sm text-slate-600">
           The institutional 5-year USALI P&amp;L with editable assumptions is

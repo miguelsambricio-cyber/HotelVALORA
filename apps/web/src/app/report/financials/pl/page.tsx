@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { ReportShell } from "@/components/report/shell/report-shell";
 import { ReportPaper } from "@/components/report/shell/report-paper";
 import { ActionBar } from "@/components/report/executive-summary/action-bar";
-import { ScenarioToggle } from "@/components/report/scenario-toggle";
 import { HotelToggle } from "../../asset-analysis/hotel-toggle";
 import { PLContent } from "./pl-content";
 
@@ -20,9 +19,7 @@ export const metadata: Metadata = {
  */
 export default function PLPage() {
   const headerActions = (
-    <div className="flex items-center gap-5 print:gap-3">
-      <ScenarioToggle />
-      <div className="h-9 w-px bg-slate-200" aria-hidden />
+    <div className="flex items-center gap-4 print:gap-3">
       <span className="text-xl font-bold text-slate-700 font-headline print:text-base">
         Prime
       </span>

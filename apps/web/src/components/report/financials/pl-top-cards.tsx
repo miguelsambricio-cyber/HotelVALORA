@@ -1,76 +1,54 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUp, BarChart3, Coins } from "lucide-react";
+import { BarChart3, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   formatPercent,
   parseAssumption,
-  SCENARIO_GROWTH,
+  SCENARIO_OPTIONS,
   type Currency,
   type PLAssumptions,
-} from "@/lib/report/financials";
-import {
-  SCENARIO_LABELS,
   type UnderwritingScenario,
-} from "@/lib/underwriting/scenario";
+} from "@/lib/report/financials";
 import { FinancialMetricCard } from "./financial-metric-card";
 
-// ── RevPAR Scenario (read-only readout of the global scenario) ──────────────
+// ── RevPAR Scenario (3 independent committee growth rates) ──────────────────
 //
-// This card was previously an interactive selector. With the global
-// `ScenarioToggle` living in the page header, the card now acts as a
-// committee-grade readout — surfacing the YoY growth values implied by the
-// active scenario across the 5-year horizon. No buttons, no inputs.
+// Each scenario is an independent growth parameter. The live P&L uses the
+// `base` (Mercado) rate; downside / upside are stored as committee
+// sensitivity inputs for future scenario comparison views.
+//
+// Layout matches the Stitch reference: 3 stacked label + input columns
+// labelled CONSERVADOR / MERCADO / OPTIMISTA. Inputs are tier-aware (PRO
+// renders readonly).
 
 export interface RevparScenarioCardProps {
-  /** Active scenario from the global underwriting store */
-  scenario: UnderwritingScenario;
+  values: PLAssumptions["scenarioGrowth"];
+  editable: boolean;
+  onChange: (next: PLAssumptions["scenarioGrowth"]) => void;
 }
 
-export function RevparScenarioCard({ scenario }: RevparScenarioCardProps) {
-  const growth = SCENARIO_GROWTH[scenario];
+export function RevparScenarioCard({
+  values,
+  editable,
+  onChange,
+}: RevparScenarioCardProps) {
   return (
     <FinancialMetricCard variant="light">
-      <CardHeader
-        title="RevPAR Scenario"
-        icon={<BarChart3 className="text-blue-600" size={20} />}
-      />
-      <div className="grid grid-cols-3 gap-3 print:gap-2">
-        <ReadoutTile label="YR 2" value={growth.yr2} />
-        <ReadoutTile label="YR 3" value={growth.yr3} />
-        <ReadoutTile label="YR 4-5" value={growth.yr4to5} />
+      <CardHeader title="RevPAR Scenario" icon={<BarChart3 className="text-blue-600" size={20} />} />
+      <div className="flex gap-4 print:gap-2">
+        {SCENARIO_OPTIONS.map((opt) => (
+          <PercentField
+            key={opt.id}
+            label={opt.label}
+            value={values[opt.id]}
+            editable={editable}
+            onChange={(next) => onChange({ ...values, [opt.id]: next })}
+          />
+        ))}
       </div>
-      <p className="mt-3 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 print:mt-1.5 print:text-[7px]">
-        <ArrowUp size={10} strokeWidth={2.5} className="print:hidden" />
-        Active scenario
-        <span className="font-bold text-forest-900">
-          · {SCENARIO_LABELS[scenario]}
-        </span>
-        <span className="ml-auto print:hidden">Adjust from header</span>
-      </p>
     </FinancialMetricCard>
-  );
-}
-
-interface ReadoutTileProps {
-  label: string;
-  /** Growth ratio (0..1) — rendered as "+X.X%" */
-  value: number;
-}
-
-function ReadoutTile({ label, value }: ReadoutTileProps) {
-  const sign = value >= 0 ? "+" : "";
-  return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-2 text-center print:py-1">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[7px]">
-        {label}
-      </p>
-      <p className="mt-0.5 text-base font-extrabold text-slate-800 font-headline print:text-xs">
-        {sign}
-        {(value * 100).toFixed(1)}%
-      </p>
-    </div>
   );
 }
 
@@ -114,23 +92,27 @@ export function ExpenseInflationCard({
   );
 }
 
-// ── EBITDA Stabilized (dark hero) ───────────────────────────────────────────
+// ── EBITDA Stabilized (dark hero — value derived from Year-3 margin) ────────
+//
+// The big-number metric is the Year-3 EBITDA margin from `computePL`. It
+// auto-tracks any edit to assumptions or scenario rates — analyst doesn't
+// type a target in here.
 
 export interface EbitdaStabilizedCardProps {
-  /** Stabilised EBITDA target ratio (0..1) */
-  target: number;
-  /** Staff cost share ratio (0..1) */
+  /** Stabilised EBITDA margin (0..1) — derived from Year-3 of `computePL` */
+  margin: number;
+  /** Staff cost share ratio (0..1) — informational, today still an assumption */
   staffCostShare: number;
-  /** Optional currency (informational — not used today, here for symmetry) */
+  /** Optional currency (informational — kept for API symmetry) */
   currency?: Currency;
 }
 
 export function EbitdaStabilizedCard({
-  target,
+  margin,
   staffCostShare,
 }: EbitdaStabilizedCardProps) {
   // Progress bar fills relative to a 60% reference (institutional ceiling)
-  const fillPct = Math.min(100, (target / 0.6) * 100);
+  const fillPct = Math.min(100, (margin / 0.6) * 100);
   return (
     <FinancialMetricCard variant="dark" className="flex flex-col justify-between">
       <div className="flex items-start justify-between">
@@ -139,7 +121,7 @@ export function EbitdaStabilizedCard({
             EBITDA stabilized
           </span>
           <span className="mt-1 text-3xl font-extrabold text-white print:text-2xl">
-            {formatPercent(target, 1)}
+            {formatPercent(margin, 1)}
           </span>
         </div>
         <div className="flex flex-col items-end">
@@ -159,7 +141,7 @@ export function EbitdaStabilizedCard({
           />
         </div>
         <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-yellow-400 print:text-[7px]">
-          Target
+          Year 3
         </span>
       </div>
     </FinancialMetricCard>

@@ -7,6 +7,7 @@
 // 1:1 onto a CoStar row plus the operator's Year-1 base.
 
 import type { Currency } from "./currency";
+import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
 
 // ── USALI structure ─────────────────────────────────────────────────────────
 
@@ -109,13 +110,13 @@ export interface PLAssumptions {
   adrYear1: number; // currency unit
 
   // ── Year-over-year drivers (top cards) ──
-  // Note: the active underwriting scenario lives in the global Zustand
-  // store (`useScenarioStore` from `@/lib/underwriting/scenario`) so it can
-  // be shared across P&L, IRR, debt and sensitivity. `computePL` takes the
-  // scenario as a separate argument; it is intentionally NOT a field on
-  // `PLAssumptions` (which describes only the hotel-specific operating
-  // ratios — same regardless of which analytical lens is applied).
-
+  /**
+   * Three scenario growth rates. Each scenario is an independent constant
+   * RevPAR growth rate. The live P&L is computed with the `base` rate
+   * (Mercado); the other two are committee-set sensitivity inputs that
+   * future scenario comparison views will consume.
+   */
+  scenarioGrowth: Record<UnderwritingScenario, number>;
   /** Absolute occupancy delta in percentage points per year */
   occupancyGrowth: { yr2: number; yr3: number; yr4: number; yr5: number };
   /**

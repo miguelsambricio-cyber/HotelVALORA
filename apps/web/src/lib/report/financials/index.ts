@@ -31,11 +31,12 @@ export type {
   Tier,
 } from "./types";
 
-export { getDefaultAssumptions, SCENARIO_GROWTH } from "./assumptions";
+export { getDefaultAssumptions } from "./assumptions";
+export { PL_STRUCTURE } from "./pl-structure";
+export { computePL } from "./calculations";
 
 // Re-export the underwriting scenario contract from its canonical home
 // for convenience — financials consumers can import the type alongside
 // the per-hotel assumptions in one go.
 export type { UnderwritingScenario } from "@/lib/underwriting/scenario";
-export { PL_STRUCTURE } from "./pl-structure";
-export { computePL } from "./calculations";
+export { SCENARIO_LABELS, SCENARIO_OPTIONS } from "@/lib/underwriting/scenario";
