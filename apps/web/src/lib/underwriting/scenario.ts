@@ -1,22 +1,18 @@
 // Underwriting scenario type + display labels.
 //
-// Per Lectura A (institutional underwriting model): no active "selected"
-// scenario at the global level. Each scenario is an independent growth
-// parameter the analyst tunes — the calc layer uses the base/Mercado rate
-// for the live P&L; downside / upside rates are stored for future
-// sensitivity views (committee scenario comparison, IRR bands, etc.).
-//
-// The type stays here as the canonical underwriting vocabulary so that the
-// future Underwriting IRR / debt service / sensitivity modules speak the
-// same language.
+// Three preset profiles drive the entire 5-year forecast: each one is a
+// complete (occupancy delta + ADR growth) tuple per year. The active
+// scenario lives on `PLAssumptions.activeScenario` (per-hotel state) — the
+// calc layer reads `SCENARIO_PRESETS[activeScenario]` from
+// `lib/report/financials/assumptions.ts` to get the per-year drivers.
 
 export type UnderwritingScenario = "downside" | "base" | "upside";
 
-/** Display labels — UI never exposes the internal english terms. */
+/** Display labels — short, committee-grade, used directly by the UI. */
 export const SCENARIO_LABELS: Record<UnderwritingScenario, string> = {
-  downside: "Conservador",
-  base: "Mercado",
-  upside: "Optimista",
+  downside: "Down",
+  base: "Base",
+  upside: "Up",
 };
 
 export const SCENARIO_OPTIONS: { id: UnderwritingScenario; label: string }[] = [

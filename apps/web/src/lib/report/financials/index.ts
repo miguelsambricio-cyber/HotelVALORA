@@ -31,7 +31,7 @@ export type {
   Tier,
 } from "./types";
 
-export { getDefaultAssumptions } from "./assumptions";
+export { getDefaultAssumptions, SCENARIO_PRESETS } from "./assumptions";
 export { PL_STRUCTURE } from "./pl-structure";
 export { computePL } from "./calculations";
 

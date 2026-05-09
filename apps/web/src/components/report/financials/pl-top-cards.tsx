@@ -13,40 +13,63 @@ import {
 } from "@/lib/report/financials";
 import { FinancialMetricCard } from "./financial-metric-card";
 
-// ── RevPAR Scenario (3 independent committee growth rates) ──────────────────
+// ── RevPAR Scenario (3-button preset selector) ──────────────────────────────
 //
-// Each scenario is an independent growth parameter. The live P&L uses the
-// `base` (Mercado) rate; downside / upside are stored as committee
-// sensitivity inputs for future scenario comparison views.
+// Three full presets (Down / Base / Up) — each one a complete profile of
+// occupancy deltas + ADR growth per year. Picking one re-projects the
+// entire 5-year forecast (RevPAR, Revenue, GOP, EBITDA, margin) via
+// `computePL` consuming `assumptions.activeScenario`.
 //
-// Layout matches the Stitch reference: 3 stacked label + input columns
-// labelled CONSERVADOR / MERCADO / OPTIMISTA. Inputs are tier-aware (PRO
-// renders readonly).
+// Visual: 3 institutional input-styled tiles in a horizontal row, matching
+// the Stitch reference. Active tile carries the HotelVALORA forest-900
+// primary; inactive tiles stay slate. PRO renders the buttons disabled
+// (active state still shows so the tier sees which scenario the analyst
+// shipped); PREMIUM toggles freely.
 
 export interface RevparScenarioCardProps {
-  values: PLAssumptions["scenarioGrowth"];
+  active: UnderwritingScenario;
   editable: boolean;
-  onChange: (next: PLAssumptions["scenarioGrowth"]) => void;
+  onChange: (next: UnderwritingScenario) => void;
 }
 
 export function RevparScenarioCard({
-  values,
+  active,
   editable,
   onChange,
 }: RevparScenarioCardProps) {
   return (
     <FinancialMetricCard variant="light">
       <CardHeader title="RevPAR Scenario" icon={<BarChart3 className="text-blue-600" size={20} />} />
-      <div className="flex gap-4 print:gap-2">
-        {SCENARIO_OPTIONS.map((opt) => (
-          <PercentField
-            key={opt.id}
-            label={opt.label}
-            value={values[opt.id]}
-            editable={editable}
-            onChange={(next) => onChange({ ...values, [opt.id]: next })}
-          />
-        ))}
+      <div
+        role="radiogroup"
+        aria-label="RevPAR scenario"
+        className="grid grid-cols-3 gap-2 print:gap-1"
+      >
+        {SCENARIO_OPTIONS.map((opt) => {
+          const isActive = opt.id === active;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              aria-disabled={!editable}
+              disabled={!editable && !isActive}
+              onClick={() => editable && onChange(opt.id)}
+              className={cn(
+                "rounded-md border px-3 py-2 text-sm font-bold uppercase tracking-wider transition-all",
+                "print:py-1 print:text-[9px] print:tracking-normal",
+                isActive
+                  ? "border-forest-900 bg-forest-900 text-white shadow-sm"
+                  : "border-slate-300 bg-white text-slate-700",
+                editable && !isActive && "hover:border-slate-400 hover:bg-slate-50 cursor-pointer",
+                !editable && !isActive && "cursor-default opacity-60",
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
     </FinancialMetricCard>
   );
@@ -93,10 +116,6 @@ export function ExpenseInflationCard({
 }
 
 // ── EBITDA Stabilized (dark hero — value derived from Year-3 margin) ────────
-//
-// The big-number metric is the Year-3 EBITDA margin from `computePL`. It
-// auto-tracks any edit to assumptions or scenario rates — analyst doesn't
-// type a target in here.
 
 export interface EbitdaStabilizedCardProps {
   /** Stabilised EBITDA margin (0..1) — derived from Year-3 of `computePL` */

@@ -1,60 +1,49 @@
 // USALI 5-year P&L computation.
 //
 // Pure function: same input → same output, no React, no I/O. The UI never
-// computes — it consumes `PLComputed` from this module. Future work plugs
-// in different `PLAssumptions` sources (CoStar, Excel ingestion, REST API).
+// computes — it consumes `PLComputed` from this module.
 //
 // Calculation model
 // ─────────────────
-// 1. Rooms revenue is the driver: RevPAR × rooms × daysInYear
-// 2. Total revenue is solved from: Total = Rooms / (1 − sum of ancillary
-//    revenue ratios), so Year-1 numbers respect the assumption ratios.
-// 3. Each ancillary revenue line = ratio × Total revenue.
-// 4. Departmental expenses = ratio × department revenue.
-// 5. Undistributed + non-operating expenses = ratio × Total revenue.
-// 6. GOP = Total − Departmental − Undistributed.
-// 7. EBITDA = GOP − Non-operating.
-// 8. Year-on-year propagation: RevPAR grows by the live `base` (Mercado)
-//    scenario rate, applied as a constant across all 5 years. Occupancy
-//    follows absolute pp deltas. ADR is then derived as RevPAR / Occupancy.
-//    All ratios stay constant across years in v1 — `expenseInflation` is
-//    captured in the assumption store but doesn't yet drive the table.
+// 1. Year-1 occupancy + ADR come from the assumption store
+//    (`occupancyYear1`, `adrYear1`).
+// 2. Year 2-5 occupancy = previous year + scenario preset's pp delta.
+// 3. Year 2-5 ADR = previous year × (1 + scenario preset's ADR growth).
+// 4. RevPAR per year = ADR × Occupancy.
+// 5. Rooms revenue = RevPAR × rooms × daysInYear.
+// 6. Total revenue = Rooms / (1 − sum of ancillary ratios).
+// 7. Each ancillary revenue line = ratio × Total revenue.
+// 8. Departmental expenses = ratio × department revenue.
+// 9. Undistributed + non-operating = ratio × Total revenue.
+// 10. GOP = Total − Departmental − Undistributed.
+// 11. EBITDA = GOP − Non-operating.
+// 12. EBITDA margin = EBITDA / Total Revenue.
+//
+// Switching `assumptions.activeScenario` re-projects the entire forecast
+// because the preset lookup drives occupancy + ADR — every downstream line
+// recomputes in the same pass.
 
 import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types";
+import { SCENARIO_PRESETS } from "./assumptions";
 
 const YEARS = 5 as const;
 
-/**
- * Pure function: given the per-hotel assumption store, returns the computed
- * 5-year P&L. The active scenario is the `base` rate inside
- * `assumptions.scenarioGrowth` — downside / upside are stored for future
- * sensitivity comparison views and don't affect the live table.
- */
 export function computePL(a: PLAssumptions): PLComputed {
-  // ── 1. Year-by-year RevPAR / Occupancy / ADR ──────────────────────────
-  const revpar: number[] = new Array(YEARS);
+  const preset = SCENARIO_PRESETS[a.activeScenario];
+
+  // ── 1. Year-by-year Occupancy / ADR / RevPAR ──────────────────────────
   const occupancy: number[] = new Array(YEARS);
   const adr: number[] = new Array(YEARS);
+  const revpar: number[] = new Array(YEARS);
 
   occupancy[0] = a.occupancyYear1;
   adr[0] = a.adrYear1;
   revpar[0] = adr[0] * occupancy[0];
 
-  // Live scenario for the table = base/Mercado, applied as a constant
-  // year-over-year growth multiplier.
-  const baseGrowth = a.scenarioGrowth.base;
-  const revparMult = 1 + baseGrowth;
-
-  const occDelta: [number, number, number, number] = [
-    a.occupancyGrowth.yr2,
-    a.occupancyGrowth.yr3,
-    a.occupancyGrowth.yr4,
-    a.occupancyGrowth.yr5,
-  ];
   for (let y = 1; y < YEARS; y++) {
-    revpar[y] = revpar[y - 1] * revparMult;
-    occupancy[y] = occupancy[y - 1] + occDelta[y - 1];
-    adr[y] = occupancy[y] > 0 ? revpar[y] / occupancy[y] : 0;
+    occupancy[y] = occupancy[y - 1] + preset.occDeltas[y - 1];
+    adr[y] = adr[y - 1] * (1 + preset.adrGrowth[y - 1]);
+    revpar[y] = adr[y] * occupancy[y];
   }
 
   // ── 2. Rooms revenue (driver) ─────────────────────────────────────────

@@ -1,11 +1,49 @@
-// Default assumption set — Madrid Upper Upscale baseline.
+// Default assumption set + scenario presets — Madrid Upper Upscale baseline.
 //
-// In production this comes from a CoStar dataset row keyed by (country,
-// market, submarket, class). Today it's hand-tuned to roughly match the
-// Stitch P&L reference. When the Excel ingestion ships, replace
-// `getDefaultAssumptions` with `getAssumptionsFromCoStar(market, class)`.
+// In production these come from a CoStar dataset row keyed by (country,
+// market, submarket, class). Today they're hand-tuned to match the Stitch
+// reference exactly (the BASE preset reproduces the Stitch table figures).
 
+import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
 import type { PLAssumptions } from "./types";
+
+/**
+ * Per-scenario preset: 4 occupancy pp-deltas (Year 2 → Year 5) and 4 ADR
+ * growth ratios (Year 2 → Year 5). Year 1 occupancy + ADR live on
+ * `PLAssumptions.occupancyYear1` / `adrYear1` so the analyst can rebase
+ * the starting point without touching the scenario shape.
+ *
+ * Numbers locked-in per the institutional spec:
+ *
+ *   DOWN  Occ deltas  +1.0pp  +1.0pp  +0.5pp  +0.5pp
+ *         ADR growth  +1.5%   +2.0%   +2.0%   +2.5%
+ *   BASE  Occ deltas  +3.0pp  +2.0pp  +1.0pp   0pp        ← matches Stitch
+ *         ADR growth  +3.6%   +2.9%   +1.5%   +2.4%       ← matches Stitch
+ *   UP    Occ deltas  +3.0pp  +2.0pp  +1.0pp   0pp
+ *         ADR growth  +5.0%   +4.5%   +4.0%   +3.5%
+ */
+export const SCENARIO_PRESETS: Record<
+  UnderwritingScenario,
+  {
+    /** Occupancy pp-delta per year, applied as: occ[y] = occ[y-1] + delta[y-1] */
+    occDeltas: [number, number, number, number];
+    /** ADR YoY growth ratio per year, applied as: adr[y] = adr[y-1] × (1 + g[y-1]) */
+    adrGrowth: [number, number, number, number];
+  }
+> = {
+  downside: {
+    occDeltas: [0.01, 0.01, 0.005, 0.005],
+    adrGrowth: [0.015, 0.02, 0.02, 0.025],
+  },
+  base: {
+    occDeltas: [0.03, 0.02, 0.01, 0],
+    adrGrowth: [0.036, 0.029, 0.015, 0.024],
+  },
+  upside: {
+    occDeltas: [0.03, 0.02, 0.01, 0],
+    adrGrowth: [0.05, 0.045, 0.04, 0.035],
+  },
+};
 
 export function getDefaultAssumptions(): PLAssumptions {
   return {
@@ -16,18 +54,9 @@ export function getDefaultAssumptions(): PLAssumptions {
     occupancyYear1: 0.65,
     adrYear1: 175,
 
-    // ── Three scenario growth rates ──
-    // Each rate is applied as a constant RevPAR growth across all 5 years.
-    // The committee tunes these independently; the live P&L uses `base`.
-    // Defaults preserve the prior baseline (Mercado = 6%) so the table
-    // stays in the same order of magnitude.
-    scenarioGrowth: {
-      downside: 0.085, // Conservador
-      base: 0.06, // Mercado — drives the live P&L
-      upside: 0.03, // Optimista
-    },
+    // Active scenario — defaults to BASE / Mercado
+    activeScenario: "base",
 
-    occupancyGrowth: { yr2: 0.03, yr3: 0.02, yr4: 0.01, yr5: 0 },
     expenseInflation: { payroll: 0.045, utilities: 0.035, other: 0.025 },
 
     // ── Per-line ratios (constant across years in v1) ──
@@ -55,11 +84,9 @@ export function getDefaultAssumptions(): PLAssumptions {
       expFfeReserve: 0.04,
     },
 
-    // Hero-card informational metrics — `ebitdaStabilizedTarget` is no
-    // longer surfaced in the UI (the card now displays the derived Year-3
-    // EBITDA margin from `computePL`). Kept here so the assumption store
-    // stays a complete underwriting input set; downstream sensitivities
-    // can reference the analyst's target if they need to.
+    // EBITDA Stabilized card surfaces the derived Year-3 EBITDA % margin
+    // (auto-tracks any edit to assumptions or scenario), not this target —
+    // kept on the assumption store for future sensitivity / hurdle checks.
     ebitdaStabilizedTarget: 0.505,
     staffCostShare: 0.317,
 

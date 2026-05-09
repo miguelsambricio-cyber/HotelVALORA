@@ -109,16 +109,15 @@ export interface PLAssumptions {
   occupancyYear1: number; // ratio 0..1
   adrYear1: number; // currency unit
 
-  // ── Year-over-year drivers (top cards) ──
+  // ── Year-over-year drivers ──
   /**
-   * Three scenario growth rates. Each scenario is an independent constant
-   * RevPAR growth rate. The live P&L is computed with the `base` rate
-   * (Mercado); the other two are committee-set sensitivity inputs that
-   * future scenario comparison views will consume.
+   * Active underwriting scenario. The calc layer looks up
+   * `SCENARIO_PRESETS[activeScenario]` (in `assumptions.ts`) to resolve
+   * occupancy deltas + ADR growth per year. Switching this single field
+   * recomputes occupancy, ADR, RevPAR, revenue, GOP, EBITDA, and margins
+   * across all 5 years.
    */
-  scenarioGrowth: Record<UnderwritingScenario, number>;
-  /** Absolute occupancy delta in percentage points per year */
-  occupancyGrowth: { yr2: number; yr3: number; yr4: number; yr5: number };
+  activeScenario: UnderwritingScenario;
   /**
    * Inflation buckets — wired into the model when an expense line is priced
    * in fixed currency (future use). v1 keeps ratios constant across years

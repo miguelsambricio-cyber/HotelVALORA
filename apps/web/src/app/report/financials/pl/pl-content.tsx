@@ -52,10 +52,10 @@ export function PLContent() {
       {/* TOP STRIP — 3 institutional summary cards */}
       <FinancialSummaryStrip>
         <RevparScenarioCard
-          values={assumptions.scenarioGrowth}
+          active={assumptions.activeScenario}
           editable={editable}
-          onChange={(scenarioGrowth) =>
-            setAssumptions((a) => ({ ...a, scenarioGrowth }))
+          onChange={(activeScenario) =>
+            setAssumptions((a) => ({ ...a, activeScenario }))
           }
         />
         <ExpenseInflationCard
