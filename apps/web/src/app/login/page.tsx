@@ -29,7 +29,12 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <AppHeader />
 
-      <main className="flex flex-1 items-center justify-center px-6 py-16">
+      {/* `items-start` (instead of items-center) anchors content to the
+          top of the available space — pulls the hero ~40-60px closer to
+          the global header for a Bloomberg-terminal compact feel.
+          `pt-8` keeps a small breathing band; `pb-16` preserves footer
+          breathing room. Card / linked accounts / footer unchanged. */}
+      <main className="flex flex-1 items-start justify-center px-6 pt-8 pb-16">
         <div className="mx-auto flex w-full max-w-md flex-col items-center">
           {/* Hero — server-rendered, visible immediately */}
           <div className="mb-10 px-4 text-center">
