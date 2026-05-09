@@ -1,44 +1,92 @@
 import type { Metadata } from "next";
-import { Key } from "lucide-react";
 import { SettingsHeader } from "@/components/settings";
+import {
+  ActiveSessionsCard,
+  ChangePasswordCard,
+  LinkedAccountCard,
+  TwoFactorCard,
+} from "@/components/settings/credentials";
 
 export const metadata: Metadata = {
-  title: "Credentials — HotelVALORA",
+  title: "Credentials & Security — HotelVALORA",
+  description:
+    "Manage your password, linked institutional accounts, two-factor authentication and active sessions.",
 };
 
 export default function CredentialsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <SettingsHeader
-        title="Credentials"
-        subtitle="Connected accounts, API keys, and session management."
+        title="Credentials & Security"
+        subtitle="Manage your password and external account connections."
       />
 
-      <ComingSoon icon={<Key size={28} className="text-forest-900" strokeWidth={2} />}>
-        Credentials management ships in the next release. You will be able to
-        review linked OAuth identities, rotate API keys, and audit active
-        sessions from this surface.
-      </ComingSoon>
-    </div>
-  );
-}
+      {/* SECTION 1 — Change Password */}
+      <ChangePasswordCard />
 
-function ComingSoon({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-slate-200 bg-white/60 px-6 py-20 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 border border-slate-200">
-        {icon}
+      {/* SECTION 2 — Linked Accounts */}
+      <section className="space-y-5">
+        <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
+            <h2 className="font-headline text-lg font-extrabold text-forest-900 md:text-xl">
+              Linked Accounts
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              Integrate professional networks for rapid authentication and
+              direct report publishing.
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700 md:self-end">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            System Ready
+          </span>
+        </header>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <LinkedAccountCard
+            provider="linkedin"
+            title="LinkedIn"
+            description="Sync profile and share valuation insights."
+            ctaLabel="Connect Account"
+            topRightAction={{ label: "Disconnect", variant: "danger" }}
+          />
+          <LinkedAccountCard
+            provider="google"
+            title="Google Workspace"
+            description="valora.admin@gmail.com"
+            ctaLabel="Unlink Account"
+          />
+          <LinkedAccountCard
+            provider="apple"
+            title="Apple ID"
+            description="Use FaceID for instant vault access."
+            ctaLabel="Link Account"
+          />
+          <LinkedAccountCard
+            provider="microsoft"
+            title="Microsoft Azure"
+            description="Connector for Active Directory sync."
+            ctaLabel="Connect Account"
+            badge={{ label: "Enterprise", variant: "enterprise" }}
+          />
+        </div>
+      </section>
+
+      {/* SECTION 3 — Security row (2FA large + Active Sessions small) */}
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <TwoFactorCard className="md:col-span-2" />
+        <ActiveSessionsCard className="md:col-span-1" />
+      </section>
+
+      {/* Bottom CTA */}
+      <div className="flex justify-center pt-2">
+        <button
+          type="button"
+          className="inline-flex w-full max-w-xs items-center justify-center rounded-xl bg-forest-900 px-6 py-3.5 text-sm font-bold uppercase tracking-[0.18em] text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]"
+        >
+          Continue
+        </button>
       </div>
-      <h3 className="font-headline text-lg font-extrabold uppercase tracking-tight text-forest-900">
-        Coming Soon
-      </h3>
-      <p className="max-w-md text-sm text-slate-500">{children}</p>
     </div>
   );
 }

@@ -39,7 +39,7 @@ export interface SignInResult {
 
 // ── OAuth provider (canonical home — UI components import from here) ──────
 
-export type OAuthProvider = "linkedin" | "google" | "apple";
+export type OAuthProvider = "linkedin" | "google" | "apple" | "microsoft";
 
 export type LinkedAccountState = "connected" | "available";
 

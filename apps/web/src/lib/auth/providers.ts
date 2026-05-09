@@ -87,6 +87,16 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, OAuthProviderConfig> = {
     brandColor: "#000000",
     enabled: false,
   },
+  microsoft: {
+    id: "microsoft",
+    label: "Microsoft Azure",
+    // Maps to NextAuth's AzureAD / EntraID provider when wired —
+    // surfaces enterprise SSO + Active Directory sync.
+    nextAuthId: "azure-ad",
+    scopes: ["openid", "profile", "email"],
+    brandColor: "#0078D4",
+    enabled: false,
+  },
 };
 
 /** Look up a provider's config — useful for UI decoration (brand colour, label). */
