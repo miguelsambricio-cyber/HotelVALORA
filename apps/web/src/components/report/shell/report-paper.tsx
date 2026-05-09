@@ -1,63 +1,66 @@
-import { PDFExportButton } from "@/components/report/ui/pdf-export-button";
+import type { ReactNode } from "react";
+import {
+  ReportHeader,
+  type ReportHeaderLayout,
+} from "@/components/report/primitives/report-header";
 import { cn } from "@/lib/utils";
 
-interface PaperHeaderProps {
+export interface ReportPaperProps {
   sectionLabel: string;
   title: string;
   titleSize?: "2xl" | "4xl";
-  headerRight?: React.ReactNode;
+  /**
+   * @deprecated Use `actions` for header-side controls. Kept for backward
+   * compatibility with existing pages.
+   */
+  headerRight?: ReactNode;
+  actions?: ReactNode;
+  /** Header layout variant — see `ReportHeader.layout` */
+  headerLayout?: ReportHeaderLayout;
+  /**
+   * When true the paper is fully bordered and rounded (border-b, rounded-xl).
+   * Default `false` — paper has rounded-t-xl + open bottom edge so an attached
+   * action bar visually flows from it (Executive Summary / Competitive Set).
+   */
+  closed?: boolean;
+  /** Hide the PDF export button in the header */
+  hideExportButton?: boolean;
+  children: ReactNode;
 }
 
-function PaperHeader({ sectionLabel, title, titleSize = "2xl", headerRight }: PaperHeaderProps) {
-  return (
-    <div className="flex items-start justify-between px-8 py-6 border-b border-blue-100 bg-white print:px-4 print:py-2">
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">
-          {sectionLabel}
-        </p>
-        <div className="flex flex-col md:flex-row items-start md:items-baseline justify-between gap-3">
-          <h2
-            className={cn(
-              "font-bold font-headline tracking-tight text-forest-900 leading-tight print:text-base",
-              titleSize === "4xl" ? "text-4xl font-extrabold" : "text-2xl"
-            )}
-          >
-            {title}
-          </h2>
-          {headerRight && (
-            <div className="shrink-0 print:hidden">{headerRight}</div>
-          )}
-        </div>
-      </div>
-      <div className="mt-1 ml-6 shrink-0">
-        <PDFExportButton />
-      </div>
-    </div>
-  );
-}
-
-interface ReportPaperProps {
-  sectionLabel: string;
-  title: string;
-  titleSize?: "2xl" | "4xl";
-  headerRight?: React.ReactNode;
-  children: React.ReactNode;
-}
-
+/**
+ * Paper card wrapper. Composes the canonical `ReportHeader` primitive with
+ * the white card surface that carries the graph-paper texture. New pages can
+ * also use `ReportSection` (which adds section-metadata-driven page breaks).
+ */
 export function ReportPaper({
   sectionLabel,
   title,
   titleSize,
   headerRight,
+  actions,
+  headerLayout,
+  closed = false,
+  hideExportButton,
   children,
 }: ReportPaperProps) {
   return (
-    <div className="bg-white shadow-2xl border-x border-t border-blue-100 rounded-t-xl overflow-hidden graph-paper print:shadow-none print:rounded-none print:border-none print:overflow-visible">
-      <PaperHeader
+    <div
+      className={cn(
+        "bg-white shadow-2xl border-x border-t border-blue-100 overflow-hidden graph-paper",
+        "print:shadow-none print:rounded-none print:border-none print:overflow-visible",
+        closed
+          ? "border-b rounded-xl"
+          : "rounded-t-xl",
+      )}
+    >
+      <ReportHeader
         sectionLabel={sectionLabel}
         title={title}
         titleSize={titleSize}
-        headerRight={headerRight}
+        actions={actions ?? headerRight}
+        layout={headerLayout}
+        hideExportButton={hideExportButton}
       />
       <div className="bg-white/95 print:bg-white">{children}</div>
     </div>

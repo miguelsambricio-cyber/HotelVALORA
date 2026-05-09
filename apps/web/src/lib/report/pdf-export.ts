@@ -1,23 +1,56 @@
 import type { ExportOptions, ReportMetadata } from "@/types/report";
 
-// Phase 1: browser print dialog (window.print)
-// Phase 2: swap in react-pdf/renderer or a puppeteer webhook
-//          without changing the call sites — just replace the body of exportReportToPDF.
+// Phase 1: client-side `window.print()` with a temporarily-swapped document
+//          title, so the browser's "Save as PDF" dialog suggests a useful name.
+// Phase 2: swap the body of `exportReport` for a server-side PDF generator
+//          (Puppeteer or react-pdf) without changing call sites.
+//
+// All UI buttons funnel through `exportReport` so the impl swap stays cheap.
 
-export async function exportReportToPDF(
-  report: ReportMetadata,
-  _options: ExportOptions
-): Promise<void> {
+export interface ExportReportInput {
+  /** Optional metadata used to set the document title for the PDF dialog */
+  report?: ReportMetadata;
+  /** Optional explicit options (kept for the future server-side path) */
+  options?: ExportOptions;
+}
+
+function makeFileTitle(meta: ReportMetadata): string {
+  return `${meta.hotelName} — Informe ${meta.reportPeriod} v${meta.version}`;
+}
+
+/**
+ * Canonical PDF export entry point. Accepts optional metadata; if absent,
+ * triggers the print dialog with the page's current title untouched.
+ */
+export async function exportReport(report?: ReportMetadata): Promise<void> {
   if (typeof window === "undefined") return;
 
-  const prevTitle = document.title;
-  document.title = `${report.hotelName} — Informe ${report.reportPeriod} v${report.version}`;
+  if (!report) {
+    window.print();
+    return;
+  }
 
-  // Give the browser a tick to update the title before the dialog opens
-  await new Promise((r) => setTimeout(r, 50));
-  window.print();
+  const previousTitle = document.title;
+  document.title = makeFileTitle(report);
 
-  document.title = prevTitle;
+  // Yield one tick so the browser commits the title before the dialog opens.
+  await new Promise<void>((resolve) => setTimeout(resolve, 50));
+
+  try {
+    window.print();
+  } finally {
+    document.title = previousTitle;
+  }
+}
+
+/**
+ * @deprecated Use `exportReport` — kept only so legacy call sites compile.
+ */
+export async function exportReportToPDF(
+  report: ReportMetadata,
+  _options?: ExportOptions,
+): Promise<void> {
+  return exportReport(report);
 }
 
 export function isExportAvailable(): boolean {
@@ -25,17 +58,18 @@ export function isExportAvailable(): boolean {
 }
 
 // ── Future hooks ──────────────────────────────────────────────────────────────
-// When switching to server-side PDF generation, implement these and wire up
-// an API route at POST /api/v1/reports/[reportId]/export.
+// When switching to server-side PDF generation, implement the request below
+// and route `exportReport` through it. Wire an API route at
+// POST /api/v1/reports/{reportId}/export.
 
-export type ServerExportResult = {
+export interface ServerExportResult {
   url: string;
   expiresAt: string;
-};
+}
 
 export async function requestServerExport(
   _reportId: string,
-  _options: ExportOptions
+  _options: ExportOptions,
 ): Promise<ServerExportResult> {
   throw new Error("Server-side export not implemented yet");
 }

@@ -68,6 +68,72 @@
 }
 
 @layer utilities {
+  /* Hides the native scrollbar while keeping the element scrollable.
+     Used by HorizontalInsightScroller so the snap-scroll feels institutional. */
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ─── Market Overview carousel ─────────────────────────────────────────────
+     Mobile / tablet: free swipe scroll with horizontal snap.
+     Desktop (lg+):    paged carousel — overflow hidden, transform driven by
+                       the React state via the CSS variable `--page`.
+     Print:            collapses into a static 2 × 2 grid.                  */
+  .market-carousel-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .market-carousel-viewport::-webkit-scrollbar { display: none; }
+
+  .market-carousel-track {
+    display: flex;
+    gap: 1.5rem; /* same as Tailwind gap-6 */
+  }
+
+  .market-carousel-slide {
+    flex: 0 0 calc(50% - 12px);
+    min-width: calc(50% - 12px);
+    max-width: calc(50% - 12px);
+    scroll-snap-align: center;
+  }
+
+  @media (min-width: 1024px) {
+    .market-carousel-viewport {
+      overflow: hidden;
+      scroll-snap-type: none;
+    }
+    .market-carousel-track {
+      transition: transform 350ms ease-out;
+      transform: translateX(calc(var(--page, 0) * (-100% - 24px)));
+    }
+  }
+
+  @media print {
+    .market-carousel-viewport {
+      overflow: visible !important;
+    }
+    .market-carousel-track {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 6px !important;
+      transform: none !important;
+      transition: none !important;
+      /* Keep the entire 2 × 2 grid on a single A4 page */
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .market-carousel-slide {
+      flex: initial !important;
+      min-width: 0 !important;
+      max-width: none !important;
+    }
+  }
+
   /* Report paper background — subtle forest green grid */
   .graph-paper {
     background-color: #ffffff;
@@ -113,16 +179,26 @@
   }
 }
 
-/* ── Report module — print / PDF export ──────────────────────────────────── */
-@media print {
-  /* ── A4 portrait, 8 × 10 mm margins
-     Printable area: 190 mm × 281 mm  ≈  718 × 1063 px at 96 dpi            */
-  @page {
-    size: A4 portrait;
-    margin: 8mm 10mm;
-  }
+/* ─────────────────────────────────────────────────────────────────────────────
+ * REPORT — PRINT / PDF SYSTEM
+ * Single source of truth for A4 sizing, canvas scaling, and per-browser
+ * fallbacks. Adjust constants here only — never inline new print rules in
+ * components. Component-level overrides should use Tailwind `print:` variants.
+ *
+ * A4 portrait at 96 dpi with 8 × 10 mm @page margins:
+ *   Printable area  ≈  718 × 1063 px
+ *   Canvas width    =  960 px (fixed desktop)
+ *   Scale factor    =  718 / 960 = 0.748  →  0.74 (2 px safety gap)
+ *   Scaled width    =  960 × 0.74 = 710 px (inside 718 px) ✓
+ * ──────────────────────────────────────────────────────────────────────────── */
 
-  /* Preserve colour fidelity for backgrounds, charts, images */
+@page {
+  size: A4 portrait;
+  margin: 10mm;
+}
+
+@media print {
+  /* Colour fidelity for backgrounds, charts, images */
   *,
   *::before,
   *::after {
@@ -133,39 +209,86 @@
   html,
   body {
     background: white !important;
-    /* Remove any scrollbar / overflow artefacts */
     overflow: hidden;
   }
 
-  /* ── PRINT DESKTOP CANVAS ───────────────────────────────────────────────
-     Forces the report content to render at a fixed 960 px desktop width,
-     then scales the whole canvas to fit the 718 px A4 printable column.
+  /* Strip decorative graph-paper grid in print */
+  .graph-paper { background-image: none !important; }
 
-     Scale factor: 718 / 960 = 0.748  → rounded to 0.74 for 2 px safety gap
-     Visual width after zoom : 960 × 0.74 = 710 px  (inside 718 px) ✓
-  */
+  /* Allow component-level `print:h-*` to override the screen-only map height */
+  .compset-map-container { min-height: 0 !important; }
+
+  /* Hard-block any split inside a section, table, or print-page block */
+  section,
+  table,
+  .print-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Canonical report canvas — applied to <main> in the report shell.
+     Chromium and Safari support `zoom`; Firefox has supported it since v126
+     (May 2024). For older Firefox, the @-moz-document fallback below uses
+     `transform: scale()` which produces the same visual result.            */
   .report-print-canvas {
     width: 960px !important;
     min-width: 960px !important;
     max-width: 960px !important;
-    /* CSS zoom: scales layout AND rendering, no float/transform side-effects */
     zoom: 0.74;
-    /* Align to the left edge of the page box */
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  /* Strip decorative graph-paper grid */
-  .graph-paper { background-image: none !important; }
+  /* Print utility classes (generic, framework-agnostic) ───────────────────── */
+  .print-break-before { break-before: page; page-break-before: always; }
+  .print-break-after  { break-after: page;  page-break-after:  always; }
+  .print-keep         { break-inside: avoid; page-break-inside: avoid; }
 
-  /* Remove the screen-only map min-height so print:h-* classes take effect */
-  .compset-map-container { min-height: 0 !important; }
+  /* ── Landscape variant of the report canvas ──────────────────────────────
+     A4 landscape printable area at 96 dpi:
+       Printable area  ≈  1063 × 718 px
+       Canvas width    =  1400 px (fixed wider desktop)
+       Scale factor    =  1063 / 1400 = 0.759  →  0.76 (2 px safety gap)
+     Pages that opt in (e.g. Market Overview) carry the
+     `report-print-canvas-landscape` class on `<main>` instead of the
+     portrait `report-print-canvas`.                                         */
+  @page market-landscape {
+    size: A4 landscape;
+    margin: 8mm 10mm;
+  }
 
-  /* Hard-block any page split inside a section or table */
-  section,
-  table {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  .report-print-canvas-landscape {
+    page: market-landscape;
+    width: 1400px !important;
+    min-width: 1400px !important;
+    max-width: 1400px !important;
+    zoom: 0.76;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Firefox fallback for landscape canvas (matches portrait fallback above) */
+@-moz-document url-prefix() {
+  @media print {
+    .report-print-canvas-landscape {
+      zoom: 1;
+      transform: scale(0.76);
+      transform-origin: top left;
+    }
+  }
+}
+
+/* Firefox-only fallback for older versions where `zoom` is a no-op.
+   Modern Firefox (>=126) supports `zoom`, so this layer becomes a harmless
+   no-op once `transform: scale` and `zoom` agree on the final dimensions. */
+@-moz-document url-prefix() {
+  @media print {
+    .report-print-canvas {
+      zoom: 1;
+      transform: scale(0.74);
+      transform-origin: top left;
+    }
   }
 }
 

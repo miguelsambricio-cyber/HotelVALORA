@@ -19,7 +19,9 @@ Operational reference for every report section page: route, status, file path, a
 | 2 | Asset Analysis — Hotel personalizado | `/report/asset-analysis` | — (parent of CAPEX, Renders) | ✓ | `app/report/asset-analysis/page.tsx` |
 | 2a | Asset Analysis — CAPEX & Renders | `/report/asset-analysis/capex` | `#renders` (in-page anchor) | ✓ | `app/report/asset-analysis/capex/page.tsx` |
 | 3 | Competitive Set | `/report/competitive-set` | — | ✓ | `app/report/competitive-set/page.tsx` |
-| 4 | Market Overview | `/report/market-overview` | country, market, submarket, class | ✓ | `app/report/market-overview/page.tsx` |
+| 4 | Market Overview | `/report/market-overview` | (in-page anchors) | ✓ | `app/report/market-overview/page.tsx` |
+| 4a | Market Overview · Transactions | `/report/market-overview/transactions` | — | ✓ | `app/report/market-overview/transactions/page.tsx` |
+| 4b | Market Overview · Projects | `/report/market-overview/projects` | — | ✓ | `app/report/market-overview/projects/page.tsx` |
 | 5 | Financials | `/report/financials` | structure, P&L, IRR | ✗ | (planned) |
 | 6 | Methodology | `/report/methodology` | — | ✗ | (planned) |
 

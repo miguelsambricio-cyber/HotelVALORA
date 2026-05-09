@@ -4,197 +4,111 @@ import type {
   ReportSectionId,
 } from "@/types/report";
 
-// ── Section registry ─────────────────────────────────────────────────────────
-// Add new sections here. Component wiring happens in section-registry.ts.
+// One canonical registry for the report.
+//
+// Conventions:
+// - `id` is the URL slug under /report/<id>.
+// - Sub-items are visual hash anchors only — they do not create routes.
+// - `implemented: false` sections render an "in development" placeholder;
+//   the sidebar still links to them for navigation continuity.
+// - When a new section ships, flip `implemented: true` and add the page file
+//   at apps/web/src/app/report/<id>/page.tsx. Nothing else needs to change.
+
+export const REPORT_ROUTE_PREFIX = "/report";
 
 export const REPORT_SECTIONS: ReportSection[] = [
-  // ── Overview ──────────────────────────────────────────────────────────────
   {
     id: "executive-summary",
     number: 1,
     group: "overview",
-    label: "Resumen Ejecutivo",
+    label: "Executive Summary",
     shortLabel: "Resumen",
-    description: "Portada, highlights clave y tesis de inversión",
+    description: "Portada, highlights y tesis de inversión",
     printPageBreak: false,
+    implemented: true,
   },
   {
-    id: "property-overview",
+    id: "asset-analysis",
     number: 2,
-    group: "overview",
-    label: "Descripción del Activo",
+    group: "asset",
+    label: "Asset Analysis",
     shortLabel: "Activo",
-    description: "Ficha técnica, ubicación y características del hotel",
+    description: "Ficha técnica, CAPEX y renders del hotel",
     printPageBreak: true,
+    implemented: true,
+    subItems: [
+      { href: "/report/asset-analysis", label: "Hotel personalizado" },
+      { href: "/report/asset-analysis/capex", label: "CAPEX" },
+      { href: "/report/asset-analysis/capex#renders", label: "Renders" },
+    ],
   },
-
-  // ── Performance ───────────────────────────────────────────────────────────
   {
-    id: "revenue-metrics",
+    id: "competitive-set",
     number: 3,
-    group: "performance",
-    label: "Métricas de Ingresos",
-    shortLabel: "Ingresos",
-    description: "ADR, RevPAR, ocupación y evolución histórica",
+    group: "compset",
+    label: "CompSET",
+    shortLabel: "CompSET",
+    description: "Tabla comparativa y galería del set competitivo",
     printPageBreak: true,
+    implemented: true,
   },
   {
-    id: "operational-performance",
+    id: "market-overview",
     number: 4,
-    group: "performance",
-    label: "Performance Operacional",
-    shortLabel: "Operaciones",
-    description: "GOP, EBITDA, NOI y márgenes operativos",
-    printPageBreak: true,
-  },
-  {
-    id: "revenue-streams",
-    number: 5,
-    group: "performance",
-    label: "Fuentes de Ingreso",
-    shortLabel: "Mix Ingresos",
-    description: "Desglose por habitaciones, F&B, eventos y otros",
-    printPageBreak: true,
-  },
-  {
-    id: "cost-structure",
-    number: 6,
-    group: "performance",
-    label: "Estructura de Costes",
-    shortLabel: "Costes",
-    description: "Desglose de departamentos y gastos fijos/variables",
-    printPageBreak: true,
-  },
-
-  // ── Valuation ─────────────────────────────────────────────────────────────
-  {
-    id: "dcf-valuation",
-    number: 7,
-    group: "valuation",
-    label: "Modelo DCF",
-    shortLabel: "DCF",
-    description: "Proyecciones de flujo de caja y valoración por descuento",
-    printPageBreak: true,
-  },
-  {
-    id: "sensitivity-analysis",
-    number: 8,
-    group: "valuation",
-    label: "Análisis de Sensibilidad",
-    shortLabel: "Sensibilidad",
-    description: "Matrices de escenarios: RevPAR × cap rate × WACC",
-    printPageBreak: true,
-  },
-  {
-    id: "comparable-transactions",
-    number: 9,
-    group: "valuation",
-    label: "Transacciones Comparables",
-    shortLabel: "Comps",
-    description: "Benchmark de ventas recientes por RevPAR/habitación",
-    printPageBreak: true,
-  },
-
-  // ── Market ────────────────────────────────────────────────────────────────
-  {
-    id: "market-position",
-    number: 10,
     group: "market",
-    label: "Posicionamiento de Mercado",
+    label: "Market Overview",
     shortLabel: "Mercado",
-    description: "Análisis competitivo, STR share index y penetración",
+    description: "Country / Market / Submarket / Class insights + demand generators",
     printPageBreak: true,
+    implemented: true,
+    subItems: [
+      { href: "/report/market-overview", label: "Market overview" },
+      { href: "/report/market-overview/transactions", label: "Transactions" },
+      { href: "/report/market-overview/projects", label: "Projects" },
+      { href: "#dynamics", label: "Market dynamics" },
+    ],
   },
   {
-    id: "market-trends",
-    number: 11,
-    group: "market",
-    label: "Tendencias del Mercado",
-    shortLabel: "Tendencias",
-    description: "Demanda turística, ADR de mercado y proyecciones",
-    printPageBreak: true,
-  },
-  {
-    id: "supply-pipeline",
-    number: 12,
-    group: "market",
-    label: "Pipeline de Oferta",
-    shortLabel: "Pipeline",
-    description: "Nuevas aperturas, conversiones y presión competitiva",
-    printPageBreak: true,
-  },
-
-  // ── Financials ────────────────────────────────────────────────────────────
-  {
-    id: "capex-plan",
-    number: 13,
+    id: "financials",
+    number: 5,
     group: "financials",
-    label: "Plan de CapEx",
-    shortLabel: "CapEx",
-    description: "Inversiones en mejora, mantenimiento y reposicionamiento",
+    label: "Financials",
+    shortLabel: "Financials",
+    description: "Estructura financiera, P&L y underwriting IRR",
     printPageBreak: true,
+    implemented: false,
+    subItems: [
+      { href: "#structure", label: "Finance structure" },
+      { href: "#pl", label: "P&L" },
+      { href: "#irr", label: "Underwriting IRR" },
+    ],
   },
   {
-    id: "financing-structure",
-    number: 14,
-    group: "financials",
-    label: "Estructura de Financiación",
-    shortLabel: "Financiación",
-    description: "Deuda, LTV, covenants y estructura de capital",
+    id: "methodology",
+    number: 6,
+    group: "methodology",
+    label: "Methodology",
+    shortLabel: "Methodology",
+    description: "Metodología de valoración y supuestos",
     printPageBreak: true,
-  },
-
-  // ── Summary ───────────────────────────────────────────────────────────────
-  {
-    id: "investment-summary",
-    number: 15,
-    group: "summary",
-    label: "Resumen de Inversión",
-    shortLabel: "Inversión",
-    description: "TIR, equity multiple, horizonte y recomendación final",
-    printPageBreak: true,
+    implemented: false,
   },
 ];
 
 export const SECTION_GROUPS: ReportSectionGroupConfig[] = [
-  {
-    id: "overview",
-    label: "Vista General",
-    sections: ["executive-summary", "property-overview"],
-  },
-  {
-    id: "performance",
-    label: "Rendimiento",
-    sections: [
-      "revenue-metrics",
-      "operational-performance",
-      "revenue-streams",
-      "cost-structure",
-    ],
-  },
-  {
-    id: "valuation",
-    label: "Valoración",
-    sections: ["dcf-valuation", "sensitivity-analysis", "comparable-transactions"],
-  },
-  {
-    id: "market",
-    label: "Mercado",
-    sections: ["market-position", "market-trends", "supply-pipeline"],
-  },
-  {
-    id: "financials",
-    label: "Finanzas",
-    sections: ["capex-plan", "financing-structure"],
-  },
-  {
-    id: "summary",
-    label: "Conclusiones",
-    sections: ["investment-summary"],
-  },
+  { id: "overview", label: "Overview", sections: ["executive-summary"] },
+  { id: "asset", label: "Asset", sections: ["asset-analysis"] },
+  { id: "compset", label: "CompSET", sections: ["competitive-set"] },
+  { id: "market", label: "Market", sections: ["market-overview"] },
+  { id: "financials", label: "Financials", sections: ["financials"] },
+  { id: "methodology", label: "Methodology", sections: ["methodology"] },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+export function getSectionHref(sectionId: ReportSectionId): string {
+  return `${REPORT_ROUTE_PREFIX}/${sectionId}`;
+}
 
 export function getSectionById(id: string): ReportSection | undefined {
   return REPORT_SECTIONS.find((s) => s.id === id);
@@ -211,6 +125,6 @@ export function getAdjacentSections(currentId: ReportSectionId): {
   };
 }
 
-export function getSectionHref(reportId: string, sectionId: ReportSectionId): string {
-  return `/report/${reportId}/${sectionId}`;
+export function getImplementedSections(): ReportSection[] {
+  return REPORT_SECTIONS.filter((s) => s.implemented);
 }

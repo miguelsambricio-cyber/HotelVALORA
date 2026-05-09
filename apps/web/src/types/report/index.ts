@@ -1,40 +1,52 @@
 // ── Section taxonomy ──────────────────────────────────────────────────────────
+//
+// One canonical registry. The id is the URL slug. The href is computed from
+// the id and the configured route prefix. Numbered groups match the visible
+// Stitch sidebar (Executive Summary → Asset Analysis → CompSET → Market
+// Overview → Financials → Methodology). Each group can hold one or more
+// concrete sections. Sub-anchors are pure visual nav helpers (#hash).
 
 export type ReportSectionId =
   | "executive-summary"
-  | "property-overview"
-  | "market-position"
-  | "revenue-metrics"
-  | "operational-performance"
-  | "dcf-valuation"
-  | "sensitivity-analysis"
-  | "comparable-transactions"
-  | "market-trends"
-  | "supply-pipeline"
-  | "revenue-streams"
-  | "cost-structure"
-  | "capex-plan"
-  | "financing-structure"
-  | "investment-summary";
+  | "asset-analysis"
+  | "competitive-set"
+  | "market-overview"
+  | "financials"
+  | "methodology";
 
 export type ReportSectionGroup =
   | "overview"
-  | "performance"
-  | "valuation"
+  | "asset"
+  | "compset"
   | "market"
   | "financials"
-  | "summary";
+  | "methodology";
+
+export interface ReportSubItem {
+  /**
+   * Destination href. Either:
+   * - A full route, e.g. `/report/asset-analysis/capex`, or
+   * - A hash anchor relative to the parent section, e.g. `#capex`.
+   * The sidebar resolves either form against the parent section href.
+   */
+  href: string;
+  label: string;
+}
 
 export interface ReportSection {
   id: ReportSectionId;
-  label: string;
-  shortLabel: string;
-  description: string;
-  group: ReportSectionGroup;
-  /** Display order (1-based) */
+  /** 1-based display order matching the Stitch sidebar */
   number: number;
+  group: ReportSectionGroup;
+  label: string;
+  shortLabel?: string;
+  description?: string;
   /** Insert CSS page-break before this section when printing */
   printPageBreak: boolean;
+  /** True if this section page is wired to a real route today */
+  implemented: boolean;
+  /** Optional sub-anchors rendered as secondary links in the sidebar */
+  subItems?: ReportSubItem[];
 }
 
 export interface ReportSectionGroupConfig {
@@ -57,11 +69,8 @@ export interface ReportMetadata {
   hotelCountry: string;
   starRating: number;
   roomCount: number;
-  /** e.g. "Luxury", "Upper Upscale", "Upscale" */
   category: string;
-  /** ISO datetime */
   reportDate: string;
-  /** e.g. "FY2024", "H1 2025" */
   reportPeriod: string;
   preparedBy: string;
   preparedFor: string;
@@ -79,22 +88,14 @@ export interface KPIValue {
   id: string;
   label: string;
   value: number | string;
-  /** Symbol appended after value: "€", "%", "pts", "x" */
   unit?: string;
-  /** Symbol prepended before value: "$", "€" */
   prefix?: string;
-  /** Override auto-formatted display string */
   formattedValue?: string;
-  /** % change vs prior comparable period (5.2 = +5.2%) */
   change?: number;
   trend?: TrendDirection;
-  /** e.g. "FY2024", "LTM" */
   period?: string;
-  /** Market / sector benchmark for comparison */
   benchmark?: number | string;
-  /** Label for benchmark row */
   benchmarkLabel?: string;
-  /** Secondary context line below value */
   sublabel?: string;
   variant?: KPIVariant;
 }
@@ -117,19 +118,9 @@ export interface ChartConfig {
   title: string;
   subtitle?: string;
   type: ChartType;
-  /** Pixel height of the chart area (default 280) */
   height?: number;
   footer?: string;
   source?: string;
-}
-
-// ── Context ───────────────────────────────────────────────────────────────────
-
-export interface ReportContextValue {
-  report: ReportMetadata | null;
-  isLoading: boolean;
-  isPrintMode: boolean;
-  togglePrintMode: () => void;
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
@@ -143,3 +134,7 @@ export interface ExportOptions {
   includeAppendix: boolean;
   watermark?: string;
 }
+
+// ── Premium tier ──────────────────────────────────────────────────────────────
+
+export type PremiumTier = "FREE" | "PRO" | "PREMIUM";
