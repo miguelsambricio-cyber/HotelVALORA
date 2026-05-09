@@ -1,6 +1,6 @@
-// Auth contract — institutional tier vocabulary used across the app.
+// Auth contracts — canonical types used across the app.
 //
-// `UserTier` is the canonical enum:
+// `UserTier` is the institutional tier vocabulary:
 //
 //   free          → public landing only; cannot view financials
 //   pro           → can view financial pages, all assumption inputs render readonly
@@ -8,10 +8,13 @@
 //   institutional → premium + organisational features (multi-asset, bulk export,
 //                   API access — future). Treated as premium for v1 gating.
 //
-// Compatible with the existing financial gating (`Tier` in
-// `@/lib/report/financials` re-exports `UserTier`). Future Supabase/Clerk
-// integration will populate the `User.tier` field from a JWT claim or
-// org-membership table; the UI never has to change.
+// `OAuthProvider` enumerates the social/identity providers the platform
+// surfaces to users. The matching `OAuthProviderConfig` registry lives in
+// `./providers` and maps each id to NextAuth's expected shape — when the
+// real OAuth wires through, only that registry needs `enabled: true` plus
+// the matching `<Provider />` entry in NextAuth's `authOptions`.
+
+// ── User / session ─────────────────────────────────────────────────────────
 
 export type UserTier = "free" | "pro" | "premium" | "institutional";
 
@@ -32,4 +35,18 @@ export interface AuthSession {
 export interface SignInResult {
   ok: boolean;
   error?: string;
+}
+
+// ── OAuth provider (canonical home — UI components import from here) ──────
+
+export type OAuthProvider = "linkedin" | "google" | "apple";
+
+export type LinkedAccountState = "connected" | "available";
+
+export interface LinkedAccount {
+  provider: OAuthProvider;
+  name: string;
+  state: LinkedAccountState;
+  /** Email shown when state is "connected" — small caption under the name */
+  linkedEmail?: string;
 }

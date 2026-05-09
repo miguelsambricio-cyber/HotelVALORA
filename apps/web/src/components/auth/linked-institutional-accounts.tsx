@@ -3,33 +3,29 @@
 import type { ReactNode } from "react";
 import { ChevronRight, Linkedin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  OAUTH_PROVIDERS,
+  useOAuth,
+  type LinkedAccount,
+  type OAuthProvider,
+} from "@/lib/auth";
 
-// ── OAuth contract ─────────────────────────────────────────────────────────
-//
-// `OAuthProvider` is the canonical id used across the app for
-// social/identity providers. When real OAuth ships (NextAuth / Clerk /
-// Auth.js), the hook surface stays identical:
-//
-//   <LinkedInstitutionalAccounts onLink={(p) => signIn(p)} />
-//
-// Today the cards render mock state and `onLink` is a no-op (the caller
-// can pass a handler to fire toast / route, but it doesn't perform OAuth).
-
-export type OAuthProvider = "linkedin" | "google" | "apple";
-export type LinkedAccountState = "connected" | "available";
-
-export interface LinkedAccount {
-  provider: OAuthProvider;
-  name: string;
-  state: LinkedAccountState;
-  /** Email shown when state is "connected" — small caption under the name */
-  linkedEmail?: string;
-}
+// Re-export the canonical types so existing consumers that imported them
+// from this file keep resolving without changes.
+export type {
+  LinkedAccount,
+  LinkedAccountState,
+  OAuthProvider,
+} from "@/lib/auth";
 
 export interface LinkedInstitutionalAccountsProps {
   /** Override the default mocked set (LinkedIn connected, others available) */
   accounts?: LinkedAccount[];
-  /** Fires when the user clicks "Link Account" on an available provider */
+  /**
+   * Fires when the user clicks "Link Account" on an available provider.
+   * If omitted, the component falls back to `useOAuth().signInWithProvider`
+   * — which is a no-op + console.warn until NextAuth is wired (v1).
+   */
   onLink?: (provider: OAuthProvider) => void;
   /** Fires when the user clicks "Disconnect" on a connected provider (future) */
   onUnlink?: (provider: OAuthProvider) => void;
@@ -49,10 +45,12 @@ const DEFAULT_ACCOUNTS: LinkedAccount[] = [
 
 /**
  * Institutional "Linked Accounts" section displayed beneath the auth card.
- * Each row is a clean enterprise card: provider mark on the left, name +
- * (when connected) email beneath, state pill or "Link Account" CTA on the
- * right. Visual matches the rest of the auth experience — slate-200
- * borders, rounded-xl, no gradients.
+ *
+ * UI is decoupled from auth runtime: the cards capture click intent and
+ * route through `useOAuth().signInWithProvider` by default — which today
+ * is a no-op + console.warn (v1 mock). When NextAuth wires through (v2),
+ * the swap happens inside `useOAuth` and inside `OAUTH_PROVIDERS` (set
+ * `enabled: true` per provider). No edit to this file is required.
  */
 export function LinkedInstitutionalAccounts({
   accounts = DEFAULT_ACCOUNTS,
@@ -60,6 +58,11 @@ export function LinkedInstitutionalAccounts({
   onUnlink,
   className,
 }: LinkedInstitutionalAccountsProps) {
+  const { signInWithProvider, unlinkProvider } = useOAuth();
+  const handleLink = onLink ?? ((p: OAuthProvider) => void signInWithProvider(p));
+  const handleUnlink =
+    onUnlink ?? ((p: OAuthProvider) => void unlinkProvider(p));
+
   return (
     <div className={cn("w-full", className)}>
       {/* Section divider */}
@@ -79,8 +82,8 @@ export function LinkedInstitutionalAccounts({
           <ProviderRow
             key={acc.provider}
             account={acc}
-            onLink={onLink}
-            onUnlink={onUnlink}
+            onLink={handleLink}
+            onUnlink={handleUnlink}
           />
         ))}
       </div>
@@ -92,8 +95,8 @@ export function LinkedInstitutionalAccounts({
 
 interface ProviderRowProps {
   account: LinkedAccount;
-  onLink?: (p: OAuthProvider) => void;
-  onUnlink?: (p: OAuthProvider) => void;
+  onLink: (p: OAuthProvider) => void;
+  onUnlink: (p: OAuthProvider) => void;
 }
 
 function ProviderRow({ account, onLink }: ProviderRowProps) {
@@ -105,20 +108,16 @@ function ProviderRow({ account, onLink }: ProviderRowProps) {
         "hover:border-slate-300",
       )}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <div
-          className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50",
-          )}
-        >
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
           {PROVIDER_MARKS[account.provider]}
         </div>
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm font-bold text-slate-800 leading-tight">
+        <div className="flex min-w-0 flex-col">
+          <span className="text-sm font-bold leading-tight text-slate-800">
             {account.name}
           </span>
           {isConnected && account.linkedEmail && (
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 truncate leading-tight mt-0.5">
+            <span className="mt-0.5 truncate text-[10px] uppercase leading-tight tracking-wider text-slate-400">
               {account.linkedEmail}
             </span>
           )}
@@ -133,7 +132,7 @@ function ProviderRow({ account, onLink }: ProviderRowProps) {
       ) : (
         <button
           type="button"
-          onClick={() => onLink?.(account.provider)}
+          onClick={() => onLink(account.provider)}
           className={cn(
             "inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 py-1.5",
             "text-[11px] font-bold uppercase tracking-wider text-slate-600 transition-colors",
@@ -153,12 +152,19 @@ function ProviderRow({ account, onLink }: ProviderRowProps) {
 // ── Provider marks ─────────────────────────────────────────────────────────
 //
 // LinkedIn uses lucide's `Linkedin` (stroke icon — keeps weight consistent
-// with the rest of the app). Google and Apple use minimal monochrome
-// inline SVGs — sourced as the public-domain wordmark silhouettes,
-// stripped of multi-colour decoration so they read as enterprise-neutral.
+// with the rest of the app, brand colour from the OAUTH_PROVIDERS registry).
+// Google and Apple use minimal monochrome inline SVGs — sourced as the
+// public-domain wordmark silhouettes, stripped of multi-colour decoration
+// so they read as enterprise-neutral.
 
 const PROVIDER_MARKS: Record<OAuthProvider, ReactNode> = {
-  linkedin: <Linkedin size={18} className="text-[#0A66C2]" strokeWidth={2} />,
+  linkedin: (
+    <Linkedin
+      size={18}
+      style={{ color: OAUTH_PROVIDERS.linkedin.brandColor }}
+      strokeWidth={2}
+    />
+  ),
   google: <GoogleMark />,
   apple: <AppleMark />,
 };

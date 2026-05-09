@@ -77,3 +77,34 @@ Role is embedded in the access token payload (`"role"` claim). Route-level role 
 - No token revocation / blacklist (stateless). Rotate `APP_SECRET_KEY` to invalidate all tokens.
 - `/health` is public — no auth required.
 - OpenAPI `/docs` disabled in production (`is_production=True`).
+
+---
+
+## Frontend Auth Prep (Client — `apps/web/src/lib/auth/`)
+
+The web app ships a NextAuth-shaped auth layer that is wired through every UI surface but has **no real OAuth runtime in v1**. The shape is deliberate so activating real providers later is a single PR with no UI churn.
+
+### Modules
+- `types.ts` — `UserTier`, `User`, `AuthSession`, `OAuthProvider`, `LinkedAccount`
+- `store.ts` — `useAuthStore` (Zustand mock signIn/signOut, in-memory session, tier inferred from email domain)
+- `providers.ts` — `OAUTH_PROVIDERS` registry (NextAuth-shaped: `nextAuthId`, `scopes`, `enabled: false`, brand colour)
+- `use-oauth.ts` — `useOAuth()` hook with `signInWithProvider` / `unlinkProvider` / `isProviderEnabled`. Bodies are no-op + `console.warn` until activated.
+
+### UI consumers
+- `AppHeader` — auto-derives the tier badge from `useAuth`
+- `AuthCard` — calls `useAuth().signIn(email, password)` (mock — accepts any well-formed input)
+- `LinkedInstitutionalAccounts` — renders provider cards, routes click intent through `useOAuth().signInWithProvider`. Buttons are placeholders until an `OAUTH_PROVIDERS[id].enabled` flips to `true`.
+
+### Tier resolution (`lib/report/use-tier.ts`)
+Resolution priority: `?tier=` URL override → authenticated user's tier → default `premium`. Helpers: `canEditAssumptions(t)` (premium + institutional), `canViewFinancials(t)` (anything except free).
+
+### NextAuth wire-up plan (when ready, NOT before)
+1. `pnpm add next-auth` in `apps/web`
+2. Flip `enabled: true` per provider in `OAUTH_PROVIDERS` (start with Google + LinkedIn — Apple needs Apple Developer + Services ID)
+3. `app/api/auth/[...nextauth]/route.ts` — iterate `getEnabledOAuthProviders()` to build `authOptions.providers[]`
+4. Wrap app in `<SessionProvider>` (in `app/layout.tsx` Providers)
+5. Replace `useOAuth().signInWithProvider` body with `signIn(provider.nextAuthId)`
+6. Replace `useAuthStore.signIn` body with `signIn("credentials", { email, password })` or remove if going OAuth-only
+7. Wire `user.tier` from JWT claim or DB lookup in NextAuth callbacks
+
+UI components do not change. Inline comments in `providers.ts` and `use-oauth.ts` document the exact swap points.
