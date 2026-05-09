@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import {
   AuthCard,
-  ConnectedProviders,
   ConnectivityStatusBar,
+  LinkedInstitutionalAccounts,
 } from "@/components/auth";
 
 export const metadata: Metadata = {
@@ -48,8 +48,8 @@ export default function LoginPage() {
             <AuthCard className="w-full" />
           </Suspense>
 
-          {/* Connected data providers — static */}
-          <ConnectedProviders className="mt-8" />
+          {/* Linked institutional accounts (OAuth-ready, mock state) */}
+          <LinkedInstitutionalAccounts className="mt-8" />
 
           {/* Connectivity status — animated, but no Suspense bailout */}
           <ConnectivityStatusBar className="mt-10" />
