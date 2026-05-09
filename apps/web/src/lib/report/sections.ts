@@ -65,7 +65,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
       { href: "/report/market-overview", label: "Market overview" },
       { href: "/report/market-overview/transactions", label: "Transactions" },
       { href: "/report/market-overview/projects", label: "Projects" },
-      { href: "#dynamics", label: "Market dynamics" },
+      { href: "/report/market-overview/dynamics", label: "Market dynamics" },
     ],
   },
   {
