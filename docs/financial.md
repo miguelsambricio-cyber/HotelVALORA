@@ -39,7 +39,24 @@ Three underwriting scenario presets drive the entire 5-year forecast. Each prese
 | `base`     | Base | +3.0pp | +2.0pp | +1.0pp | 0pp | +3.6% | +2.9% | +1.5% | +2.4% |
 | `upside`   | Up   | +3.0pp | +2.0pp | +1.0pp | 0pp | +5.0% | +4.5% | +4.0% | +3.5% |
 
-Base preset is calibrated to the Stitch reference. Year 1 occupancy + ADR live on `PLAssumptions.occupancyYear1` / `adrYear1` so the analyst can rebase the starting point without touching the scenario shape. Per-line ratios (operating revenue, departmental + undistributed expense %) stay constant across years in v1.
+Base preset is calibrated to the Stitch reference. Year 1 occupancy + ADR live on `PLAssumptions.occupancyYear1` / `adrYear1` so the analyst can rebase the starting point without touching the scenario shape.
+
+### Variable vs inflated cost lines (operating leverage)
+
+Departmental expenses, mgmt fee and FF&E reserve scale with revenue (ratio × revenue, ratio held constant). Undistributed lines + property tax & insurance are FIXED costs that inflate from their Year-1 base by `expenseInflation` rates compounded across years. When scenario RevPAR growth (5-9%) outpaces inflation (2.5-3.5%), EBITDA margin expands year over year — the operating leverage that institutional underwriting expects.
+
+| Line | Behaviour | Driver |
+|---|---|---|
+| Departmental Rooms / F&B / Other | Variable | ratio × dept revenue |
+| Mgmt fee | Variable | ratio × total revenue |
+| FF&E reserve | Variable | ratio × total revenue |
+| Admin & General | Inflated | Y1 base × (1 + `other` infl)^year |
+| Sales & Marketing | Inflated | Y1 base × (1 + `other` infl)^year |
+| Property & Maint. | Inflated | Y1 base × (1 + `other` infl)^year |
+| Utilities | Inflated | Y1 base × (1 + `utilities` infl)^year |
+| Property tax & insurance | Inflated | Y1 base × (1 + `other` infl)^year |
+
+Payroll inflation rate is captured in the assumption store but doesn't yet drive departmental expenses (those stay variable in v1). Future enhancement: hybrid semi-variable model with a payroll cost-pressure overlay.
 
 `SCENARIO_PRESETS` is exported from `lib/report/financials/assumptions.ts`. Future CoStar ingestion will replace the hand-tuned defaults with country/market/class-keyed rows.
 

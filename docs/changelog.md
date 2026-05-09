@@ -4,6 +4,24 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-09 — 5-Year P&L Forecast: operating leverage (margin expansion)
+
+Fixed a model bug where every USALI expense line was modelled as `ratio × revenue` (variable). Result: EBITDA margin was identical across all 5 years — no operating leverage at all.
+
+### What changed in `computePL`
+Undistributed lines (Admin, S&M, Property maint, Utilities) + Property tax & insurance now compound from their Year-1 base by the `expenseInflation` rates from the second top card:
+- Admin / S&M / Property maint / Property tax → `other` (2.5%)
+- Utilities → `utilities` (3.5%)
+
+Departmental expenses + Mgmt fee + FF&E reserve stay variable (ratio × revenue) — labour-driven and contract-priced lines respectively.
+
+### Effect
+Year 1 EBITDA margin unchanged (no inflation has compounded yet). Year 2-5 margin expands when scenario RevPAR growth > inflation rate. For BASE preset: Year 1 30.6% → Year 5 ~32% (institutional operating leverage realism).
+
+The `expenseInflation` card values now drive the model — previously they were captured on `PLAssumptions` but had no effect.
+
+---
+
 ## 2026-05-09 — 5-Year P&L Forecast: scenario presets (Down/Base/Up)
 
 Replaced the single-rate scenario model with three full underwriting presets. Each preset is a complete (occupancy pp-deltas + ADR YoY growth) tuple per year — switching the active scenario re-projects ADR, RevPAR, Revenue, GOP, EBITDA, and EBITDA margin in one `computePL` pass.

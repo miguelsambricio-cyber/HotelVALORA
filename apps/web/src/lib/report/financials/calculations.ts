@@ -13,15 +13,26 @@
 // 5. Rooms revenue = RevPAR × rooms × daysInYear.
 // 6. Total revenue = Rooms / (1 − sum of ancillary ratios).
 // 7. Each ancillary revenue line = ratio × Total revenue.
-// 8. Departmental expenses = ratio × department revenue.
-// 9. Undistributed + non-operating = ratio × Total revenue.
-// 10. GOP = Total − Departmental − Undistributed.
-// 11. EBITDA = GOP − Non-operating.
-// 12. EBITDA margin = EBITDA / Total Revenue.
+// 8. Departmental expenses = ratio × department revenue (VARIABLE — labor
+//    + COGS scale with the business; ratio assumed stable in v1).
+// 9. Undistributed expenses (Admin / S&M / Property maint / Utilities) =
+//    Year-1 base × CPI compound. Each line picks its bucket:
+//    - Admin, S&M, Property maint → `expenseInflation.other`
+//    - Utilities                  → `expenseInflation.utilities`
+//    These are largely fixed costs; growing slower than revenue creates
+//    the operating leverage that expands EBITDA margin year-over-year.
+// 10. Mgmt fee + FF&E reserve = ratio × Total revenue (VARIABLE — these
+//     are typically % of revenue contracts).
+// 11. Property tax & insurance = Year-1 base × `other` inflation (slow-
+//     moving, indexed to property value).
+// 12. GOP = Total − Departmental − Undistributed.
+// 13. EBITDA = GOP − Non-operating.
+// 14. EBITDA margin = EBITDA / Total Revenue.
 //
 // Switching `assumptions.activeScenario` re-projects the entire forecast
 // because the preset lookup drives occupancy + ADR — every downstream line
-// recomputes in the same pass.
+// recomputes in the same pass. Tweaking `expenseInflation` shifts the
+// fixed-cost trajectory and re-compounds the margin curve.
 
 import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types";
 import { SCENARIO_PRESETS } from "./assumptions";
@@ -66,17 +77,27 @@ export function computePL(a: PLAssumptions): PLComputed {
   const revSpa = totalRevenue.map((t) => t * a.ratios.revSpa);
   const revParkingOther = totalRevenue.map((t) => t * a.ratios.revParkingOther);
 
-  // ── 4. Departmental expenses ──────────────────────────────────────────
+  // ── 4. Departmental expenses (VARIABLE — ratio × department revenue) ──
   const expRooms = revRooms.map((r) => r * a.ratios.expRooms);
   const expFB = revFB.map((r) => r * a.ratios.expFB);
   const otherDeptRev = revMeeting.map((r, i) => r + revSpa[i] + revParkingOther[i]);
   const expOtherDept = otherDeptRev.map((r) => r * a.ratios.expOtherDept);
 
-  // ── 5. Undistributed expenses ─────────────────────────────────────────
-  const expAdmin = totalRevenue.map((t) => t * a.ratios.expAdmin);
-  const expSalesMarketing = totalRevenue.map((t) => t * a.ratios.expSalesMarketing);
-  const expPropertyMaint = totalRevenue.map((t) => t * a.ratios.expPropertyMaint);
-  const expUtilities = totalRevenue.map((t) => t * a.ratios.expUtilities);
+  // ── 5. Undistributed expenses (FIXED — Y1 base × CPI compound) ────────
+  // Year index `y` (0..4) → multiplier (1 + inflation)^y. Year 1 carries
+  // the ratio-derived starting amount; Year 2-5 inflate from there.
+  const otherInfl = (y: number) => Math.pow(1 + a.expenseInflation.other, y);
+  const utilInfl = (y: number) => Math.pow(1 + a.expenseInflation.utilities, y);
+
+  const expAdminY1 = totalRevenue[0] * a.ratios.expAdmin;
+  const expSmY1 = totalRevenue[0] * a.ratios.expSalesMarketing;
+  const expPmY1 = totalRevenue[0] * a.ratios.expPropertyMaint;
+  const expUtilY1 = totalRevenue[0] * a.ratios.expUtilities;
+
+  const expAdmin = times(YEARS, (y) => expAdminY1 * otherInfl(y));
+  const expSalesMarketing = times(YEARS, (y) => expSmY1 * otherInfl(y));
+  const expPropertyMaint = times(YEARS, (y) => expPmY1 * otherInfl(y));
+  const expUtilities = times(YEARS, (y) => expUtilY1 * utilInfl(y));
 
   // ── 6. GOP ────────────────────────────────────────────────────────────
   const gop = totalRevenue.map(
@@ -92,9 +113,13 @@ export function computePL(a: PLAssumptions): PLComputed {
   );
 
   // ── 7. Non-operating + EBITDA ─────────────────────────────────────────
+  // Mgmt fee + FF&E reserve are typically % of revenue contracts (variable).
+  // Property tax & insurance is slow-moving / indexed to property value
+  // (modelled as `other` inflation from Year-1 base).
   const expMgmtFee = totalRevenue.map((t) => t * a.ratios.expMgmtFee);
-  const expPropertyTax = totalRevenue.map((t) => t * a.ratios.expPropertyTax);
   const expFfeReserve = totalRevenue.map((t) => t * a.ratios.expFfeReserve);
+  const expPropertyTaxY1 = totalRevenue[0] * a.ratios.expPropertyTax;
+  const expPropertyTax = times(YEARS, (y) => expPropertyTaxY1 * otherInfl(y));
   const ebitda = gop.map(
     (g, i) => g - expMgmtFee[i] - expPropertyTax[i] - expFfeReserve[i],
   );
@@ -148,4 +173,11 @@ function toFive(arr: number[]): FiveYears {
 
 function fixedFiveYears(value: number): FiveYears {
   return [value, value, value, value, value] as const;
+}
+
+/** `times(5, fn)` → [fn(0), fn(1), fn(2), fn(3), fn(4)] */
+function times(n: number, fn: (i: number) => number): number[] {
+  const out: number[] = new Array(n);
+  for (let i = 0; i < n; i++) out[i] = fn(i);
+  return out;
 }
