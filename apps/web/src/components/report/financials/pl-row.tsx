@@ -81,7 +81,9 @@ export function PLRow({
         ) : null}
       </td>
 
-      {/* Year 1 — editable for driver rows */}
+      {/* Year 1 — editable for driver rows.
+          The active-year chevron lives only in the table header
+          (FinancialTable thead) — per Stitch spec, NOT per row. */}
       <YearCell
         value={yearValues[0]}
         previousValue={undefined}
@@ -89,7 +91,6 @@ export function PLRow({
         currency={currency}
         editable={editable && config.editableYear1}
         onChange={onYear1Change}
-        marker
       />
       <YearCell
         value={yearValues[1]}
@@ -127,7 +128,6 @@ interface YearCellProps {
   config: PLLineItemConfig;
   currency: Currency;
   editable?: boolean;
-  marker?: boolean;
   onChange?: (next: number) => void;
 }
 
@@ -137,7 +137,6 @@ function YearCell({
   config,
   currency,
   editable,
-  marker,
   onChange,
 }: YearCellProps) {
   const formatted = formatByKind(value, config.yearKind, currency);
@@ -158,14 +157,6 @@ function YearCell({
       )}
     >
       <span className="inline-flex items-baseline gap-1">
-        {marker && (
-          <span
-            aria-hidden
-            className="mr-1 font-black text-emerald-700 print:hidden"
-          >
-            ›
-          </span>
-        )}
         {editable && onChange ? (
           <Year1Input value={value} formatted={formatted} onChange={onChange} bold={isBold} />
         ) : (
