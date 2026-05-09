@@ -32,6 +32,19 @@ export interface RevparScenarioCardProps {
   onChange: (next: UnderwritingScenario) => void;
 }
 
+/**
+ * Decorative committee labels rendered above each scenario button.
+ * The buttons themselves carry the canonical short tags (DOWN / BASE /
+ * UP) from `SCENARIO_OPTIONS`; the Spanish words are presentation-only
+ * top-of-column tags that mirror the PAYROLL / UTILITIES / OTHER labels
+ * of the adjacent Expense Inflation card.
+ */
+const TOP_LABEL_BY_SCENARIO: Record<UnderwritingScenario, string> = {
+  downside: "Conservador",
+  base: "Mercado",
+  upside: "Optimista",
+};
+
 export function RevparScenarioCard({
   active,
   editable,
@@ -43,31 +56,39 @@ export function RevparScenarioCard({
       <div
         role="radiogroup"
         aria-label="RevPAR scenario"
-        className="grid grid-cols-3 gap-2 print:gap-1"
+        className="flex gap-4 print:gap-2"
       >
         {SCENARIO_OPTIONS.map((opt) => {
           const isActive = opt.id === active;
           return (
-            <button
-              key={opt.id}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              aria-disabled={!editable}
-              disabled={!editable && !isActive}
-              onClick={() => editable && onChange(opt.id)}
-              className={cn(
-                "rounded-md border px-3 py-2 text-sm font-bold uppercase tracking-wider transition-all",
-                "print:py-1 print:text-[9px] print:tracking-normal",
-                isActive
-                  ? "border-forest-900 bg-forest-900 text-white shadow-sm"
-                  : "border-slate-300 bg-white text-slate-700",
-                editable && !isActive && "hover:border-slate-400 hover:bg-slate-50 cursor-pointer",
-                !editable && !isActive && "cursor-default opacity-60",
-              )}
-            >
-              {opt.label}
-            </button>
+            <div key={opt.id} className="flex w-full flex-col gap-1">
+              <span
+                aria-hidden
+                className="text-[10px] font-semibold uppercase text-slate-500 print:text-[7px]"
+              >
+                {TOP_LABEL_BY_SCENARIO[opt.id]}
+              </span>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                aria-disabled={!editable}
+                disabled={!editable && !isActive}
+                onClick={() => editable && onChange(opt.id)}
+                className={cn(
+                  "w-full rounded-md border px-3 py-2 text-center text-sm font-semibold transition-all",
+                  "focus:outline-none focus:ring-1 focus:ring-emerald-500",
+                  "print:border-slate-200 print:py-1 print:text-xs",
+                  isActive
+                    ? "border-forest-900 bg-forest-900 text-white shadow-sm"
+                    : "border-slate-300 bg-white text-slate-700",
+                  editable && !isActive && "cursor-pointer hover:border-slate-400 hover:bg-slate-50",
+                  !editable && !isActive && "cursor-default opacity-60",
+                )}
+              >
+                {opt.label}
+              </button>
+            </div>
           );
         })}
       </div>
