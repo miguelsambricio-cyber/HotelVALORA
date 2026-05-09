@@ -4,6 +4,30 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-09 — 5-Year P&L Forecast: scenario presets (Down/Base/Up)
+
+Replaced the single-rate scenario model with three full underwriting presets. Each preset is a complete (occupancy pp-deltas + ADR YoY growth) tuple per year — switching the active scenario re-projects ADR, RevPAR, Revenue, GOP, EBITDA, and EBITDA margin in one `computePL` pass.
+
+### Preset table (committee spec)
+| Scenario | Y2 Occ Δ | Y3 Occ Δ | Y4 Occ Δ | Y5 Occ Δ | Y2 ADR | Y3 ADR | Y4 ADR | Y5 ADR |
+|---|---|---|---|---|---|---|---|---|
+| DOWN | +1.0pp | +1.0pp | +0.5pp | +0.5pp | +1.5% | +2.0% | +2.0% | +2.5% |
+| BASE | +3.0pp | +2.0pp | +1.0pp | 0pp | +3.6% | +2.9% | +1.5% | +2.4% |
+| UP   | +3.0pp | +2.0pp | +1.0pp | 0pp | +5.0% | +4.5% | +4.0% | +3.5% |
+
+BASE preset reproduces the Stitch table figures (Year 5 RevPAR ≈ €137.68 vs €138.69, within rounding).
+
+### UI
+RevparScenarioCard is now a 3-button preset selector (Down / Base / Up) styled as institutional input-tiles. Active button = forest-900 + white. Inactive = white + slate. PRO renders disabled, PREMIUM clickable.
+
+### Data layer
+- `PLAssumptions.scenarioGrowth` and `occupancyGrowth` removed.
+- `PLAssumptions.activeScenario: UnderwritingScenario` added.
+- `SCENARIO_PRESETS: Record<UnderwritingScenario, { occDeltas[4]; adrGrowth[4] }>` lives in `lib/report/financials/assumptions.ts`.
+- `SCENARIO_LABELS` updated to short institutional form: `Down / Base / Up`.
+
+---
+
 ## 2026-05-09 — 5-Year P&L Forecast: Lectura A scenario architecture
 
 Refactored `/report/financials/pl` so each underwriting scenario is an independent committee growth parameter instead of a globally-selected lens. Removed the global `ScenarioToggle` from the report header and the Zustand store under `lib/underwriting/scenario.ts` (kept the type + display labels for reuse).

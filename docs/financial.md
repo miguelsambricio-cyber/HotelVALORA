@@ -31,15 +31,17 @@ For DCF engine internals (Python), see `docs/financial-engine.md`.
 
 ## 5-Year P&L Forecast scenario model (`/report/financials/pl`)
 
-Each underwriting scenario is an independent constant RevPAR growth rate, stored on `PLAssumptions.scenarioGrowth: Record<UnderwritingScenario, number>`. The live P&L is computed with the `base` (Mercado) rate; `downside` and `upside` are committee sensitivity inputs that future scenario comparison views (IRR bands, DSCR sensitivity, exit cap matrix) will consume.
+Three underwriting scenario presets drive the entire 5-year forecast. Each preset is a complete (occupancy pp-deltas + ADR YoY growth) tuple per year. Active scenario lives on `PLAssumptions.activeScenario`; switching it re-projects every downstream metric in a single `computePL(a)` pass.
 
-| Scenario internal | UI label | Default growth |
-|---|---|---|
-| `downside` | Conservador | 8.5% |
-| `base`     | Mercado     | 6.0% (drives the live table) |
-| `upside`   | Optimista   | 3.0% |
+| Scenario | UI label | Y2 Occ Δ | Y3 Occ Δ | Y4 Occ Δ | Y5 Occ Δ | Y2 ADR | Y3 ADR | Y4 ADR | Y5 ADR |
+|---|---|---|---|---|---|---|---|---|---|
+| `downside` | Down | +1.0pp | +1.0pp | +0.5pp | +0.5pp | +1.5% | +2.0% | +2.0% | +2.5% |
+| `base`     | Base | +3.0pp | +2.0pp | +1.0pp | 0pp | +3.6% | +2.9% | +1.5% | +2.4% |
+| `upside`   | Up   | +3.0pp | +2.0pp | +1.0pp | 0pp | +5.0% | +4.5% | +4.0% | +3.5% |
 
-`computePL(a)` applies `a.scenarioGrowth.base` as a constant year-over-year RevPAR multiplier across all 5 years. Occupancy still follows absolute pp deltas (`occupancyGrowth.yr2..yr5`); ADR is derived as `RevPAR / Occupancy`. Per-line ratios (operating revenue, departmental + undistributed expense %) stay constant across years in v1.
+Base preset is calibrated to the Stitch reference. Year 1 occupancy + ADR live on `PLAssumptions.occupancyYear1` / `adrYear1` so the analyst can rebase the starting point without touching the scenario shape. Per-line ratios (operating revenue, departmental + undistributed expense %) stay constant across years in v1.
+
+`SCENARIO_PRESETS` is exported from `lib/report/financials/assumptions.ts`. Future CoStar ingestion will replace the hand-tuned defaults with country/market/class-keyed rows.
 
 ### EBITDA Stabilized card
 The big-number metric is the Year-3 EBITDA % margin from `computed.results.ebitdaMargin[2]`. It auto-tracks any edit to assumptions or scenario rates — the analyst doesn't type a target.
