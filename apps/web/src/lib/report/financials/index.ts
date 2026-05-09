@@ -9,6 +9,7 @@ export { CURRENCY_CONFIG, defaultCurrencyForCountry } from "./currency";
 
 export {
   formatCurrency,
+  formatCompactCurrency,
   formatPercent,
   formatAbsolute,
   formatYearDelta,

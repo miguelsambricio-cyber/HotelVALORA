@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import {
-  formatCurrency,
+  formatCompactCurrency,
   formatPercent,
   type Currency,
   type FiveYears,
@@ -58,7 +58,7 @@ export function FinancialResultRow({
                 styles.value,
               )}
             >
-              {formatCurrency(v, currency, { decimals: 0 })}
+              {formatCompactCurrency(v, currency)}
             </td>
           ))
         ) : (
@@ -68,7 +68,7 @@ export function FinancialResultRow({
               styles.value,
             )}
           >
-            {formatCurrency(values[0], currency, { decimals: 0 })}
+            {formatCompactCurrency(values[0], currency)}
           </td>
         )}
         {[1, 2, 3, 4].map((i) => (
@@ -79,7 +79,7 @@ export function FinancialResultRow({
               styles.value,
             )}
           >
-            {formatCurrency(values[i], currency, { decimals: 0 })}
+            {formatCompactCurrency(values[i], currency)}
           </td>
         ))}
       </tr>

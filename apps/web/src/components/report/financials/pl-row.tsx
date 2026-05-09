@@ -4,7 +4,7 @@ import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 import {
   formatAbsolute,
-  formatCurrency,
+  formatCompactCurrency,
   formatPercent,
   formatPpDelta,
   formatYearDelta,
@@ -234,7 +234,9 @@ function formatByKind(
 ): string {
   switch (kind) {
     case "currency":
-      return formatCurrency(value, currency, { decimals: 0 });
+      // Compact (k / M) above 100k; full format below — keeps ADR / RevPAR
+      // legible while shortening big revenue / expense numbers.
+      return formatCompactCurrency(value, currency);
     case "percent":
       return formatPercent(value, 1);
     case "absolute":

@@ -27,6 +27,40 @@ export function formatCurrency(
     : `${formatted} ${cfg.symbol}`;
 }
 
+/**
+ * Compact currency format for institutional tables.
+ *
+ *   value >= 1,000,000  → "X.XXM €"  (2 decimals, period separator)
+ *   value >= 100,000    → "XXX.Xk €" (1 decimal,  period separator)
+ *   value <  100,000    → falls through to full `formatCurrency`
+ *                          (handles ADR / RevPAR / sub-six-digit lines).
+ *
+ * Decimal separator forced to period inside the compact suffix
+ * (`1.20M`, not `1,20M`) regardless of locale — matches the
+ * institutional spec verbatim. The currency symbol still respects the
+ * locale's prefix/suffix convention.
+ */
+export function formatCompactCurrency(
+  value: number,
+  currency: Currency,
+): string {
+  const cfg = CURRENCY_CONFIG[currency];
+  const abs = Math.abs(value);
+
+  let body: string;
+  if (abs >= 1_000_000) {
+    body = `${(value / 1_000_000).toFixed(2)}M`;
+  } else if (abs >= 100_000) {
+    body = `${(value / 1_000).toFixed(1)}k`;
+  } else {
+    return formatCurrency(value, currency, { decimals: 0 });
+  }
+
+  return cfg.symbolPosition === "prefix"
+    ? `${cfg.symbol}${body}`
+    : `${body} ${cfg.symbol}`;
+}
+
 /** Format a 0..1 ratio as "65.0%". */
 export function formatPercent(value: number, decimals = 1): string {
   return `${(value * 100).toFixed(decimals)}%`;
