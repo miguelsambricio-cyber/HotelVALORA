@@ -1,53 +1,145 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { DynamicsChart } from "@/lib/report/market-dynamics-data";
+import {
+  CLASS_OPTIONS,
+  HORIZON_OPTIONS,
+  KPI_OPTIONS,
+  SCOPE_OPTIONS,
+  describeFilters,
+  getDynamicsChart,
+  type DynamicsClass,
+  type DynamicsFilterOption,
+  type DynamicsFilterState,
+  type DynamicsHorizon,
+  type DynamicsKpi,
+  type DynamicsScope,
+} from "@/lib/report/market-dynamics-data";
 import { DynamicsLineChart } from "./dynamics-line-chart";
 
 export interface DynamicsChartCardProps {
-  chart: DynamicsChart;
+  /** Initial filter combo — chart starts here, user can override per-card */
+  initialFilters: DynamicsFilterState;
+  /** Stroke colour for the line (alternates emerald/teal across the grid) */
+  color: string;
   className?: string;
 }
 
 /**
- * White institutional card hosting one of the 6 Market Dynamics charts.
- * Header pattern matches the rest of the report (uppercase tracked label
- * top-left, slim badge top-right, small unit caption above the chart).
+ * Stitch-parity chart card. Each card owns its own 4-axis filter state — the
+ * reader picks the angle they want for THIS card without affecting the others.
  *
- * Sized for a 2×3 grid on desktop (~400px tall) and compresses to ~180px
- * for print so 4-6 cards fit per A4 portrait page without page-breaks
- * inside any single chart.
+ * Web: 4 native selects on top, smoothed line chart below, ~400px tall.
+ * Print: selects hidden, replaced by a single uppercase caption that
+ * describes the active filter combo so the PDF reader knows what they're
+ * looking at. break-inside-avoid keeps each card on a single A4 page.
  */
-export function DynamicsChartCard({ chart, className }: DynamicsChartCardProps) {
+export function DynamicsChartCard({
+  initialFilters,
+  color,
+  className,
+}: DynamicsChartCardProps) {
+  const [filters, setFilters] = useState<DynamicsFilterState>(initialFilters);
+  const chart = useMemo(() => getDynamicsChart(filters), [filters]);
+  const caption = describeFilters(filters);
+
   return (
     <article
       className={cn(
         "flex h-[400px] flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm",
-        "print:h-[170px] print:p-3 print:shadow-none print:rounded-md print:break-inside-avoid",
+        "print:h-[180px] print:p-3 print:shadow-none print:rounded-md print:break-inside-avoid",
         className,
       )}
     >
-      {/* Header */}
-      <div className="mb-3 flex items-start justify-between gap-3 print:mb-2">
-        <div className="min-w-0">
-          <h3 className="text-sm font-extrabold uppercase tracking-wider text-forest-900 font-headline print:text-[10px]">
-            {chart.title}
-          </h3>
-          {chart.unit && (
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400 print:text-[7px] print:mt-0">
-              {chart.unit}
-            </p>
-          )}
-        </div>
-        {chart.badge && (
-          <span className="shrink-0 rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 print:text-[7px] print:px-1.5 print:py-0">
-            {chart.badge}
-          </span>
-        )}
+      {/* DROPDOWNS — web only */}
+      <div className="mb-6 grid grid-cols-2 gap-2 lg:grid-cols-4 print:hidden">
+        <FilterSelect
+          ariaLabel="Ámbito"
+          options={SCOPE_OPTIONS}
+          value={filters.scope}
+          onChange={(scope) => setFilters({ ...filters, scope })}
+        />
+        <FilterSelect
+          ariaLabel="Clase"
+          options={CLASS_OPTIONS}
+          value={filters.class}
+          onChange={(klass) => setFilters({ ...filters, class: klass })}
+        />
+        <FilterSelect
+          ariaLabel="KPI"
+          options={KPI_OPTIONS}
+          value={filters.kpi}
+          onChange={(kpi) => setFilters({ ...filters, kpi })}
+        />
+        <FilterSelect
+          ariaLabel="Horizonte"
+          options={HORIZON_OPTIONS}
+          value={filters.horizon}
+          onChange={(horizon) => setFilters({ ...filters, horizon })}
+        />
       </div>
 
-      {/* Chart body — flex-1 lets the chart fill remaining card height */}
+      {/* PRINT CAPTION — print only */}
+      <p className="hidden print:mb-2 print:block text-[7px] font-bold uppercase tracking-wider text-slate-600">
+        {caption}
+      </p>
+
+      {/* CHART — flex-1 fills remaining card height */}
       <div className="min-h-0 flex-1">
-        <DynamicsLineChart series={chart.series} xLabels={chart.xLabels} />
+        <DynamicsLineChart values={chart.values} color={color} />
       </div>
     </article>
+  );
+}
+
+// ── Stitch-style native select with custom chevron ──────────────────────────
+
+interface FilterSelectProps<T extends string> {
+  ariaLabel: string;
+  options: DynamicsFilterOption<T>[];
+  value: T;
+  onChange: (next: T) => void;
+}
+
+function FilterSelect<
+  T extends DynamicsScope | DynamicsClass | DynamicsKpi | DynamicsHorizon,
+>({ ariaLabel, options, value, onChange }: FilterSelectProps<T>) {
+  return (
+    <div className="relative min-w-0">
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className={cn(
+          "w-full appearance-none cursor-pointer truncate rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-2 pr-7",
+          "text-xs font-medium text-slate-700 transition-colors",
+          "hover:border-slate-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500",
+        )}
+      >
+        {options.map((opt) => (
+          <option key={opt.id} value={opt.id}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M2 4l3 3 3-3" />
+        </svg>
+      </span>
+    </div>
   );
 }
