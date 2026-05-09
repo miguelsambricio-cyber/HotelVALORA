@@ -36,7 +36,9 @@ export function AuthCard({ className }: AuthCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const next = params?.get("next") || "/dashboard";
+  // Authenticated home is the institutional settings shell — credentials
+  // and underwriting preferences live here as the default landing.
+  const next = params?.get("next") || "/settings/profile";
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

@@ -48,8 +48,9 @@ export function AppHeader({
   className,
 }: AppHeaderProps) {
   const { user, isAuthenticated } = useAuth();
+  // Authenticated landing = institutional settings shell.
   const resolvedUserHref =
-    userHref ?? (isAuthenticated ? "/dashboard" : "/login");
+    userHref ?? (isAuthenticated ? "/settings/profile" : "/login");
 
   return (
     <header
