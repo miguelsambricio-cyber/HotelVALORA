@@ -31,12 +31,8 @@ export function Sidebar() {
 
   return (
     <aside className="flex flex-col w-64 border-r bg-card shrink-0">
-      {/* Brand */}
-      <div className="flex items-center gap-2 h-16 px-6 border-b">
-        <span className="font-display font-extrabold text-lg tracking-tight text-brand-700">
-          HOTEL<span className="text-gold-400">VALORA</span>
-        </span>
-      </div>
+      {/* Brand block removed — global AppHeader now carries the wordmark
+          for the entire app. Sidebar starts with the navigation rail. */}
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

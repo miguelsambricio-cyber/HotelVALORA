@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { LandingHeader } from "@/components/landing/landing-header";
+import { AppHeader } from "@/components/layout/app-header";
 import {
   AuthCard,
   ConnectedProviders,
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
-      <LandingHeader />
+      <AppHeader />
 
-      <main className="flex flex-1 items-center justify-center px-6 py-16 pt-28">
+      <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="mx-auto flex w-full max-w-md flex-col items-center">
           {/* Hero — server-rendered, visible immediately */}
           <div className="mb-10 px-4 text-center">
