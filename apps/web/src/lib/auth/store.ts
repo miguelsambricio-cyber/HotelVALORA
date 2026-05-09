@@ -29,6 +29,7 @@
 // / Apple — mockup-style social access surface).
 
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { SignInResult, User, UserTier } from "./types";
 
 interface AuthState {
@@ -38,9 +39,16 @@ interface AuthState {
   signOut: () => void;
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
-  user: null,
-  isAuthenticated: false,
+// `persist` middleware writes the user object to localStorage so the
+// "logged in" state survives page reloads — the institutional UX
+// expectation. v2 (real auth) replaces this with NextAuth's cookie/JWT
+// session; the `useAuth` surface stays the same.
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
 
   signIn: async (email, password) => {
     if (!email.trim() || !password.trim()) {
@@ -67,8 +75,20 @@ export const useAuthStore = create<AuthState>()((set) => ({
     return { ok: true };
   },
 
-  signOut: () => set({ user: null, isAuthenticated: false }),
-}));
+      signOut: () => set({ user: null, isAuthenticated: false }),
+    }),
+    {
+      name: "hv-auth-v1",
+      storage: createJSONStorage(() => localStorage),
+      // Persist only the identity bits — actions are fresh closures every
+      // load. `partialize` keeps the localStorage payload minimal.
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    },
+  ),
+);
 
 /** Convenience hook — `[user, signIn, signOut]` tuple. */
 export function useAuth() {

@@ -47,10 +47,12 @@ export function AppHeader({
   notificationsSlot,
   className,
 }: AppHeaderProps) {
-  const { user, isAuthenticated } = useAuth();
-  // Authenticated landing = institutional settings shell.
-  const resolvedUserHref =
-    userHref ?? (isAuthenticated ? "/settings/profile" : "/login");
+  const { user } = useAuth();
+  // USUARIO is the single-click path to the institutional user area —
+  // routes straight to the settings shell regardless of auth state.
+  // Unauthenticated visitors land on the same page (mock auth, no gate);
+  // future auth wire-up can put a redirect-to-login on the page itself.
+  const resolvedUserHref = userHref ?? "/settings/profile";
 
   return (
     <header
@@ -97,7 +99,7 @@ export function AppHeader({
               "text-white shadow-sm transition-all hover:brightness-110 active:scale-95",
               "font-headline text-sm font-bold tracking-tight",
             )}
-            aria-label={isAuthenticated ? "Open dashboard" : "Sign in"}
+            aria-label="Open user profile"
           >
             <UserCircle size={18} aria-hidden />
             <span className="hidden sm:inline">USUARIO</span>
