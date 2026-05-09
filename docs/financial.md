@@ -29,6 +29,40 @@ For DCF engine internals (Python), see `docs/financial-engine.md`.
 
 ---
 
+## Year 1 monthly expansion (Jan–Dec breakdown)
+
+The Year 1 column is expandable — clicking the chevron `▸ Year 1` in the table header replaces the single column with 12 monthly sub-columns (Jan–Dec) inline within the same USALI table. The chevron flips to `▾` while expanded.
+
+### Seasonality engine
+Lives in `apps/web/src/lib/report/financials/seasonality.ts`. Exports:
+- `SeasonalityProfile` — canonical contract: `occupancy[12]` + `adr[12]` multipliers + `source` identifier
+- `MADRID_UPSCALE_SEASONALITY` — default profile (Q2/Q3 strong, Aug weak, Jan/Feb soft)
+- `getSeasonalityProfile(market, hotelClass)` — lookup; v1 returns the Madrid default
+- `expandYear1ToMonthly(assumptions, computed, profile)` — pure pipeline that produces `MonthlyYear1Breakdown`
+- `adapterFromCoStarMonthlyRows(rows, source)` — adapter stub for future Excel ingestion
+
+### Mathematical guarantees
+Sum of monthly values = annual Year-1 value, **exactly**:
+- Variable lines (revenue, mgmt fee, FF&E, dept variable portion): ratio × monthly base, sums to ratio × annual
+- Inflated lines (Admin / S&M / Property maint / Utilities / Property tax): annual amount distributed pro-rata by days
+- Hybrid departmental fixed-payroll portion: same pro-rata by days
+
+EBITDA % margin per month varies (low-occupancy months bear the same fixed costs but lower revenue → lower margin; peak months → higher margin).
+
+### Future CoStar Excel ingestion
+The architecture is preparation-complete:
+1. UI consumes `SeasonalityProfile` — agnostic to source
+2. `getSeasonalityProfile(market, class)` is the swap point
+3. `adapterFromCoStarMonthlyRows` (or future `adapterFromCompSetExcel`) maps raw Excel → profile
+4. UI never sees Excel format directly
+
+Replace `getSeasonalityProfile` body with a CoStar query/Excel adapter call when the dataset ships — every consumer (P&L expansion, future IRR sensitivity, year-1 stress tests) auto-inherits.
+
+### Print behaviour
+The expansion state is preserved across print — if the analyst left Year 1 expanded before exporting PDF, the 12 month columns appear in the PDF; otherwise the Year 1 column stays collapsed. No automatic collapse-for-print. With 18 columns the table may overflow A4 portrait — that's an acceptable analyst trade-off given the manual choice.
+
+---
+
 ## 5-Year P&L Forecast scenario model (`/report/financials/pl`)
 
 Three underwriting scenario presets drive the entire 5-year forecast. Each preset is a complete (occupancy pp-deltas + ADR YoY growth) tuple per year. Active scenario lives on `PLAssumptions.activeScenario`; switching it re-projects every downstream metric in a single `computePL(a)` pass.

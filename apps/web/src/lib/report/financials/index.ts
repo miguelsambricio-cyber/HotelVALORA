@@ -35,6 +35,21 @@ export { getDefaultAssumptions, SCENARIO_PRESETS } from "./assumptions";
 export { PL_STRUCTURE } from "./pl-structure";
 export { computePL } from "./calculations";
 
+export type {
+  SeasonalityProfile,
+  MonthlyYear1Breakdown,
+  MonthLabel,
+  CoStarMonthlyRow,
+} from "./seasonality";
+export {
+  MONTH_LABELS,
+  DAYS_IN_MONTH,
+  MADRID_UPSCALE_SEASONALITY,
+  getSeasonalityProfile,
+  expandYear1ToMonthly,
+  adapterFromCoStarMonthlyRows,
+} from "./seasonality";
+
 // Re-export the underwriting scenario contract from its canonical home
 // for convenience — financials consumers can import the type alongside
 // the per-hotel assumptions in one go.

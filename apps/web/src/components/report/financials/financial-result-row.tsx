@@ -15,6 +15,13 @@ export interface FinancialResultRowProps {
   currency: Currency;
   /** When set, render an additional "% Margin" sub-row beneath (used by EBITDA) */
   marginValues?: FiveYears;
+  /**
+   * Optional 12-month breakdown for Year 1. When provided, the single
+   * Year-1 result cell is replaced by 12 monthly cells.
+   */
+  year1Monthly?: number[];
+  /** Optional 12-month margin breakdown (for EBITDA % Margin sub-row) */
+  year1MonthlyMargin?: number[];
 }
 
 /**
@@ -22,6 +29,8 @@ export interface FinancialResultRowProps {
  * `gop`, emerald-100 for `ebitda` — matches the Stitch reference exactly.
  *
  * EBITDA optionally renders a sub-row with the corresponding margin %.
+ * When Year 1 is expanded, both rows render 12 month cells in place of the
+ * single Year-1 cell.
  */
 export function FinancialResultRow({
   label,
@@ -29,6 +38,8 @@ export function FinancialResultRow({
   values,
   currency,
   marginValues,
+  year1Monthly,
+  year1MonthlyMargin,
 }: FinancialResultRowProps) {
   const styles = VARIANT_STYLES[variant];
   return (
@@ -38,7 +49,29 @@ export function FinancialResultRow({
           {label}
         </td>
         <td className="py-4 px-2 print:hidden" />
-        {values.map((v, i) => (
+        {year1Monthly ? (
+          year1Monthly.map((v, m) => (
+            <td
+              key={m}
+              className={cn(
+                "py-4 px-1 text-right font-headline text-[11px] print:py-2 print:px-0.5 print:text-[8px]",
+                styles.value,
+              )}
+            >
+              {formatCurrency(v, currency, { decimals: 0 })}
+            </td>
+          ))
+        ) : (
+          <td
+            className={cn(
+              "py-4 px-2 text-right font-headline print:py-2 print:px-1 print:text-[9px]",
+              styles.value,
+            )}
+          >
+            {formatCurrency(values[0], currency, { decimals: 0 })}
+          </td>
+        )}
+        {[1, 2, 3, 4].map((i) => (
           <td
             key={i}
             className={cn(
@@ -46,7 +79,7 @@ export function FinancialResultRow({
               styles.value,
             )}
           >
-            {formatCurrency(v, currency, { decimals: 0 })}
+            {formatCurrency(values[i], currency, { decimals: 0 })}
           </td>
         ))}
       </tr>
@@ -57,12 +90,37 @@ export function FinancialResultRow({
             % Margin
           </td>
           <td className="py-2 px-2 print:hidden" />
-          {marginValues.map((m, i) => (
+          {year1MonthlyMargin ? (
+            year1MonthlyMargin.map((m, idx) => (
+              <td
+                key={idx}
+                className={cn(
+                  "py-2 px-1 text-right text-[10px] font-bold font-headline print:py-1 print:px-0.5 print:text-[7px]",
+                  styles.marginValue,
+                )}
+              >
+                {formatPercent(m, 1)}
+              </td>
+            ))
+          ) : (
+            <td
+              className={cn(
+                "py-2 px-2 text-right text-xs font-bold font-headline print:py-1 print:px-1 print:text-[7px]",
+                styles.marginValue,
+              )}
+            >
+              {formatPercent(marginValues[0], 1)}
+            </td>
+          )}
+          {[1, 2, 3, 4].map((i) => (
             <td
               key={i}
-              className={cn("py-2 px-2 text-right text-xs font-bold font-headline print:py-1 print:px-1 print:text-[7px]", styles.marginValue)}
+              className={cn(
+                "py-2 px-2 text-right text-xs font-bold font-headline print:py-1 print:px-1 print:text-[7px]",
+                styles.marginValue,
+              )}
             >
-              {formatPercent(m, 1)}
+              {formatPercent(marginValues[i], 1)}
             </td>
           ))}
         </tr>

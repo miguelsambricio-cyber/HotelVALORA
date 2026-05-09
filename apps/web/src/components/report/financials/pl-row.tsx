@@ -21,6 +21,13 @@ export interface PLRowProps {
   assumption: number | null;
   /** Computed 5-year values for this row */
   yearValues: FiveYears;
+  /**
+   * Optional 12-month breakdown for Year 1. When provided, the single
+   * Year-1 cell is replaced by 12 monthly cells (Jan-Dec). Sums equal
+   * `yearValues[0]` exactly. Months render read-only — assumptions still
+   * edit through the Assump. column in collapsed Year 1 mode.
+   */
+  year1Monthly?: number[];
   /** True when the user can edit. PRO/FREE always render readonly */
   editable: boolean;
   currency: Currency;
@@ -31,16 +38,15 @@ export interface PLRowProps {
 }
 
 /**
- * One USALI line item — label + assumption cell + 5 year cells.
- *
- * Year cells render the formatted value plus an optional auto YoY pill
- * (`+8.4%` or `+3pp`). Year 1 may itself be editable for "driver" rows
- * (RevPAR, ancillary revenue lines) — drives the model directly.
+ * One USALI line item — label + assumption cell + 5 year cells, plus an
+ * optional 12-cell monthly band that replaces the single Year-1 cell when
+ * the table is expanded.
  */
 export function PLRow({
   config,
   assumption,
   yearValues,
+  year1Monthly,
   editable,
   currency,
   onAssumptionChange,
@@ -81,17 +87,30 @@ export function PLRow({
         ) : null}
       </td>
 
-      {/* Year 1 — editable for driver rows.
-          The active-year chevron lives only in the table header
-          (FinancialTable thead) — per Stitch spec, NOT per row. */}
-      <YearCell
-        value={yearValues[0]}
-        previousValue={undefined}
-        config={config}
-        currency={currency}
-        editable={editable && config.editableYear1}
-        onChange={onYear1Change}
-      />
+      {/* Year 1 — collapses to a single editable cell, expands to 12 read-only months */}
+      {year1Monthly ? (
+        year1Monthly.map((v, m) => (
+          <YearCell
+            key={m}
+            value={v}
+            previousValue={undefined}
+            config={config}
+            currency={currency}
+            compact
+          />
+        ))
+      ) : (
+        <YearCell
+          value={yearValues[0]}
+          previousValue={undefined}
+          config={config}
+          currency={currency}
+          editable={editable && config.editableYear1}
+          onChange={onYear1Change}
+        />
+      )}
+
+      {/* Year 2-5 — always shown, never expanded */}
       <YearCell
         value={yearValues[1]}
         previousValue={yearValues[0]}
@@ -128,6 +147,8 @@ interface YearCellProps {
   config: PLLineItemConfig;
   currency: Currency;
   editable?: boolean;
+  /** Compact mode for monthly cells — tighter padding + smaller font */
+  compact?: boolean;
   onChange?: (next: number) => void;
 }
 
@@ -137,6 +158,7 @@ function YearCell({
   config,
   currency,
   editable,
+  compact,
   onChange,
 }: YearCellProps) {
   const formatted = formatByKind(value, config.yearKind, currency);
@@ -151,7 +173,8 @@ function YearCell({
   return (
     <td
       className={cn(
-        "px-2 py-3 text-right print:py-1 print:px-1",
+        "text-right print:py-1 print:px-1",
+        compact ? "px-1 py-2 text-[11px]" : "px-2 py-3",
         isBold ? "text-slate-900 font-bold" : "text-slate-700",
         "print:text-[9px]",
       )}
@@ -162,7 +185,9 @@ function YearCell({
         ) : (
           <span className={cn(isBold && "font-headline")}>{formatted}</span>
         )}
-        {delta && <ForecastBadge text={delta} tone={tone} strong={isBold} />}
+        {delta && !compact && (
+          <ForecastBadge text={delta} tone={tone} strong={isBold} />
+        )}
       </span>
     </td>
   );

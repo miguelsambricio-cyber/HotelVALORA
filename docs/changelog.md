@@ -4,6 +4,52 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-09 — 5-Year P&L Forecast: Year 1 monthly expansion + seasonality engine
+
+The Year 1 column in the USALI table is now expandable. Clicking `▸ Year 1` in the header replaces the single column with 12 month sub-columns (Jan–Dec) inline within the same table; chevron flips to `▾`.
+
+### Seasonality engine
+New module `lib/report/financials/seasonality.ts`:
+- `SeasonalityProfile` contract — 12 occupancy + 12 ADR multipliers + source id
+- `MADRID_UPSCALE_SEASONALITY` default (Q2/Q3 strong, Aug weak, Jan/Feb soft)
+- `getSeasonalityProfile(market, class)` lookup — returns Madrid default in v1
+- `expandYear1ToMonthly(assumptions, computed, profile)` — pure monthly pipeline
+- `adapterFromCoStarMonthlyRows` — adapter stub for future Excel ingestion
+
+### Mathematical guarantees
+Sum of monthly = annual Year-1 value, exactly:
+- Variable lines: ratio × monthly revenue (sums to ratio × annual)
+- Inflated lines: annual amount × days[m] / 365
+- Hybrid dept fixed payroll portion: same pro-rata by days
+
+EBITDA % margin varies month-to-month (low-occupancy months bear same fixed costs against lower revenue).
+
+### UI / table layout
+- `FinancialTable` renders 1-row header when collapsed (current), 2-row header when expanded:
+  - Row 1: Label / Assump / `▾ Year 1` (colSpan=12) / Year 2 / Year 3 / Year 4 / Year 5
+  - Row 2: 12 month abbreviations under the Year-1 span; Y2-Y5 carry rowSpan=2
+- `getTableColCount(expanded)` → 7 collapsed, 18 expanded
+- `PLRow` accepts optional `year1Monthly: number[]` — when provided, replaces the single Y1 cell with 12 read-only monthly cells
+- `FinancialResultRow` same pattern (incl. EBITDA `% Margin` sub-row)
+- Monthly cells render compact (smaller padding + font) so 12 columns fit reasonably; horizontal scroll in narrow viewports
+
+### Architecture for future CoStar Excel ingestion
+Adapter pattern in place — `getSeasonalityProfile` is the swap point. Replace the body with a CoStar query / Excel adapter when the dataset ships.
+
+### Print
+Expansion state survives print — analyst's choice respected. No auto-collapse for PDF. With 18 columns the table may overflow A4 portrait (acceptable trade-off).
+
+### Files
+- `NEW`  `apps/web/src/lib/report/financials/seasonality.ts`
+- `EDIT` `apps/web/src/lib/report/financials/index.ts` (exports)
+- `EDIT` `apps/web/src/components/report/financials/financial-table.tsx` (header variants, toggle)
+- `EDIT` `apps/web/src/components/report/financials/pl-row.tsx` (monthly cells branch)
+- `EDIT` `apps/web/src/components/report/financials/financial-result-row.tsx` (monthly cells branch)
+- `EDIT` `apps/web/src/components/report/financials/pl-section.tsx` (forwarding)
+- `EDIT` `apps/web/src/components/report/financials/pl-table.tsx` (state owner + memo)
+
+---
+
 ## 2026-05-09 — 5-Year P&L Forecast: hybrid departmental + payroll inflation activated
 
 Fixed a residual rounding artifact: at 1 decimal place, EBITDA margin Y3-Y5 displayed identically (~31.4%) because the year-to-year deltas were sub-0.1pp. Root cause: departmental expenses were 100% variable (ratio × revenue), so they captured no payroll cost pressure independent of revenue growth.

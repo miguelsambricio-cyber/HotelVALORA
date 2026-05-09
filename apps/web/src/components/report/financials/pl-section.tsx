@@ -1,7 +1,7 @@
 "use client";
 
 import type {
-  Currency,
+  MonthlyYear1Breakdown,
   PLAssumptions,
   PLComputed,
   PLLineItemId,
@@ -16,24 +16,21 @@ export interface PLSectionProps {
   computed: PLComputed;
   assumptions: PLAssumptions;
   editable: boolean;
-  /** Total number of table columns — 7 in v1 (label + assump + 5 years) */
+  /** Total number of table columns (7 collapsed, 18 expanded) */
   colSpan: number;
   /** First section in the table — uses compact header padding */
   isFirst?: boolean;
+  /**
+   * Optional Year-1 monthly breakdown. When provided, every row in this
+   * section renders 12 month cells in place of the single Year-1 cell.
+   */
+  year1Monthly?: MonthlyYear1Breakdown;
   /** Resolves the assumption value bound to a line-item id (null for derived rows) */
   resolveAssumption: (id: PLLineItemId) => number | null;
   /** Updates the assumption store when an editable assumption is changed */
   onAssumptionChange: (id: PLLineItemId, next: number) => void;
 }
 
-/**
- * One USALI section — header + N rows + optional emphasized result.
- *
- * Renders as a single `<tbody>` so `print:break-inside-avoid` keeps the
- * section together on one A4 page (Chrome/Firefox honour `break-inside`
- * on `<tbody>` reliably). When a section can't fit, the engine breaks
- * BEFORE the section, never inside it.
- */
 export function PLSection({
   section,
   computed,
@@ -41,6 +38,7 @@ export function PLSection({
   editable,
   colSpan,
   isFirst = false,
+  year1Monthly,
   resolveAssumption,
   onAssumptionChange,
 }: PLSectionProps) {
@@ -58,6 +56,7 @@ export function PLSection({
           config={line}
           assumption={resolveAssumption(line.id)}
           yearValues={computed.lineItems[line.id]}
+          year1Monthly={year1Monthly?.lineItems[line.id]}
           editable={editable}
           currency={assumptions.currency}
           onAssumptionChange={(next) => onAssumptionChange(line.id, next)}
@@ -78,6 +77,20 @@ export function PLSection({
           currency={assumptions.currency}
           marginValues={
             section.result.showMargin ? computed.results.ebitdaMargin : undefined
+          }
+          year1Monthly={
+            year1Monthly
+              ? section.result.id === "total-revenue"
+                ? year1Monthly.results.totalRevenue
+                : section.result.id === "gop"
+                  ? year1Monthly.results.gop
+                  : year1Monthly.results.ebitda
+              : undefined
+          }
+          year1MonthlyMargin={
+            year1Monthly && section.result.showMargin
+              ? year1Monthly.results.ebitdaMargin
+              : undefined
           }
         />
       )}

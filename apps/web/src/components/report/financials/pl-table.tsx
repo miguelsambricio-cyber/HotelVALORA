@@ -1,12 +1,15 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
   PL_STRUCTURE,
+  expandYear1ToMonthly,
+  getSeasonalityProfile,
   type PLAssumptions,
   type PLComputed,
   type PLLineItemId,
 } from "@/lib/report/financials";
-import { FinancialTable, FINANCIAL_TABLE_COLS } from "./financial-table";
+import { FinancialTable, getTableColCount } from "./financial-table";
 import { PLSection } from "./pl-section";
 
 export interface PLTableProps {
@@ -21,12 +24,16 @@ export interface PLTableProps {
 }
 
 /**
- * USALI table composer — stitches the 5 sections together.
+ * USALI table composer — stitches the 5 sections together and owns the
+ * Year-1 monthly expansion state.
  *
- * Controlled component: the page owns the assumption store so the top-of-
- * page metric cards (RevPAR Growth, Expense Inflation) share state with the
- * table. Every change flows through `onAssumptionChange` → page state →
- * `computePL` → re-render.
+ * Why state lives here, not on the page: the toggle is intrinsic to the
+ * table's presentation, not to the assumption model. Page-level state
+ * (assumptions) flows down; expansion is a UI concern that doesn't escape.
+ *
+ * The monthly breakdown is computed on demand (only when expanded) and
+ * memoised against `assumptions` + `computed` so toggling the chevron is
+ * cheap on subsequent opens.
  */
 export function PLTable({
   editable,
@@ -34,11 +41,33 @@ export function PLTable({
   computed,
   onAssumptionChange,
 }: PLTableProps) {
+  const [year1Expanded, setYear1Expanded] = useState(false);
+
+  // Seasonality profile lookup — future: keyed by hotel market + class
+  const seasonalityProfile = useMemo(
+    () => getSeasonalityProfile(),
+    [],
+  );
+
+  // Monthly breakdown — only computed when expanded (cheap re-toggle)
+  const year1Monthly = useMemo(
+    () =>
+      year1Expanded
+        ? expandYear1ToMonthly(assumptions, computed, seasonalityProfile)
+        : undefined,
+    [year1Expanded, assumptions, computed, seasonalityProfile],
+  );
+
   const resolveAssumption = (id: PLLineItemId): number | null =>
     resolveAssumptionValue(id, assumptions);
 
+  const colSpan = getTableColCount(year1Expanded);
+
   return (
-    <FinancialTable>
+    <FinancialTable
+      year1Expanded={year1Expanded}
+      onToggleYear1={() => setYear1Expanded((v) => !v)}
+    >
       {PL_STRUCTURE.map((section, idx) => (
         <PLSection
           key={section.id}
@@ -46,8 +75,9 @@ export function PLTable({
           computed={computed}
           assumptions={assumptions}
           editable={editable}
-          colSpan={FINANCIAL_TABLE_COLS}
+          colSpan={colSpan}
           isFirst={idx === 0}
+          year1Monthly={year1Monthly}
           resolveAssumption={resolveAssumption}
           onAssumptionChange={onAssumptionChange}
         />
