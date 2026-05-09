@@ -109,8 +109,12 @@ export interface PLAssumptions {
   adrYear1: number; // currency unit
 
   // ── Year-over-year drivers (top cards) ──
-  /** RevPAR growth ratios per year. Card shows YR2, YR3, YR4-5 (= yr4 = yr5) */
-  revparGrowth: { yr2: number; yr3: number; yr4to5: number };
+  /**
+   * RevPAR growth scenario. Internal label only — UI shows
+   * Conservador / Mercado / Optimista. Resolved to per-year growth ratios
+   * via the `SCENARIO_GROWTH` lookup table at calc time.
+   */
+  revparScenario: RevparScenario;
   /** Absolute occupancy delta in percentage points per year */
   occupancyGrowth: { yr2: number; yr3: number; yr4: number; yr5: number };
   /**
@@ -150,6 +154,15 @@ export interface PLAssumptions {
   /** Operating days per year (typically 365) */
   daysInYear: number;
 }
+
+// ── RevPAR scenario (internal mapping, not surfaced in UI text) ────────────
+
+/**
+ * Internal scenario labels. The UI never shows these — instead it surfaces
+ * "Conservador" / "Mercado" / "Optimista" segmented buttons that map onto
+ * `downside` / `base` / `upside` respectively.
+ */
+export type RevparScenario = "downside" | "base" | "upside";
 
 // ── Computed shape returned by `computePL(assumptions)` ─────────────────────
 

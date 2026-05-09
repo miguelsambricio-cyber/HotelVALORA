@@ -7,7 +7,7 @@ import {
   ExpenseInflationCard,
   FinancialSummaryStrip,
   PLTable,
-  RevparGrowthCard,
+  RevparScenarioCard,
   applyAssumptionChange,
 } from "@/components/report/financials";
 import {
@@ -51,11 +51,11 @@ export function PLContent() {
     <div className="space-y-8 print:space-y-3">
       {/* TOP STRIP — 3 institutional summary cards */}
       <FinancialSummaryStrip>
-        <RevparGrowthCard
-          values={assumptions.revparGrowth}
+        <RevparScenarioCard
+          value={assumptions.revparScenario}
           editable={editable}
-          onChange={(revparGrowth) =>
-            setAssumptions((a) => ({ ...a, revparGrowth }))
+          onChange={(revparScenario) =>
+            setAssumptions((a) => ({ ...a, revparScenario }))
           }
         />
         <ExpenseInflationCard

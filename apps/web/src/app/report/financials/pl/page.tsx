@@ -7,7 +7,7 @@ import { HotelToggle } from "../../asset-analysis/hotel-toggle";
 import { PLContent } from "./pl-content";
 
 export const metadata: Metadata = {
-  title: "P&L 5 Years — HotelVALORA",
+  title: "5-Year P&L Forecast — HotelVALORA",
 };
 
 /**
@@ -32,7 +32,7 @@ export default function PLPage() {
       <div className="space-y-6 print:space-y-3">
         <ReportPaper
           sectionLabel="hotel valuation"
-          title="P&L 5 Years"
+          title="5-Year P&L Forecast"
           titleSize="4xl"
           headerLayout="stacked"
           closed

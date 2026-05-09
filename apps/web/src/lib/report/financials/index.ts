@@ -28,9 +28,10 @@ export type {
   PLSectionConfig,
   PLSectionId,
   PLValueKind,
+  RevparScenario,
   Tier,
 } from "./types";
 
-export { getDefaultAssumptions } from "./assumptions";
+export { getDefaultAssumptions, SCENARIO_GROWTH } from "./assumptions";
 export { PL_STRUCTURE } from "./pl-structure";
 export { computePL } from "./calculations";

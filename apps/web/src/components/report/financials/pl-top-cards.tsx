@@ -1,47 +1,81 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Coins, TrendingUp } from "lucide-react";
+import { BarChart3, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   formatPercent,
   parseAssumption,
   type Currency,
   type PLAssumptions,
+  type RevparScenario,
 } from "@/lib/report/financials";
 import { FinancialMetricCard } from "./financial-metric-card";
 
-// ── RevPAR Growth (YoY) ─────────────────────────────────────────────────────
+// ── RevPAR Scenario (segmented institutional selector) ──────────────────────
+//
+// Replaces the prior 3-input "RevPAR Growth (YoY)" card. UI surfaces three
+// committee-grade choices (Conservador / Mercado / Optimista) that map
+// internally onto `downside` / `base` / `upside` — the visible labels never
+// expose those internal terms.
+//
+// Selected button: forest-900 background + white text (HotelVALORA primary).
+// Tier handling: PREMIUM toggles freely; PRO/FREE see the active scenario
+// but can't change it (buttons render as `aria-disabled` non-interactive).
 
-export interface RevparGrowthCardProps {
-  values: PLAssumptions["revparGrowth"];
+const SCENARIO_OPTIONS: { id: RevparScenario; label: string }[] = [
+  { id: "downside", label: "Conservador" },
+  { id: "base", label: "Mercado" },
+  { id: "upside", label: "Optimista" },
+];
+
+export interface RevparScenarioCardProps {
+  value: RevparScenario;
   editable: boolean;
-  onChange: (next: PLAssumptions["revparGrowth"]) => void;
+  onChange: (next: RevparScenario) => void;
 }
 
-export function RevparGrowthCard({ values, editable, onChange }: RevparGrowthCardProps) {
+export function RevparScenarioCard({
+  value,
+  editable,
+  onChange,
+}: RevparScenarioCardProps) {
   return (
     <FinancialMetricCard variant="light">
-      <CardHeader title="RevPAR Growth (YoY)" icon={<TrendingUp className="text-blue-600" size={20} />} />
-      <div className="flex gap-4 print:gap-2">
-        <PercentField
-          label="YR 2"
-          value={values.yr2}
-          editable={editable}
-          onChange={(v) => onChange({ ...values, yr2: v })}
-        />
-        <PercentField
-          label="YR 3"
-          value={values.yr3}
-          editable={editable}
-          onChange={(v) => onChange({ ...values, yr3: v })}
-        />
-        <PercentField
-          label="YR 4-5"
-          value={values.yr4to5}
-          editable={editable}
-          onChange={(v) => onChange({ ...values, yr4to5: v })}
-        />
+      <CardHeader title="RevPAR Scenario" icon={<BarChart3 className="text-blue-600" size={20} />} />
+      <div
+        role="radiogroup"
+        aria-label="RevPAR scenario"
+        className={cn(
+          "inline-flex w-full gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1",
+          "print:border-slate-200 print:p-0.5",
+        )}
+      >
+        {SCENARIO_OPTIONS.map((opt) => {
+          const isActive = opt.id === value;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              aria-disabled={!editable}
+              disabled={!editable && !isActive}
+              onClick={() => editable && onChange(opt.id)}
+              className={cn(
+                "flex-1 rounded-md px-3 py-2 text-xs font-bold uppercase tracking-wider transition-all",
+                "print:py-1 print:text-[8px] print:tracking-normal",
+                isActive
+                  ? "bg-forest-900 text-white shadow-sm"
+                  : "text-slate-500",
+                editable && !isActive && "hover:bg-white hover:text-slate-700 cursor-pointer",
+                !editable && !isActive && "cursor-default opacity-60",
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
     </FinancialMetricCard>
   );

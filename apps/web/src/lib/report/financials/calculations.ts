@@ -22,6 +22,7 @@
 //    fixed-currency expense lines).
 
 import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types";
+import { SCENARIO_GROWTH } from "./assumptions";
 
 const YEARS = 5 as const;
 
@@ -35,11 +36,12 @@ export function computePL(a: PLAssumptions): PLComputed {
   adr[0] = a.adrYear1;
   revpar[0] = adr[0] * occupancy[0];
 
+  const growth = SCENARIO_GROWTH[a.revparScenario];
   const revparMult: [number, number, number, number] = [
-    1 + a.revparGrowth.yr2,
-    1 + a.revparGrowth.yr3,
-    1 + a.revparGrowth.yr4to5,
-    1 + a.revparGrowth.yr4to5,
+    1 + growth.yr2,
+    1 + growth.yr3,
+    1 + growth.yr4to5,
+    1 + growth.yr4to5,
   ];
   const occDelta: [number, number, number, number] = [
     a.occupancyGrowth.yr2,

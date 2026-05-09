@@ -38,12 +38,12 @@ export {
 export type { PLTableProps } from "./pl-table";
 
 export {
-  RevparGrowthCard,
+  RevparScenarioCard,
   ExpenseInflationCard,
   EbitdaStabilizedCard,
 } from "./pl-top-cards";
 export type {
-  RevparGrowthCardProps,
+  RevparScenarioCardProps,
   ExpenseInflationCardProps,
   EbitdaStabilizedCardProps,
 } from "./pl-top-cards";
