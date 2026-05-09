@@ -76,10 +76,10 @@ export const REPORT_SECTIONS: ReportSection[] = [
     shortLabel: "Financials",
     description: "Estructura financiera, P&L y underwriting IRR",
     printPageBreak: true,
-    implemented: false,
+    implemented: true,
     subItems: [
       { href: "#structure", label: "Finance structure" },
-      { href: "#pl", label: "P&L" },
+      { href: "/report/financials/pl", label: "P&L" },
       { href: "#irr", label: "Underwriting IRR" },
     ],
   },
