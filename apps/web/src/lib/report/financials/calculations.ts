@@ -13,8 +13,15 @@
 // 5. Rooms revenue = RevPAR × rooms × daysInYear.
 // 6. Total revenue = Rooms / (1 − sum of ancillary ratios).
 // 7. Each ancillary revenue line = ratio × Total revenue.
-// 8. Departmental expenses = ratio × department revenue (VARIABLE — labor
-//    + COGS scale with the business; ratio assumed stable in v1).
+// 8. Departmental expenses = HYBRID 70 / 30 split.
+//    - 70% variable: ratio × department revenue (labour productivity
+//      scales with the business — front-of-house, COGS, variable wages).
+//    - 30% fixed-inflating: Year-1 ratio-derived base × `payroll`
+//      inflation compounded (base payroll obligations: salaried staff,
+//      contracted services). This activates the payroll inflation card —
+//      the rate now drives departmental cost trajectory year-over-year
+//      and produces the small late-cycle margin compression typical of
+//      institutional underwriting models.
 // 9. Undistributed expenses (Admin / S&M / Property maint / Utilities) =
 //    Year-1 base × CPI compound. Each line picks its bucket:
 //    - Admin, S&M, Property maint → `expenseInflation.other`
@@ -38,6 +45,14 @@ import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types
 import { SCENARIO_PRESETS } from "./assumptions";
 
 const YEARS = 5 as const;
+
+/**
+ * Departmental expense split — what fraction is treated as fixed payroll
+ * (inflated) vs variable (scales with revenue). 30% is the institutional
+ * default for full-service hotels (salaried management + base FOH crew).
+ * Future enhancement: expose per-department on `PLAssumptions`.
+ */
+const DEPT_PAYROLL_FIXED_SHARE = 0.3;
 
 export function computePL(a: PLAssumptions): PLComputed {
   const preset = SCENARIO_PRESETS[a.activeScenario];
@@ -77,11 +92,29 @@ export function computePL(a: PLAssumptions): PLComputed {
   const revSpa = totalRevenue.map((t) => t * a.ratios.revSpa);
   const revParkingOther = totalRevenue.map((t) => t * a.ratios.revParkingOther);
 
-  // ── 4. Departmental expenses (VARIABLE — ratio × department revenue) ──
-  const expRooms = revRooms.map((r) => r * a.ratios.expRooms);
-  const expFB = revFB.map((r) => r * a.ratios.expFB);
+  // ── 4. Departmental expenses (HYBRID 70/30: variable + payroll-inflated) ──
   const otherDeptRev = revMeeting.map((r, i) => r + revSpa[i] + revParkingOther[i]);
-  const expOtherDept = otherDeptRev.map((r) => r * a.ratios.expOtherDept);
+
+  const variableShare = 1 - DEPT_PAYROLL_FIXED_SHARE;
+  const payrollInfl = (y: number) => Math.pow(1 + a.expenseInflation.payroll, y);
+
+  // Year-1 ratio-derived baseline for the inflated portion
+  const expRoomsY1 = revRooms[0] * a.ratios.expRooms;
+  const expFBY1 = revFB[0] * a.ratios.expFB;
+  const expOtherDeptY1 = otherDeptRev[0] * a.ratios.expOtherDept;
+
+  const expRooms = times(YEARS, (y) =>
+    variableShare * a.ratios.expRooms * revRooms[y] +
+    DEPT_PAYROLL_FIXED_SHARE * expRoomsY1 * payrollInfl(y),
+  );
+  const expFB = times(YEARS, (y) =>
+    variableShare * a.ratios.expFB * revFB[y] +
+    DEPT_PAYROLL_FIXED_SHARE * expFBY1 * payrollInfl(y),
+  );
+  const expOtherDept = times(YEARS, (y) =>
+    variableShare * a.ratios.expOtherDept * otherDeptRev[y] +
+    DEPT_PAYROLL_FIXED_SHARE * expOtherDeptY1 * payrollInfl(y),
+  );
 
   // ── 5. Undistributed expenses (FIXED — Y1 base × CPI compound) ────────
   // Year index `y` (0..4) → multiplier (1 + inflation)^y. Year 1 carries

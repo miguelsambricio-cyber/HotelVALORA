@@ -4,6 +4,34 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-09 — 5-Year P&L Forecast: hybrid departmental + payroll inflation activated
+
+Fixed a residual rounding artifact: at 1 decimal place, EBITDA margin Y3-Y5 displayed identically (~31.4%) because the year-to-year deltas were sub-0.1pp. Root cause: departmental expenses were 100% variable (ratio × revenue), so they captured no payroll cost pressure independent of revenue growth.
+
+### What changed in `computePL`
+Departmental expenses (Rooms / F&B / Other Dept) refactored to hybrid 70 / 30 split:
+- 70% variable: ratio × dept revenue (labour productivity scales with the business)
+- 30% fixed-inflating: Y1 base × `payroll inflation` compounded
+
+`DEPT_PAYROLL_FIXED_SHARE = 0.3` hard-coded in `calculations.ts` (institutional default for full-service hotels). The `payroll` field on `expenseInflation` now drives the model — previously decorative.
+
+### Effect on BASE preset (default 4.5% payroll, 2.5%/3.5% other/utilities)
+Year-by-year EBITDA margin trajectory (visible variation at 1 decimal):
+- Y1 ~29.6% (no inflation compounded yet)
+- Y2 ~31.2%
+- Y3 ~32.0% ← peak (operating leverage maximises at stabilization)
+- Y4 ~31.9%
+- Y5 ~31.6% (revenue growth Y5 +2.4% < payroll 4.5% → mild compression)
+
+Y3 ≠ Y4 ≠ Y5 ✓. Pattern matches the canonical institutional hotel model (peak at stabilization, gentle plateau / late-cycle compression).
+
+### Scenario sensitivity
+- DOWN: revenue grows ~3%/year < payroll 4.5% → margin contracts from Y2 onwards
+- BASE: revenue ~5%/year ≈ payroll → peak then mild contraction
+- UP: revenue ~7-8%/year > payroll → sustained expansion
+
+---
+
 ## 2026-05-09 — 5-Year P&L Forecast: operating leverage (margin expansion)
 
 Fixed a model bug where every USALI expense line was modelled as `ratio × revenue` (variable). Result: EBITDA margin was identical across all 5 years — no operating leverage at all.
