@@ -96,7 +96,14 @@ function MetroLinesLayer() {
  *
  * Search & legend toggles filter the visible markers in-memory.
  */
-export function HotelMap() {
+export interface HotelMapProps {
+  /** Where the floating list-view button in the controls links to. Each
+   *  Library map page provides its own list sibling (favorites-map →
+   *  /library/favorites-list, top-map → /library/top-list). */
+  listViewHref?: string;
+}
+
+export function HotelMap({ listViewHref }: HotelMapProps = {}) {
   const legend = useLibraryStore((s) => s.legend);
   const layers = useLibraryStore((s) => s.layers);
   const searchQuery = useLibraryStore((s) => s.searchQuery);
@@ -177,7 +184,7 @@ export function HotelMap() {
         onToggleLayers={() =>
           toast.message("Layers panel coming with the real map provider")
         }
-        listViewHref="/library/favorites-list"
+        listViewHref={listViewHref}
       />
 
       {previewReport && (

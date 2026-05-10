@@ -18,7 +18,9 @@ export { FloatingHotelCard } from "./floating-hotel-card";
 export type { FloatingHotelCardProps } from "./floating-hotel-card";
 
 export { FavoritesListContent } from "./favorites-list-content";
+export { TopReportsListContent } from "./top-reports-list-content";
 export { FavoritesTable } from "./favorites-table";
+export type { FavoritesTableProps } from "./favorites-table";
 export { AmenityIconCell } from "./amenity-icon-cell";
 export type { AmenityIconCellProps } from "./amenity-icon-cell";
 export { ReportTypeChip } from "./report-type-chip";

@@ -119,6 +119,7 @@ function SubTh({
 interface RowProps {
   report: LibraryReport;
   onSelect: (id: string) => void;
+  showReferenceColumn: boolean;
 }
 
 const Td = ({
@@ -142,7 +143,11 @@ const Td = ({
   </td>
 );
 
-const FavoritesRow = memo(function FavoritesRow({ report, onSelect }: RowProps) {
+const FavoritesRow = memo(function FavoritesRow({
+  report,
+  onSelect,
+  showReferenceColumn,
+}: RowProps) {
   const f = report.financials;
   return (
     <tr
@@ -295,6 +300,13 @@ const FavoritesRow = memo(function FavoritesRow({ report, onSelect }: RowProps) 
         {f.irrEquity === null ? <LockedCell /> : fmtPct(f.irrEquity)}
       </Td>
 
+      {/* REF (Top Reports list only) */}
+      {showReferenceColumn && (
+        <Td className="border-l border-slate-100 font-mono text-[11px] text-slate-500">
+          {report.referenceCode}
+        </Td>
+      )}
+
       {/* Report Type + indicators */}
       <Td className="whitespace-nowrap">
         <ReportTypeChip type={report.reportType} indicators={report.indicators} />
@@ -336,7 +348,15 @@ const FavoritesRow = memo(function FavoritesRow({ report, onSelect }: RowProps) 
 
 // ── Table ───────────────────────────────────────────────────────────────────
 
-export function FavoritesTable() {
+export interface FavoritesTableProps {
+  /** Insert a REF column (HV-YYYY-NNN) just before "Report Type". Used by
+   *  /library/top-list. Default: false. */
+  showReferenceColumn?: boolean;
+}
+
+export function FavoritesTable({
+  showReferenceColumn = false,
+}: FavoritesTableProps = {}) {
   const legend = useLibraryStore((s) => s.legend);
   const search = useLibraryStore((s) => s.searchQuery);
   const setSelected = useLibraryStore((s) => s.setSelectedReportId);
@@ -420,6 +440,7 @@ export function FavoritesTable() {
               <Th rowSpan={2} accent="blue">
                 IRR Equity
               </Th>
+              {showReferenceColumn && <Th rowSpan={2}>REF</Th>}
               <Th rowSpan={2}>Report Type</Th>
               <Th rowSpan={2} className="text-center">
                 Contact
@@ -459,12 +480,13 @@ export function FavoritesTable() {
                   key={r.id}
                   report={r}
                   onSelect={handleRowSelect}
+                  showReferenceColumn={showReferenceColumn}
                 />
               ))
             ) : (
               <tr>
                 <td
-                  colSpan={36}
+                  colSpan={showReferenceColumn ? 37 : 36}
                   className="px-4 py-10 text-center text-[13px] text-slate-500"
                 >
                   No reports match the current filters.

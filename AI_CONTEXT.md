@@ -80,6 +80,7 @@ All server state lives in TanStack Query hooks under `src/lib/api/`. Each domain
 `src/app/library/favorites-map/` — Library v1 (mock institutional grayscale map + saved/community/TOP PROMOTE markers). LibraryShell.
 `src/app/library/top-map/` — Library v1 sibling: Top Reports surface. Same shell + sidebar; route-driven FAVORITOS/TOP segmented nav.
 `src/app/library/favorites-list/` — Library institutional list view: Bloomberg-grade table (39 cols, sticky thead + sticky first col, locked-cell pattern). Map↔list toggle on /favorites-map links here.
+`src/app/library/top-list/` — Top Reports institutional list view: same table with REF column toggled on. Map↔list toggle on /top-map links here.
 `src/app/` (root) — public landing page.
 Primary user flow: `/` → `/compset` → `/report/executive-summary`.
 

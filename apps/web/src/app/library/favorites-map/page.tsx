@@ -19,7 +19,7 @@ export default function FavoritesMapPage() {
   return (
     <>
       <LibrarySidebar />
-      <HotelMap />
+      <HotelMap listViewHref="/library/favorites-list" />
     </>
   );
 }

@@ -22,7 +22,7 @@ export default function TopReportsMapPage() {
         subtitle="Explore community insights and top promote valuations"
         searchPlaceholder="Search reports..."
       />
-      <HotelMap />
+      <HotelMap listViewHref="/library/top-list" />
     </>
   );
 }

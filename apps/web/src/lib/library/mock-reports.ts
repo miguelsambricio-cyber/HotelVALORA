@@ -148,6 +148,8 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasContact: false,
     favorited: true,
     hasPdf: true,
+    referenceCode: "HV-2024-001",
+    visibilityTier: "promoted",
   },
   {
     id: "rpt-mandarin-oriental-ritz",
@@ -195,6 +197,8 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasContact: true,
     favorited: true,
     hasPdf: true,
+    referenceCode: "HV-2024-002",
+    visibilityTier: "promoted",
   },
   {
     id: "rpt-four-seasons-madrid",
@@ -235,6 +239,8 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasContact: true,
     favorited: true,
     hasPdf: true,
+    referenceCode: "HV-2024-003",
+    visibilityTier: "institutional",
   },
   {
     id: "rpt-edition-madrid",
@@ -267,6 +273,8 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasContact: false,
     favorited: true,
     hasPdf: true,
+    referenceCode: "HV-2024-004",
+    visibilityTier: "community",
   },
   {
     id: "rpt-hard-rock-marbella",
@@ -307,6 +315,8 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasContact: true,
     favorited: true,
     hasPdf: true,
+    referenceCode: "HV-2024-005",
+    visibilityTier: "verified",
   },
   {
     id: "rpt-w-barcelona",
@@ -339,6 +349,8 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasContact: false,
     favorited: true,
     hasPdf: true,
+    referenceCode: "HV-2024-006",
+    visibilityTier: "community",
   },
 ];
 

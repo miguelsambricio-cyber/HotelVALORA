@@ -144,6 +144,10 @@ export interface LibraryReport {
   favorited: boolean;
   /** PDF report exportable */
   hasPdf: boolean;
+  /** Reference code (e.g., "HV-2024-001"). Surfaced on /library/top-list. */
+  referenceCode: string;
+  /** Visibility-tier label used by the Top Reports surface */
+  visibilityTier: VisibilityTier;
 }
 
 // ── UI state shapes ─────────────────────────────────────────────────────────

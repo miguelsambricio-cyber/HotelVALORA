@@ -32,6 +32,7 @@
 | `/library/favorites-map` | `app/library/favorites-map/page.tsx` | `LibraryShell` | Library — Favoritos map (saved / community / TOP PROMOTE markers, mock institutional grayscale map) |
 | `/library/top-map` | `app/library/top-map/page.tsx` | `LibraryShell` | Library — Top Reports map (sibling of favorites-map; route-driven FAVORITOS/TOP segmented nav) |
 | `/library/favorites-list` | `app/library/favorites-list/page.tsx` | `LibraryShell` | Library — Favorites institutional list (Bloomberg-grade table: 8 amenities + financials + indicators + locked-cell pattern, sticky thead + sticky first column, h-scroll) |
+| `/library/top-list` | `app/library/top-list/page.tsx` | `LibraryShell` | Library — Top Reports institutional list (same table, REF column added, "TOP REPORTS" header copy) |
 
 ---
 

@@ -65,8 +65,10 @@ Maps tasks to exact files. Start here before scanning.
 | Library page — Favoritos map | `apps/web/src/app/library/favorites-map/page.tsx` |
 | Library page — Top Reports map | `apps/web/src/app/library/top-map/page.tsx` |
 | Library page — Favoritos list | `apps/web/src/app/library/favorites-list/page.tsx` |
+| Library page — Top Reports list | `apps/web/src/app/library/top-list/page.tsx` |
 | Favorites list content (header bar + actions) | `apps/web/src/components/library/favorites-list-content.tsx` |
-| Institutional Favorites table (39 cols, sticky thead + first col, locked-cell pattern) | `apps/web/src/components/library/favorites-table.tsx` |
+| Top Reports list content (header bar + actions) | `apps/web/src/components/library/top-reports-list-content.tsx` |
+| Institutional reports table (39/40 cols, REF column toggle, sticky thead + first col, locked-cell pattern) | `apps/web/src/components/library/favorites-table.tsx` |
 | Amenity icon cell (Bar/Restaurant/Rooftop/Meet/Gym/Spa/Pool/Parking) | `apps/web/src/components/library/amenity-icon-cell.tsx` |
 | Report type chip + indicators (top promote / user modified / private) | `apps/web/src/components/library/report-type-chip.tsx` |
 | Locked-cell pill (tier-gated values) | `apps/web/src/components/library/locked-cell.tsx` |

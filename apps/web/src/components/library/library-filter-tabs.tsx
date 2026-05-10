@@ -15,7 +15,7 @@ const TABS = [
     id: "top",
     label: "TOP",
     href: "/library/top-map",
-    activePaths: ["/library/top-map"],
+    activePaths: ["/library/top-map", "/library/top-list"],
   },
 ] as const;
 
