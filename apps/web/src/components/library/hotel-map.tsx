@@ -177,6 +177,7 @@ export function HotelMap() {
         onToggleLayers={() =>
           toast.message("Layers panel coming with the real map provider")
         }
+        listViewHref="/library/favorites-list"
       />
 
       {previewReport && (

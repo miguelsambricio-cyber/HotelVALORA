@@ -16,3 +16,11 @@ export { InstitutionalMapControls } from "./institutional-map-controls";
 export type { InstitutionalMapControlsProps } from "./institutional-map-controls";
 export { FloatingHotelCard } from "./floating-hotel-card";
 export type { FloatingHotelCardProps } from "./floating-hotel-card";
+
+export { FavoritesListContent } from "./favorites-list-content";
+export { FavoritesTable } from "./favorites-table";
+export { AmenityIconCell } from "./amenity-icon-cell";
+export type { AmenityIconCellProps } from "./amenity-icon-cell";
+export { ReportTypeChip } from "./report-type-chip";
+export type { ReportTypeChipProps } from "./report-type-chip";
+export { LockedCell } from "./locked-cell";

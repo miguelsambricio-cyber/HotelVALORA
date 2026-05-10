@@ -28,6 +28,80 @@ export interface ReportPromotion {
   clicks?: number;
 }
 
+// ── Rich shapes used by the institutional list view ─────────────────────────
+
+export interface ReportAmenities {
+  bar: boolean;
+  restaurant: boolean;
+  rooftop: boolean;
+  meetingRooms: boolean;
+  gym: boolean;
+  spa: boolean;
+  pool: boolean;
+  parking: boolean;
+}
+
+export interface ReportLocation {
+  /** Street + number */
+  address: string;
+  /** Postal code */
+  zip: string;
+  /** Neighbourhood / sub-market label (e.g., "Madrid Centro") */
+  subMarket: string;
+  /** 0–10 institutional location score */
+  locationScore: number;
+}
+
+export type ReportRole = "Principal" | "Broker" | "Lender" | "Developer";
+export type ReportObjective =
+  | "For Sale"
+  | "Rent HMA"
+  | "Lending"
+  | "Develop"
+  | "CoInvest";
+
+export interface ReportListing {
+  role: ReportRole;
+  objective: ReportObjective;
+  /** Year of opening / latest renovation */
+  openYear: number;
+  /** Asset class label — "Luxury", "Upper Upscale", "Upscale", … */
+  classLabel: string;
+}
+
+/** EUR price block with total + per-room + per-m2 unitization */
+export interface ReportPriceBlock {
+  total: number;
+  perRoom: number;
+  perM2: number;
+}
+
+export interface ReportFinancials {
+  /** EUR. null = locked for the current viewer tier */
+  capex: number | null;
+  totalInvest: ReportPriceBlock | null;
+  /** Percentage points (e.g., 5.4 → 5.4%) */
+  capRate: number;
+  marketValueTtm: ReportPriceBlock;
+  exitYear: number | null;
+  exitPrice: ReportPriceBlock | null;
+  /** Percentage points */
+  yield: number | null;
+  irrProject: number | null;
+  irrEquity: number | null;
+}
+
+export type ReportTypeBadge = "Premium" | "PRO" | "Public" | "Private";
+
+export interface ReportIndicators {
+  /** Hot / paid promotion currently active */
+  topPromote: boolean;
+  /** User has edited the auto-generated report */
+  userModified: boolean;
+  /** Private (only the owner sees the unlocked numbers) */
+  private: boolean;
+}
+
 export interface LibraryReport {
   id: string;
   hotelName: string;
@@ -40,9 +114,9 @@ export interface LibraryReport {
   mockPosition: { topPct: number; leftPct: number };
   category: ReportCategory;
   visibility: ReportVisibility;
-  /** Estimated valuation in EUR */
+  /** Estimated valuation in EUR (legacy — favorites-map floating card) */
   estValueEur: number;
-  /** Cap rate as percentage points (e.g., 4.85 → 4.85%) */
+  /** Cap rate as percentage points (legacy — favorites-map floating card) */
   capRate: number;
   rooms: number;
   starRating: number;
@@ -56,6 +130,20 @@ export interface LibraryReport {
   status: ReportStatus;
   /** ISO 8601 — last edited */
   updatedAt?: string;
+
+  // ── Rich list-view fields ────────────────────────────────────────────────
+  amenities: ReportAmenities;
+  location: ReportLocation;
+  listing: ReportListing;
+  financials: ReportFinancials;
+  reportType: ReportTypeBadge;
+  indicators: ReportIndicators;
+  /** Has a contact channel exposed to viewers in this tier */
+  hasContact: boolean;
+  /** User-favourited (drives the ⭐ column) */
+  favorited: boolean;
+  /** PDF report exportable */
+  hasPdf: boolean;
 }
 
 // ── UI state shapes ─────────────────────────────────────────────────────────

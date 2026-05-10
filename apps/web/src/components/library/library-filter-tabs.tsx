@@ -5,8 +5,18 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { id: "favoritos", label: "FAVORITOS", href: "/library/favorites-map" },
-  { id: "top", label: "TOP", href: "/library/top-map" },
+  {
+    id: "favoritos",
+    label: "FAVORITOS",
+    href: "/library/favorites-map",
+    activePaths: ["/library/favorites-map", "/library/favorites-list"],
+  },
+  {
+    id: "top",
+    label: "TOP",
+    href: "/library/top-map",
+    activePaths: ["/library/top-map"],
+  },
 ] as const;
 
 /**
@@ -23,7 +33,9 @@ export function LibraryFilterTabs() {
   return (
     <nav className="flex gap-2" aria-label="Library view">
       {TABS.map((tab) => {
-        const active = pathname?.startsWith(tab.href) ?? false;
+        const active =
+          tab.activePaths.some((p) => pathname?.startsWith(p) ?? false) ??
+          false;
         return (
           <Link
             key={tab.id}
