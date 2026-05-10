@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { ForecastGrowth } from "@/lib/investment";
+import { InstitutionalToggle } from "../institutional-toggle";
 import { SectionHeader } from "../section-header";
 
 export interface ForecastGrowthCardProps {
@@ -45,7 +46,7 @@ export function ForecastGrowthCard({
       <SectionHeader
         icon={icon}
         title={title}
-        rightSlot={<MasterToggle checked={value.enabled} onChange={setEnabled} />}
+        rightSlot={<InstitutionalToggle checked={value.enabled} onChange={setEnabled} />}
       />
 
       <div
@@ -161,34 +162,6 @@ function CustomTile({
       )}
     >
       <span className="text-xs font-bold uppercase">Custom</span>
-    </button>
-  );
-}
-
-function MasterToggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-        checked ? "bg-forest-900" : "bg-slate-300",
-      )}
-    >
-      <span
-        className={cn(
-          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-          checked ? "translate-x-5" : "translate-x-0",
-        )}
-      />
     </button>
   );
 }

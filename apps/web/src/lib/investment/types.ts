@@ -122,6 +122,108 @@ export interface MarketAssumptions {
   revparTargetEur: number;
 }
 
+// ── Hotel Value — investor financial criteria ──────────────────────────────
+//
+// 5 sub-blocks that capture the user's underwriting preferences. Every
+// downstream surface (DCF, IRR, exit value, debt sizing, levered returns,
+// equity waterfall, IC reports) reads from these inputs. v1: pure capture
+// + persistence. v2: wires real DCF / debt sizing engine.
+
+/** How a monetary value is displayed/interpreted (Total / Per Room / Per m²) */
+export type DisplayMode = "total" | "per_room" | "per_m2";
+
+/** Currency selector — €/$ on the Asking Price input */
+export type CurrencyCode = "eur" | "usd";
+
+/** Basis for percentage fees (rent, mgmt, incentive) */
+export type RentBasis = "revenue" | "gop" | "ebitdar";
+
+/** Mode picker for sections that gate Premium content */
+export type BasicPremiumMode = "basic" | "premium";
+
+export interface SavedScenario {
+  id: string;
+  name: string;       // "Scenario 1" / "Exit Scenario 1"
+  amount: number;
+  mode: DisplayMode;
+  variant: "max" | "min";
+}
+
+export interface AcquisitionCostEntry {
+  value: number | null;
+  unit: CapexUnit;    // reuses Capex unit taxonomy (% total / € total / € per room / € per m²)
+}
+
+export interface SiteAcquisitionAssumptions {
+  enabled: boolean;
+  // Asking price target
+  askingPriceEur: number;
+  askingPriceMode: DisplayMode;
+  askingPriceCurrency: CurrencyCode;
+  // Acquisition cost line items (5 fixed lines + a header total row)
+  acquisitionCostMode: BasicPremiumMode;
+  acquisitionCostHeader: AcquisitionCostEntry;
+  acquisitionCostLines: Record<string, AcquisitionCostEntry>;
+  // Total investment (incl. CAPEX)
+  totalInvestmentEur: number;
+  totalInvestmentMode: DisplayMode;
+  // Saved scenarios list (collapsible)
+  savedScenarios: SavedScenario[];
+}
+
+export interface ExitInvestmentAssumptions {
+  enabled: boolean;
+  exitPriceEur: number;
+  exitPriceMode: DisplayMode;
+  savedScenarios: SavedScenario[];
+  capRateScenario: _UnderwritingScenario;
+  yieldTargetPct: number;
+  irrProjectPct: number;
+  irrEquityPct: number;
+}
+
+export interface RentFactorAssumptions {
+  enabled: boolean;
+  rentEur: number;
+  rentMode: DisplayMode;
+  fixedRentPct: number;
+  fixedRentBasis: RentBasis;
+  variableRentPct: number;
+  variableRentBasis: RentBasis;
+}
+
+export interface FinanceStructureAssumptions {
+  enabled: boolean;
+  acquisitionDebtPct: number;
+  capexDebtPct: number;
+  interestRatePct: number;
+  amortAssetYears: number;
+  gracePeriodYears: number;
+  amortCapexYears: number;
+  bulletPaymentPct: number;
+  openingFeePct: number;
+}
+
+export interface PlForecastAssumptions {
+  enabled: boolean;
+  ttm: number;
+  mgmtFeeMode: BasicPremiumMode;
+  baseFeePct: number;
+  baseFeeBasis: RentBasis;
+  incentiveFeePct: number;
+  incentiveFeeBasis: RentBasis;
+  marketingRoyaltyPct: number;
+  ffeReserveByYear: [number, number, number, number];
+}
+
+export interface ValueAssumptions {
+  siteAcquisition: SiteAcquisitionAssumptions;
+  exitInvestment: ExitInvestmentAssumptions;
+  rentFactor: RentFactorAssumptions;
+  financeStructure: FinanceStructureAssumptions;
+  plForecast: PlForecastAssumptions;
+}
+
 // ── Top-level criteria store ───────────────────────────────────────────────
 
 export interface InvestmentCriteria {
@@ -168,6 +270,9 @@ export interface InvestmentCriteria {
 
   // Hotel Market tab — forecast growth + scenario assumptions
   market: MarketAssumptions;
+
+  // Hotel Value tab — investor financial criteria (DCF / IRR / debt / fees)
+  value: ValueAssumptions;
 }
 
 // ── Match engine (v1 stub — see match-engine.ts) ───────────────────────────

@@ -26,6 +26,19 @@ export type {
   ForecastGrowth,
   MarketAssumptions,
   UnderwritingScenario,
+  // Value (DCF / IRR / debt criteria)
+  DisplayMode,
+  CurrencyCode,
+  RentBasis,
+  BasicPremiumMode,
+  SavedScenario,
+  AcquisitionCostEntry,
+  SiteAcquisitionAssumptions,
+  ExitInvestmentAssumptions,
+  RentFactorAssumptions,
+  FinanceStructureAssumptions,
+  PlForecastAssumptions,
+  ValueAssumptions,
   // Criteria + match
   InvestmentCriteria,
   InvestmentTab,
@@ -39,6 +52,11 @@ export { CAPEX_TREE, CAPEX_UNIT_LABELS, getAllCapexLineIds } from "./capex";
 export { FACILITIES, type Facility } from "./facilities";
 export { COVERAGE_TREE } from "./coverage";
 export { MARKET_SCENARIOS, type MarketScenarioProfile } from "./market-scenarios";
+export {
+  ACQUISITION_COST_LINES,
+  buildInitialAcquisitionCostEntries,
+  type AcquisitionCostLine,
+} from "./value-acquisition";
 
 export {
   evaluateHotel,

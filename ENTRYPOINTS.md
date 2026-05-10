@@ -47,11 +47,14 @@ Maps tasks to exact files. Start here before scanning.
 | Investment criteria types + facilities + coverage | `apps/web/src/lib/investment/{types,facilities,coverage}.ts` |
 | Investment Requirements page (Asset / index) | `apps/web/src/app/settings/investment/page.tsx` |
 | Investment Requirements — Hotel Market page | `apps/web/src/app/settings/investment/market/page.tsx` |
-| Investment Requirements — Hotel Value placeholder | `apps/web/src/app/settings/investment/value/page.tsx` |
+| Investment Requirements — Hotel Value page | `apps/web/src/app/settings/investment/value/page.tsx` |
 | Investment section cards + primitives | `apps/web/src/components/settings/investment/` |
 | Hotel Market section cards | `apps/web/src/components/settings/investment/market/` |
+| Hotel Value section cards + primitives | `apps/web/src/components/settings/investment/value/` |
 | Market scenario KPI tables (DOWN/BASE/UP — internal, not shown in UI) | `apps/web/src/lib/investment/market-scenarios.ts` |
+| Acquisition cost taxonomy (Excel-mappable line ids) | `apps/web/src/lib/investment/value-acquisition.ts` |
 | Investment sub-tabs (route-driven via usePathname) | `apps/web/src/components/settings/investment/investment-tabs.tsx` |
+| Canonical institutional ON/OFF toggle | `apps/web/src/components/settings/investment/institutional-toggle.tsx` |
 
 ---
 

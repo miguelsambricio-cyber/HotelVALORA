@@ -8,16 +8,24 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { CAPEX_TREE } from "./capex";
+import { buildInitialAcquisitionCostEntries } from "./value-acquisition";
 import type {
+  AcquisitionCostEntry,
+  BasicPremiumMode,
   CapexMode,
   CapexUnit,
   CapexValueMap,
+  CurrencyCode,
+  DisplayMode,
   FacilityId,
   ForecastGrowth,
   InvestmentCriteria,
   MarketAssumptions,
+  RentBasis,
   RenderRow,
+  SavedScenario,
   UnderwritingScenario,
+  ValueAssumptions,
 } from "./types";
 
 interface InvestmentState {
@@ -42,6 +50,58 @@ interface InvestmentState {
   setRevparScenario: (scenario: UnderwritingScenario) => void;
   setRevparTarget: (eur: number) => void;
   resetMarket: () => void;
+
+  // ── Value tab mutations (5 sub-blocks) ─────────────────────────────
+  // Section 1 — Site Acquisition
+  setSiteAcqEnabled: (v: boolean) => void;
+  setAskingPrice: (eur: number) => void;
+  setAskingPriceMode: (mode: DisplayMode) => void;
+  setAskingPriceCurrency: (c: CurrencyCode) => void;
+  setAcquisitionCostMode: (mode: BasicPremiumMode) => void;
+  setAcquisitionCostHeader: (entry: AcquisitionCostEntry) => void;
+  setAcquisitionCostLine: (lineId: string, entry: AcquisitionCostEntry) => void;
+  setTotalInvestment: (eur: number) => void;
+  setTotalInvestmentMode: (mode: DisplayMode) => void;
+  addSiteScenario: () => void;
+  removeSiteScenario: (id: string) => void;
+
+  // Section 2 — Exit Investment
+  setExitEnabled: (v: boolean) => void;
+  setExitPrice: (eur: number) => void;
+  setExitPriceMode: (mode: DisplayMode) => void;
+  addExitScenario: () => void;
+  removeExitScenario: (id: string) => void;
+  setCapRateScenario: (s: UnderwritingScenario) => void;
+  setYieldTarget: (pct: number) => void;
+  setIrrProject: (pct: number) => void;
+  setIrrEquity: (pct: number) => void;
+
+  // Section 3 — Rent Factor
+  setRentEnabled: (v: boolean) => void;
+  setRentEur: (eur: number) => void;
+  setRentMode: (mode: DisplayMode) => void;
+  setFixedRentPct: (pct: number) => void;
+  setFixedRentBasis: (b: RentBasis) => void;
+  setVariableRentPct: (pct: number) => void;
+  setVariableRentBasis: (b: RentBasis) => void;
+
+  // Section 4 — Finance Structure
+  setFinanceEnabled: (v: boolean) => void;
+  setFinanceField: <K extends keyof InvestmentCriteria["value"]["financeStructure"]>(
+    key: K,
+    value: InvestmentCriteria["value"]["financeStructure"][K],
+  ) => void;
+
+  // Section 5 — P&L Forecast
+  setPlEnabled: (v: boolean) => void;
+  setTtm: (n: number) => void;
+  setMgmtFeeMode: (m: BasicPremiumMode) => void;
+  setBaseFeePct: (pct: number) => void;
+  setBaseFeeBasis: (b: RentBasis) => void;
+  setIncentiveFeePct: (pct: number) => void;
+  setIncentiveFeeBasis: (b: RentBasis) => void;
+  setMarketingRoyalty: (pct: number) => void;
+  setFfeReserveYear: (yearIdx: 0 | 1 | 2 | 3, pct: number) => void;
 
   /** v1: no-op + console.info. v2: PUT to backend */
   commit: () => Promise<{ ok: boolean; error?: string }>;
@@ -88,6 +148,68 @@ const INITIAL_MARKET: MarketAssumptions = {
   revparTargetEur: 100,
 };
 
+const INITIAL_VALUE: ValueAssumptions = {
+  siteAcquisition: {
+    enabled: true,
+    askingPriceEur: 16_500_000,
+    askingPriceMode: "total",
+    askingPriceCurrency: "eur",
+    acquisitionCostMode: "premium",
+    acquisitionCostHeader: { value: null, unit: "total" },
+    acquisitionCostLines: buildInitialAcquisitionCostEntries(),
+    totalInvestmentEur: 18_000_000,
+    totalInvestmentMode: "total",
+    savedScenarios: [
+      { id: "s1", name: "Scenario 1", amount: 50_000_000, mode: "total", variant: "max" },
+      { id: "s2", name: "Scenario 2", amount: 10_000_000, mode: "total", variant: "min" },
+      { id: "s3", name: "Scenario 3", amount: 500_000, mode: "per_room", variant: "max" },
+    ],
+  },
+  exitInvestment: {
+    enabled: true,
+    exitPriceEur: 25_000_000,
+    exitPriceMode: "total",
+    savedScenarios: [
+      { id: "x1", name: "Exit Scenario 1", amount: 30_000_000, mode: "total", variant: "min" },
+    ],
+    capRateScenario: "downside", // = "Conservador" preset highlighted in Stitch
+    yieldTargetPct: 6.5,
+    irrProjectPct: 8.0,
+    irrEquityPct: 15.0,
+  },
+  rentFactor: {
+    enabled: false,
+    rentEur: 0,
+    rentMode: "total",
+    fixedRentPct: 25.0,
+    fixedRentBasis: "gop",
+    variableRentPct: 10.0,
+    variableRentBasis: "revenue",
+  },
+  financeStructure: {
+    enabled: true,
+    acquisitionDebtPct: 60,
+    capexDebtPct: 70,
+    interestRatePct: 4.5,
+    amortAssetYears: 15,
+    gracePeriodYears: 2,
+    amortCapexYears: 10,
+    bulletPaymentPct: 0,
+    openingFeePct: 1.0,
+  },
+  plForecast: {
+    enabled: true,
+    ttm: 10,
+    mgmtFeeMode: "premium",
+    baseFeePct: 2.0,
+    baseFeeBasis: "revenue",
+    incentiveFeePct: 8.0,
+    incentiveFeeBasis: "gop",
+    marketingRoyaltyPct: 1.5,
+    ffeReserveByYear: [1.0, 2.0, 3.0, 4.0],
+  },
+};
+
 const INITIAL_CRITERIA: InvestmentCriteria = {
   assetType: "hotel",
   starCategory: 5,
@@ -124,7 +246,75 @@ const INITIAL_CRITERIA: InvestmentCriteria = {
   compsetDistanceKm: 2.5,
 
   market: INITIAL_MARKET,
+  value: INITIAL_VALUE,
 };
+
+// ── Value mutation helpers ────────────────────────────────────────────────
+// These curry through the deep `criteria.value.<block>` path so the
+// individual setters below stay short.
+
+type CriteriaSetter = (
+  fn: (s: { criteria: InvestmentCriteria }) => Partial<{ criteria: InvestmentCriteria }>,
+) => void;
+
+function patchSite(set: CriteriaSetter, patch: Partial<ValueAssumptions["siteAcquisition"]>) {
+  set((s) => ({
+    criteria: {
+      ...s.criteria,
+      value: {
+        ...s.criteria.value,
+        siteAcquisition: { ...s.criteria.value.siteAcquisition, ...patch },
+      },
+    },
+  }));
+}
+function patchExit(set: CriteriaSetter, patch: Partial<ValueAssumptions["exitInvestment"]>) {
+  set((s) => ({
+    criteria: {
+      ...s.criteria,
+      value: {
+        ...s.criteria.value,
+        exitInvestment: { ...s.criteria.value.exitInvestment, ...patch },
+      },
+    },
+  }));
+}
+function patchRent(set: CriteriaSetter, patch: Partial<ValueAssumptions["rentFactor"]>) {
+  set((s) => ({
+    criteria: {
+      ...s.criteria,
+      value: {
+        ...s.criteria.value,
+        rentFactor: { ...s.criteria.value.rentFactor, ...patch },
+      },
+    },
+  }));
+}
+function patchFinance(
+  set: CriteriaSetter,
+  patch: Partial<ValueAssumptions["financeStructure"]>,
+) {
+  set((s) => ({
+    criteria: {
+      ...s.criteria,
+      value: {
+        ...s.criteria.value,
+        financeStructure: { ...s.criteria.value.financeStructure, ...patch },
+      },
+    },
+  }));
+}
+function patchPl(set: CriteriaSetter, patch: Partial<ValueAssumptions["plForecast"]>) {
+  set((s) => ({
+    criteria: {
+      ...s.criteria,
+      value: {
+        ...s.criteria.value,
+        plForecast: { ...s.criteria.value.plForecast, ...patch },
+      },
+    },
+  }));
+}
 
 export const useInvestmentStore = create<InvestmentState>()(
   persist(
@@ -203,6 +393,162 @@ export const useInvestmentStore = create<InvestmentState>()(
       resetMarket: () =>
         set((s) => ({ criteria: { ...s.criteria, market: INITIAL_MARKET } })),
 
+      // ── Value: Section 1 (Site Acquisition) ─────────────────────────
+      setSiteAcqEnabled: (v) => patchSite(set, { enabled: v }),
+      setAskingPrice: (eur) => patchSite(set, { askingPriceEur: eur }),
+      setAskingPriceMode: (mode) => patchSite(set, { askingPriceMode: mode }),
+      setAskingPriceCurrency: (c) => patchSite(set, { askingPriceCurrency: c }),
+      setAcquisitionCostMode: (mode) => patchSite(set, { acquisitionCostMode: mode }),
+      setAcquisitionCostHeader: (entry) =>
+        patchSite(set, { acquisitionCostHeader: entry }),
+      setAcquisitionCostLine: (lineId, entry) =>
+        set((s) => ({
+          criteria: {
+            ...s.criteria,
+            value: {
+              ...s.criteria.value,
+              siteAcquisition: {
+                ...s.criteria.value.siteAcquisition,
+                acquisitionCostLines: {
+                  ...s.criteria.value.siteAcquisition.acquisitionCostLines,
+                  [lineId]: entry,
+                },
+              },
+            },
+          },
+        })),
+      setTotalInvestment: (eur) => patchSite(set, { totalInvestmentEur: eur }),
+      setTotalInvestmentMode: (mode) => patchSite(set, { totalInvestmentMode: mode }),
+      addSiteScenario: () =>
+        set((s) => {
+          const site = s.criteria.value.siteAcquisition;
+          const id = `s${Date.now().toString(36)}`;
+          const next: SavedScenario = {
+            id,
+            name: `Scenario ${site.savedScenarios.length + 1}`,
+            amount: site.totalInvestmentEur,
+            mode: site.totalInvestmentMode,
+            variant: "max",
+          };
+          return {
+            criteria: {
+              ...s.criteria,
+              value: {
+                ...s.criteria.value,
+                siteAcquisition: {
+                  ...site,
+                  savedScenarios: [...site.savedScenarios, next],
+                },
+              },
+            },
+          };
+        }),
+      removeSiteScenario: (id) =>
+        set((s) => ({
+          criteria: {
+            ...s.criteria,
+            value: {
+              ...s.criteria.value,
+              siteAcquisition: {
+                ...s.criteria.value.siteAcquisition,
+                savedScenarios: s.criteria.value.siteAcquisition.savedScenarios.filter(
+                  (sc) => sc.id !== id,
+                ),
+              },
+            },
+          },
+        })),
+
+      // ── Value: Section 2 (Exit Investment) ──────────────────────────
+      setExitEnabled: (v) => patchExit(set, { enabled: v }),
+      setExitPrice: (eur) => patchExit(set, { exitPriceEur: eur }),
+      setExitPriceMode: (mode) => patchExit(set, { exitPriceMode: mode }),
+      addExitScenario: () =>
+        set((s) => {
+          const exit = s.criteria.value.exitInvestment;
+          const id = `x${Date.now().toString(36)}`;
+          const next: SavedScenario = {
+            id,
+            name: `Exit Scenario ${exit.savedScenarios.length + 1}`,
+            amount: exit.exitPriceEur,
+            mode: exit.exitPriceMode,
+            variant: "max",
+          };
+          return {
+            criteria: {
+              ...s.criteria,
+              value: {
+                ...s.criteria.value,
+                exitInvestment: {
+                  ...exit,
+                  savedScenarios: [...exit.savedScenarios, next],
+                },
+              },
+            },
+          };
+        }),
+      removeExitScenario: (id) =>
+        set((s) => ({
+          criteria: {
+            ...s.criteria,
+            value: {
+              ...s.criteria.value,
+              exitInvestment: {
+                ...s.criteria.value.exitInvestment,
+                savedScenarios: s.criteria.value.exitInvestment.savedScenarios.filter(
+                  (sc) => sc.id !== id,
+                ),
+              },
+            },
+          },
+        })),
+      setCapRateScenario: (sc) => patchExit(set, { capRateScenario: sc }),
+      setYieldTarget: (pct) => patchExit(set, { yieldTargetPct: pct }),
+      setIrrProject: (pct) => patchExit(set, { irrProjectPct: pct }),
+      setIrrEquity: (pct) => patchExit(set, { irrEquityPct: pct }),
+
+      // ── Value: Section 3 (Rent Factor) ──────────────────────────────
+      setRentEnabled: (v) => patchRent(set, { enabled: v }),
+      setRentEur: (eur) => patchRent(set, { rentEur: eur }),
+      setRentMode: (mode) => patchRent(set, { rentMode: mode }),
+      setFixedRentPct: (pct) => patchRent(set, { fixedRentPct: pct }),
+      setFixedRentBasis: (b) => patchRent(set, { fixedRentBasis: b }),
+      setVariableRentPct: (pct) => patchRent(set, { variableRentPct: pct }),
+      setVariableRentBasis: (b) => patchRent(set, { variableRentBasis: b }),
+
+      // ── Value: Section 4 (Finance Structure) ────────────────────────
+      setFinanceEnabled: (v) => patchFinance(set, { enabled: v }),
+      setFinanceField: (key, value) => patchFinance(set, { [key]: value } as Partial<ValueAssumptions["financeStructure"]>),
+
+      // ── Value: Section 5 (P&L Forecast) ─────────────────────────────
+      setPlEnabled: (v) => patchPl(set, { enabled: v }),
+      setTtm: (n) => patchPl(set, { ttm: n }),
+      setMgmtFeeMode: (m) => patchPl(set, { mgmtFeeMode: m }),
+      setBaseFeePct: (pct) => patchPl(set, { baseFeePct: pct }),
+      setBaseFeeBasis: (b) => patchPl(set, { baseFeeBasis: b }),
+      setIncentiveFeePct: (pct) => patchPl(set, { incentiveFeePct: pct }),
+      setIncentiveFeeBasis: (b) => patchPl(set, { incentiveFeeBasis: b }),
+      setMarketingRoyalty: (pct) => patchPl(set, { marketingRoyaltyPct: pct }),
+      setFfeReserveYear: (yearIdx, pct) =>
+        set((s) => {
+          const next = [...s.criteria.value.plForecast.ffeReserveByYear] as [
+            number,
+            number,
+            number,
+            number,
+          ];
+          next[yearIdx] = pct;
+          return {
+            criteria: {
+              ...s.criteria,
+              value: {
+                ...s.criteria.value,
+                plForecast: { ...s.criteria.value.plForecast, ffeReserveByYear: next },
+              },
+            },
+          };
+        }),
+
       commit: async () => {
         console.info("[investment] commit (v1 = no-op):", get().criteria);
         await new Promise((r) => setTimeout(r, 250));
@@ -211,26 +557,22 @@ export const useInvestmentStore = create<InvestmentState>()(
     }),
     {
       name: "hv-investment-v1",
-      version: 2, // bumped — schema added `market` slice
+      version: 3, // bumped — schema added `value` slice (DCF/IRR/debt criteria)
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ criteria: state.criteria }),
-      // Migrate v1 (pre-market) localStorage into v2 by hydrating the
-      // missing `market` slice with defaults.
+      // v1 → v2: hydrate `market` slice. v2 → v3: hydrate `value` slice.
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") {
           return { criteria: INITIAL_CRITERIA };
         }
         const p = persisted as { criteria?: Partial<InvestmentCriteria> };
-        if (version < 2) {
-          return {
-            criteria: {
-              ...INITIAL_CRITERIA,
-              ...(p.criteria ?? {}),
-              market: INITIAL_MARKET,
-            },
-          };
-        }
-        return persisted as { criteria: InvestmentCriteria };
+        const merged: InvestmentCriteria = {
+          ...INITIAL_CRITERIA,
+          ...(p.criteria ?? {}),
+        };
+        if (version < 2) merged.market = INITIAL_MARKET;
+        if (version < 3) merged.value = INITIAL_VALUE;
+        return { criteria: merged };
       },
     },
   ),

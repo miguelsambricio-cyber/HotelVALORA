@@ -3,6 +3,8 @@
 export { InvestmentTabs } from "./investment-tabs";
 export { SectionHeader } from "./section-header";
 export type { SectionHeaderProps } from "./section-header";
+export { InstitutionalToggle } from "./institutional-toggle";
+export type { InstitutionalToggleProps } from "./institutional-toggle";
 
 // Primitives
 export { DualRangeSlider } from "./dual-range-slider";
