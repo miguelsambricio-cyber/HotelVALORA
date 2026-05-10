@@ -4,6 +4,35 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-10 — Investment Requirements: criteria engine + match-engine architecture
+
+New authenticated page `/settings/investment` — the canonical engine that defines what hotels the user wants to acquire. Drives the future GREEN / YELLOW / RED match indicator that will surface on every analytical surface (Executive Summary, CompSet, Underwriting, Deal Screening, IC reports).
+
+### Page composition (3-col layout)
+- Top sub-tabs: Hotel Asset (active, shipped) / Hotel Market / Hotel Value (registered, no-op v1)
+- Main column (editorial card): 6 sections — MyProperty Parameters · Capacity & Operation · Location Targets · Property Specs · CAPEX Settings · Renders/AI Image
+- Right sidebar (sticky `lg:top-24`): MyProperty Facilities · CompSet Facilities · Global Coverage tree
+- Bottom centered SAVE PREFERENCES CTA
+
+### Data layer — `lib/investment/`
+- `types.ts` — `InvestmentCriteria`, `MatchTier`, `MatchResult`, `CapexUnit`, `FacilityId`, `CoverageNode`
+- `capex.ts` — `CAPEX_TREE` (Hard/Soft/Project Costs) Excel-mappable by line `id`
+- `facilities.ts` — 8 canonical facility ids (bar/restaurant/rooftop/meetings/parking/gym/spa/pool)
+- `coverage.ts` — Spain (Madrid + Barcelona) + Italy (Rome/Milan) hand-curated tree
+- `match-engine.ts` — `evaluateHotel(hotel, criteria)` stub returning hardcoded "strong" result; `tierFromScore()` thresholds (≥0.75 strong / ≥0.50 partial / <0.50 weak)
+- `store.ts` — Zustand persist (key `hv-investment-v1`) — every input survives reload
+- `index.ts` — public surface
+
+### Components — `components/settings/investment/`
+- 14 files: `InvestmentTabs`, `SectionHeader`, 6 section cards, `CapexTable` (collapsible Hard/Soft/Project + per-line value+unit selectors), `FacilitiesCard` (reusable for MyProperty + CompSet via `bottomSlot`), `CoverageCard` + `CoverageTree`, `DualRangeSlider` (custom thumb styling via styled-jsx), `SliderField`, `MatchIndicator` (🟢🟡🔴 placeholder primitive for downstream surfaces)
+
+### Architecture notes
+- Match engine is a stub today; v2 wires per-category scoring (location, size, facilities, financials, capex, strategy)
+- CAPEX line ids align with the future Excel underwriting workbook for 1:1 hydration
+- `MatchIndicator` ships unused on the page itself — it's the primitive every downstream report will render
+
+---
+
 ## 2026-05-09 — 5-Year P&L Forecast: Year 1 monthly expansion + seasonality engine
 
 The Year 1 column in the USALI table is now expandable. Clicking `▸ Year 1` in the header replaces the single column with 12 month sub-columns (Jan–Dec) inline within the same table; chevron flips to `▾`.

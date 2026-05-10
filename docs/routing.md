@@ -23,6 +23,10 @@
 | `/(dashboard)/transactions` | `app/(dashboard)/transactions/page.tsx` | Dashboard shell | Transaction history |
 | `/(dashboard)/market` | `app/(dashboard)/market/page.tsx` | Dashboard shell | Market intelligence |
 | `/(dashboard)/review` | `app/(dashboard)/review/page.tsx` | Dashboard shell | Data quality queue |
+| `/login` | `app/login/page.tsx` | None (institutional shell) | Auth landing — public |
+| `/settings/profile` | `app/settings/profile/page.tsx` | `SettingsLayout` | User Profile |
+| `/settings/credentials` | `app/settings/credentials/page.tsx` | `SettingsLayout` | Credentials & Security |
+| `/settings/investment` | `app/settings/investment/page.tsx` | `SettingsLayout` | Investment Requirements (criteria engine) |
 
 ---
 

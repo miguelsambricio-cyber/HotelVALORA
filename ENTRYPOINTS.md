@@ -35,6 +35,18 @@ Maps tasks to exact files. Start here before scanning.
 | Root HTML / fonts / metadata | `apps/web/src/app/layout.tsx` |
 | Dashboard shell | `apps/web/src/app/(dashboard)/layout.tsx` |
 | Axios client / auth interceptors | `apps/web/src/lib/api/client.ts` |
+| Global app header (sticky, all pages) | `apps/web/src/components/layout/app-header.tsx` |
+| Settings shell + sidebar | `apps/web/src/components/settings/settings-layout.tsx` |
+| Settings sidebar nav items | `apps/web/src/components/settings/settings-sidebar.tsx` |
+| Auth store (Zustand persist) + tier system | `apps/web/src/lib/auth/store.ts`, `lib/auth/tier.ts` |
+| OAuth provider registry (NextAuth-shaped) | `apps/web/src/lib/auth/providers.ts` |
+| Provider brand marks (LinkedIn/Google/Apple/Microsoft) | `apps/web/src/components/auth/provider-marks.tsx` |
+| Investment criteria store (Zustand persist) | `apps/web/src/lib/investment/store.ts` |
+| Investment match engine stub + tier thresholds | `apps/web/src/lib/investment/match-engine.ts` |
+| CAPEX taxonomy (Excel-mappable line ids) | `apps/web/src/lib/investment/capex.ts` |
+| Investment criteria types + facilities + coverage | `apps/web/src/lib/investment/{types,facilities,coverage}.ts` |
+| Investment Requirements page | `apps/web/src/app/settings/investment/page.tsx` |
+| Investment section cards + primitives | `apps/web/src/components/settings/investment/` |
 
 ---
 
