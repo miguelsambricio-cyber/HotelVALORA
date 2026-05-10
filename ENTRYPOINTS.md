@@ -78,6 +78,9 @@ Maps tasks to exact files. Start here before scanning.
 | Report type chip + indicators (top promote / user modified / private) | `apps/web/src/components/library/report-type-chip.tsx` |
 | Locked-cell pill (tier-gated values) | `apps/web/src/components/library/locked-cell.tsx` |
 | Contact card cell + hover popover (top-promoted reports only) | `apps/web/src/components/library/contact-cell.tsx` |
+| Resend client singleton (server-only) | `apps/web/src/lib/email/client.ts` |
+| Tour-request email template (HTML + text) | `apps/web/src/lib/email/templates/tour-request.ts` |
+| Email server actions (`sendTourRequestAction`) | `apps/web/src/lib/email/actions.ts` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library mock dataset (6 hotels) | `apps/web/src/lib/library/mock-reports.ts` |

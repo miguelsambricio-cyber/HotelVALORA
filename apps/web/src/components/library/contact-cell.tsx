@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Mail, Phone, UserCircle2 } from "lucide-react";
+import { Calendar, Loader2, Mail, Phone, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { sendTourRequestAction } from "@/lib/email/actions";
 import type { LibraryReport } from "@/types/library";
 
 const POPOVER_WIDTH = 320;
@@ -29,8 +30,34 @@ export function ContactCell({ report }: ContactCellProps) {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isSending, startSending] = useTransition();
 
   useEffect(() => setMounted(true), []);
+
+  const handleScheduleTour = () => {
+    if (!report.contactInfo) return;
+    startSending(async () => {
+      const result = await sendTourRequestAction({
+        accountManagerName: report.contactInfo!.accountManager,
+        accountManagerEmail: report.contactInfo!.email,
+        hotelName: report.hotelName,
+        classification: report.classification,
+        rooms: report.rooms,
+        city: report.city,
+        referenceCode: report.referenceCode,
+        // Future: pull from authenticated user (Auth.js session)
+      });
+      if (result.ok) {
+        toast.success("Tour request sent", {
+          description: `${report.contactInfo!.accountManager} will be in touch shortly.`,
+        });
+      } else {
+        toast.error("Could not send tour request", {
+          description: result.error,
+        });
+      }
+    });
+  };
 
   if (!report.contactInfo) {
     return (
@@ -150,16 +177,19 @@ export function ContactCell({ report }: ContactCellProps) {
 
             <button
               type="button"
+              disabled={isSending}
               onClick={(e) => {
                 e.stopPropagation();
-                toast.info("Tour scheduling coming soon", {
-                  description: `${info.accountManager} · ${info.email}`,
-                });
+                handleScheduleTour();
               }}
-              className="inline-flex items-center gap-1.5 rounded bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-forest-900 transition-colors hover:bg-emerald-100"
+              className="inline-flex items-center gap-1.5 rounded bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-forest-900 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70"
             >
-              <Calendar size={12} aria-hidden />
-              Schedule a Tour
+              {isSending ? (
+                <Loader2 size={12} aria-hidden className="animate-spin" />
+              ) : (
+                <Calendar size={12} aria-hidden />
+              )}
+              {isSending ? "Sending…" : "Schedule a Tour"}
             </button>
           </div>
         </article>,

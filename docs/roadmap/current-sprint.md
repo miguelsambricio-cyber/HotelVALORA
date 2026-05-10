@@ -15,7 +15,8 @@
 | Contact card popover (portal-based, top-promoted only) | `f2136e0` | ✅ |
 | Mandarin contact → Sara Smith + aligned email | `144f8fb` + `5c00c14` | ✅ |
 | Architecture docs initialization | `19fdf49` | ✅ |
-| Auth.js v5 institutional scaffold (Google + LinkedIn + Apple, middleware gated by `AUTH_ENABLED`) | *(this commit)* | 🟡 |
+| Auth.js v5 institutional scaffold (Google + LinkedIn + Apple, middleware gated by `AUTH_ENABLED`) | `8c66542` | ✅ |
+| Resend wired for "Schedule a Tour" — server action + typed template | *(this commit)* | 🟡 |
 
 ## In flight
 
