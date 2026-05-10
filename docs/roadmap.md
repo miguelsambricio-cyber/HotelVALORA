@@ -47,10 +47,13 @@ Planned features and improvements. Update this file when items are shipped or pr
 - [ ] Auth wiring — gate report pages behind JWT; redirect to `/` if unauthenticated
 
 ### Frontend — General
+- [ ] **Library / Saved Reports** — next implementation target (folder tree, search, filters, open/duplicate/export/share)
 - [ ] Token refresh interceptor in `lib/api/client.ts`
 - [ ] Dark mode
-- [ ] Export to PDF / Excel (valuations, underwriting reports)
+- [ ] Export to PDF / Excel (valuations, underwriting reports) — A4 portrait + landscape templates per report type
 - [ ] Mobile-responsive layout
+- [ ] Tier gating extension (FREE/PRO/PREMIUM enforcement on every report page, not just Investment Requirements)
+- [ ] Real OAuth runtime (NextAuth — providers already registered at `lib/auth/providers.ts`)
 
 ---
 

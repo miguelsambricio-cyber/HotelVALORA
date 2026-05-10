@@ -58,8 +58,16 @@ Browser → Nginx → Next.js (SSR)
       ↔ /report/asset-analysis/capex          ✅ shipped (CAPEX & Renders, single page)
       ↔ /report/competitive-set               ✅ shipped
       ↔ /report/market-overview               ✅ shipped (Country / Market / Submarket / Class)
-      ↔ /report/financials                    ⏸ planned
+      ↔ /report/financials/pl                 ✅ shipped (5-Year Forecast w/ scenarios + monthly Y1)
       ↔ /report/methodology                   ⏸ planned
+
+/login                                        ✅ shipped (institutional auth)
+/settings/profile                             ✅ shipped
+/settings/credentials                         ✅ shipped
+/settings/investment                          ✅ shipped (Hotel Asset criteria)
+/settings/investment/market                   ✅ shipped (Hotel Market — ADR/OCC/RevPAR/target)
+/settings/investment/value                    ✅ shipped (Hotel Value — site/exit/rent/finance/PL)
+/library                                      ⏸ next implementation target
 ```
 
 Three layout shells: `LandingHeader/Footer` (public), `ReportShell` (standalone report — supports `printOrientation: "portrait" | "landscape"`), `(dashboard)` shell (authenticated).
