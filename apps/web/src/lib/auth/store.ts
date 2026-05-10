@@ -16,10 +16,11 @@
 // inferred from the email — useful for demo'ing each tier without needing
 // real accounts:
 //
-//   institutional@…  → institutional   (also `@institutional.test`)
-//   premium@…        → premium         (default for plain emails)
-//   pro@…            → pro
-//   free@…           → free
+//   enterprise@…   → enterprise    (also `institutional@…` for back-compat)
+//   team@…         → team
+//   premium@…      → premium       (default for plain emails)
+//   pro@…          → pro
+//   free@…         → free
 //
 // Future
 // ──────
@@ -64,12 +65,13 @@ export const useAuthStore = create<AuthState>()(
     await new Promise((r) => setTimeout(r, 350));
 
     const tier = inferTierFromEmail(email);
+    const hasOrg = tier === "team" || tier === "enterprise";
     const user: User = {
       id: `demo-${email.toLowerCase()}`,
       email,
       name: email.split("@")[0],
       tier,
-      ...(tier === "institutional" ? { organization: "HotelVALORA Demo Institutional" } : {}),
+      ...(hasOrg ? { organization: "HotelVALORA Demo Workspace" } : {}),
     };
     set({ user, isAuthenticated: true });
     return { ok: true };
@@ -103,12 +105,19 @@ export function useAuth() {
 function inferTierFromEmail(email: string): UserTier {
   const local = email.toLowerCase().split("@")[0];
   const domain = email.toLowerCase().split("@")[1] ?? "";
-  if (local.includes("institutional") || domain.includes("institutional")) {
-    return "institutional";
+  if (
+    local.includes("enterprise") ||
+    domain.includes("enterprise") ||
+    // back-compat: legacy "institutional" emails still demo the top tier
+    local.includes("institutional") ||
+    domain.includes("institutional")
+  ) {
+    return "enterprise";
   }
+  if (local.includes("team") || domain.includes("team")) return "team";
   if (local.includes("free") || domain.includes("free")) return "free";
   if (local.includes("pro") || domain.includes("pro")) return "pro";
   // Default for any plain demo email — keeps the editable underwriting
-  // experience visible without the user needing to type a tier hint
+  // experience visible without the user needing to type a tier hint.
   return "premium";
 }

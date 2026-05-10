@@ -4,6 +4,55 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Auth.js v5 institutional scaffold
+
+Wires Auth.js v5 (`next-auth@5.0.0-beta.31`) into Next.js 14 App Router with the production-ready split-config pattern. Google + LinkedIn + Apple providers configured (env-driven; placeholders today). Route-protection middleware ships behind an `AUTH_ENABLED` env flag — no behavioural change today, single env flip activates `/settings`, `/library`, `/report`, `/dashboard` gating once OAuth credentials land.
+
+### Files
+- `apps/web/src/auth.config.ts` — edge-safe config (providers, callbacks, JWT session, cookies, `authorized()` route gate, `PROTECTED_PREFIXES` constant)
+- `apps/web/src/auth.ts` — `NextAuth(authConfig)` instance; exports `handlers` / `auth` / `signIn` / `signOut`
+- `apps/web/src/app/api/auth/[...nextauth]/route.ts` — `{ GET, POST } = handlers`
+- `apps/web/src/middleware.ts` — re-exports `auth` as middleware; matcher excludes `api/auth`, Next internals, static assets
+- `apps/web/src/types/next-auth.d.ts` — module augmentation: `Session.user.{tier,role}` and `JWT.{tier,role,provider}`
+
+### Tier system extension
+- `UserTier`: dropped `institutional`, added `team` + `enterprise`. The legacy `institutional@…` email handle still infers `enterprise` for back-compat demos.
+- New `UserRole = "user" | "admin" | "owner"`.
+- `AppHeader` `TIER_LABELS` + `TIER_STYLES` extended (indigo for team, amber for enterprise).
+- `lib/report/financials/types.ts` `Tier` alias updated to match.
+- `useTier` + `canEditAssumptions` updated for the new tier set.
+
+### UI wire-up
+- `Providers` wraps the app in `<SessionProvider>` from `next-auth/react`.
+- `useOAuth.signInWithProvider` body now calls `signIn(provider.nextAuthId, { callbackUrl, redirect: true })`.
+- `OAUTH_PROVIDERS.{google,linkedin,apple}.enabled = true`; `microsoft` remains disabled (deferred to enterprise SSO surface).
+- `LinkedInstitutionalAccounts` (rendered under the login card) and any future Settings → Credentials surface now routes to real Auth.js handshake.
+
+### Env placeholders (apps/web/.env.example)
+```
+AUTH_SECRET=
+AUTH_URL=
+AUTH_ENABLED=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+LINKEDIN_CLIENT_ID=
+LINKEDIN_CLIENT_SECRET=
+APPLE_CLIENT_ID=
+APPLE_CLIENT_SECRET=
+```
+
+### Build
+- Production build clean. 33 routes static; `+ ƒ Middleware  79.4 kB` (Auth.js edge bundle). First Load JS on protected routes: ~137 kB (+5 kB for SessionProvider context).
+- Two `jose` CompressionStream warnings on Edge — Auth.js Core dependency, harmless when JWE encryption is unused (we use JWS / signed JWTs only).
+
+### Phase 3 swap (not in this commit)
+- Add `@auth/supabase-adapter` to `auth.ts` (single line — `adapter: SupabaseAdapter(...)`)
+- Mint OAuth apps and populate the env placeholders
+- Set `AUTH_ENABLED=true` in Vercel
+- Drop the Zustand mock auth store; bind `useTier()` to `useSession().data?.user.tier`
+
+---
+
 ## 2026-05-10 — Library: contact card popover for top-promoted reports
 
 The Contact column in both `/library/favorites-list` and `/library/top-list` now exposes an institutional contact card on hover — but only for rows whose `indicators.topPromote` flag is true AND which carry `contactInfo`. Everywhere else the icon stays grey and no popover renders.

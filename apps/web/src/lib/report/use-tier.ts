@@ -15,7 +15,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/auth";
 import type { Tier } from "@/lib/report/financials";
 
-const VALID: Tier[] = ["free", "pro", "premium", "institutional"];
+const VALID: Tier[] = ["free", "pro", "premium", "team", "enterprise"];
 const DEFAULT_TIER: Tier = "premium";
 
 export function useTier(): Tier {
@@ -38,7 +38,7 @@ export function useTier(): Tier {
 
 /** True iff the current tier may edit financial assumptions. */
 export function canEditAssumptions(tier: Tier): boolean {
-  return tier === "premium" || tier === "institutional";
+  return tier === "premium" || tier === "team" || tier === "enterprise";
 }
 
 /** True iff the current tier may view financial pages at all. */

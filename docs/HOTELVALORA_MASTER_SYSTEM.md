@@ -4,7 +4,7 @@
 > Cross-references every other doc in `/docs/*` and the four AI-context files at
 > repo root (`AI_CONTEXT.md`, `RULES.md`, `ENTRYPOINTS.md`, `README.md`).
 
-**Last refreshed:** 2026-05-10 — keep this date current after structural updates.
+**Last refreshed:** 2026-05-11 — keep this date current after structural updates.
 
 ---
 
@@ -61,6 +61,7 @@ Today's runtime reality:
 - The frontend is **fully mock-data** for everything except the review-queue surface.
 - The FastAPI backend exists with auth + review + dedup + valuations + imports endpoints but isn't yet driving the report / library / dashboard surfaces.
 - Mock data lives in `apps/web/src/lib/{report,library,…}/*-data.ts` and `apps/web/src/lib/library/mock-reports.ts`.
+- **Auth.js v5 is wired** (Google + LinkedIn + Apple providers, JWT sessions, gated middleware) but currently inert — `AUTH_ENABLED=false` until OAuth credentials are minted. The mock Zustand auth store coexists for demos.
 
 ---
 

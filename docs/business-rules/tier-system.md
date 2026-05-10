@@ -6,8 +6,9 @@ Four user tiers, four UI behaviours. The tier is on `user.tier` (auth store) and
 |---|---|---|---|
 | `free` | `free@…` | slate | Landing, single self-served valuation, public reports only |
 | `pro` | `pro@…` | blue-700 | Hotel asset info, CompSET, market overview, IRR Project, private reports |
-| `premium` | `premium@…` (also default for plain emails) | emerald-700 | CAPEX modelling, Underwriting & IRR Equity, AI imagery, full financial strategy |
-| `institutional` | `institutional@…` (or `@institutional.test`) | amber-700 | Everything above + Top Promote marketplace publishing, multi-tenant, audit |
+| `premium` | `premium@…` (default for plain emails) | emerald-700 | CAPEX modelling, Underwriting & IRR Equity, AI imagery, full financial strategy |
+| `team` | `team@…` | indigo-700 | Premium + multi-seat workspace, shared folders (planned, Phase 5) |
+| `enterprise` | `enterprise@…` (legacy: `institutional@…`) | amber-700 | Team + Top Promote publishing, multi-tenant, audit, bulk export, API, SSO |
 
 ## Visual signals
 

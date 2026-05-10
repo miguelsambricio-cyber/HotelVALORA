@@ -177,4 +177,4 @@ export interface PLComputed {
 // Tier values are the same as `UserTier` in `@/lib/auth` — kept under the
 // `Tier` alias here for backwards compatibility with existing imports.
 
-export type Tier = "free" | "pro" | "premium" | "institutional";
+export type Tier = "free" | "pro" | "premium" | "team" | "enterprise";

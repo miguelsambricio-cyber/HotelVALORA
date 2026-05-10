@@ -64,10 +64,13 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, OAuthProviderConfig> = {
     id: "linkedin",
     label: "LinkedIn",
     nextAuthId: "linkedin",
-    // OpenID Connect scope set — works with NextAuth's LinkedInProvider
+    // OpenID Connect scope set — Auth.js v5 LinkedInProvider uses these.
     scopes: ["openid", "profile", "email"],
     brandColor: "#0A66C2",
-    enabled: false,
+    // Wired to Auth.js — actual sign-in requires LINKEDIN_CLIENT_{ID,SECRET}
+    // in the env. Without those the OAuth handshake will 500; the UI
+    // surface keeps clicking through to next-auth/react.
+    enabled: true,
   },
   google: {
     id: "google",
@@ -75,7 +78,7 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, OAuthProviderConfig> = {
     nextAuthId: "google",
     scopes: ["openid", "profile", "email"],
     brandColor: "#4285F4",
-    enabled: false,
+    enabled: true,
   },
   apple: {
     id: "apple",
@@ -85,13 +88,13 @@ export const OAUTH_PROVIDERS: Record<OAuthProvider, OAuthProviderConfig> = {
     // sign-in by Apple's flow; subsequent sessions read from DB.
     scopes: ["name", "email"],
     brandColor: "#000000",
-    enabled: false,
+    enabled: true,
   },
   microsoft: {
     id: "microsoft",
     label: "Microsoft Azure",
-    // Maps to NextAuth's AzureAD / EntraID provider when wired —
-    // surfaces enterprise SSO + Active Directory sync.
+    // Maps to Auth.js v5 AzureAD / EntraID provider — not in scope for
+    // the initial Auth.js wire-up; flip when enterprise SSO ships.
     nextAuthId: "azure-ad",
     scopes: ["openid", "profile", "email"],
     brandColor: "#0078D4",

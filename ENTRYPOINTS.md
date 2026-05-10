@@ -39,8 +39,13 @@ Maps tasks to exact files. Start here before scanning.
 | Settings shell + sidebar | `apps/web/src/components/settings/settings-layout.tsx` |
 | Settings sidebar nav items | `apps/web/src/components/settings/settings-sidebar.tsx` |
 | Auth store (Zustand persist) + tier system | `apps/web/src/lib/auth/store.ts`, `lib/auth/tier.ts` |
-| OAuth provider registry (NextAuth-shaped) | `apps/web/src/lib/auth/providers.ts` |
+| OAuth provider registry (Auth.js-shaped) | `apps/web/src/lib/auth/providers.ts` |
 | Provider brand marks (LinkedIn/Google/Apple/Microsoft) | `apps/web/src/components/auth/provider-marks.tsx` |
+| Auth.js v5 — edge-safe config (providers, callbacks, cookies) | `apps/web/src/auth.config.ts` |
+| Auth.js v5 — full instance (`auth()` / `signIn()` / `signOut()` / `handlers`) | `apps/web/src/auth.ts` |
+| Auth.js v5 — OAuth route handler | `apps/web/src/app/api/auth/[...nextauth]/route.ts` |
+| Edge middleware (gates `/settings`, `/library`, `/report`, `/dashboard`) | `apps/web/src/middleware.ts` |
+| Auth.js session/JWT module augmentation | `apps/web/src/types/next-auth.d.ts` |
 | Investment criteria store (Zustand persist) | `apps/web/src/lib/investment/store.ts` |
 | Investment match engine stub + tier thresholds | `apps/web/src/lib/investment/match-engine.ts` |
 | CAPEX taxonomy (Excel-mappable line ids) | `apps/web/src/lib/investment/capex.ts` |

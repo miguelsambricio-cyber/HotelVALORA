@@ -1,36 +1,19 @@
 "use client";
 
-// OAuth interaction hook — decoupled from any backend so the UI surface
-// stays stable across the v1 mock → v2 NextAuth migration.
+// OAuth interaction hook — Auth.js v5 wire-up.
 //
-// v1 (today)
-// ──────────
-// Bodies are no-ops. Calls return `{ ok: false, error: "OAuth not yet
-// enabled" }` and emit a `console.warn` so any accidental wiring during
-// dev shows up in the console without breaking the page. UI components
-// still call the hook so the integration point is real and tested.
+// `signInWithProvider(id)` calls `signIn(providerId)` from
+// `next-auth/react`. Auth.js itself handles the redirect to the
+// provider's OAuth page and the callback round-trip via the route
+// handler at `/api/auth/[...nextauth]`.
 //
-// v2 (NextAuth wire-up — see providers.ts comment for the full migration
-// recipe)
-// ──────────
-// Replace the bodies with:
-//
-//   import { signIn, signOut as naSignOut } from "next-auth/react";
-//
-//   signInWithProvider: async (id) => {
-//     if (!OAUTH_PROVIDERS[id].enabled) return { ok: false, ... };
-//     const res = await signIn(OAUTH_PROVIDERS[id].nextAuthId, { redirect: true });
-//     return { ok: res?.ok ?? false, error: res?.error };
-//   }
-//
-//   unlinkProvider: async (id) => {
-//     // Call your API: DELETE /api/account/linked/:id
-//     ...
-//   }
-//
-// No UI change required — `LinkedInstitutionalAccounts` already calls
-// these handlers via the `onLink` / `onUnlink` props.
+// Until OAuth credentials are populated in the environment
+// (GOOGLE_CLIENT_ID, LINKEDIN_CLIENT_ID, APPLE_CLIENT_ID, …) the
+// provider handshake will 500 at runtime — the UI surface still
+// captures intent and routes correctly. The middleware route
+// enforcement is opt-in via `AUTH_ENABLED=true`.
 
+import { signIn, signOut } from "next-auth/react";
 import { OAUTH_PROVIDERS } from "./providers";
 import type { OAuthProvider } from "./types";
 
@@ -46,26 +29,43 @@ export function useOAuth() {
     const provider = OAUTH_PROVIDERS[id];
     if (!provider.enabled) {
       console.warn(
-        `[auth] OAuth provider "${id}" is not yet wired to a backend ` +
-          `(v1 = mock UI). Set OAUTH_PROVIDERS["${id}"].enabled = true and ` +
-          `replace useOAuth body with NextAuth's signIn() to activate.`,
+        `[auth] OAuth provider "${id}" is disabled in the registry. ` +
+          `Flip OAUTH_PROVIDERS["${id}"].enabled = true to activate.`,
       );
-      return { ok: false, error: "Provider not yet enabled" };
+      return { ok: false, error: "Provider not enabled" };
     }
-    // Future (when enabled = true and NextAuth installed):
-    //   import { signIn } from "next-auth/react";
-    //   const res = await signIn(provider.nextAuthId);
-    //   return { ok: res?.ok ?? false, error: res?.error };
-    return { ok: false, error: "OAuth runtime not yet installed" };
+
+    try {
+      // `signIn` returns void when `redirect: true` (default) — Auth.js
+      // performs a hard navigation to the provider's authorize URL and
+      // never resolves the promise. We treat that as a success path.
+      await signIn(provider.nextAuthId, {
+        callbackUrl: "/settings/profile",
+        redirect: true,
+      });
+      return { ok: true };
+    } catch (err) {
+      console.error(`[auth] signIn(${id}) failed`, err);
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : "Sign-in failed",
+      };
+    }
   };
 
   const unlinkProvider = async (
     id: OAuthProvider,
   ): Promise<OAuthSignInResult> => {
+    // True account-unlinking needs a server endpoint (`DELETE
+    // /api/account/linked/:id`) backed by a real DB adapter — wired in
+    // Phase 3 with Supabase. For now `signOut` is the closest local
+    // approximation: drops the current session, the user re-links on
+    // the next sign-in.
     console.warn(
-      `[auth] OAuth unlink for "${id}" is not yet wired (v1 = mock UI).`,
+      `[auth] Unlink for "${id}" requires the Supabase adapter — Phase 3.`,
     );
-    return { ok: false, error: "Unlink not yet wired" };
+    await signOut({ redirect: false });
+    return { ok: true };
   };
 
   const isProviderEnabled = (id: OAuthProvider): boolean =>
