@@ -27,15 +27,15 @@ export function MapLayerToggle({
   ariaLabel,
 }: MapLayerToggleProps) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4">
-      <span className="flex items-center gap-3">
+    <label className="flex cursor-pointer items-center justify-between gap-3">
+      <span className="flex items-center gap-2.5">
         {swatchClassName && (
           <span
             aria-hidden
-            className={cn("h-3 w-3 rounded-full ring-4", swatchClassName)}
+            className={cn("h-2.5 w-2.5 rounded-full ring-[3px]", swatchClassName)}
           />
         )}
-        <span className="font-body text-sm font-medium text-slate-900">
+        <span className="font-body text-[13px] font-medium text-slate-900">
           {label}
         </span>
       </span>
@@ -47,14 +47,14 @@ export function MapLayerToggle({
         aria-label={ariaLabel ?? label}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative inline-flex h-[18px] w-8 shrink-0 items-center rounded-full transition-colors",
+          "relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700/40",
           checked ? "bg-blue-700" : "bg-slate-300",
         )}
       >
         <span
           className={cn(
-            "block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform",
+            "block h-3 w-3 transform rounded-full bg-white shadow-sm transition-transform",
             checked ? "translate-x-[14px]" : "translate-x-[2px]",
           )}
         />

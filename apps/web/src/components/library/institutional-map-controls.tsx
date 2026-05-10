@@ -20,19 +20,19 @@ export function InstitutionalMapControls({
   onToggleLayers,
 }: InstitutionalMapControlsProps) {
   return (
-    <div className="pointer-events-auto absolute right-6 top-6 flex flex-col gap-2">
+    <div className="pointer-events-auto absolute right-4 top-4 flex flex-col gap-1.5">
       <ControlButton onClick={onZoomIn} ariaLabel="Zoom in">
-        <Plus size={18} aria-hidden className="text-forest-900" />
+        <Plus size={16} aria-hidden className="text-forest-900" />
       </ControlButton>
       <ControlButton onClick={onZoomOut} ariaLabel="Zoom out">
-        <Minus size={18} aria-hidden className="text-forest-900" />
+        <Minus size={16} aria-hidden className="text-forest-900" />
       </ControlButton>
       <ControlButton
         onClick={onToggleLayers}
         ariaLabel="Toggle layers"
-        className="mt-3"
+        className="mt-2"
       >
-        <Layers size={18} aria-hidden className="text-forest-900" />
+        <Layers size={16} aria-hidden className="text-forest-900" />
       </ControlButton>
     </div>
   );
@@ -55,7 +55,7 @@ function ControlButton({
       onClick={onClick}
       aria-label={ariaLabel}
       className={[
-        "rounded-xl bg-white p-3 shadow-lg transition-colors hover:bg-slate-50",
+        "rounded-lg bg-white p-2 shadow-md transition-colors hover:bg-slate-50",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700/40",
         className,
       ]

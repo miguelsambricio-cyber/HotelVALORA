@@ -64,12 +64,12 @@ export function AppHeader({
         className,
       )}
     >
-      <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-3.5">
+      <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-6 py-2.5">
         {/* LEFT — Logo + optional workspace selector */}
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="font-headline text-2xl font-black tracking-tighter text-forest-900 transition-opacity hover:opacity-80"
+            className="font-headline text-xl font-black tracking-tighter text-forest-900 transition-opacity hover:opacity-80"
             aria-label="HotelVALORA — Home"
           >
             HotelVALORA
@@ -87,29 +87,29 @@ export function AppHeader({
             href={libraryHref}
             aria-current={isLibraryActive ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 rounded-xl px-3 py-2 sm:px-4",
-              "font-headline text-sm font-bold tracking-tight",
+              "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3",
+              "font-headline text-[13px] font-bold tracking-tight",
               isLibraryActive
                 ? "bg-slate-900 text-white shadow-sm transition-transform active:scale-95"
                 : "text-slate-600 transition-colors hover:bg-slate-100 hover:text-forest-900",
             )}
           >
-            <BookOpen size={18} aria-hidden />
+            <BookOpen size={16} aria-hidden />
             <span className="hidden sm:inline">BIBLIOTECA</span>
           </Link>
 
           <Link
             href={resolvedUserHref}
             className={cn(
-              "flex items-center gap-2 rounded-xl px-3 py-2 sm:px-4",
-              "font-headline text-sm font-bold tracking-tight",
+              "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3",
+              "font-headline text-[13px] font-bold tracking-tight",
               isLibraryActive
                 ? "border border-slate-900 bg-white text-slate-900 transition-transform hover:bg-slate-50 active:scale-95"
                 : "bg-forest-900 text-white shadow-sm transition-all hover:brightness-110 active:scale-95",
             )}
             aria-label="Open user profile"
           >
-            <UserCircle size={18} aria-hidden />
+            <UserCircle size={16} aria-hidden />
             <span className="hidden sm:inline">USUARIO</span>
           </Link>
         </div>

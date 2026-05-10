@@ -21,12 +21,12 @@ export function MapLegendCard() {
   const toggleLayer = useLibraryStore((s) => s.toggleLayer);
 
   return (
-    <section className="rounded-xl bg-slate-50 p-5">
-      <span className="mb-4 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+    <section className="rounded-lg bg-slate-50 p-4">
+      <span className="mb-3 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
         Legend
       </span>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
         <MapLayerToggle
           label="Saved Reports"
           checked={legend.saved}

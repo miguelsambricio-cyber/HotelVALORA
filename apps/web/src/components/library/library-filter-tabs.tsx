@@ -30,7 +30,7 @@ export function LibraryFilterTabs() {
             aria-selected={active}
             onClick={() => setFilterTab(tab.id)}
             className={cn(
-              "flex-1 rounded-lg border py-2 font-headline text-[10px] font-black uppercase tracking-widest transition-colors",
+              "flex-1 rounded-md border py-1.5 font-headline text-[10px] font-black uppercase tracking-widest transition-colors",
               active
                 ? "border-slate-900 bg-slate-900 text-white"
                 : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50",

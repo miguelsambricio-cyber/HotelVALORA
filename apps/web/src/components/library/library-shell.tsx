@@ -23,10 +23,12 @@ export interface LibraryShellProps {
  */
 export function LibraryShell({ children }: LibraryShellProps) {
   return (
-    <div className="flex h-screen min-h-[640px] flex-col bg-[#f8f9fa]">
+    <div className="flex h-screen min-h-[600px] flex-col bg-[#f8f9fa]">
       <AppHeader />
-      <main className="relative flex min-h-0 flex-1 flex-col md:flex-row">
-        {children}
+      <main className="relative flex min-h-0 flex-1 justify-center">
+        <div className="flex w-full max-w-[1600px] flex-col md:flex-row">
+          {children}
+        </div>
       </main>
       <InstitutionalFooter variant="slim" />
     </div>

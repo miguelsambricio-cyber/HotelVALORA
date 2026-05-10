@@ -49,10 +49,10 @@ export function HotelMapMarker({
       <span className="relative flex">
         <span
           className={cn(
-            "block h-4 w-4 rounded-full ring-4 transition-transform",
+            "block h-3 w-3 rounded-full ring-[3px] transition-transform",
             CATEGORY_DOT[report.category],
             isPromoted && "animate-pulse",
-            selected && "scale-125 ring-[6px]",
+            selected && "scale-125 ring-[5px]",
             "group-hover:scale-110",
             "group-focus-visible:ring-blue-700/40",
           )}

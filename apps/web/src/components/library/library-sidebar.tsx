@@ -32,20 +32,20 @@ export function LibrarySidebar() {
   const setSearchQuery = useLibraryStore((s) => s.setSearchQuery);
 
   return (
-    <aside className="z-20 flex w-full flex-col gap-6 overflow-y-auto bg-white p-8 shadow-2xl md:w-[300px] md:shrink-0 lg:w-[320px]">
+    <aside className="z-20 flex w-full flex-col gap-4 overflow-y-auto border-r border-slate-200 bg-white p-5 shadow-xl md:w-[264px] md:shrink-0 lg:w-[288px]">
       <header>
-        <h1 className="font-headline text-3xl font-extrabold uppercase tracking-tight text-forest-900">
+        <h1 className="font-headline text-2xl font-extrabold uppercase tracking-tight text-forest-900">
           Favoritos
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-1.5 text-[13px] leading-snug text-slate-600">
           Access your hotel valuations and collaborative insights
         </p>
       </header>
 
       <MapLegendCard />
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
           <label
             htmlFor="library-search"
             className="text-[10px] font-bold uppercase tracking-widest text-slate-500"
@@ -54,9 +54,9 @@ export function LibrarySidebar() {
           </label>
           <div className="relative">
             <Search
-              size={16}
+              size={14}
               aria-hidden
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
             />
             <input
               id="library-search"
@@ -64,7 +64,7 @@ export function LibrarySidebar() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search saved hotels..."
-              className="w-full rounded-xl border-none bg-slate-100 py-3 pl-10 pr-4 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
+              className="w-full rounded-lg border-none bg-slate-100 py-2 pl-8 pr-3 text-[13px] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-700/20"
             />
           </div>
         </div>
@@ -72,7 +72,7 @@ export function LibrarySidebar() {
         <LibraryFilterTabs />
       </div>
 
-      <div className="mt-auto flex flex-col gap-3 border-t border-slate-200 pt-6">
+      <div className="mt-auto flex flex-col gap-2 border-t border-slate-200 pt-4">
         <button
           type="button"
           onClick={() =>
@@ -81,9 +81,9 @@ export function LibrarySidebar() {
                 "Upload Excel · Import CoStar · Underwriting workflow",
             })
           }
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 py-4 font-headline font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.99]"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 py-2.5 font-headline text-[13px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.99]"
         >
-          <PlusCircle size={16} aria-hidden />
+          <PlusCircle size={14} aria-hidden />
           Create New Valuation
         </button>
       </div>

@@ -152,9 +152,9 @@ export function HotelMap() {
 
         <div
           aria-hidden
-          className="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2 select-none"
+          className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 select-none"
         >
-          <span className="font-headline text-7xl font-black uppercase tracking-[1.5rem] text-forest-900/10">
+          <span className="font-headline text-4xl font-black uppercase tracking-[0.6rem] text-forest-900/10">
             Madrid
           </span>
         </div>
