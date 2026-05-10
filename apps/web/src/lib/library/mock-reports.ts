@@ -208,7 +208,7 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     contactInfo: {
       accountManager: "Sara Smith",
       accountManagerId: "3014",
-      email: "marina.lopez@mandarinoriental.com",
+      email: "sara.smith@mandarinoriental.com",
       phone: "(+34) 91 701 6767",
     },
   },
