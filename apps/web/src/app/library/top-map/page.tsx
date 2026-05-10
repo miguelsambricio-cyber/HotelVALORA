@@ -19,7 +19,7 @@ export default function TopReportsMapPage() {
     <>
       <LibrarySidebar
         title="Top Reports"
-        subtitle="Explore community-driven insights and top-performing market valuations."
+        subtitle="Explore community insights and top promote valuations"
         searchPlaceholder="Search reports..."
       />
       <HotelMap />
