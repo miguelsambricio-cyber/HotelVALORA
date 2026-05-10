@@ -72,8 +72,6 @@ export interface LibraryLayerState {
   historicCenter: boolean;
 }
 
-export type LibraryFilterTab = "favoritos" | "top";
-
 // ── Future-provider map abstraction ─────────────────────────────────────────
 //
 // Today the map is a static institutional grayscale image plus
@@ -94,3 +92,96 @@ export interface MapProviderHandles {
   /** Fit bounds to all visible markers (no-op for mock) */
   fitToVisible?: () => void;
 }
+
+// ── Top Reports — forward-compat shapes ─────────────────────────────────────
+//
+// /library/top-map renders the same six mock reports today (Stitch design
+// is a sibling to /library/favorites-map). The shapes below give the
+// future "Top Promote" marketplace + ranking engine somewhere typed to
+// live: visibility tiers, ranking score, IRR target, asset / segment /
+// access classification. No render touches today — purely the type
+// surface so a future PR can wire data without a rewrite.
+
+export type VisibilityTier =
+  | "promoted"        // paid Top Promote slot
+  | "institutional"   // institutional partner (verified high-trust)
+  | "community"       // public community contribution
+  | "verified";       // automatically validated public report
+
+export type MapMarkerType = ReportCategory | VisibilityTier;
+
+export type AssetType =
+  | "luxury"
+  | "upscale"
+  | "midscale"
+  | "boutique"
+  | "resort";
+
+export type AccessTier = "public" | "institutional";
+
+/** Investment size bucket (S < €25M · M €25–100M · L €100–250M · XL > €250M) */
+export type InvestmentBand = "S" | "M" | "L" | "XL";
+
+export interface ReportRanking {
+  /** Composite ranking score 0–100 — drives default sort */
+  rankingScore: number;
+  /** Visibility weight applied by the marketplace (0–100) */
+  visibilityScore: number;
+  impressions: number;
+  clicks: number;
+  /** Higher served first when slots compete for the same map area */
+  sponsorPriority: number;
+  /** ISO 8601 — paid promotion expiry */
+  promotedUntil?: string;
+}
+
+export interface TopReport {
+  id: string;
+  hotelName: string;
+  city: string;
+  country: string;
+  coordinates: { lat: number; lng: number };
+  mockPosition: { topPct: number; leftPct: number };
+  visibilityTier: VisibilityTier;
+  assetType: AssetType;
+  starRating: number;
+  rooms: number;
+  /** Operator / brand / management company */
+  operator: string;
+  owner: string;
+  /** Estimated valuation in EUR */
+  valuation: number;
+  /** Cap rate as percentage points (e.g., 4.85 → 4.85%) */
+  capRate: number;
+  /** Target IRR % (project-level, gross) */
+  irrTarget?: number;
+  investmentBand: InvestmentBand;
+  /** Public listing flag — false hides the report from non-subscribers */
+  publicAccess: boolean;
+  ranking: ReportRanking;
+  tierBadge?: "PREMIUM" | "INSTITUTIONAL" | "PRO";
+  promoted: boolean;
+}
+
+export type PromotedReport = TopReport & {
+  promoted: true;
+  visibilityTier: "promoted";
+};
+
+export interface TopReportsLegendState {
+  promoted: boolean;
+  institutional: boolean;
+  community: boolean;
+  verified: boolean;
+}
+
+export interface TopReportsFilters {
+  country: string | null;
+  city: string | null;
+  assetType: AssetType | null;
+  investmentBand: InvestmentBand | null;
+  segment: "luxury" | "upscale" | "midscale" | null;
+  accessTier: AccessTier | null;
+}
+
+export type TopReportsViewMode = "top" | "map" | "list";

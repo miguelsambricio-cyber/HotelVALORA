@@ -1,45 +1,45 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useLibraryStore } from "@/lib/library/store";
-import type { LibraryFilterTab } from "@/types/library";
 
-const TABS: { id: LibraryFilterTab; label: string }[] = [
-  { id: "favoritos", label: "FAVORITOS" },
-  { id: "top", label: "TOP" },
-];
+const TABS = [
+  { id: "favoritos", label: "FAVORITOS", href: "/library/favorites-map" },
+  { id: "top", label: "TOP", href: "/library/top-map" },
+] as const;
 
 /**
- * Two-button segmented filter sitting underneath the search input.
- * Reads & writes the active tab via the library store so the rest of
- * the page (map markers, side lists) can react without prop drilling.
+ * Two-button segmented navigation sitting underneath the search input.
+ * Each tab is a Link — switching tabs swaps the page (favorites-map ↔
+ * top-map). Active state is computed from `usePathname()`, so the
+ * highlight stays correct after deep-linking, refresh, or back/forward
+ * navigation. Shared sidebar legend / layer / search state lives in
+ * the library store and persists across the swap.
  */
 export function LibraryFilterTabs() {
-  const filterTab = useLibraryStore((s) => s.filterTab);
-  const setFilterTab = useLibraryStore((s) => s.setFilterTab);
+  const pathname = usePathname();
 
   return (
-    <div className="flex gap-2" role="tablist" aria-label="Library filter">
+    <nav className="flex gap-2" aria-label="Library view">
       {TABS.map((tab) => {
-        const active = tab.id === filterTab;
+        const active = pathname?.startsWith(tab.href) ?? false;
         return (
-          <button
+          <Link
             key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => setFilterTab(tab.id)}
+            href={tab.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "flex-1 rounded-md border py-1.5 font-headline text-[10px] font-black uppercase tracking-widest transition-colors",
+              "flex-1 rounded-md border py-1.5 text-center font-headline text-[10px] font-black uppercase tracking-widest transition-colors",
               active
                 ? "border-slate-900 bg-slate-900 text-white"
                 : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50",
             )}
           >
             {tab.label}
-          </button>
+          </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

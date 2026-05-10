@@ -30,6 +30,7 @@
 | `/settings/investment/market` | `app/settings/investment/market/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Market (ADR/OCC growth, RevPAR scenario, target) |
 | `/settings/investment/value` | `app/settings/investment/value/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Value (5 sections: Site Acquisition, Exit, Rent, Finance, P&L Forecast) |
 | `/library/favorites-map` | `app/library/favorites-map/page.tsx` | `LibraryShell` | Library — Favoritos map (saved / community / TOP PROMOTE markers, mock institutional grayscale map) |
+| `/library/top-map` | `app/library/top-map/page.tsx` | `LibraryShell` | Library — Top Reports map (sibling of favorites-map; route-driven FAVORITOS/TOP segmented nav) |
 
 ---
 

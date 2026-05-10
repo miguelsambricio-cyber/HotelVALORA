@@ -63,6 +63,7 @@ Maps tasks to exact files. Start here before scanning.
 | Task | File(s) |
 |---|---|
 | Library page — Favoritos map | `apps/web/src/app/library/favorites-map/page.tsx` |
+| Library page — Top Reports map | `apps/web/src/app/library/top-map/page.tsx` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library mock dataset (6 hotels) | `apps/web/src/lib/library/mock-reports.ts` |
