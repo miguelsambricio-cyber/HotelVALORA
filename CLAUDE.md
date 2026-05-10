@@ -22,6 +22,16 @@ Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md
 
 | File | Update when |
 |---|---|
+| `docs/HOTELVALORA_MASTER_SYSTEM.md` | After any structural change — modules, phase status, next priorities |
+| `docs/roadmap/master-roadmap.md` | When a phase moves status (✅ / 🟡 / ⏸ / 🔴) |
+| `docs/roadmap/current-sprint.md` | After every shipped feature — move "Up next" item to "Just shipped" |
+| `docs/roadmap/backlog.md` | When a new future idea / blocker / tech-debt item surfaces |
+| `docs/architecture/*.md` | When architecture deltas (system, frontend, backend, map, report engine) |
+| `docs/design-system/*.md` | When new tokens, primitives, or density rules ship |
+| `docs/data-models/*.md` | When a typed shape changes (user / report / library models) |
+| `docs/business-rules/*.md` | When tier / visibility / promotion rules change |
+| `docs/integrations/*.md` | When CoStar / STR / Excel-ingestion wiring changes |
+| `docs/features/*.md` | When a feature dossier needs to reflect new routes / behaviour |
 | `docs/architecture.md` | New service, topology change, app flow change |
 | `docs/routing.md` | New route, layout shell change, navigation wiring |
 | `docs/frontend.md` | New component area, data-fetching pattern, auth change |
@@ -63,6 +73,14 @@ AI_CONTEXT.md      compressed AI context (≤300 lines)
 RULES.md           Claude coding rules (≤300 lines)
 ENTRYPOINTS.md     task → file map (≤200 lines)
 docs/
+  HOTELVALORA_MASTER_SYSTEM.md  executive entry point — vision, modules, state
+  architecture/       system / frontend / backend / map-engine / report-engine
+  roadmap/            master-roadmap · current-sprint · backlog
+  design-system/      ui-principles · components · colors-typography
+  data-models/        user-models · report-models · library-models
+  business-rules/     tier-system · report-visibility · promoted-reports
+  integrations/       costar · str · excel-ingestion
+  features/           library · settings · financials
   architecture.md     system topology, services, runtime infra, ports, app flow
   routing.md          all routes, layout shells, navigation wiring
   frontend.md         Next.js structure, components, data fetching, auth flow
