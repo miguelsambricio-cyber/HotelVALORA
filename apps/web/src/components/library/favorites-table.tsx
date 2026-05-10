@@ -1,13 +1,14 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { FileText, Mail, Star } from "lucide-react";
+import { FileText, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useLibraryStore } from "@/lib/library/store";
 import { MOCK_LIBRARY_REPORTS } from "@/lib/library/mock-reports";
 import type { LibraryReport, ReportCategory } from "@/types/library";
 import { cn } from "@/lib/utils";
 import { AmenityIconCell } from "./amenity-icon-cell";
+import { ContactCell } from "./contact-cell";
 import { LockedCell } from "./locked-cell";
 import { ReportTypeChip } from "./report-type-chip";
 
@@ -312,13 +313,9 @@ const FavoritesRow = memo(function FavoritesRow({
         <ReportTypeChip type={report.reportType} indicators={report.indicators} />
       </Td>
 
-      {/* Contact */}
+      {/* Contact — hover-popover for top-promoted reports */}
       <Td className="text-center">
-        <Mail
-          size={16}
-          aria-hidden
-          className={report.hasContact ? "text-forest-700" : "text-slate-300"}
-        />
+        <ContactCell report={report} />
       </Td>
 
       {/* Star (favorited) */}

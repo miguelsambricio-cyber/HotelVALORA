@@ -150,6 +150,12 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasPdf: true,
     referenceCode: "HV-2024-001",
     visibilityTier: "promoted",
+    contactInfo: {
+      accountManager: "Carlos Velasco",
+      accountManagerId: "2578",
+      email: "carlos.velasco@hotelvalora.com",
+      phone: "(+34) 91 555 0101",
+    },
   },
   {
     id: "rpt-mandarin-oriental-ritz",
@@ -199,6 +205,12 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasPdf: true,
     referenceCode: "HV-2024-002",
     visibilityTier: "promoted",
+    contactInfo: {
+      accountManager: "Marina López",
+      accountManagerId: "3014",
+      email: "marina.lopez@mandarinoriental.com",
+      phone: "(+34) 91 701 6767",
+    },
   },
   {
     id: "rpt-four-seasons-madrid",
@@ -241,6 +253,7 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasPdf: true,
     referenceCode: "HV-2024-003",
     visibilityTier: "institutional",
+    contactInfo: null,
   },
   {
     id: "rpt-edition-madrid",
@@ -275,6 +288,7 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasPdf: true,
     referenceCode: "HV-2024-004",
     visibilityTier: "community",
+    contactInfo: null,
   },
   {
     id: "rpt-hard-rock-marbella",
@@ -317,6 +331,7 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasPdf: true,
     referenceCode: "HV-2024-005",
     visibilityTier: "verified",
+    contactInfo: null,
   },
   {
     id: "rpt-w-barcelona",
@@ -351,6 +366,7 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     hasPdf: true,
     referenceCode: "HV-2024-006",
     visibilityTier: "community",
+    contactInfo: null,
   },
 ];
 

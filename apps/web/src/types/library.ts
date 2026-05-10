@@ -93,6 +93,18 @@ export interface ReportFinancials {
 
 export type ReportTypeBadge = "Premium" | "PRO" | "Public" | "Private";
 
+/** Contact details surfaced in the on-hover card for top-promoted reports. */
+export interface ReportContactInfo {
+  /** Display name of the listing owner / account manager */
+  accountManager: string;
+  /** Internal id surfaced in the popover header (e.g., "2578") */
+  accountManagerId: string;
+  /** Email — rendered as a mailto link */
+  email: string;
+  /** Phone — plain text */
+  phone: string;
+}
+
 export interface ReportIndicators {
   /** Hot / paid promotion currently active */
   topPromote: boolean;
@@ -140,6 +152,9 @@ export interface LibraryReport {
   indicators: ReportIndicators;
   /** Has a contact channel exposed to viewers in this tier */
   hasContact: boolean;
+  /** Contact card detail. Surfaced in the on-hover popover when the
+   *  report carries the topPromote indicator. `null` = no popover. */
+  contactInfo: ReportContactInfo | null;
   /** User-favourited (drives the ⭐ column) */
   favorited: boolean;
   /** PDF report exportable */

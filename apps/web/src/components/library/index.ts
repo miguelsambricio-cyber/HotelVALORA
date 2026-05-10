@@ -26,3 +26,5 @@ export type { AmenityIconCellProps } from "./amenity-icon-cell";
 export { ReportTypeChip } from "./report-type-chip";
 export type { ReportTypeChipProps } from "./report-type-chip";
 export { LockedCell } from "./locked-cell";
+export { ContactCell } from "./contact-cell";
+export type { ContactCellProps } from "./contact-cell";

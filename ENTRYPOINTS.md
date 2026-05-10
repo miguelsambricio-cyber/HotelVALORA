@@ -72,6 +72,7 @@ Maps tasks to exact files. Start here before scanning.
 | Amenity icon cell (Bar/Restaurant/Rooftop/Meet/Gym/Spa/Pool/Parking) | `apps/web/src/components/library/amenity-icon-cell.tsx` |
 | Report type chip + indicators (top promote / user modified / private) | `apps/web/src/components/library/report-type-chip.tsx` |
 | Locked-cell pill (tier-gated values) | `apps/web/src/components/library/locked-cell.tsx` |
+| Contact card cell + hover popover (top-promoted reports only) | `apps/web/src/components/library/contact-cell.tsx` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library mock dataset (6 hotels) | `apps/web/src/lib/library/mock-reports.ts` |
