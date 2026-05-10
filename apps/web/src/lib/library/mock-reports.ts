@@ -206,7 +206,7 @@ export const MOCK_LIBRARY_REPORTS: LibraryReport[] = [
     referenceCode: "HV-2024-002",
     visibilityTier: "promoted",
     contactInfo: {
-      accountManager: "Marina López",
+      accountManager: "Sara Smith",
       accountManagerId: "3014",
       email: "marina.lopez@mandarinoriental.com",
       phone: "(+34) 91 701 6767",
