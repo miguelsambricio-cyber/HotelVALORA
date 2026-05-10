@@ -13,16 +13,15 @@ import type {
   CapexUnit,
   CapexValueMap,
   FacilityId,
+  ForecastGrowth,
   InvestmentCriteria,
-  InvestmentTab,
+  MarketAssumptions,
   RenderRow,
+  UnderwritingScenario,
 } from "./types";
 
 interface InvestmentState {
-  activeTab: InvestmentTab;
   criteria: InvestmentCriteria;
-
-  setTab: (tab: InvestmentTab) => void;
 
   // Field setters (typed slice mutations)
   setField: <K extends keyof InvestmentCriteria>(
@@ -36,6 +35,13 @@ interface InvestmentState {
   setCapexMode: (mode: CapexMode) => void;
   setCapexValue: (lineId: string, value: number | null) => void;
   setCapexUnit: (lineId: string, unit: CapexUnit) => void;
+
+  // ── Market tab mutations ───────────────────────────────────────────
+  setAdrGrowth: (next: ForecastGrowth) => void;
+  setOccGrowth: (next: ForecastGrowth) => void;
+  setRevparScenario: (scenario: UnderwritingScenario) => void;
+  setRevparTarget: (eur: number) => void;
+  resetMarket: () => void;
 
   /** v1: no-op + console.info. v2: PUT to backend */
   commit: () => Promise<{ ok: boolean; error?: string }>;
@@ -62,6 +68,25 @@ const DEFAULT_RENDER_ROWS: RenderRow[] = [
   { id: "r3", index: 3, area: "Room", type: "Vanguard", view: "Reporte" },
   { id: "r4", index: 4, area: "F&B", type: "Clásico", view: "Reporte" },
 ];
+
+const INITIAL_MARKET: MarketAssumptions = {
+  // ADR defaults to CUSTOM with the values shown in the Stitch reference
+  adrGrowth: {
+    enabled: true,
+    mode: "custom",
+    constant: 2.0,
+    custom: [3.5, 4.0, 2.5, 2.0],
+  },
+  // OCC defaults to CONSTANT 2.0% (Stitch active state)
+  occGrowth: {
+    enabled: true,
+    mode: "constant",
+    constant: 2.0,
+    custom: [0, 0, 0, 0],
+  },
+  revparScenario: "base",
+  revparTargetEur: 100,
+};
 
 const INITIAL_CRITERIA: InvestmentCriteria = {
   assetType: "hotel",
@@ -97,15 +122,14 @@ const INITIAL_CRITERIA: InvestmentCriteria = {
   myPropertyFacilities: ["restaurant", "meeting-events", "gym", "spa-wellness"],
   compsetFacilities: ["restaurant", "meeting-events", "gym"],
   compsetDistanceKm: 2.5,
+
+  market: INITIAL_MARKET,
 };
 
 export const useInvestmentStore = create<InvestmentState>()(
   persist(
     (set, get) => ({
-      activeTab: "asset",
       criteria: INITIAL_CRITERIA,
-
-      setTab: (tab) => set({ activeTab: tab }),
 
       setField: (key, value) =>
         set((s) => ({ criteria: { ...s.criteria, [key]: value } })),
@@ -155,6 +179,30 @@ export const useInvestmentStore = create<InvestmentState>()(
           },
         })),
 
+      // ── Market mutations ────────────────────────────────────────────
+      setAdrGrowth: (next) =>
+        set((s) => ({
+          criteria: { ...s.criteria, market: { ...s.criteria.market, adrGrowth: next } },
+        })),
+
+      setOccGrowth: (next) =>
+        set((s) => ({
+          criteria: { ...s.criteria, market: { ...s.criteria.market, occGrowth: next } },
+        })),
+
+      setRevparScenario: (scenario) =>
+        set((s) => ({
+          criteria: { ...s.criteria, market: { ...s.criteria.market, revparScenario: scenario } },
+        })),
+
+      setRevparTarget: (eur) =>
+        set((s) => ({
+          criteria: { ...s.criteria, market: { ...s.criteria.market, revparTargetEur: eur } },
+        })),
+
+      resetMarket: () =>
+        set((s) => ({ criteria: { ...s.criteria, market: INITIAL_MARKET } })),
+
       commit: async () => {
         console.info("[investment] commit (v1 = no-op):", get().criteria);
         await new Promise((r) => setTimeout(r, 250));
@@ -163,11 +211,27 @@ export const useInvestmentStore = create<InvestmentState>()(
     }),
     {
       name: "hv-investment-v1",
+      version: 2, // bumped — schema added `market` slice
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        activeTab: state.activeTab,
-        criteria: state.criteria,
-      }),
+      partialize: (state) => ({ criteria: state.criteria }),
+      // Migrate v1 (pre-market) localStorage into v2 by hydrating the
+      // missing `market` slice with defaults.
+      migrate: (persisted, version) => {
+        if (!persisted || typeof persisted !== "object") {
+          return { criteria: INITIAL_CRITERIA };
+        }
+        const p = persisted as { criteria?: Partial<InvestmentCriteria> };
+        if (version < 2) {
+          return {
+            criteria: {
+              ...INITIAL_CRITERIA,
+              ...(p.criteria ?? {}),
+              market: INITIAL_MARKET,
+            },
+          };
+        }
+        return persisted as { criteria: InvestmentCriteria };
+      },
     },
   ),
 );
@@ -175,26 +239,32 @@ export const useInvestmentStore = create<InvestmentState>()(
 // ── Tuple-style hook ──────────────────────────────────────────────────────
 
 export function useInvestment() {
-  const activeTab = useInvestmentStore((s) => s.activeTab);
   const criteria = useInvestmentStore((s) => s.criteria);
-  const setTab = useInvestmentStore((s) => s.setTab);
   const setField = useInvestmentStore((s) => s.setField);
   const toggleMyPropertyFacility = useInvestmentStore((s) => s.toggleMyPropertyFacility);
   const toggleCompsetFacility = useInvestmentStore((s) => s.toggleCompsetFacility);
   const setCapexMode = useInvestmentStore((s) => s.setCapexMode);
   const setCapexValue = useInvestmentStore((s) => s.setCapexValue);
   const setCapexUnit = useInvestmentStore((s) => s.setCapexUnit);
+  const setAdrGrowth = useInvestmentStore((s) => s.setAdrGrowth);
+  const setOccGrowth = useInvestmentStore((s) => s.setOccGrowth);
+  const setRevparScenario = useInvestmentStore((s) => s.setRevparScenario);
+  const setRevparTarget = useInvestmentStore((s) => s.setRevparTarget);
+  const resetMarket = useInvestmentStore((s) => s.resetMarket);
   const commit = useInvestmentStore((s) => s.commit);
   return {
-    activeTab,
     criteria,
-    setTab,
     setField,
     toggleMyPropertyFacility,
     toggleCompsetFacility,
     setCapexMode,
     setCapexValue,
     setCapexUnit,
+    setAdrGrowth,
+    setOccGrowth,
+    setRevparScenario,
+    setRevparTarget,
+    resetMarket,
     commit,
   };
 }

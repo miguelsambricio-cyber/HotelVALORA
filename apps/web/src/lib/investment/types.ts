@@ -86,6 +86,42 @@ export interface CoverageNode {
   children?: CoverageNode[];
 }
 
+// ── Hotel Market — ADR / OCC forecast growth assumptions ───────────────────
+//
+// Each growth track (ADR, OCC) supports two modes:
+//   constant  → single yearly growth rate applied uniformly Y1..Y4
+//   custom    → per-year override (Year 1, Year 2, Year 3, Year 4)
+//
+// Toggle-off (`enabled = false`) freezes the metric (no growth applied).
+
+export type ForecastMode = "constant" | "custom";
+
+export interface ForecastGrowth {
+  enabled: boolean;
+  mode: ForecastMode;
+  /** Constant-mode value, percentage points (e.g. 2.0 for 2%) */
+  constant: number;
+  /** Custom-mode per-year values: [Y1, Y2, Y3, Y4] */
+  custom: [number, number, number, number];
+}
+
+// Re-export under the investment domain so consumers (market store,
+// market scenario tables, downstream P&L wiring) source the discriminator
+// from a single place. Authoritative type still lives in `lib/underwriting`.
+export type { UnderwritingScenario } from "@/lib/underwriting/scenario";
+import type { UnderwritingScenario as _UnderwritingScenario } from "@/lib/underwriting/scenario";
+
+export interface MarketAssumptions {
+  adrGrowth: ForecastGrowth;
+  occGrowth: ForecastGrowth;
+  /** Active RevPAR scenario preset — DOWN / BASE / UP. Drives downstream
+   *  P&L re-projection. Visual selector reuses the same component as the
+   *  P&L page (3-button segmented). */
+  revparScenario: _UnderwritingScenario;
+  /** Target average daily rate (€/room) for this investment thesis */
+  revparTargetEur: number;
+}
+
 // ── Top-level criteria store ───────────────────────────────────────────────
 
 export interface InvestmentCriteria {
@@ -129,6 +165,9 @@ export interface InvestmentCriteria {
   myPropertyFacilities: FacilityId[];
   compsetFacilities: FacilityId[];
   compsetDistanceKm: number;
+
+  // Hotel Market tab — forecast growth + scenario assumptions
+  market: MarketAssumptions;
 }
 
 // ── Match engine (v1 stub — see match-engine.ts) ───────────────────────────

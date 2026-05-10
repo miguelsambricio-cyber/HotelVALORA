@@ -26,7 +26,9 @@
 | `/login` | `app/login/page.tsx` | None (institutional shell) | Auth landing — public |
 | `/settings/profile` | `app/settings/profile/page.tsx` | `SettingsLayout` | User Profile |
 | `/settings/credentials` | `app/settings/credentials/page.tsx` | `SettingsLayout` | Credentials & Security |
-| `/settings/investment` | `app/settings/investment/page.tsx` | `SettingsLayout` | Investment Requirements (criteria engine) |
+| `/settings/investment` | `app/settings/investment/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Asset (criteria engine) |
+| `/settings/investment/market` | `app/settings/investment/market/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Market (ADR/OCC growth, RevPAR scenario, target) |
+| `/settings/investment/value` | `app/settings/investment/value/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Value (placeholder) |
 
 ---
 

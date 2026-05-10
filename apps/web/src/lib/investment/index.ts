@@ -21,6 +21,11 @@ export type {
   RenderRow,
   // Coverage
   CoverageNode,
+  // Market
+  ForecastMode,
+  ForecastGrowth,
+  MarketAssumptions,
+  UnderwritingScenario,
   // Criteria + match
   InvestmentCriteria,
   InvestmentTab,
@@ -33,6 +38,7 @@ export type {
 export { CAPEX_TREE, CAPEX_UNIT_LABELS, getAllCapexLineIds } from "./capex";
 export { FACILITIES, type Facility } from "./facilities";
 export { COVERAGE_TREE } from "./coverage";
+export { MARKET_SCENARIOS, type MarketScenarioProfile } from "./market-scenarios";
 
 export {
   evaluateHotel,
