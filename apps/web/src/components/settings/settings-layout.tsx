@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/layout/app-header";
+import { InstitutionalFooter } from "@/components/layout/institutional-footer";
 import { SettingsSidebar } from "./settings-sidebar";
 
 export interface SettingsLayoutProps {
@@ -36,45 +37,7 @@ export function SettingsLayout({ children }: SettingsLayoutProps) {
         </div>
       </div>
 
-      <SettingsFooter />
+      <InstitutionalFooter variant="slim" />
     </div>
-  );
-}
-
-/**
- * Institutional dark footer — copy mirrors the login footer so the
- * auth + settings surfaces share the same chrome. Future iteration:
- * extract `<InstitutionalFooter />` to `components/layout/` for reuse
- * across landing too.
- */
-function SettingsFooter() {
-  return (
-    <footer className="w-full bg-slate-950 px-8 py-3">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 md:flex-row">
-        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-          © 2026 HotelVALORA Institutional. Underwriting-grade intelligence.
-        </span>
-        <nav aria-label="Footer" className="flex gap-5">
-          <a
-            href="#privacy"
-            className="text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300"
-          >
-            Privacy
-          </a>
-          <a
-            href="#terms"
-            className="text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300"
-          >
-            Terms
-          </a>
-          <a
-            href="#contact"
-            className="text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300"
-          >
-            Contact
-          </a>
-        </nav>
-      </div>
-    </footer>
   );
 }

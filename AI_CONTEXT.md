@@ -77,6 +77,7 @@ All server state lives in TanStack Query hooks under `src/lib/api/`. Each domain
 `src/app/compset/` — competitor map step (Mapbox GL, react-map-gl v8). LandingHeader/Footer.
 `src/app/report/executive-summary/` — standalone Executive Summary page (ReportShell). Step 3 of workflow.
 `src/app/report/[reportId]/[section]/` — dynamic report sections.
+`src/app/library/favorites-map/` — Library v1 (mock institutional grayscale map + saved/community/TOP PROMOTE markers). LibraryShell.
 `src/app/` (root) — public landing page.
 Primary user flow: `/` → `/compset` → `/report/executive-summary`.
 

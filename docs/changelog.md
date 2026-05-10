@@ -4,6 +4,43 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-10 — Library v1: `/library/favorites-map` (Favoritos map)
+
+First page of the institutional Library surface. Saved-reports + community + TOP PROMOTE markers over a mock institutional grayscale map of Madrid. No backend, no Mapbox — fully mock.
+
+### Route + shell
+- `/library/favorites-map` — `apps/web/src/app/library/favorites-map/page.tsx`
+- `app/library/layout.tsx` wraps every `/library/*` page in a new `LibraryShell` (AppHeader + `h-screen` body row + slim institutional footer).
+- `AppHeader.libraryHref` default updated from `/library` → `/library/favorites-map`. New active-state logic: when `usePathname()` starts with `/library`, BIBLIOTECA renders as a black-fill button and USUARIO inverts to a white-with-border button — matches the Stitch reference.
+- Extracted the previously-private `SettingsFooter` into `components/layout/institutional-footer.tsx` (`variant: "default" | "slim"`); `SettingsLayout` now imports it. Single source of truth for the institutional bottom chrome.
+
+### Components shipped (`components/library/`)
+- `LibraryShell` — outer kiosk shell
+- `LibrarySidebar` — 300 px, FAVORITOS title + subtitle, legend card, search input, segmented filter, bottom CTA
+- `MapLegendCard` — 3 category toggles (Saved / Comunidad / Top Promote) + 3 layer toggles (Heatmap / Líneas de Metro / Centro Histórico)
+- `MapLayerToggle` — 32×18 institutional rail switch (slate-300 → blue-700 on)
+- `LibraryFilterTabs` — FAVORITOS / TOP segmented control
+- `HotelMap` — provider-agnostic mock map (grayscale aerial bg, percentage markers, optional overlays for heatmap / metro / historic centre); ready for Mapbox swap (records carry real `lat/lng`)
+- `HotelMapMarker` — category-coloured dot + hover tip; TOP PROMOTE pulses
+- `InstitutionalMapControls` — top-right zoom +/- + layers stack
+- `FloatingHotelCard` — bottom-right glass preview (hotel name, classification, room count, TOP PROMOTE / tier badges, EST. VALUE + CAP. RATE tiles, "View Full Valuation" CTA)
+
+### State & data
+- `lib/library/store.ts` — Zustand UI state (legend, layers, filterTab, search, selectedReportId). In-memory by design.
+- `lib/library/mock-reports.ts` — 6 institutional reports with real coordinates: Ritz-Carlton Madrid, Mandarin Oriental Ritz, Four Seasons Madrid, The Madrid EDITION, Hard Rock Marbella, W Barcelona. Each carries `category`, `visibility`, valuation, cap rate, rooms, owner, full `ReportPromotion` block (`promoted`, `promotedUntil`, `boostScore`, `featuredRegion`, `impressions`, `clicks`).
+- `types/library.ts` — `LibraryReport`, `ReportCategory`, `ReportVisibility`, `ReportStatus`, `ReportPromotion`, `LibraryLegendState`, `LibraryLayerState`, `LibraryFilterTab`, `MapBounds`, `MapProviderHandles`.
+
+### Architecture notes
+- Future-ready map abstraction: real `lat/lng` already on every record; `mockPosition` (top%/left%) is the temporary projection layer the Mapbox swap drops.
+- Bottom CTA + map controls + "View Full Valuation" emit sonner toasts today (mock actions).
+- Search filters in-memory by hotel name; legend toggles hide/show markers by category live.
+- Report taxonomy supports `private` / `team` / `public` / `top-promote` visibility ready for the future sharing & marketplace flows.
+
+### Build
+Typecheck clean. No backend / no DB / no Mapbox added.
+
+---
+
 ## 2026-05-10 — Investment Requirements / Hotel Value: investor financial criteria
 
 Replaced the `/settings/investment/value` placeholder with the full Hotel Value criteria engine — third tab in the Investment Requirements surface. Captures investor underwriting preferences across 5 sections that feed the future DCF / IRR / debt sizing / exit yield pipeline.

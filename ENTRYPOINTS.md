@@ -58,6 +58,29 @@ Maps tasks to exact files. Start here before scanning.
 
 ---
 
+## Domain — Library (institutional reports)
+
+| Task | File(s) |
+|---|---|
+| Library page — Favoritos map | `apps/web/src/app/library/favorites-map/page.tsx` |
+| Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
+| Library types | `apps/web/src/types/library.ts` |
+| Library mock dataset (6 hotels) | `apps/web/src/lib/library/mock-reports.ts` |
+| Library Zustand UI store (legend / layers / filter / search / selection) | `apps/web/src/lib/library/store.ts` |
+| Library components surface (barrel) | `apps/web/src/components/library/index.ts` |
+| Library shell (AppHeader + body + slim footer) | `apps/web/src/components/library/library-shell.tsx` |
+| Library sidebar (title + legend + filter + CTA) | `apps/web/src/components/library/library-sidebar.tsx` |
+| Map legend card + layer toggles | `apps/web/src/components/library/map-legend-card.tsx` |
+| Tiny rail toggle (32×18) | `apps/web/src/components/library/map-layer-toggle.tsx` |
+| FAVORITOS / TOP segmented filter | `apps/web/src/components/library/library-filter-tabs.tsx` |
+| Mock institutional grayscale map | `apps/web/src/components/library/hotel-map.tsx` |
+| Hotel map marker (category-coloured) | `apps/web/src/components/library/hotel-map-marker.tsx` |
+| Floating zoom +/- + layers control | `apps/web/src/components/library/institutional-map-controls.tsx` |
+| Floating preview card | `apps/web/src/components/library/floating-hotel-card.tsx` |
+| Shared institutional dark footer | `apps/web/src/components/layout/institutional-footer.tsx` |
+
+---
+
 ## Domain — Report Module
 
 | Task | File(s) |

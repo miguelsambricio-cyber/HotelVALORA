@@ -29,6 +29,7 @@
 | `/settings/investment` | `app/settings/investment/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Asset (criteria engine) |
 | `/settings/investment/market` | `app/settings/investment/market/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Market (ADR/OCC growth, RevPAR scenario, target) |
 | `/settings/investment/value` | `app/settings/investment/value/page.tsx` | `SettingsLayout` | Investment Requirements — Hotel Value (5 sections: Site Acquisition, Exit, Rent, Finance, P&L Forecast) |
+| `/library/favorites-map` | `app/library/favorites-map/page.tsx` | `LibraryShell` | Library — Favoritos map (saved / community / TOP PROMOTE markers, mock institutional grayscale map) |
 
 ---
 
@@ -52,6 +53,11 @@ Layers:
 Used by: all `/(dashboard)/*` routes  
 File: `app/(dashboard)/layout.tsx`  
 Characteristics: Fixed sidebar (`Sidebar`) + top header (`Header`) + scrollable main area.
+
+### LibraryShell
+Used by: `/library/*`  
+File: `components/library/library-shell.tsx` (referenced from `app/library/layout.tsx`)  
+Characteristics: `AppHeader` (sticky, BIBLIOTECA active when route starts with `/library`) + `h-screen` body row hosting sidebar + content + `InstitutionalFooter` (slim variant). The `AppHeader` `libraryHref` default now points at `/library/favorites-map`.
 
 ---
 

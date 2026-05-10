@@ -33,6 +33,9 @@ src/
 ├── components/
 │   ├── landing/                  LandingHeader, LandingFooter, HeroSection, PricingSection
 │   ├── compset/                  CompsetMap, CompetitorPanel, CompetitorCard, MapControls, MapLegend
+│   ├── library/                  LibraryShell, LibrarySidebar, MapLegendCard, MapLayerToggle,
+│   │                              LibraryFilterTabs, HotelMap (mock grayscale), HotelMapMarker,
+│   │                              InstitutionalMapControls, FloatingHotelCard
 │   ├── maps/                     CompsetMapGL (Mapbox GL, dynamic import)
 │   ├── report/
 │   │   ├── shell/                ReportShell, ReportTopNav, ReportSidebar, ReportFooter, ReportPaper
@@ -42,7 +45,9 @@ src/
 │   │   └── ui/                   LockedGate, LockedUpgradeCard, MethodologicalNote, ReportMap
 │   ├── layout/
 │   │   ├── sidebar.tsx           Navigation sidebar (dashboard)
-│   │   └── header.tsx            Top bar with user menu (dashboard)
+│   │   ├── header.tsx            Top bar with user menu (dashboard)
+│   │   ├── app-header.tsx        Global institutional header — BIBLIOTECA active when /library/*
+│   │   └── institutional-footer.tsx  Shared dark footer — used by /settings and /library
 │   ├── dashboard/                KPI cards, portfolio map, RevPAR chart, recent transactions
 │   ├── review/
 │   │   ├── summary-cards.tsx     4 KPI cards
@@ -58,6 +63,9 @@ src/
 │   │   └── dedup.ts              useDedupSummary, useMergeRecommendations, useRunScan, etc.
 │   ├── hooks/
 │   │   └── use-compset.ts        CompSet state — competitors, suggested, layers, panel
+│   ├── library/
+│   │   ├── store.ts              Zustand UI state — legend, layers, filterTab, search, selectedReportId
+│   │   └── mock-reports.ts       6 institutional mock reports + helpers
 │   ├── report/
 │   │   ├── executive-summary-data.ts  Types, mock data, formatters
 │   │   ├── report-nav.ts         6-section navigation registry (15 items)
@@ -71,7 +79,8 @@ src/
     ├── valuation.ts
     ├── compset.ts                CompetitorHotel, CompsetLayer
     ├── review.ts                 ReviewSummary, AliasConflict, etc.
-    └── dedup.ts                  MergeRecommendationListItem, etc.
+    ├── dedup.ts                  MergeRecommendationListItem, etc.
+    └── library.ts                LibraryReport, ReportCategory, LibraryLegendState, LibraryLayerState
 ```
 
 ---
