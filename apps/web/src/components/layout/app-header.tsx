@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, UserCircle } from "lucide-react";
+import { BookOpen, Shield, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, type UserTier } from "@/lib/auth";
 
@@ -51,6 +51,7 @@ export function AppHeader({
   const { user } = useAuth();
   const pathname = usePathname();
   const isLibraryActive = pathname?.startsWith("/library") ?? false;
+  const isAdminActive = pathname?.startsWith("/user/admin") ?? false;
   // USUARIO is the single-click path to the institutional user area —
   // routes straight to the settings shell regardless of auth state.
   // Unauthenticated visitors land on the same page (mock auth, no gate);
@@ -99,11 +100,27 @@ export function AppHeader({
           </Link>
 
           <Link
+            href="/user/admin"
+            aria-current={isAdminActive ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3",
+              "font-headline text-[13px] font-bold tracking-tight",
+              isAdminActive
+                ? "bg-forest-900 text-lime-300 shadow-sm transition-transform active:scale-95"
+                : "text-slate-600 transition-colors hover:bg-slate-100 hover:text-forest-900",
+            )}
+            aria-label="Open Administrator section"
+          >
+            <Shield size={16} aria-hidden />
+            <span className="hidden sm:inline">ADMIN</span>
+          </Link>
+
+          <Link
             href={resolvedUserHref}
             className={cn(
               "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 sm:px-3",
               "font-headline text-[13px] font-bold tracking-tight",
-              isLibraryActive
+              isLibraryActive || isAdminActive
                 ? "border border-slate-900 bg-white text-slate-900 transition-transform hover:bg-slate-50 active:scale-95"
                 : "bg-forest-900 text-white shadow-sm transition-all hover:brightness-110 active:scale-95",
             )}

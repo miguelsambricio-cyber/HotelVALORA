@@ -27,7 +27,7 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const SECONDARY_NAV: NavItem[] = [
-  { href: "#admin", label: "Admin", icon: Shield },
+  { href: "/user/admin", label: "Admin", icon: Shield },
   { href: "#support", label: "Support", icon: HelpCircle },
 ];
 
@@ -82,7 +82,7 @@ export function SettingsSidebar() {
           <SidebarItem
             key={item.href}
             item={item}
-            active={false}
+            active={item.href === "/user/admin" && (pathname?.startsWith("/user/admin") ?? false)}
           />
         ))}
         <button
