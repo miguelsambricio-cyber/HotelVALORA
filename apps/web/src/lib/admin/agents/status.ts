@@ -1,4 +1,4 @@
-import type { AgentStatus } from "./types";
+import type { AgentStatus, AgentStatusGroup } from "./types";
 
 /**
  * Visual contract for the 7 status tints used by the AI Operations Center.
@@ -89,4 +89,83 @@ export function getStatusVisual(status: AgentStatus): AgentStatusVisual {
 
 export function isOperational(status: AgentStatus): boolean {
   return status === "healthy" || status === "active" || status === "monitoring" || status === "running";
+}
+
+/**
+ * Coarse-grained ACTIVE / IDLE / WARNING / ERROR readout used by the
+ * institutional orbital UI. Bloomberg + Palantir convention — four lights.
+ *
+ *   healthy / active / monitoring / running  → ACTIVE
+ *   manual_mode                              → WARNING (the operator is the loop)
+ *   standby                                  → IDLE    (planned, not running)
+ *   error                                    → ERROR
+ */
+export function groupForStatus(status: AgentStatus): AgentStatusGroup {
+  switch (status) {
+    case "healthy":
+    case "active":
+    case "monitoring":
+    case "running":
+      return "ACTIVE";
+    case "manual_mode":
+      return "WARNING";
+    case "standby":
+      return "IDLE";
+    case "error":
+      return "ERROR";
+  }
+}
+
+export interface StatusGroupVisual {
+  /** Light-canvas text class — for pills on white / slate-50 backgrounds */
+  text: string;
+  /** Light-canvas background tint for pills */
+  bg: string;
+  /** Light-canvas ring tint for pills */
+  ring: string;
+  /** Dark-canvas text class — for dots + labels on slate-950 / forest-900 */
+  darkText: string;
+  /** Dot character */
+  dot: string;
+  /** Whether the dot should pulse (operational) */
+  pulse: boolean;
+}
+
+const GROUP_VISUAL: Record<AgentStatusGroup, StatusGroupVisual> = {
+  ACTIVE: {
+    text: "text-emerald-700",
+    bg: "bg-emerald-50",
+    ring: "ring-emerald-200",
+    darkText: "text-emerald-400",
+    dot: "●",
+    pulse: true,
+  },
+  IDLE: {
+    text: "text-slate-500",
+    bg: "bg-slate-100",
+    ring: "ring-slate-200",
+    darkText: "text-slate-400",
+    dot: "○",
+    pulse: false,
+  },
+  WARNING: {
+    text: "text-amber-700",
+    bg: "bg-amber-50",
+    ring: "ring-amber-200",
+    darkText: "text-amber-400",
+    dot: "◐",
+    pulse: false,
+  },
+  ERROR: {
+    text: "text-rose-700",
+    bg: "bg-rose-50",
+    ring: "ring-rose-200",
+    darkText: "text-rose-400",
+    dot: "▲",
+    pulse: true,
+  },
+};
+
+export function getGroupVisual(group: AgentStatusGroup): StatusGroupVisual {
+  return GROUP_VISUAL[group];
 }

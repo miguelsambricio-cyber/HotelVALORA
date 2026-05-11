@@ -13,6 +13,7 @@ export type AgentId =
   | "compset_underwriting"
   | "data_ingestion"
   | "qa_monitoring"
+  | "underwriting"
   | "cfo"
   | "cmo"
   | "customer_success"
@@ -28,6 +29,13 @@ export type AgentStatus =
   | "error";
 
 export type AgentTier = 0 | 1 | 2 | 3;
+
+/**
+ * Coarse-grained operational group rendered as ACTIVE / IDLE / WARNING / ERROR
+ * on the orbital UI. Derived from the richer `AgentStatus` via
+ * `groupForStatus()` in `status.ts`.
+ */
+export type AgentStatusGroup = "ACTIVE" | "IDLE" | "WARNING" | "ERROR";
 
 export interface AgentKpi {
   label: string;
@@ -88,4 +96,16 @@ export interface AgentDescriptor {
   infrastructureDeps: string[];
   /** Documentation references */
   references: { label: string; href: string }[];
+  /** Mission statement (1–2 sentences, surfaced in the detail panel hero) */
+  mission: string;
+  /** Operational success rate label for the orbital readout (e.g. "98.4%") */
+  successRate: string;
+  /** Cron schedule expression — null = on-demand / manual */
+  cronSchedule: string | null;
+  /** Linked upstream/downstream systems shown in the detail panel */
+  linkedSystems: string[];
+  /** Operational blockers — short bullets, may be empty */
+  blockers: string[];
+  /** Future integrations roadmap — short bullets for the detail panel */
+  futureIntegrations: string[];
 }

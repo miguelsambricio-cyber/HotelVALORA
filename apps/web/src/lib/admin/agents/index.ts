@@ -5,6 +5,7 @@ export type {
   AgentLogEntry,
   AgentRoadmapItem,
   AgentStatus,
+  AgentStatusGroup,
   AgentTier,
 } from "./types";
 export {
@@ -16,6 +17,9 @@ export {
 } from "./registry";
 export {
   getStatusVisual,
+  groupForStatus,
+  getGroupVisual,
   isOperational,
   type AgentStatusVisual,
+  type StatusGroupVisual,
 } from "./status";
