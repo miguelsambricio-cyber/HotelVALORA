@@ -1,6 +1,7 @@
 # Deployment Status
 
 **Last refreshed:** 2026-05-11
+**Pipeline last verified:** 2026-05-11 — preview path (this commit, on branch `test/auto-deploy-preview`) + production path (commit `9c73722` on `main`).
 
 ## Production
 
