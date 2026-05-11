@@ -30,7 +30,14 @@ Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md
 | `docs/design-system/*.md` | When new tokens, primitives, or density rules ship |
 | `docs/data-models/*.md` | When a typed shape changes (user / report / library models) |
 | `docs/business-rules/*.md` | When tier / visibility / promotion rules change |
-| `docs/integrations/*.md` | When CoStar / STR / Excel-ingestion wiring changes |
+| `docs/integrations/*.md` | When CoStar / STR / Excel-ingestion / Resend / Supabase wiring changes |
+| `docs/infrastructure/HOTELVALORA_TECH_STACK_MASTER.md` | After EVERY infra change — add/remove a service, status flip, new env var |
+| `docs/infrastructure/INFRASTRUCTURE_MASTER_TRACKER.md` | When a service's per-field detail changes |
+| `docs/infrastructure/service-status.md` | Move row between status buckets when a service flips state |
+| `docs/infrastructure/environment-variables.md` | Every time an env var lands or rotates |
+| `docs/infrastructure/deployment-status.md` | After every prod deploy that changes routes / bundle / middleware |
+| `docs/infrastructure/integration-checklist.md` | When activating a new service end-to-end |
+| `docs/infrastructure/security-audit.md` | After any change that touches secrets, RLS, headers, or auth surface |
 | `docs/features/*.md` | When a feature dossier needs to reflect new routes / behaviour |
 | `docs/architecture.md` | New service, topology change, app flow change |
 | `docs/routing.md` | New route, layout shell change, navigation wiring |

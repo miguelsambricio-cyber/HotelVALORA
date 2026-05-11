@@ -47,6 +47,13 @@ Monorepo: `apps/web` (Next.js 14) + `apps/api` (FastAPI) + `services/{data_pipel
 
 | Concern | Source-of-truth doc |
 |---|---|
+| **Full tech stack registry** (every service, status, env, next action) | `docs/infrastructure/HOTELVALORA_TECH_STACK_MASTER.md` |
+| **Per-service detail + tracking fields** | `docs/infrastructure/INFRASTRUCTURE_MASTER_TRACKER.md` |
+| Quick-scan health dashboard | `docs/infrastructure/service-status.md` |
+| Every env variable + safety | `docs/infrastructure/environment-variables.md` |
+| Deploy state (Vercel + GitHub) | `docs/infrastructure/deployment-status.md` |
+| Per-service activation recipes | `docs/infrastructure/integration-checklist.md` |
+| Security audit + rotation log | `docs/infrastructure/security-audit.md` |
 | System topology, ports, app flow | `docs/architecture.md` |
 | Frontend app router + components | `docs/frontend.md` + `docs/architecture/frontend-architecture.md` |
 | Backend FastAPI + services | `docs/backend.md` + `docs/architecture/backend-architecture.md` |

@@ -1,0 +1,257 @@
+# Infrastructure Master Tracker
+
+Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corresponding section here with the full 15-field detail.
+
+**Status legend:** 🟢 working · 🟡 partial · 🔴 not configured · ⚫ blocked · 🔵 planned
+
+---
+
+## Vercel
+
+| Field | Value |
+|---|---|
+| Category | Hosting / Edge runtime |
+| Status | 🟢 |
+| Configured? | Yes |
+| Working? | Yes — every commit deploys cleanly |
+| Production ready? | Yes |
+| Partially implemented? | No |
+| Frontend connected? | Yes (apps/web at root `apps/web`) |
+| Backend connected? | N/A (FastAPI is dev-only) |
+| Env vars added? | Yes (Mapbox + Resend + Supabase) |
+| Vercel configured? | Yes — project `hotelvalora`, scope `miguel-sambricio-s-projects` |
+| GitHub safe? | Yes — no auto-deploy; CLI-triggered |
+| Documentation complete? | Yes (`docs/deployment.md`, `docs/architecture/system-overview.md`) |
+| Local tested? | Yes (`pnpm build`) |
+| Production tested? | Yes (`hotelvalora.com` live) |
+| Blockers | None |
+| Notes | Custom domain wired. No GitHub auto-deploy — `vercel deploy --prod --yes` is the canonical promotion path |
+
+## GitHub
+
+| Field | Value |
+|---|---|
+| Category | VCS |
+| Status | 🟢 |
+| Configured? | Yes |
+| Working? | Yes |
+| Production ready? | Yes |
+| Frontend connected? | N/A |
+| Backend connected? | N/A |
+| Env vars added? | N/A |
+| Vercel configured? | Not linked for auto-deploy (intentional) |
+| GitHub safe? | Yes — `.env.local` git-ignored, secrets verified out of commits |
+| Documentation complete? | Yes |
+| Local tested? | Yes |
+| Production tested? | Yes |
+| Blockers | None |
+| Notes | Single branch `main`. No PR workflow yet (solo dev) |
+
+## Mapbox
+
+| Field | Value |
+|---|---|
+| Category | Maps |
+| Status | 🟢 |
+| Configured? | Yes |
+| Working? | Yes — CompSet + Market Overview maps render |
+| Production ready? | Yes |
+| Partially implemented? | Yes — `/library/*` map uses a static grayscale placeholder, not Mapbox |
+| Frontend connected? | Yes |
+| Backend connected? | N/A |
+| Env vars added? | Yes — `NEXT_PUBLIC_MAPBOX_TOKEN` set in Vercel |
+| Vercel configured? | Yes |
+| GitHub safe? | Yes (public token, domain-restricted on Mapbox side) |
+| Documentation complete? | Yes (`docs/maps.md`, `docs/architecture/map-engine.md`) |
+| Local tested? | Yes |
+| Production tested? | Yes |
+| Blockers | None |
+| Notes | Library map swap planned for Phase 4 (`docs/roadmap/master-roadmap.md`) |
+
+## Supabase
+
+| Field | Value |
+|---|---|
+| Category | Database + Storage + (future) Auth |
+| Status | 🟡 |
+| Configured? | Partially — project provisioned, env wired, schema NOT applied |
+| Working? | Env probe (`/dev/supabase-test`) returns green; no queries yet |
+| Production ready? | No — schema must be applied first |
+| Partially implemented? | Yes |
+| Frontend connected? | Yes (clients in `lib/supabase/*`, middleware refresh wired) |
+| Backend connected? | N/A (Supabase IS the backend) |
+| Env vars added? | Yes (URL + anon + service-role on Vercel) |
+| Vercel configured? | Yes |
+| GitHub safe? | Yes (`.env.local` ignored; placeholders in `.env.example`) |
+| Documentation complete? | Yes (`docs/integrations/supabase.md`, `docs/database/schema.sql`) |
+| Local tested? | Probe page yes; queries no |
+| Production tested? | Probe page yes; queries no |
+| Blockers | None |
+| Notes | Next action: run `docs/database/schema.sql` via SQL editor → `pnpm dlx supabase gen types typescript --project-id twebgqutuqgonabvhzjk > apps/web/src/lib/supabase/types.ts` |
+
+## Auth.js v5
+
+| Field | Value |
+|---|---|
+| Category | Auth runtime |
+| Status | 🟡 |
+| Configured? | Partially — providers wired, no credentials |
+| Working? | Routes resolve, middleware is pass-through (`AUTH_ENABLED` flag) |
+| Production ready? | No — needs OAuth credentials per provider + `AUTH_SECRET` + `AUTH_ENABLED=true` |
+| Partially implemented? | Yes |
+| Frontend connected? | Yes (`<SessionProvider>` in `components/providers.tsx`; `useOAuth.signInWithProvider` calls `signIn()`) |
+| Backend connected? | Auth.js own JWT (no DB adapter today) |
+| Env vars added? | Placeholders only — `AUTH_SECRET`, `AUTH_URL`, `AUTH_ENABLED`, `{GOOGLE,LINKEDIN,APPLE}_CLIENT_{ID,SECRET}` |
+| Vercel configured? | No |
+| GitHub safe? | Yes (all values are placeholders) |
+| Documentation complete? | Yes (`docs/data-models/user-models.md`) |
+| Local tested? | Scaffold compiles |
+| Production tested? | No |
+| Blockers | OAuth app creation per provider |
+| Notes | Apple needs Developer Account (paid) + Service ID + .p8 key. Google + LinkedIn are free |
+
+## Google OAuth
+
+| Field | Value |
+|---|---|
+| Category | OAuth identity provider |
+| Status | 🔴 |
+| Configured? | Provider wired in `OAUTH_PROVIDERS` registry; no client id/secret |
+| Working? | No |
+| Production ready? | No |
+| Frontend connected? | Yes (LinkedInstitutionalAccounts surface routes to signIn) |
+| Backend connected? | N/A — Auth.js handles handshake |
+| Env vars added? | Placeholders only |
+| Vercel configured? | No |
+| Blockers | Need to create OAuth client at `console.cloud.google.com/apis/credentials` with authorized redirect URI `https://www.hotelvalora.com/api/auth/callback/google` |
+| Notes | OpenID Connect scope set: `openid profile email` |
+
+## LinkedIn OAuth
+
+| Field | Value |
+|---|---|
+| Category | OAuth identity provider |
+| Status | 🔴 |
+| Configured? | Provider wired; no credentials |
+| Blockers | Create app at `linkedin.com/developers/apps` |
+| Notes | Authorized redirect URI: `https://www.hotelvalora.com/api/auth/callback/linkedin` |
+
+## Apple OAuth
+
+| Field | Value |
+|---|---|
+| Category | OAuth identity provider |
+| Status | 🔴 |
+| Configured? | Provider wired; no credentials |
+| Blockers | Requires Apple Developer Account (paid $99/yr) + Service ID + .p8 key |
+| Notes | Auth.js mints the short-lived client_secret JWT from the .p8 key at runtime |
+
+## Resend
+
+| Field | Value |
+|---|---|
+| Category | Transactional email |
+| Status | 🟢 |
+| Configured? | Yes |
+| Working? | Yes — server action `sendTourRequestAction` sends in prod |
+| Production ready? | Yes (with sandbox sender limitation) |
+| Partially implemented? | Yes — sandbox sender only delivers to Resend account owner |
+| Frontend connected? | Yes (Library ContactCell "Schedule a Tour" CTA) |
+| Backend connected? | Yes (server action via Resend SDK) |
+| Env vars added? | Yes — `RESEND_API_KEY` + `RESEND_FROM_EMAIL` set on Vercel |
+| GitHub safe? | Yes (key only in `.env.local` + Vercel encrypted) |
+| Documentation complete? | Yes (`docs/integrations/resend.md`) |
+| Local tested? | Yes |
+| Production tested? | Yes |
+| Blockers | Sandbox sender — to deliver to arbitrary recipients, verify a domain at https://resend.com/domains |
+| Notes | API key was posted in chat once — see `security-audit.md` for rotation guidance |
+
+## Stripe
+
+| Field | Value |
+|---|---|
+| Category | Payments |
+| Status | 🔵 |
+| Configured? | Not installed |
+| Notes | Schema has `public.subscriptions` ready. Will install `stripe` + `@stripe/stripe-js` in Phase 5; webhook handler at `/api/stripe/webhook` |
+
+## PostHog
+
+| Field | Value |
+|---|---|
+| Category | Product analytics |
+| Status | 🔵 |
+| Configured? | Not installed |
+| Notes | Planned: event tracking + funnels + session replay. Phase 5 — `pnpm add posthog-js`; install in `apps/web/src/components/providers.tsx` |
+
+## Sentry
+
+| Field | Value |
+|---|---|
+| Category | Error monitoring |
+| Status | 🔵 |
+| Configured? | Backend `apps/api` has Sentry config; frontend pending |
+| Notes | `pnpm add @sentry/nextjs`, instrument the app, set `SENTRY_DSN` (and `SENTRY_AUTH_TOKEN` for source-map upload) |
+
+## OpenAI / Anthropic / Vercel AI Gateway
+
+| Field | Value |
+|---|---|
+| Category | AI / LLM |
+| Status | 🔵 |
+| Configured? | Not installed |
+| Notes | Planned for AI renders + investment match scoring + chatbot. Defer to Phase 5 |
+
+## FastAPI backend (apps/api)
+
+| Field | Value |
+|---|---|
+| Category | API |
+| Status | 🟡 |
+| Configured? | Yes — Docker Compose dev runtime |
+| Working? | Yes locally; only `/review` consumed from frontend |
+| Production ready? | No — not deployed |
+| Frontend connected? | Partial — review queue only |
+| Backend connected? | Postgres + Redis via Docker Compose |
+| Env vars added? | Yes (`apps/api/app/config.py` reads env) |
+| Vercel configured? | N/A — FastAPI lives on its own host |
+| Notes | Phase 3 decision: keep FastAPI vs. migrate to Supabase Edge Functions |
+
+## PostgreSQL (local Docker)
+
+| Field | Value |
+|---|---|
+| Category | Database (dev) |
+| Status | 🟢 |
+| Notes | Used by FastAPI in dev. Production DB will be Supabase Postgres |
+
+## Stitch / Claude Code / ChatGPT / Claude
+
+| Field | Value |
+|---|---|
+| Category | Dev tools (external) |
+| Status | 🟢 |
+| Notes | Not in the runtime stack — pair-programming + design ref tools only |
+
+## CoStar / STR / Booking / Catastro / CBRE / MSCI
+
+| Field | Value |
+|---|---|
+| Category | Future data sources |
+| Status | 🔵 |
+| Notes | All listed in `HOTELVALORA_TECH_STACK_MASTER.md` Future Data Sources table — no integration today; CoStar + Excel ingestion has a parser in `services/data_pipeline` |
+
+---
+
+## Health summary (snapshot)
+
+| Status | Count |
+|---|---|
+| 🟢 Working | 14 |
+| 🟡 Partial | 6 |
+| 🔴 Not configured | 4 |
+| ⚫ Blocked | 0 |
+| 🔵 Planned | 11 |
+
+**Infrastructure health score: 67%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 14×1 + 6×0.5 = 17 of 24 active services = 71%; adjusted down 4pts for the schema-not-applied gap)
