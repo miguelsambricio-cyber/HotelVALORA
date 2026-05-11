@@ -12,13 +12,15 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | GitHub | github.com/miguelsambricio-cyber/HotelVALORA |
 | Next.js 14 + React 18 + TS | apps/web |
 | Tailwind CSS | apps/web |
-| Zustand (auth · investment · library stores) | apps/web/src/lib/* |
+| Zustand (auth fallback · investment · library stores) | apps/web/src/lib/* |
 | TanStack Query — /review + /library (4 surfaces) | hooks in `lib/api/*` + `lib/library/queries/*` |
 | Mapbox GL | /compset + /report/competitive-set + /report/market-overview |
 | Mapbox token | Vercel encrypted env |
 | Resend SDK | server actions in apps/web/src/lib/email/* |
 | Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted |
-| Mock Zustand auth store | apps/web/src/lib/auth/store.ts |
+| `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase or mock at build time |
+| Auth middleware (Supabase session refresh + protected-route gating) | `apps/web/src/middleware.ts` |
+| OAuth callback handler | `apps/web/src/app/auth/callback/route.ts` |
 | Supabase clients (lib/supabase/*) | barrel split (browser-only); server-only direct-imports |
 | Supabase schema applied — 32 tables, all with RLS | project `twebgqutuqgonabvhzjk` (eu-central, PG 17) — migrations `0001`–`0005` |
 | Supabase Storage — 5 buckets with RLS | `reports`/`pdfs`/`excel-uploads`/`renders`/`avatars` provisioned via migration `0003` + scoped listing fix in `0004` |
@@ -28,23 +30,23 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Postgres (local Docker) | apps/api dev only |
 | FastAPI `/review` surface | apps/api/app/api/v1/review |
 
-## 🟡 Partial (4)
+## 🟡 Partial (6)
 
 | Service | What's missing |
 |---|---|
+| Supabase Auth (production runtime) | Code complete (`useAuth` adapter, `/auth/callback`, middleware). Activation pending Supabase Dashboard wiring + `AUTH_ENABLED=true` / `NEXT_PUBLIC_AUTH_ENABLED=true` on Vercel — see `docs/auth.md` |
+| Google OAuth provider | Code routes through Supabase. Pending OAuth client creation at console.cloud.google.com + paste credentials into Supabase Dashboard |
 | Library institutional map | Static grayscale image — swap to Mapbox in Phase 4 |
-| Auth.js v5 scaffold | OAuth credentials missing; `AUTH_SECRET` + `AUTH_ENABLED` not set |
 | FastAPI backend | Built endpoints (valuations/imports/auth) NOT consumed by frontend |
 | Resend sandbox sender | Only delivers to Resend account owner |
 | PDF exports | `window.print()` wrapper; server-side renderer planned |
 
-## 🔴 Not configured (4)
+## 🔴 Not configured (2)
 
 | Service | Activation |
 |---|---|
-| Google OAuth provider | Create app at console.cloud.google.com/apis/credentials |
-| LinkedIn OAuth provider | Create app at linkedin.com/developers/apps |
-| Apple OAuth provider | Apple Developer Account ($99/yr) + Service ID + .p8 key |
+| LinkedIn OAuth provider | Create app at linkedin.com/developers/apps + enable LinkedIn in Supabase Dashboard |
+| Apple OAuth provider | Apple Developer Account ($99/yr) + Service ID + .p8 + enable Apple in Supabase Dashboard |
 | GitHub Actions CI | Phase 5 — add typecheck + lint workflow |
 
 ## ⚫ Blocked (0)
@@ -68,14 +70,14 @@ None.
 
 ## Health score
 
-**19 🟢 · 4 🟡 · 4 🔴 · 0 ⚫ across 27 active services**
+**19 🟢 · 6 🟡 · 3 🔴 · 0 ⚫ across 28 active services**
 
-Weighted score: (19 × 1.0 + 4 × 0.5 + 4 × 0.0) / 27 = **78%** (up from 76% — Library data + Library production reads flipped to 🟢).
+Weighted score: (19 × 1.0 + 6 × 0.5 + 3 × 0.0) / 28 = **78.6%**. Supabase Auth + Google OAuth joined as 🟡 (code complete · manual Dashboard activation pending). Flipping them to 🟢 after the operator finishes the `docs/auth.md` checklist takes the score to **82%**.
 
 ## Next 5 actions (prioritised)
 
-1. **Replace mock Zustand auth** — either swap to Supabase Auth or keep Auth.js v5 + `@auth/supabase-adapter`. Keep the `useAuth()` surface. Once signed in, the demo user (UUID `…010001`) sees real favourites; the optimistic toggle becomes truthful.
-2. **Realtime subscription on `valuations`** — wire a `supabase.channel("public:valuations").on("postgres_changes", …)` listener that calls `queryClient.invalidateQueries({ queryKey: libraryKeys.all })`.
-3. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients.
-4. **Create Google OAuth client** — fastest of the three providers; unblocks Auth.js production wire.
-5. **Generate `AUTH_SECRET`** (`openssl rand -base64 32`) + flip `AUTH_ENABLED=true` once OAuth credentials are in place.
+1. **Activate Supabase Auth** — follow `docs/auth.md`: Google Cloud Console OAuth client → Supabase Dashboard (Providers + URL allowlist) → Vercel `AUTH_ENABLED=true` + `NEXT_PUBLIC_AUTH_ENABLED=true` → redeploy.
+2. **Add sign-up + password-reset flows** — `supabase.auth.signUp` and `supabase.auth.resetPasswordForEmail`. Today only Google OAuth creates accounts.
+3. **Realtime subscription on `valuations`** — `supabase.channel("public:valuations").on("postgres_changes", …)` → `queryClient.invalidateQueries({ queryKey: libraryKeys.all })`.
+4. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients.
+5. **Workspace switcher** — read `public.user_roles` joined with `public.organizations`; surface in AppHeader.

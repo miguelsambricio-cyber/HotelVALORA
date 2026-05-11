@@ -1,19 +1,29 @@
 "use client";
 
-// OAuth interaction hook — Auth.js v5 wire-up.
+// OAuth sign-in hook — shared between the login card and the linked-
+// accounts panel.
 //
-// `signInWithProvider(id)` calls `signIn(providerId)` from
-// `next-auth/react`. Auth.js itself handles the redirect to the
-// provider's OAuth page and the callback round-trip via the route
-// handler at `/api/auth/[...nextauth]`.
+// Two engines, picked at runtime by `isAuthEnabledClient()`:
 //
-// Until OAuth credentials are populated in the environment
-// (GOOGLE_CLIENT_ID, LINKEDIN_CLIENT_ID, APPLE_CLIENT_ID, …) the
-// provider handshake will 500 at runtime — the UI surface still
-// captures intent and routes correctly. The middleware route
-// enforcement is opt-in via `AUTH_ENABLED=true`.
+//   • Supabase Auth (production)
+//       `supabase.auth.signInWithOAuth({ provider, options: { redirectTo }})`
+//       Supabase handles the OAuth dance with the provider (creds set
+//       in the Supabase Dashboard, NOT in app env). On success Supabase
+//       redirects back to `/auth/callback?code=...&next=<...>`, which
+//       exchanges the code for an HttpOnly session cookie and forwards
+//       to `next`.
+//
+//   • Auth.js v5 (legacy / parked)
+//       Falls through to `next-auth/react`'s `signIn(providerId)` when
+//       Supabase Auth is disabled. The Auth.js scaffold still ships in
+//       the repo for future non-OAuth flows (magic links, credentials).
+//
+// Surface is unchanged: components keep calling
+// `signInWithProvider("google")` exactly the same way.
 
 import { signIn, signOut } from "next-auth/react";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { isAuthEnabledClient } from "./auth-mode";
 import { OAUTH_PROVIDERS } from "./providers";
 import type { OAuthProvider } from "./types";
 
@@ -22,6 +32,17 @@ export interface OAuthSignInResult {
   error?: string;
 }
 
+const SUPABASE_PROVIDER_MAP: Record<OAuthProvider, string> = {
+  google: "google",
+  linkedin: "linkedin_oidc",
+  apple: "apple",
+  microsoft: "azure",
+};
+
+/** Default landing target after sign-in. Single source so the callback
+ *  handler and this hook stay in lockstep. */
+const DEFAULT_CALLBACK_PATH = "/settings/profile";
+
 export function useOAuth() {
   const signInWithProvider = async (
     id: OAuthProvider,
@@ -29,23 +50,54 @@ export function useOAuth() {
     const provider = OAUTH_PROVIDERS[id];
     if (!provider.enabled) {
       console.warn(
-        `[auth] OAuth provider "${id}" is disabled in the registry. ` +
-          `Flip OAUTH_PROVIDERS["${id}"].enabled = true to activate.`,
+        `[auth] OAuth provider "${id}" is disabled in the registry.`,
       );
       return { ok: false, error: "Provider not enabled" };
     }
 
+    // Production path — Supabase Auth.
+    if (isAuthEnabledClient()) {
+      try {
+        const supabase = createBrowserSupabaseClient();
+        const origin =
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://www.hotelvalora.com";
+        const next = encodeURIComponent(DEFAULT_CALLBACK_PATH);
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: SUPABASE_PROVIDER_MAP[id] as "google" | "linkedin_oidc" | "apple" | "azure",
+          options: {
+            redirectTo: `${origin}/auth/callback?next=${next}`,
+            queryParams:
+              id === "google"
+                ? { access_type: "offline", prompt: "consent" }
+                : undefined,
+          },
+        });
+        if (error) {
+          console.error(`[auth] Supabase signInWithOAuth(${id}) failed`, error);
+          return { ok: false, error: error.message };
+        }
+        return { ok: true };
+      } catch (err) {
+        console.error(`[auth] Supabase signInWithOAuth(${id}) threw`, err);
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Sign-in failed",
+        };
+      }
+    }
+
+    // Legacy path — Auth.js v5 scaffold (no real backend until
+    // GOOGLE_CLIENT_ID etc. are populated and AUTH_ENABLED flips).
     try {
-      // `signIn` returns void when `redirect: true` (default) — Auth.js
-      // performs a hard navigation to the provider's authorize URL and
-      // never resolves the promise. We treat that as a success path.
       await signIn(provider.nextAuthId, {
-        callbackUrl: "/settings/profile",
+        callbackUrl: DEFAULT_CALLBACK_PATH,
         redirect: true,
       });
       return { ok: true };
     } catch (err) {
-      console.error(`[auth] signIn(${id}) failed`, err);
+      console.error(`[auth] next-auth signIn(${id}) failed`, err);
       return {
         ok: false,
         error: err instanceof Error ? err.message : "Sign-in failed",
@@ -56,14 +108,17 @@ export function useOAuth() {
   const unlinkProvider = async (
     id: OAuthProvider,
   ): Promise<OAuthSignInResult> => {
-    // True account-unlinking needs a server endpoint (`DELETE
-    // /api/account/linked/:id`) backed by a real DB adapter — wired in
-    // Phase 3 with Supabase. For now `signOut` is the closest local
-    // approximation: drops the current session, the user re-links on
-    // the next sign-in.
-    console.warn(
-      `[auth] Unlink for "${id}" requires the Supabase adapter — Phase 3.`,
-    );
+    // Unlinking is a per-engine concern. Today's surface is a soft
+    // sign-out: drops the current session so the user re-links on the
+    // next OAuth tap. Full unlink (deleting the `oauth_accounts` row +
+    // revoking the provider token) ships with the account settings PR.
+    if (isAuthEnabledClient()) {
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    }
+    console.warn(`[auth] Unlink for "${id}" — Auth.js scaffold inert.`);
     await signOut({ redirect: false });
     return { ok: true };
   };

@@ -89,41 +89,41 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Blockers | None |
 | Notes | Migrations `0001`–`0005` applied via Supabase MCP. Library surfaces production-backed via TanStack Query hooks + adapter. Next: swap mock auth to Supabase Auth / Auth.js adapter and add `postgres_changes` realtime invalidation |
 
-## Auth.js v5
+## Supabase Auth (production auth runtime)
 
 | Field | Value |
 |---|---|
 | Category | Auth runtime |
 | Status | 🟡 |
-| Configured? | Partially — providers wired, no credentials |
-| Working? | Routes resolve, middleware is pass-through (`AUTH_ENABLED` flag) |
-| Production ready? | No — needs OAuth credentials per provider + `AUTH_SECRET` + `AUTH_ENABLED=true` |
-| Partially implemented? | Yes |
-| Frontend connected? | Yes (`<SessionProvider>` in `components/providers.tsx`; `useOAuth.signInWithProvider` calls `signIn()`) |
-| Backend connected? | Auth.js own JWT (no DB adapter today) |
-| Env vars added? | Placeholders only — `AUTH_SECRET`, `AUTH_URL`, `AUTH_ENABLED`, `{GOOGLE,LINKEDIN,APPLE}_CLIENT_{ID,SECRET}` |
-| Vercel configured? | No |
-| GitHub safe? | Yes (all values are placeholders) |
-| Documentation complete? | Yes (`docs/data-models/user-models.md`) |
-| Local tested? | Scaffold compiles |
-| Production tested? | No |
-| Blockers | OAuth app creation per provider |
-| Notes | Apple needs Developer Account (paid) + Service ID + .p8 key. Google + LinkedIn are free |
+| Configured? | Code complete — middleware refresh, `/auth/callback` handler, `useAuth()` adapter, OAuth hook. Activation pending Supabase Dashboard wiring + Vercel flags |
+| Working? | Yes when `AUTH_ENABLED=true` AND a provider is enabled in Supabase Dashboard. Default off → Zustand mock keeps the app accessible |
+| Production ready? | Yes — code paths complete. Manual two-step activation per `docs/auth.md` |
+| Partially implemented? | Yes (no signup flow yet; Google OAuth is the only path to create an account) |
+| Frontend connected? | Yes (`useAuth()` · `useOAuth().signInWithProvider` · `AuthCard.signIn` · `/login` page) |
+| Backend connected? | Supabase Auth (`auth.users` → `handle_new_user` trigger → `public.users` + `profiles`) |
+| Env vars added? | `AUTH_ENABLED` + `NEXT_PUBLIC_AUTH_ENABLED` (both off in Vercel today) |
+| Vercel configured? | Schema + Storage env yes; auth flags pending operator decision |
+| GitHub safe? | Yes (no OAuth secrets in repo — they live in Supabase Dashboard) |
+| Documentation complete? | Yes (`docs/auth.md` activation checklist) |
+| Local tested? | Typecheck + production build clean |
+| Production tested? | Pending Google Cloud Console + Supabase Dashboard setup |
+| Blockers | None code-side. Activation = manual dashboard work per `docs/auth.md` |
+| Notes | Auth.js v5 scaffold stays in repo (inert) for future non-OAuth flows. `useAuth()` API unchanged — the dual-source picker handles the migration |
 
 ## Google OAuth
 
 | Field | Value |
 |---|---|
 | Category | OAuth identity provider |
-| Status | 🔴 |
-| Configured? | Provider wired in `OAUTH_PROVIDERS` registry; no client id/secret |
-| Working? | No |
-| Production ready? | No |
-| Frontend connected? | Yes (LinkedInstitutionalAccounts surface routes to signIn) |
-| Backend connected? | N/A — Auth.js handles handshake |
-| Env vars added? | Placeholders only |
-| Vercel configured? | No |
-| Blockers | Need to create OAuth client at `console.cloud.google.com/apis/credentials` with authorized redirect URI `https://www.hotelvalora.com/api/auth/callback/google` |
+| Status | 🟡 |
+| Configured? | Code routes through `supabase.auth.signInWithOAuth({ provider: "google" })` when `NEXT_PUBLIC_AUTH_ENABLED=true`. Credentials live in Supabase Dashboard (NOT Vercel env) |
+| Working? | No — needs OAuth client at https://console.cloud.google.com/apis/credentials with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback` |
+| Production ready? | After Dashboard wiring per `docs/auth.md` step 1–2 |
+| Frontend connected? | Yes (LinkedInstitutionalAccounts surface · Google button calls `signInWithProvider("google")`) |
+| Backend connected? | Supabase Auth handles the OAuth dance server-side |
+| Env vars added? | None on Vercel — credentials are inside Supabase |
+| Vercel configured? | Not needed |
+| Blockers | Manual Dashboard setup (Google Cloud Console OAuth client + Supabase Dashboard Auth → Providers → Google) |
 | Notes | OpenID Connect scope set: `openid profile email` |
 
 ## LinkedIn OAuth
@@ -253,5 +253,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 78%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 19×1 + 4×0.5 = 21 of 27 active services = 78% after Library data + Library production reads flipped to 🟢)
+**Infrastructure health score: 76%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 19×1 + 6×0.5 + 2×0.0 = 22 of 29 active services = 76%. Supabase Auth + Google OAuth flipped to 🟡 — code complete, manual Dashboard activation pending. Net dip: two new "code complete but credentials pending" rows joined the inventory, slightly diluting the score until activation flips them to 🟢.)

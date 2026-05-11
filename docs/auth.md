@@ -1,110 +1,235 @@
-# Auth
+# Authentication
 
-**Mechanism:** JWT (HS256) via `python-jose`  
-**Passwords:** bcrypt via `passlib`  
-**Implementation:** `app/core/security.py`, `app/api/v1/auth/auth.py`
+HotelVALORA's production authentication runs on **Supabase Auth** (OAuth + sessions + cookie management). The Auth.js v5 scaffold is still in the repo but inert — kept for future non-OAuth flows.
 
----
-
-## Token Types
-
-| Type | Lifetime | Payload fields |
-|---|---|---|
-| Access | 60 min (`JWT_ACCESS_TOKEN_EXPIRE_MINUTES`) | `sub` (user UUID), `exp`, `type: "access"`, `role` |
-| Refresh | 30 days (`JWT_REFRESH_TOKEN_EXPIRE_DAYS`) | `sub`, `exp`, `type: "refresh"` |
-
-Both signed with `APP_SECRET_KEY` using HS256.
+**Last refreshed:** 2026-05-11
 
 ---
 
-## Endpoints
+## TL;DR
 
-### `POST /auth/register`
-```json
-{ "email": "...", "full_name": "...", "password": "...", "role": "analyst" }
+| Concern | Implementation |
+|---|---|
+| OAuth dance | Supabase Auth (`supabase.auth.signInWithOAuth`) |
+| Provider credentials | Supabase Dashboard → Authentication → Providers (NOT Vercel env) |
+| Cookie strategy | HttpOnly, `__Secure-` prefixed in prod, `sameSite: lax` (handled by `@supabase/ssr`) |
+| Session refresh | Middleware (`apps/web/src/middleware.ts`) calls `supabase.auth.getUser()` to rotate the JWT on every request |
+| Protected routes | `/settings`, `/library`, `/report`, `/dashboard` (only when `AUTH_ENABLED=true`) |
+| User provisioning | `handle_new_user` trigger on `auth.users` → auto-inserts `public.users` + `public.profiles` |
+| RBAC | `public.users.role` enum (`user` / `admin` / `owner`); RLS uses `auth.uid()` |
+| Org membership | `public.user_roles (user_id, organization_id, role)` join |
+| Client surface | `useAuth()` — engine-agnostic, picks Supabase or Zustand mock at build time |
+| Migration safety | `AUTH_ENABLED` flag, off by default; Zustand mock continues to drive the app |
+
+---
+
+## Architecture
+
 ```
-Returns `UserRead`. Raises `ConflictError` if email already exists.
-
-### `POST /auth/login`
-```json
-{ "email": "...", "password": "..." }
+Browser
+  /login → AuthCard (email/password)    │  Google button → useOAuth
+                │                       │           │
+                ▼                       ▼           │
+        signInWithPassword     signInWithOAuth(google)
+                │                       │
+                └─── Supabase JS (createBrowserClient) ───┐
+                                                          │
+                                                          ▼
+                                          Supabase Auth (twebgqutuqgonabvhzjk)
+                                                          │
+                                                          │ Google OAuth dance
+                                                          ▼
+                                          accounts.google.com → user consents
+                                                          │
+                                                          ▼
+                                          auth.users row created
+                                                          │ (handle_new_user trigger)
+                                                          ▼
+                                          public.users + public.profiles populated
+                                                          │
+                                                          ▼
+                                          Redirect ${origin}/auth/callback?code=…
+                                                          │
+                                                          ▼
+                                          app/auth/callback/route.ts
+                                            exchangeCodeForSession → HttpOnly cookies
+                                                          │
+                                                          ▼
+                                          Redirect to ?next=/settings/profile
 ```
-Returns `{ "access_token": "...", "refresh_token": "..." }`.  
-Raises `UnauthorizedError` if credentials invalid or account inactive.
 
-### `POST /auth/refresh`
-```json
-{ "refresh_token": "..." }
+## File map
+
+| Concern | File |
+|---|---|
+| `useAuth()` — unified hook | `apps/web/src/lib/auth/use-auth.ts` |
+| Supabase auth adapter | `apps/web/src/lib/auth/use-supabase-auth.ts` |
+| Zustand mock store | `apps/web/src/lib/auth/store.ts` |
+| OAuth provider hook | `apps/web/src/lib/auth/use-oauth.ts` |
+| Build-time flags | `apps/web/src/lib/auth/auth-mode.ts` |
+| OAuth callback handler | `apps/web/src/app/auth/callback/route.ts` |
+| Route protection middleware | `apps/web/src/middleware.ts` |
+| Server session readers | `apps/web/src/lib/supabase/auth-helpers.ts` |
+| Login surface | `apps/web/src/app/login/page.tsx` + `components/auth/auth-card.tsx` |
+| Linked Accounts panel | `components/auth/linked-institutional-accounts.tsx` |
+| Auth.js v5 scaffold (inert) | `apps/web/src/auth.{config,}.ts`, `app/api/auth/[...nextauth]/route.ts` |
+
+---
+
+## Activation checklist
+
+Follow these steps **in order**. Until step 5 is done the app continues to run on the Zustand mock, so production is never gated on a broken half-state.
+
+### 1. Google Cloud Console
+
+1. Open https://console.cloud.google.com/apis/credentials.
+2. **Project**: create a new project named "HotelVALORA" or pick the existing one. (Top-left dropdown.)
+3. **OAuth consent screen** (left nav):
+   - **User type**: External (unless you're on Google Workspace and want internal-only).
+   - **App name**: HotelVALORA
+   - **User support email**: your email
+   - **App logo**: optional but recommended for production
+   - **App domain**: `https://www.hotelvalora.com`
+   - **Authorized domains**: `hotelvalora.com` AND `supabase.co`
+   - **Developer contact**: your email
+   - **Scopes**: `openid`, `email`, `profile` (the defaults)
+   - **Test users** (only if you keep status = "Testing"): add your own email so you can sign in before the app is "Published".
+4. **Credentials** → **Create Credentials** → **OAuth client ID**:
+   - **Application type**: Web application
+   - **Name**: HotelVALORA Web
+   - **Authorized JavaScript origins**:
+     - `https://hotelvalora.com`
+     - `https://www.hotelvalora.com`
+     - `http://localhost:3000`
+   - **Authorized redirect URIs** — **CRITICAL**:
+     - `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback` ← Supabase is the OAuth callback target
+     - (No need to add `localhost` here; Supabase's callback handles the inner redirect.)
+   - **Save**. Copy the **Client ID** and **Client Secret** — you'll paste them into Supabase next.
+
+### 2. Supabase Dashboard — wire Google provider
+
+1. Open https://supabase.com/dashboard/project/twebgqutuqgonabvhzjk/auth/providers.
+2. Find **Google** in the provider list → toggle **Enable**.
+3. Paste the **Client ID** + **Client Secret** from step 1.
+4. **Authorized Client IDs** can stay empty (only needed for native iOS / Android client IDs).
+5. **Save**.
+
+### 3. Supabase Dashboard — URL allowlist
+
+1. Open https://supabase.com/dashboard/project/twebgqutuqgonabvhzjk/auth/url-configuration.
+2. **Site URL**: `https://www.hotelvalora.com`
+3. **Redirect URLs** (allowlist — every entry that may appear in `redirectTo`):
+   - `https://www.hotelvalora.com/auth/callback`
+   - `https://hotelvalora.com/auth/callback`
+   - `http://localhost:3000/auth/callback`
+   - `https://*.vercel.app/auth/callback` (preview deploys — Supabase supports wildcards in the last subdomain)
+4. **Save**.
+
+### 4. Vercel env vars
+
+```bash
+vercel env add AUTH_ENABLED production
+# → paste: true
+vercel env add NEXT_PUBLIC_AUTH_ENABLED production
+# → paste: true
 ```
-Validates `type == "refresh"`. Returns new token pair. Old tokens are not revoked (stateless).
 
-### `GET /auth/me`
-Requires `Authorization: Bearer <access_token>`. Returns current user profile.
+Optionally mirror to `preview` if previews should require auth.
 
----
+> Both vars must be flipped together. `AUTH_ENABLED` gates the middleware (server / edge); `NEXT_PUBLIC_AUTH_ENABLED` gates the client-side `useAuth()` source picker. With only one set, the engines disagree and `/login` would loop.
 
-## Security Functions (`app/core/security.py`)
+### 5. Redeploy & verify
 
-```python
-hash_password(plain: str) -> str               # bcrypt hash
-verify_password(plain, hashed) -> bool         # bcrypt verify
-create_access_token(subject, extra?) -> str    # signs JWT with role in payload
-create_refresh_token(subject) -> str           # signs JWT, type="refresh"
-decode_token(token) -> dict                    # raises UnauthorizedError on invalid/expired
+```bash
+cd apps/web
+vercel deploy --prod --yes
 ```
 
----
+After deploy:
 
-## Frontend Storage
+1. Open https://www.hotelvalora.com/login in an incognito window.
+2. Click the **Google** button under "Linked institutional accounts".
+3. You should be redirected to `accounts.google.com`, consent, and land on `/settings/profile`.
+4. Hit `/dev/supabase-test` — "Current Supabase session" should now show your email.
+5. Hit `/library/favorites-map` — should render normally; the ⭐ toggle now persists to `public.favorite_reports`.
 
-Tokens stored in `localStorage`:
-- `access_token` — attached to every API request by Axios interceptor
-- `refresh_token` — sent to `/auth/refresh` manually when access expires
+### Local development
 
-On 401: both tokens cleared, redirect to `/login`. Token refresh is not automatic — must be wired explicitly if needed.
+In `apps/web/.env.local`:
 
----
+```bash
+AUTH_ENABLED=true
+NEXT_PUBLIC_AUTH_ENABLED=true
+```
 
-## User Roles
-
-`role` field on `users` table: `analyst` | `manager` | `admin` (default: `analyst`).  
-Role is embedded in the access token payload (`"role"` claim). Route-level role enforcement is not yet implemented — all authenticated users can access all endpoints.
-
----
-
-## Notes
-
-- No token revocation / blacklist (stateless). Rotate `APP_SECRET_KEY` to invalidate all tokens.
-- `/health` is public — no auth required.
-- OpenAPI `/docs` disabled in production (`is_production=True`).
+`pnpm dev` will pick those up. The Google redirect resolves to `http://localhost:3000/auth/callback` because the OAuth `redirectTo` is built from `window.location.origin`.
 
 ---
 
-## Frontend Auth Prep (Client — `apps/web/src/lib/auth/`)
+## Why Supabase Auth and not Auth.js v5 + `@auth/supabase-adapter`?
 
-The web app ships a NextAuth-shaped auth layer that is wired through every UI surface but has **no real OAuth runtime in v1**. The shape is deliberate so activating real providers later is a single PR with no UI churn.
+The HotelVALORA schema was designed around Supabase Auth from day one:
 
-### Modules
-- `types.ts` — `UserTier`, `User`, `AuthSession`, `OAuthProvider`, `LinkedAccount`
-- `store.ts` — `useAuthStore` (Zustand mock signIn/signOut, in-memory session, tier inferred from email domain)
-- `providers.ts` — `OAUTH_PROVIDERS` registry (NextAuth-shaped: `nextAuthId`, `scopes`, `enabled: false`, brand colour)
-- `use-oauth.ts` — `useOAuth()` hook with `signInWithProvider` / `unlinkProvider` / `isProviderEnabled`. Bodies are no-op + `console.warn` until activated.
+- `public.users.id` has a foreign key on `auth.users.id`.
+- A `handle_new_user` trigger on `auth.users` populates `public.users` + `public.profiles` automatically.
+- Every RLS policy uses `auth.uid()` — the Postgres function that resolves to the Supabase JWT's `sub` claim.
 
-### UI consumers
-- `AppHeader` — auto-derives the tier badge from `useAuth`
-- `AuthCard` — calls `useAuth().signIn(email, password)` (mock — accepts any well-formed input)
-- `LinkedInstitutionalAccounts` — renders provider cards, routes click intent through `useOAuth().signInWithProvider`. Buttons are placeholders until an `OAUTH_PROVIDERS[id].enabled` flips to `true`.
+Using `@auth/supabase-adapter` would have meant:
 
-### Tier resolution (`lib/report/use-tier.ts`)
-Resolution priority: `?tier=` URL override → authenticated user's tier → default `premium`. Helpers: `canEditAssumptions(t)` (premium + institutional), `canViewFinancials(t)` (anything except free).
+- Creating a separate `next_auth.users` table that does **not** participate in the FK above.
+- Either dropping the FK (and the trigger) or duplicating every signup into both schemas.
+- Manually minting a Supabase-compatible JWT in the Auth.js `session` callback (signed with `SUPABASE_JWT_SECRET`) so the frontend Supabase client still gets `authenticated`-role RLS.
+- Carrying two cookie schemes (`__Secure-authjs.session-token` and `sb-…-auth-token`) in parallel.
 
-### NextAuth wire-up plan (when ready, NOT before)
-1. `pnpm add next-auth` in `apps/web`
-2. Flip `enabled: true` per provider in `OAUTH_PROVIDERS` (start with Google + LinkedIn — Apple needs Apple Developer + Services ID)
-3. `app/api/auth/[...nextauth]/route.ts` — iterate `getEnabledOAuthProviders()` to build `authOptions.providers[]`
-4. Wrap app in `<SessionProvider>` (in `app/layout.tsx` Providers)
-5. Replace `useOAuth().signInWithProvider` body with `signIn(provider.nextAuthId)`
-6. Replace `useAuthStore.signIn` body with `signIn("credentials", { email, password })` or remove if going OAuth-only
-7. Wire `user.tier` from JWT claim or DB lookup in NextAuth callbacks
+Net: Auth.js + adapter solves a problem Supabase Auth doesn't have, and adds two extra moving parts (`next_auth` schema, JWT-mint side-channel) on top of the existing one. We picked the cleaner side.
 
-UI components do not change. Inline comments in `providers.ts` and `use-oauth.ts` document the exact swap points.
+The Auth.js scaffold stays in the repo for future flows where it would add value:
+
+- **Magic-link email** with custom branded templates beyond what Supabase Auth surfaces.
+- **Credentials-grant SSO** (SAML, OIDC) for enterprise customers — Auth.js's third-party provider catalogue is wider.
+- **Account-linking workflows** that compose multiple OAuth providers under one HotelVALORA identity.
+
+When any of those land, the Auth.js handler at `/api/auth/[...nextauth]` is already wired through; the swap is local to that surface.
+
+---
+
+## Mock auth (development default)
+
+`apps/web/src/lib/auth/store.ts` exposes a Zustand mock store with `persist` middleware. When `NEXT_PUBLIC_AUTH_ENABLED` is unset (or `false`), `useAuth()` returns this mock — same shape, same behaviour the app has been shipping:
+
+- Any non-empty email + 4+ character password → sign in succeeds.
+- Tier inferred from email local-part (`premium@…`, `pro@…`, `enterprise@…`, etc).
+- Session persisted to `localStorage` under key `hv-auth-v1`.
+- `signOut()` clears the store.
+
+The mock is **not** removed when Supabase Auth activates — it stays available for developer demos and Vercel preview deploys that don't have OAuth credentials wired. The picker in `lib/auth/use-auth.ts` is the only thing that decides which source `useAuth()` returns.
+
+---
+
+## RBAC + organisations
+
+The schema already exposes the building blocks; the auth surface just has to read them.
+
+- **`public.users.role`** — platform-wide role (`user` / `admin` / `owner`). Set during signup via the `handle_new_user` trigger (defaults to `user`); flipped by an admin via a server action.
+- **`public.user_roles (user_id, organization_id, role org_role)`** — per-org role, where `org_role ∈ ('owner','admin','member','viewer')`. Use this to enforce "only org owners can promote a report", etc.
+- **`public.users.current_organization_id`** — the active workspace in the workspace switcher. Updated when the user clicks an org in the picker.
+
+`useAuth()` exposes `user.role` (platform role) and `user.organization` (current org id) today. The org-membership read (current_organization_id → organizations row) is opportunistic — the workspace switcher will fetch the full org row when it lands.
+
+---
+
+## What's still mock after this commit
+
+| Surface | Status |
+|---|---|
+| OAuth dance | ✅ Supabase Auth (Google ready; LinkedIn + Apple require Supabase Dashboard wiring) |
+| Email/password sign-in | ✅ Supabase Auth — but no signup flow yet, so existing accounts must onboard via Google first |
+| Sign-out | ✅ Supabase Auth |
+| Protected-route middleware | ✅ Supabase session check |
+| User row hydration into `useAuth()` | ✅ `public.users` + `public.profiles` join |
+| Session persistence | ✅ HttpOnly cookies, refreshed in middleware |
+| **Sign-up surface** | ❌ Not built — Google OAuth is the only path to create an account today |
+| **Password reset** | ❌ "¿Has olvidado la contraseña?" link still points back to `/login?reset=true`; needs a flow that calls `supabase.auth.resetPasswordForEmail(...)` |
+| **Linked accounts unlink** | ⚠️ Soft sign-out only; full unlink (delete `oauth_accounts` row + revoke provider token) needs a server action |
+| **Workspace switcher** | ❌ `user.organization` is the current org id but no UI exposes a switcher |
+| **`AUTH_ENABLED=false` (default)** | ✅ Zustand mock — kept on purpose so dev + preview deploys keep working |

@@ -24,21 +24,24 @@
 | **Supabase TS types regenerated** from the live schema — replaced the hand-rolled `types.ts` shim with the CLI-generated `Database` surface (1750 lines, all enums + FKs accurate) | *(this commit)* | ✅ |
 | **Supabase Storage buckets provisioned** via migration — 5 buckets (`reports`/`pdfs`/`excel-uploads`/`renders`/`avatars`) with 19 own-namespace RLS policies + size + MIME caps. Advisor warning on broad-public-read fixed by `0004` | *(this commit)* | ✅ |
 | **Typed Storage helpers** — `lib/supabase/storage.ts` (browser: `BUCKETS`, `uploadOwnFile`, `validateForBucket`, `getPublicUrl`) + `lib/supabase/storage-server.ts` (signed URLs, admin move/delete) | `2d891c2` | ✅ |
-| **Library surfaces wired to Supabase** — all four `/library/*` routes read `valuations` + `top_promote_reports` + `favorite_reports` via TanStack Query (`lib/library/queries/*` + `lib/library/adapters/valuation-to-report.ts`). Optimistic ⭐ toggle, loading/error/empty states, `mock-reports.ts` deleted. Bundle architecture fix: `@/lib/supabase` barrel split into browser-only re-exports | *(this commit)* | ✅ |
+| **Library surfaces wired to Supabase** — all four `/library/*` routes read `valuations` + `top_promote_reports` + `favorite_reports` via TanStack Query (`lib/library/queries/*` + `lib/library/adapters/valuation-to-report.ts`). Optimistic ⭐ toggle, loading/error/empty states, `mock-reports.ts` deleted. Bundle architecture fix: `@/lib/supabase` barrel split into browser-only re-exports | `d754a69` | ✅ |
+| **Production authentication — Supabase Auth (Google OAuth-ready)** — `useAuth()` rewritten as a dual-source picker (Supabase Auth when `NEXT_PUBLIC_AUTH_ENABLED=true`, Zustand mock otherwise). `/auth/callback` route handler exchanges OAuth codes for HttpOnly session cookies. Middleware enforces `/settings`, `/library`, `/report`, `/dashboard` when `AUTH_ENABLED=true`. RLS now resolves naturally via `auth.uid()`; no schema changes. Auth.js v5 scaffold stays parked for future non-OAuth flows. Full activation checklist in `docs/auth.md`. | *(this commit)* | ✅ |
 
 ## In flight
 
 - 🟡 Architecture docs scaffolding (`docs/architecture/*`, `docs/roadmap/*`, `docs/features/*`, etc.)
+- 🟡 **Auth activation manual steps** — Google Cloud Console (OAuth client) + Supabase Dashboard (Google provider + redirect URL allowlist) + Vercel env (`AUTH_ENABLED=true` · `NEXT_PUBLIC_AUTH_ENABLED=true`). Detailed checklist at `docs/auth.md`.
 
 ## Up next (rough order of pull)
 
-1. Replace the mock Zustand auth store with Supabase Auth (or keep Auth.js v5 + `@auth/supabase-adapter`) — keep the `useAuth()` surface unchanged. Once signed in, the demo user (UUID `…010001`) sees real favourites; the optimistic toggle becomes truthful.
-2. Realtime Library subscription — one `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`. Keys already designed for this.
-3. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route reading `valuations` by id.
-4. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
-5. Swap the static grayscale map background to Mapbox (Phase 4) — every `LibraryReport` already carries real `coordinates`.
-6. Marketplace placeholder — "Activate Top Promote" CTA inside the report shell (mock checkout).
-7. Verify a domain in Resend; create the Google OAuth client; generate `AUTH_SECRET`.
+1. Sign-up flow — today the only way to create an account is Google OAuth. Add a `supabase.auth.signUp` surface (email/password) and `supabase.auth.resetPasswordForEmail` (forgot password).
+2. Realtime Library subscription — one `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
+3. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route.
+4. Workspace switcher — read `public.user_roles` joined with `public.organizations`; surface in the AppHeader.
+5. Linked-accounts unlink — server action that deletes the `oauth_accounts` row and revokes the provider token.
+6. Library legend toggles + search wired to the table view too.
+7. Swap static grayscale map background to Mapbox (Phase 4).
+8. Verify a domain in Resend.
 
 ## Decisions made this sprint
 

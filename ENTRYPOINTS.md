@@ -38,13 +38,16 @@ Maps tasks to exact files. Start here before scanning.
 | Global app header (sticky, all pages) | `apps/web/src/components/layout/app-header.tsx` |
 | Settings shell + sidebar | `apps/web/src/components/settings/settings-layout.tsx` |
 | Settings sidebar nav items | `apps/web/src/components/settings/settings-sidebar.tsx` |
-| Auth store (Zustand persist) + tier system | `apps/web/src/lib/auth/store.ts`, `lib/auth/tier.ts` |
-| OAuth provider registry (Auth.js-shaped) | `apps/web/src/lib/auth/providers.ts` |
+| Unified auth hook (`useAuth()` — picks Supabase or mock at build time) | `apps/web/src/lib/auth/use-auth.ts` |
+| Supabase auth adapter (session subscribe + tier hydrate) | `apps/web/src/lib/auth/use-supabase-auth.ts` |
+| Build-time auth-mode flags | `apps/web/src/lib/auth/auth-mode.ts` |
+| OAuth callback route (exchange code → cookies) | `apps/web/src/app/auth/callback/route.ts` |
+| OAuth sign-in hook (Supabase Auth + Auth.js fallback) | `apps/web/src/lib/auth/use-oauth.ts` |
+| Zustand mock auth (fallback when AUTH_ENABLED=false) | `apps/web/src/lib/auth/store.ts` |
+| OAuth provider registry | `apps/web/src/lib/auth/providers.ts` |
 | Provider brand marks (LinkedIn/Google/Apple/Microsoft) | `apps/web/src/components/auth/provider-marks.tsx` |
-| Auth.js v5 — edge-safe config (providers, callbacks, cookies) | `apps/web/src/auth.config.ts` |
-| Auth.js v5 — full instance (`auth()` / `signIn()` / `signOut()` / `handlers`) | `apps/web/src/auth.ts` |
-| Auth.js v5 — OAuth route handler | `apps/web/src/app/api/auth/[...nextauth]/route.ts` |
-| Edge middleware (gates `/settings`, `/library`, `/report`, `/dashboard`) | `apps/web/src/middleware.ts` |
+| Auth.js v5 scaffold (inert — kept for future non-OAuth flows) | `apps/web/src/auth.config.ts`, `apps/web/src/auth.ts`, `apps/web/src/app/api/auth/[...nextauth]/route.ts` |
+| Edge middleware (Supabase session refresh + protected-route redirect when AUTH_ENABLED=true) | `apps/web/src/middleware.ts` |
 | Auth.js session/JWT module augmentation | `apps/web/src/types/next-auth.d.ts` |
 | Investment criteria store (Zustand persist) | `apps/web/src/lib/investment/store.ts` |
 | Investment match engine stub + tier thresholds | `apps/web/src/lib/investment/match-engine.ts` |

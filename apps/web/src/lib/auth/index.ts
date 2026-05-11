@@ -11,8 +11,23 @@ export type {
   LinkedAccountState,
 } from "./types";
 
-// User session store (v1 mock → v2 NextAuth swap)
-export { useAuthStore, useAuth } from "./store";
+// User session store
+// `useAuthStore`  → raw Zustand mock (legacy direct access).
+// `useMockAuth`   → typed selector over the mock; used as the fallback
+//                   branch of `useAuth` when AUTH_ENABLED=false.
+// `useAuth`       → unified hook. Picks Supabase Auth or the mock at
+//                   build time via NEXT_PUBLIC_AUTH_ENABLED. THIS is
+//                   what every UI surface imports.
+export { useAuthStore, useMockAuth } from "./store";
+export { useAuth } from "./use-auth";
+export type { UseAuthResult } from "./use-auth";
+
+// Build-time flag helpers (server + client).
+export {
+  isAuthEnabledServer,
+  isAuthEnabledClient,
+  isSupabaseAuthConfigured,
+} from "./auth-mode";
 
 // OAuth provider registry (NextAuth-shaped)
 export type { OAuthProviderConfig } from "./providers";

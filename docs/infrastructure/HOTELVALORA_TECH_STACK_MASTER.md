@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (late evening — Library surfaces wired to Supabase via TanStack Query; demo seed live; `mock-reports.ts` retired).
+**Last refreshed:** 2026-05-11 (overnight — production auth wired via Supabase Auth + Google OAuth; `useAuth()` rewritten as a dual-source picker; Auth.js v5 scaffold parked).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -73,12 +73,14 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Auth.js v5 (next-auth 5.0.0-beta.31) | Auth runtime | 🟡 | Local + Vercel | Scaffolded; gated by `AUTH_ENABLED` | Flip when OAuth credentials land |
-| Google OAuth provider | OAuth | 🔴 | `GOOGLE_CLIENT_ID/SECRET` placeholders | Provider wired in `auth.config.ts` | Create app at https://console.cloud.google.com/apis/credentials |
-| LinkedIn OAuth provider | OAuth | 🔴 | `LINKEDIN_CLIENT_ID/SECRET` placeholders | Provider wired | Create app at https://www.linkedin.com/developers/apps |
-| Apple OAuth provider | OAuth | 🔴 | `APPLE_CLIENT_ID/SECRET` placeholders | Provider wired (JWT minting via .p8) | Create Service ID at https://developer.apple.com |
-| Microsoft / Azure AD | OAuth | 🔵 | Disabled in registry | Future enterprise SSO | — |
-| Mock Zustand auth store | Auth (dev only) | 🟢 | Local + Vercel | Email handle infers tier; survives Auth.js coexistence | Retire when Phase 3 wires Supabase adapter |
+| Supabase Auth | Auth runtime | 🟡 | Project provisioned; OAuth not yet enabled in Dashboard | Code wired (callback handler · middleware · `useAuth()` adapter · OAuth hook). `AUTH_ENABLED` flag still off — Zustand mock keeps the app accessible until activation | Activate via `docs/auth.md` checklist (Google Cloud + Supabase Dashboard + Vercel env) |
+| Google OAuth provider | OAuth | 🟡 | Credentials live in Supabase Dashboard (NOT Vercel env) | Code routes through `supabase.auth.signInWithOAuth({ provider: "google" })` when `AUTH_ENABLED=true` | Create OAuth client in Google Cloud Console + paste credentials into Supabase Dashboard |
+| LinkedIn OAuth provider | OAuth | 🔴 | Not wired in Supabase Dashboard | Code maps to Supabase's `linkedin_oidc` provider | Enable LinkedIn in Supabase Dashboard with OAuth credentials |
+| Apple OAuth provider | OAuth | 🔴 | Not wired in Supabase Dashboard | Apple Developer Account required ($99/yr) | Enable Apple in Supabase Dashboard with Service ID + .p8 |
+| Microsoft / Azure AD | OAuth | 🔵 | Future enterprise SSO | Code maps to Supabase's `azure` provider | — |
+| Auth.js v5 (next-auth 5.0.0-beta.31) | Auth scaffold (inert) | 🔵 | Local + Vercel | Files kept for future non-OAuth flows (magic links, credentials, SAML). Today: no consumer | Reactivate only if a flow needs Auth.js' provider catalogue |
+| Mock Zustand auth store | Auth (fallback) | 🟢 | Local + Vercel | Survives Supabase Auth coexistence — drives `useAuth()` when `NEXT_PUBLIC_AUTH_ENABLED` is unset/false | Stays — used by dev + preview deploys without OAuth |
+| Middleware route protection | Edge | 🟢 | Local + Vercel | Refreshes Supabase session cookie on every request; redirects unauthenticated requests on protected paths when `AUTH_ENABLED=true` | — |
 
 ### Payments
 

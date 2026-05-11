@@ -92,8 +92,10 @@ export const useAuthStore = create<AuthState>()(
   ),
 );
 
-/** Convenience hook — `[user, signIn, signOut]` tuple. */
-export function useAuth() {
+/** Internal hook — reads the Zustand mock store. Consumers should
+ *  import `useAuth` from `./use-auth` instead, which picks between this
+ *  mock and the Supabase-backed adapter at build-time. */
+export function useMockAuth() {
   const user = useAuthStore((s) => s.user);
   const signIn = useAuthStore((s) => s.signIn);
   const signOut = useAuthStore((s) => s.signOut);

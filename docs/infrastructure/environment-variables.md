@@ -23,19 +23,26 @@ Single inventory of every env var that exists, where it's set, who consumes it, 
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ | ✅ | Yes (when Supabase queries land) | Supabase · `lib/supabase/{client,server,middleware}.ts` | Safe in browser **iff** RLS policies enforced |
 | `SUPABASE_SERVICE_ROLE_KEY` | ❌ Server | ✅ | ✅ | Only for admin operations | Supabase · `lib/supabase/admin.ts` | Bypasses RLS — never expose |
 
-## Placeholders (in `.env.example`, NOT set yet)
+## Auth flags (Supabase Auth — production path)
+
+| Variable | Public? | Where to set | Notes |
+|---|---|---|---|
+| `AUTH_ENABLED` | ❌ Server | Vercel · per-environment | When `"true"`, middleware protects `/settings`, `/library`, `/report`, `/dashboard` against unauthenticated requests. Default off so the legacy Zustand mock keeps the app accessible. |
+| `NEXT_PUBLIC_AUTH_ENABLED` | ✅ | Vercel · per-environment | Mirror of the above for client-side `useAuth()` to pick the Supabase adapter over the mock. **Always set both together.** |
+
+Google OAuth credentials live in the **Supabase Dashboard** (Authentication → Providers → Google), NOT in Vercel env. Supabase handles the OAuth handshake server-side; the app never sees the Google client secret. See `docs/auth.md` for the full activation checklist.
+
+## Placeholders (legacy Auth.js scaffold — parked)
+
+The Auth.js v5 scaffold at `apps/web/src/auth.{config,}.ts` is kept in the repo for future non-OAuth flows (magic links, credentials, SAML). Today it is **inert** — `useOAuth().signInWithProvider` routes through Supabase Auth when `NEXT_PUBLIC_AUTH_ENABLED=true`. Set these only if Auth.js is reactivated:
 
 | Variable | Public? | Where to find it | Notes |
 |---|---|---|---|
-| `AUTH_SECRET` | ❌ Server | `openssl rand -base64 32` | Required by Auth.js. Set once via `vercel env add AUTH_SECRET production` |
-| `AUTH_URL` | ❌ Server | Set to production base URL (`https://www.hotelvalora.com`) | Auto-detected on Vercel from `VERCEL_URL`; only needed for non-Vercel hosts |
-| `AUTH_ENABLED` | ❌ Server | Manual flag — `"true"` or empty | Middleware gate. Flip to `"true"` only after OAuth credentials land |
-| `GOOGLE_CLIENT_ID` | ❌ Server | console.cloud.google.com/apis/credentials | OAuth client id for `https://www.hotelvalora.com/api/auth/callback/google` |
-| `GOOGLE_CLIENT_SECRET` | ❌ Server | Same place — copy from generated OAuth client | — |
-| `LINKEDIN_CLIENT_ID` | ❌ Server | linkedin.com/developers/apps | Redirect URI: `/api/auth/callback/linkedin` |
-| `LINKEDIN_CLIENT_SECRET` | ❌ Server | Same place | — |
-| `APPLE_CLIENT_ID` | ❌ Server | developer.apple.com → Identifiers → Service IDs | Apple Developer Account required ($99/yr) |
-| `APPLE_CLIENT_SECRET` | ❌ Server | Generated from a .p8 private key | Auth.js mints the short-lived JWT from the raw key |
+| `AUTH_SECRET` | ❌ Server | `openssl rand -base64 32` | Auth.js JWT signing key. Unused today |
+| `AUTH_URL` | ❌ Server | Production base URL (`https://www.hotelvalora.com`) | Auto-detected on Vercel from `VERCEL_URL` |
+| `GOOGLE_CLIENT_ID` / `_SECRET` | ❌ Server | console.cloud.google.com/apis/credentials | Only if Auth.js reactivates as the OAuth engine instead of Supabase |
+| `LINKEDIN_CLIENT_ID` / `_SECRET` | ❌ Server | linkedin.com/developers/apps | Same caveat |
+| `APPLE_CLIENT_ID` / `_SECRET` | ❌ Server | developer.apple.com | Apple Developer Account required ($99/yr) |
 | `NEXT_PUBLIC_API_URL` | ✅ | Empty today | When the FastAPI backend deploys, set to `https://api.hotelvalora.com/api/v1` |
 
 ## Future (not yet placeholders)
@@ -53,9 +60,9 @@ When these services land, append to `.env.example` AND this table:
 
 ## Verification
 
-- `apps/web/.env.local` exists locally and contains every active variable above (6 today).
+- `apps/web/.env.local` exists locally and contains every active variable above (6 today, +2 auth flags when AUTH_ENABLED is on).
 - `git check-ignore apps/web/.env.local` returns `apps/web/.env.local` — confirmed git-ignored.
-- `vercel env ls production` → 6 encrypted entries (Mapbox + 2 Resend + 3 Supabase) ✅
+- `vercel env ls production` → 6 encrypted entries (Mapbox + 2 Resend + 3 Supabase) ✅. Add `AUTH_ENABLED` + `NEXT_PUBLIC_AUTH_ENABLED` when activating Supabase Auth.
 
 The probe page at `/dev/supabase-test` exposes the three Supabase vars (masked) live — refresh after any env change to confirm Vercel propagation.
 

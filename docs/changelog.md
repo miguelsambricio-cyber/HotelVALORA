@@ -4,6 +4,72 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Production auth via Supabase Auth (Google OAuth-ready)
+
+Replaces the Zustand mock auth on the production path with **Supabase Auth**. The Auth.js v5 scaffold stays in the repo (inert) for future non-OAuth flows; the swap was a `useAuth()` rewrite, not a scaffold change.
+
+### Architecture decision
+
+The HotelVALORA schema was designed around Supabase Auth — `public.users.id → auth.users.id` FK, `handle_new_user` trigger auto-provisioning `public.users` + `public.profiles`, every RLS policy using `auth.uid()`. Auth.js v5 + `@auth/supabase-adapter` would have fought that schema (separate `next_auth.*` tables, manual Supabase JWT minting, dual cookie schemes). We picked the cleaner side. Full reasoning in `docs/auth.md` § "Why Supabase Auth and not Auth.js v5".
+
+### What ships
+
+- **`useAuth()` rewritten as a dual-source picker** — `apps/web/src/lib/auth/use-auth.ts`. Returns the same `{user, signIn, signOut, isAuthenticated}` shape every consumer already imports. Source is chosen at build time via `NEXT_PUBLIC_AUTH_ENABLED`:
+  - `"true"` → `useSupabaseAuth()` (real session, hydrated from `public.users` + `public.profiles`)
+  - default → existing Zustand mock (preserves dev + preview UX)
+- **OAuth callback route** — `apps/web/src/app/auth/callback/route.ts`. Exchanges the OAuth `code` for an HttpOnly session cookie via `supabase.auth.exchangeCodeForSession`, then redirects to a sanitised `?next=` path (defaults to `/settings/profile`).
+- **OAuth hook rewired** — `apps/web/src/lib/auth/use-oauth.ts`. When `AUTH_ENABLED=true`, `signInWithProvider("google" | "linkedin" | "apple" | "microsoft")` calls `supabase.auth.signInWithOAuth({ provider, options: { redirectTo: "${origin}/auth/callback?next=…" }})`. Otherwise falls through to the parked Auth.js handler.
+- **Middleware** — `apps/web/src/middleware.ts` now refreshes the Supabase session via `@supabase/ssr` on every request and, when `AUTH_ENABLED=true`, redirects unauthenticated requests on `/settings`, `/library`, `/report`, `/dashboard` to `/login?next=<original>`. The Auth.js middleware wrapper was removed (middleware bundle dropped ~50 kB).
+- **Email/password sign-in** (`AuthCard`) now flows through `supabase.auth.signInWithPassword` when active. The legacy mock keeps working when the flag is off.
+- **`auth-mode.ts`** — small helpers (`isAuthEnabledServer`, `isAuthEnabledClient`, `isSupabaseAuthConfigured`) so the build-time switch lives in one place.
+
+### Cookie strategy
+
+`@supabase/ssr` handles everything — `__Secure-` prefixed in production, `httpOnly`, `sameSite: lax`, path `/`, refreshed on every middleware pass. No app code touches cookies directly.
+
+### Activation is a manual two-step
+
+Code ships off-by-default (`AUTH_ENABLED` unset → Zustand mock continues to drive the app). Operator activation:
+
+1. Google Cloud Console → create OAuth client with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`.
+2. Supabase Dashboard → Authentication → Providers → Google → paste credentials.
+3. Supabase Dashboard → Authentication → URL Configuration → add `https://www.hotelvalora.com/auth/callback` (+ localhost + Vercel preview wildcard).
+4. Vercel → `AUTH_ENABLED=true` + `NEXT_PUBLIC_AUTH_ENABLED=true` (both production).
+5. `vercel deploy --prod`.
+
+Full checklist with copy-paste-ready URLs at `docs/auth.md`.
+
+### What's still mock
+
+| Surface | Status |
+|---|---|
+| OAuth dance | ✅ Supabase Auth (Google ready · LinkedIn + Apple require Supabase Dashboard wiring) |
+| Sign-out | ✅ Supabase Auth |
+| Protected-route middleware | ✅ Supabase session check |
+| User row hydration into `useAuth()` | ✅ `public.users` + `public.profiles` join |
+| **Sign-up surface** | ❌ Google OAuth is the only path to create an account today |
+| **Password reset** | ❌ Link still loops back to `/login` |
+| **Linked accounts unlink** | ⚠️ Soft sign-out only |
+| **Workspace switcher** | ❌ `user.organization` carries the current org id but no UI exposes a switcher |
+| **`AUTH_ENABLED=false` (default)** | ✅ Zustand mock — kept on purpose |
+
+### Files
+
+- `apps/web/src/lib/auth/use-auth.ts` — new (unified hook)
+- `apps/web/src/lib/auth/use-supabase-auth.ts` — new (Supabase adapter + tier hydration)
+- `apps/web/src/lib/auth/auth-mode.ts` — new (build-time flags)
+- `apps/web/src/app/auth/callback/route.ts` — new (OAuth callback handler)
+- `apps/web/src/lib/auth/use-oauth.ts` — rewired through Supabase Auth
+- `apps/web/src/lib/auth/store.ts` — `useAuth` renamed to `useMockAuth` (the unified hook supersedes it)
+- `apps/web/src/lib/auth/index.ts` — barrel updated; exports the new hook + flag helpers
+- `apps/web/src/middleware.ts` — rewritten on top of `@supabase/ssr`; Auth.js wrapper removed
+- `docs/auth.md` — full activation checklist (Google Cloud Console + Supabase Dashboard + Vercel env)
+- `docs/infrastructure/environment-variables.md` — Auth flag matrix + Supabase-Auth notes; Auth.js placeholders re-labelled "parked"
+- `ENTRYPOINTS.md` — new auth file rows
+- Trackers + master system + sprint refreshed
+
+---
+
 ## 2026-05-11 — Library surfaces wired to Supabase (TanStack Query)
 
 All four Library routes (`/library/favorites-map`, `/library/favorites-list`, `/library/top-map`, `/library/top-list`) now read from the live database. The legacy `apps/web/src/lib/library/mock-reports.ts` has been removed; the six institutional showcases live in `public.valuations` with `visibility = 'public'` and are visible to anonymous viewers through the existing public-read RLS policy.
