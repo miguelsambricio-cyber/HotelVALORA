@@ -63,6 +63,12 @@ from staging_io import (  # noqa: E402
     write_review_rows,
     write_run_log,
 )
+from audit_sync import (  # noqa: E402
+    AuditSyncError,
+    build_file_outcome,
+    format_response,
+    sync_outcomes,
+)
 
 
 # ── Workspace constants ──────────────────────────────────────────────────────
@@ -328,7 +334,16 @@ def list_input_files(target: str) -> list[Path]:
     return out
 
 
-def run_target(target: str, operator_email: str, dry_run: bool, verbose: bool) -> int:
+def run_target(
+    target: str,
+    operator_email: str,
+    dry_run: bool,
+    verbose: bool,
+    *,
+    audit_enabled: bool = True,
+    audit_url: str | None = None,
+    audit_token: str | None = None,
+) -> int:
     files = list_input_files(target)
     label = target.upper()
     if not files:
@@ -396,6 +411,56 @@ def run_target(target: str, operator_email: str, dry_run: bool, verbose: bool) -
         )
         print(f"[ingest:{label}] archived {o['source_file']} -> {archived.relative_to(WORKSPACE)}")
 
+    # ── Audit-chain unification — POST per-file summaries to the cloud
+    if audit_enabled:
+        outcomes_payload = [
+            build_file_outcome(
+                python_ingestion_id=o["ingestion_id"],
+                target=target,
+                source_file=o["source_file"],
+                started_at=o["started_at"],
+                completed_at=o["completed_at"],
+                outcome=o["outcome"],
+                operator_email=operator_email,
+                normalization_version=get_normalization_version(),
+                rows_seen=o["rows_seen"],
+                rows_inserted=o["rows_inserted"],
+                rows_skipped=o["rows_skipped"],
+                rows_flagged_review=o["rows_flagged_review"],
+                rows_failed=o["rows_failed"],
+                review_reasons=sorted({
+                    rr.get("reason", "")
+                    for rr in o["review_rows"]
+                    if rr.get("reason")
+                }),
+                failed_reasons=sorted({
+                    fr.get("reason", "")
+                    for fr in o["failed_rows"]
+                    if fr.get("reason")
+                }),
+                error_message=o.get("error_message"),
+                rows_updated=o["rows_updated"],
+            )
+            for o in all_outcomes
+        ]
+        try:
+            resp = sync_outcomes(
+                outcomes_payload,
+                audit_url=audit_url,
+                audit_token=audit_token,
+            )
+            print(f"[ingest:{label}] audit-sync OK -> {resp.get('ok')}")
+            extra = format_response(resp)
+            if extra:
+                print(extra)
+        except AuditSyncError as e:
+            print(
+                f"[ingest:{label}] audit-sync soft-failed -- local run is still authoritative.\n"
+                f"  reason: {e}\n"
+                f"  hint: re-run after setting INGESTION_AUDIT_TOKEN, "
+                f"or pass --no-audit to skip the unification step."
+            )
+
     # Final summary
     print(
         f"[ingest:{label}] DONE: "
@@ -438,12 +503,37 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print per-row log entries to stdout.",
     )
+    parser.add_argument(
+        "--no-audit",
+        action="store_true",
+        help="Skip the cloud audit-sync step. Local run remains authoritative.",
+    )
+    parser.add_argument(
+        "--audit-url",
+        default=None,
+        help="Override INGESTION_AUDIT_URL env var.",
+    )
+    parser.add_argument(
+        "--audit-token",
+        default=None,
+        help="Override INGESTION_AUDIT_TOKEN env var. Prefer env var over CLI flag.",
+    )
     args = parser.parse_args(argv)
 
     targets = ("transactions", "projects") if args.target == "both" else (args.target,)
+    # Dry-run skips both MASTER mutation and audit-sync — there's nothing to sync.
+    audit_enabled = not args.no_audit and not args.dry_run
     code = 0
     for t in targets:
-        rc = run_target(t, args.operator_email, args.dry_run, args.verbose)
+        rc = run_target(
+            t,
+            args.operator_email,
+            args.dry_run,
+            args.verbose,
+            audit_enabled=audit_enabled,
+            audit_url=args.audit_url,
+            audit_token=args.audit_token,
+        )
         if rc != 0:
             code = rc
     return code

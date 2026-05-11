@@ -68,7 +68,7 @@ Phased rollout of the 9 operational AI systems.
 | Lenient XLSX + CSV readers with header alias folding (~60 aliases per master) | ✅ Phase 2.3.b |
 | Field-by-field normalisation (geography · dates · prices · entities · URLs · enums) | ✅ Phase 2.3.b |
 | Append-only MASTER writes + INGESTION_LOG · `old.*/` archive · `staging/{failed,review}/` · per-run jsonl logs | ✅ Phase 2.3.b |
-| Audit-chain unification (Python CLI → POST → `ai_agent_runs`) | ⏸ Phase 4 — both halves write to the same DB row when wired |
+| Audit-chain unification (Python CLI → POST → `ai_agent_runs`) | ✅ Phase 2.3.c — cloud handler `/api/agents/data-ingestion-summary` records one `ai_agent_runs` row per file with `metadata.python_ingestion_id` cross-reference + emits `data_ingestion_staged` event. CLI soft-fails on network/auth issues; local MASTER remains authoritative. Operator env vars: `INGESTION_AUDIT_TOKEN` + `INGESTION_AUDIT_URL`. |
 
 ### Phase 2.4 — QA / Monitoring Agent ✅
 

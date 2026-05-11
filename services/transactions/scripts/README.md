@@ -41,12 +41,30 @@ python services/transactions/scripts/ingest.py --target projects
 # Both at once
 python services/transactions/scripts/ingest.py --target both
 
-# Validate without touching MASTER / staging / archive
+# Validate without touching MASTER / staging / archive (skips audit-sync too)
 python services/transactions/scripts/ingest.py --target transactions --dry-run --verbose
 
 # Record a specific operator email on the run (default: $OPERATOR_EMAIL or miguel.sambricio@metcub.com)
 python services/transactions/scripts/ingest.py --target transactions --operator-email you@example.com
+
+# Skip the cloud audit-sync step (local run remains authoritative)
+python services/transactions/scripts/ingest.py --target transactions --no-audit
+
+# Override audit endpoint or token (prefer env vars over CLI flags for tokens)
+python services/transactions/scripts/ingest.py --target transactions \
+   --audit-url https://staging.hotelvalora.com/api/agents/data-ingestion-summary \
+   --audit-token "$(op read 'op://HOTELVALORA/ingestion-audit/token')"
 ```
+
+### Required env vars
+
+| Var | Required when | Purpose |
+|---|---|---|
+| `OPERATOR_EMAIL` | optional | Recorded as `ingested_by` in MASTER + `ai_agent_runs.input.operator_email` |
+| `INGESTION_AUDIT_TOKEN` | audit-sync enabled (default) | Bearer secret that authenticates the CLI against `/api/agents/data-ingestion-summary`. **Same value** as the Vercel project env var. |
+| `INGESTION_AUDIT_URL` | optional | Override the default `https://hotelvalora.com/api/agents/data-ingestion-summary`. |
+
+If `INGESTION_AUDIT_TOKEN` is not set and `--no-audit` is not passed, the CLI completes the local run, prints a soft-fail message, and exits 0. The MASTER is the source of truth; the cloud is a downstream mirror.
 
 ## What the run does, step by step
 
@@ -154,8 +172,29 @@ When the masters migrate to Supabase tables, this pipeline becomes the operator-
 
 That refactor is mechanical, not architectural. The pipeline shape stays.
 
-## Audit chain unification (future)
+## Audit chain unification (live)
 
-Today: per-file `ingestion_id` lives in the MASTER's INGESTION_LOG + the per-run jsonl. The TS Data Ingestion Agent in `apps/web` writes to `ai_agent_runs` for its (different) trigger paths. Phase 4 unifies them: this CLI POSTs a run summary to `/api/agents/data-ingestion-summary` on completion → cloud writes a matching `ai_agent_runs` row stamped with the Python `ingestion_id`. The DB becomes the single audit lens; the XLSX `INGESTION_LOG` becomes a per-master snapshot.
+After every successful run, the CLI POSTs a per-file summary batch to `/api/agents/data-ingestion-summary` on the cloud. The handler writes one `ai_agent_runs` row per file with `metadata.python_ingestion_id` carrying the CLI's ingestion_id, emits a `data_ingestion_staged` event so QA / Monitoring can react, and returns the cross-reference IDs back to the CLI.
 
-Until then, the two halves share normalisation rules + schema documents but record their runs independently.
+The DB is the **single audit lens** across both halves of the Data Ingestion Agent:
+
+| Surface | Records local runs | Records cloud runs | Records cross-references |
+|---|---|---|---|
+| MASTER `INGESTION_LOG` sheet | ✅ | — | python_ingestion_id only |
+| `services/transactions/logs/<YYYY-MM>/<id>.jsonl` | ✅ | — | python_ingestion_id only |
+| `public.ai_agent_runs` | ✅ via audit-sync | ✅ direct | metadata.python_ingestion_id ↔ id |
+| `public.ai_events` (kind=`custom`, payload.kind=`data_ingestion_staged`) | ✅ via audit-sync | ✅ direct | run_id + python_ingestion_id |
+
+If the cloud is unreachable (offline operator, deployment in flight, token wrong), the CLI prints a soft-fail message and exits 0. The local files remain authoritative. To re-sync, set the token and re-run — but note that re-running will reprocess any files still in `INPUT_*` (it does NOT re-sync historical runs from the local jsonl; that's a manual one-off if it ever becomes necessary).
+
+## Configuring the Vercel side
+
+Set `INGESTION_AUDIT_TOKEN` (a random 32+ char string) on Vercel:
+
+```bash
+echo "$(openssl rand -hex 32)" | vercel env add INGESTION_AUDIT_TOKEN production
+# Then locally:
+export INGESTION_AUDIT_TOKEN="<paste same value>"
+```
+
+The same value works for `preview` + `development` Vercel envs if you want preview deploys to accept ingestion sync.

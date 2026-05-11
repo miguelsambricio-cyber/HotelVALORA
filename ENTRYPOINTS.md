@@ -135,6 +135,8 @@ Maps tasks to exact files. Start here before scanning.
 | Pipeline — pinned dependencies | `services/transactions/scripts/requirements.txt` |
 | Pipeline — operator README (CLI ref + smoke procedure) | `services/transactions/scripts/README.md` |
 | Smoke fixture | `services/transactions/scripts/tests/fixtures/smoke_transactions.csv` |
+| **Audit-chain unification — cloud endpoint** | `apps/web/src/app/api/agents/data-ingestion-summary/route.ts` |
+| **Audit-chain unification — Python module** | `services/transactions/scripts/audit_sync.py` |
 | Operator import templates (CSV) | `services/transactions/templates/{transaction,project}_import_template.csv` |
 | Transactions ingestion workflow doc | `docs/intelligence/transaction-ingestion-workflow.md` |
 | Master dataset architecture | `docs/intelligence/master-dataset-architecture.md` |

@@ -19,7 +19,9 @@ The Data Ingestion Agent owns the operational ingestion of institutional transac
 - Writes a row to the workbook's `INGESTION_LOG` sheet and to `logs/<YYYY-MM>/<ingestion_id>.jsonl`
 - Emits `data_ingestion_staged` event so QA / Monitoring can react
 
-Today: Phase 1 of the workspace (directory + masters + schema + workflow docs) is live; Phase 2 of the agent wires the supervision end-to-end. The XLSX masters are the canonical until Phase 5 migrates them into Supabase tables.
+Today: Phase 1 of the workspace (directory + masters + schema + workflow docs) is live; Phase 2.3.b (operator-side Python CLI) is live; Phase 2.3.c (audit-chain unification) is live — every CLI run POSTs a per-file summary to `/api/agents/data-ingestion-summary` which writes a matching `ai_agent_runs` row + emits `data_ingestion_staged`. The XLSX masters are the canonical until Phase 5 migrates them into Supabase tables.
+
+`public.ai_agent_runs` is the **single audit lens** across both halves of the Data Ingestion Agent. Operator-side runs carry `metadata.python_ingestion_id` for cross-reference with the CLI's local `INGESTION_LOG` sheet + `logs/<YYYY-MM>/*.jsonl`.
 
 ---
 

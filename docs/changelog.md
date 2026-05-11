@@ -4,6 +4,80 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Data Ingestion audit-chain unification (Phase 2.3.c)
+
+The Python CLI and the cloud-runtime TS agent now both record their runs in the same `ai_agent_runs` table. `public.ai_agent_runs` is the single audit lens across both halves of the Data Ingestion Agent.
+
+### Cloud endpoint — `POST /api/agents/data-ingestion-summary`
+
+- **Auth:** `Authorization: Bearer $INGESTION_AUDIT_TOKEN` (shared secret, same posture as the cron routes). Denies in production when the env var is unset.
+- **Body:** `{ python_ingestion_runs: FileOutcome[] }` — zod-validated array of 1–100 per-file summaries (target, source_file, outcome, row counts, review_reasons, failed_reasons, normalization_version, operator_email, python_ingestion_id).
+- **Side effects per file:**
+  - Insert one `ai_agent_runs` row with `agent_id='data_ingestion'`, `trigger_kind='manual'`, `status=outcome`, `metadata.python_ingestion_id` for cross-reference, `metadata.source='cli_audit_sync'`.
+  - Emit one `ai_events` row, `kind='custom'`, `payload.kind='data_ingestion_staged'`, source=`agent:data_ingestion:cli`, carrying the run_id + python_ingestion_id so QA / Monitoring can react.
+- **Response:** `{ ok, cloud_runs: [{ python_ingestion_id, ai_agent_run_id, ai_event_id }], failures }`. HTTP 200 (all ok) / 207 (partial) / 500 (none recorded).
+
+### CLI side — `audit_sync.py`
+
+- Pure-stdlib (`urllib`), no extra dep on the operator's machine.
+- `build_file_outcome()` builds one payload element; `sync_outcomes()` POSTs the batch.
+- One retry on transient network/timeout; no retry on 4xx (auth/payload bugs).
+- 12s timeout per request, TLS validated.
+- Reads `INGESTION_AUDIT_URL` + `INGESTION_AUDIT_TOKEN` from env; CLI flags override.
+
+### Wiring in `ingest.py`
+
+After every successful `run_target()` (post-archive), the CLI builds the outcomes payload from the in-memory results and calls `audit_sync.sync_outcomes()`. New CLI flags:
+
+- `--no-audit` — skip the unification step entirely
+- `--audit-url` — override env var
+- `--audit-token` — override env var
+
+`--dry-run` implicitly disables audit-sync (there's nothing to sync — MASTER was not committed).
+
+### Soft-fail philosophy
+
+The cloud is a **downstream mirror**. If the POST fails (network, auth, payload validation):
+
+1. The CLI prints a clear soft-fail message naming the problem.
+2. The CLI prints a recovery hint (set the token, or pass `--no-audit`).
+3. **The local run is not rolled back.** MASTER + INGESTION_LOG + local jsonl remain the source of truth.
+4. The CLI still exits 0 unless the local run itself was catastrophic.
+
+Verified smoke paths:
+- `--no-audit` → audit-sync skipped, local run completes cleanly.
+- Audit enabled, `INGESTION_AUDIT_TOKEN` unset → soft-fail message printed, exit 0.
+
+### Operator action required
+
+Set `INGESTION_AUDIT_TOKEN` on Vercel and locally **before** the next CLI run. Until then, every CLI run will print the soft-fail hint (and the cloud `ai_agent_runs` table will not reflect operator-side runs).
+
+```bash
+TOKEN="$(openssl rand -hex 32)"
+echo "$TOKEN" | vercel env add INGESTION_AUDIT_TOKEN production
+export INGESTION_AUDIT_TOKEN="$TOKEN"  # add to ~/.bashrc or ~/.zshrc
+```
+
+### Docs touched
+- `docs/ai-agents/ai-agent-roadmap.md` — Phase 2.3.c flipped ⏸ → ✅
+- `docs/ai-agents/AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` — ai_agent_runs called out as the single audit lens
+- `services/transactions/scripts/README.md` — env vars + new CLI flags + Vercel setup
+- `ENTRYPOINTS.md` — new task → file mappings
+- `docs/roadmap/current-sprint.md` — Just shipped + Up next bumped
+- `docs/infrastructure/service-status.md` — Phase 2.3.c added to the audit lens row
+
+### Files added
+- `apps/web/src/app/api/agents/data-ingestion-summary/route.ts` (~135 LOC)
+- `services/transactions/scripts/audit_sync.py` (~165 LOC)
+
+### Files updated
+- `services/transactions/scripts/ingest.py` — `--no-audit`, `--audit-url`, `--audit-token` + audit-sync call in `run_target`
+
+### Build/lint
+`pnpm typecheck` clean. No new app-bundle weight (server-only route).
+
+---
+
 ## 2026-05-11 — Data Ingestion Agent — operator pipeline (Phase 2.3.b)
 
 Built the Python CLI that owns the operational side of the Data Ingestion Agent: sweeps `services/transactions/INPUT_*/`, parses operator-supplied XLSX + CSV files, normalises per the rules, deduplicates against the canonical MASTER, routes valid rows to MASTER + borderline rows to `staging/review/` + broken rows to `staging/failed/`, archives processed source files to `old.*/`, writes per-run jsonl traces to `logs/`, and appends to each master's `INGESTION_LOG` sheet.
