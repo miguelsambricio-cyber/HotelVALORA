@@ -18,7 +18,9 @@
 | Auth.js v5 institutional scaffold (Google + LinkedIn + Apple, middleware gated by `AUTH_ENABLED`) | `8c66542` | ✅ |
 | Resend wired for "Schedule a Tour" — server action + typed template | `e2ba909` | ✅ |
 | Supabase architecture initialized — clients + middleware + schema proposal + probe page | `407599f` | ✅ |
-| Comprehensive Supabase schema drafted — 30 tables · 6 domains · RLS on every table · hand-rolled `Database` type | *(this commit)* | 🟡 (apply pending) |
+| Comprehensive Supabase schema drafted — 30 tables · 6 domains · RLS on every table · hand-rolled `Database` type | `b326f0b` | ✅ |
+| Supabase MCP wiring (`.mcp.json`) for in-editor schema ops | *(this commit)* | ✅ |
+| **Supabase initial schema applied to production project** — 32 tables, all RLS, advisor warnings closed (`harden_security_definer_functions`) | *(this commit)* | ✅ |
 
 ## In flight
 
@@ -26,10 +28,12 @@
 
 ## Up next (rough order of pull)
 
-1. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
-2. Marketplace placeholder — "Activate Top Promote" CTA inside the report shell (mock checkout).
-3. Replace mock auth with NextAuth (keep the `useAuth()` surface).
-4. Start `/api/v1/library/*` resource backed by the existing `LibraryReport` shape.
+1. Regenerate `apps/web/src/lib/supabase/types.ts` from the live schema (`pnpm dlx supabase gen types typescript --project-id twebgqutuqgonabvhzjk --schema public`) and replace the hand-rolled shim.
+2. Configure Supabase Storage buckets (`reports`, `pdfs`, `excel-uploads`, `renders`, `avatars`) with per-bucket RLS.
+3. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
+4. Marketplace placeholder — "Activate Top Promote" CTA inside the report shell (mock checkout).
+5. Replace mock auth with NextAuth (keep the `useAuth()` surface).
+6. Start `/api/v1/library/*` resource backed by the existing `LibraryReport` shape.
 
 ## Decisions made this sprint
 

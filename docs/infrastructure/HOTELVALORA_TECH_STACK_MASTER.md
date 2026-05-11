@@ -4,11 +4,11 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (afternoon — Supabase 30-table schema drafted, awaiting apply).
+**Last refreshed:** 2026-05-11 (evening — Supabase initial schema applied to production project: 32 tables live + RLS + advisor warnings closed).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
-**Supabase project ref:** `twebgqutuqgonabvhzjk` (EU-West)
+**Supabase project ref:** `twebgqutuqgonabvhzjk` (eu-central — Frankfurt, Postgres 17)
 
 ---
 
@@ -56,7 +56,7 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Supabase project | Postgres + Storage | 🟡 | Project `twebgqutuqgonabvhzjk` provisioned, env wired Vercel | 30-table schema drafted at `docs/database/migrations/0001_initial_schema.sql`, awaiting apply | Run migration via SQL editor (see `docs/database/README.md`) |
+| Supabase project | Postgres + Storage | 🟢 | Project `twebgqutuqgonabvhzjk` provisioned, schema applied (32 tables · RLS · 2 migrations registered), env wired Vercel | Migration `20260511015418_initial_schema` + `harden_security_definer_functions` applied via MCP; only intentional advisory left (`payment_events` service-role only) | Configure Storage buckets · regenerate `apps/web/src/lib/supabase/types.ts` via CLI |
 | Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers + full `Database` type | Auto-regenerate `types.ts` with CLI when access token lands |
 | Supabase Auth | Identity | 🔴 | Project provisioned, no providers configured | Future home of OAuth + magic links | Defer to Phase 3 (Auth.js owns OAuth today) |
 | Supabase Storage | Object storage | 🔴 | Project provisioned, buckets NOT created | Planned: reports / pdfs / excel-uploads / renders / avatars | Configure buckets via dashboard |

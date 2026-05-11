@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (14)
+## 🟢 Working (15)
 
 | Service | Production URL / scope |
 |---|---|
@@ -20,14 +20,15 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted |
 | Mock Zustand auth store | apps/web/src/lib/auth/store.ts |
 | Supabase clients (lib/supabase/*) | code in place + env wired |
+| Supabase schema applied — 32 tables, all with RLS | project `twebgqutuqgonabvhzjk` (eu-central, PG 17) — migrations `20260511015418_initial_schema` + `harden_security_definer_functions` |
 | Postgres (local Docker) | apps/api dev only |
 | FastAPI `/review` surface | apps/api/app/api/v1/review |
 
-## 🟡 Partial (6)
+## 🟡 Partial (5)
 
 | Service | What's missing |
 |---|---|
-| Supabase project `twebgqutuqgonabvhzjk` | **Schema drafted** (`docs/database/migrations/0001_initial_schema.sql` · 30 tables · all RLS policies) — **apply pending via SQL editor**; storage buckets NOT created |
+| Supabase Storage buckets | SQL metadata tables exist; the `reports`/`pdfs`/`excel-uploads`/`renders`/`avatars` buckets are NOT yet created in the dashboard |
 | Library institutional map | Static grayscale image — swap to Mapbox in Phase 4 |
 | Auth.js v5 scaffold | OAuth credentials missing; `AUTH_SECRET` + `AUTH_ENABLED` not set |
 | FastAPI backend | Built endpoints (valuations/imports/auth) NOT consumed by frontend |
@@ -47,7 +48,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 None.
 
-## 🔵 Planned (11)
+## 🔵 Planned (10)
 
 | Service | Phase |
 |---|---|
@@ -56,7 +57,6 @@ None.
 | Sentry (frontend) | Phase 4 |
 | OpenAI / Anthropic / Vercel AI Gateway | Phase 5 |
 | Vercel Analytics | Quick win — enable via dashboard |
-| Supabase Storage buckets (reports/pdfs/excel-uploads/renders/avatars) | Phase 3 |
 | Supabase Auth + `@auth/supabase-adapter` | Phase 3 |
 | Server-side PDF rendering (Puppeteer or react-pdf) | Phase 4 |
 | CoStar (live API) / STR / Booking / Catastro / CBRE / MSCI | Phase 5–6 |
@@ -65,8 +65,8 @@ None.
 
 ## Next 5 actions (prioritised)
 
-1. **Apply Supabase schema** — run `docs/database/schema.sql` via SQL editor → regenerate types
-2. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients
-3. **Create Google OAuth client** — fastest of the three providers; unblocks Auth.js production wire
-4. **Configure Supabase storage buckets** — needed before PDFs / Excel uploads land
+1. **Regenerate TypeScript types** — `pnpm dlx supabase gen types typescript --project-id twebgqutuqgonabvhzjk --schema public > apps/web/src/lib/supabase/types.ts` (replace hand-rolled shim)
+2. **Configure Supabase storage buckets** — create `reports` / `pdfs` / `excel-uploads` / `renders` / `avatars` via dashboard with per-bucket RLS
+3. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients
+4. **Create Google OAuth client** — fastest of the three providers; unblocks Auth.js production wire
 5. **Generate `AUTH_SECRET`** (`openssl rand -base64 32`) + flip `AUTH_ENABLED=true` once OAuth credentials are in place

@@ -279,13 +279,17 @@ create table if not exists public.top_promote_reports (
   sponsor_priority int not null default 0,
   featured_region text,
   impressions int not null default 0,
-  clicks int not null default 0,
-  is_active boolean generated always as (promoted_until > now()) stored
+  clicks int not null default 0
+  -- NOTE: "is_active" is derived at query time as (promoted_until > now()).
+  -- A stored generated column using now() is rejected by Postgres
+  -- (generation expressions must be immutable). Use the partial index below.
 );
-create index if not exists top_promote_active_idx on public.top_promote_reports (promoted_until)
-  where promoted_until > now();
-create index if not exists top_promote_priority_idx on public.top_promote_reports (sponsor_priority desc)
-  where promoted_until > now();
+-- NOTE: partial indexes with "where promoted_until > now()" are rejected
+-- by Postgres (index predicate must be IMMUTABLE). Plain b-tree indexes
+-- are fine and the planner will still prune efficiently when callers
+-- include "and promoted_until > now()" in their WHERE clause.
+create index if not exists top_promote_active_idx on public.top_promote_reports (promoted_until);
+create index if not exists top_promote_priority_idx on public.top_promote_reports (sponsor_priority desc);
 
 -- Audit log of visibility transitions on a valuation.
 create table if not exists public.report_visibility (

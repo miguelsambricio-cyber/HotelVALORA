@@ -73,21 +73,21 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Field | Value |
 |---|---|
 | Category | Database + Storage + (future) Auth |
-| Status | 🟡 |
-| Configured? | Partially — project provisioned, env wired, schema NOT applied |
-| Working? | Env probe (`/dev/supabase-test`) returns green; no queries yet |
-| Production ready? | No — schema must be applied first |
-| Partially implemented? | Yes |
+| Status | 🟢 |
+| Configured? | Yes — project provisioned, env wired, schema applied (32 tables · RLS · 2 migrations registered) |
+| Working? | Env probe (`/dev/supabase-test`) returns green; schema live, no app queries yet |
+| Production ready? | Yes for DDL; Storage buckets + Auth still pending |
+| Partially implemented? | Yes (Storage buckets + Auth still outstanding) |
 | Frontend connected? | Yes (clients in `lib/supabase/*`, middleware refresh wired) |
 | Backend connected? | N/A (Supabase IS the backend) |
 | Env vars added? | Yes (URL + anon + service-role on Vercel) |
 | Vercel configured? | Yes |
 | GitHub safe? | Yes (`.env.local` ignored; placeholders in `.env.example`) |
-| Documentation complete? | Yes (`docs/integrations/supabase.md`, `docs/database/schema.sql`) |
+| Documentation complete? | Yes (`docs/integrations/supabase.md`, `docs/database/README.md`, `docs/database/migrations/*.sql`) |
 | Local tested? | Probe page yes; queries no |
 | Production tested? | Probe page yes; queries no |
 | Blockers | None |
-| Notes | Next action: run `docs/database/schema.sql` via SQL editor → `pnpm dlx supabase gen types typescript --project-id twebgqutuqgonabvhzjk > apps/web/src/lib/supabase/types.ts` |
+| Notes | Migrations `20260511015418_initial_schema` + `harden_security_definer_functions` applied via Supabase MCP. Next: regenerate `apps/web/src/lib/supabase/types.ts` (CLI) and configure Storage buckets |
 
 ## Auth.js v5
 
@@ -253,5 +253,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 67%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 14×1 + 6×0.5 = 17 of 24 active services = 71%; adjusted down 4pts for the schema-not-applied gap)
+**Infrastructure health score: 73%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 15×1 + 5×0.5 = 17.5 of 24 active services = 73% after Supabase schema flipped to 🟢)

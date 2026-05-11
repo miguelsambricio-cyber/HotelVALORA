@@ -1,8 +1,9 @@
 # Database
 
-Single source of truth for the HotelVALORA Postgres schema, hosted on Supabase project `twebgqutuqgonabvhzjk` (EU-West Ireland).
+Single source of truth for the HotelVALORA Postgres schema, hosted on Supabase project `twebgqutuqgonabvhzjk` (EU-Central — Frankfurt, Postgres 17).
 
 **Last refreshed:** 2026-05-11
+**Schema status:** ✅ applied (migrations `20260511015418_initial_schema` + `harden_security_definer_functions`). 32 tables, all with RLS enabled.
 
 ## Layout
 
@@ -11,10 +12,17 @@ docs/database/
   README.md                              ← this file (ER summary + how-to)
   schema.sql                             ← thin pointer to migrations/
   migrations/
-    0001_initial_schema.sql              ← 30 tables · all 6 domains · v1
+    0001_initial_schema.sql              ← 32 tables · all 6 domains · v1 (applied)
+    0002_harden_security_definer_functions.sql  ← pins search_path + revokes
+                                                    RPC exposure (applied)
 ```
 
 Every future schema change ships as a numbered migration file under `migrations/` — never edit `0001_initial_schema.sql` after it has been applied.
+
+### Postgres-specific deviations from the original draft (kept here for reference)
+
+- `top_promote_reports.is_active` was originally drafted as a stored generated column `boolean generated always as (promoted_until > now()) stored`. Postgres rejects this — generation expressions must be `IMMUTABLE`. The column was removed; callers derive activeness inline as `promoted_until > now()`.
+- The two `top_promote_*` indexes were originally drafted as partial indexes with `where promoted_until > now()`. Postgres rejects `now()` in index predicates for the same reason. They are now plain b-tree indexes; queries that filter on `promoted_until > now()` still get pruned efficiently.
 
 ## How to apply
 

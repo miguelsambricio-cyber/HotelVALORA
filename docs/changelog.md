@@ -4,6 +4,31 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Supabase initial schema applied to production project
+
+Applied `0001_initial_schema.sql` to project `twebgqutuqgonabvhzjk` via the Supabase MCP server (`apply_migration`). 32 tables created, all with RLS enabled. Registered as migration `20260511015418_initial_schema`.
+
+Two Postgres-driven edits to the drafted SQL were required (now reflected in the source file):
+
+- `top_promote_reports.is_active` — removed; was a stored generated column using `now()`, which Postgres rejects (`generation expression is not immutable`). Derive in queries as `promoted_until > now()`.
+- `top_promote_active_idx` / `top_promote_priority_idx` — dropped the `where promoted_until > now()` predicate; Postgres rejects mutable functions in index predicates. They are now plain b-tree indexes.
+
+Follow-up migration `0002_harden_security_definer_functions.sql` applied to close every WARN-level lint surfaced by `get_advisors`:
+
+- Pinned `search_path = public, pg_temp` on `set_updated_at()` and `handle_new_user()`.
+- Revoked `EXECUTE` on `handle_new_user()` from `public` / `anon` / `authenticated` (trigger-only; should not be RPC-callable).
+
+The only remaining advisory is the **intentional** `payment_events: rls_enabled_no_policy` (INFO) — service-role-only writes from the Stripe webhook handler.
+
+### Files
+
+- `docs/database/migrations/0001_initial_schema.sql` — patched, applied
+- `docs/database/migrations/0002_harden_security_definer_functions.sql` — new, applied
+- `docs/database/README.md` — status flipped to ✅ applied
+- `.mcp.json` — added so Claude Code auto-loads the Supabase MCP server next session
+
+---
+
 ## 2026-05-11 — Comprehensive Supabase schema drafted (30 tables, 6 domains)
 
 Expanded the v1 schema proposal from 7 tables to a production-grade 30-table surface across six domains. Migration file ready to apply via the SQL editor; hand-rolled `Database` type already in repo so frontend queries compile against the future shape.
