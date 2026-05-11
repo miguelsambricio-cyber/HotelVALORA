@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (19)
+## 🟢 Working (21)
 
 | Service | Production URL / scope |
 |---|---|
@@ -18,8 +18,10 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Mapbox token | Vercel encrypted env |
 | Resend SDK | server actions in apps/web/src/lib/email/* |
 | Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted |
-| `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase or mock at build time |
-| Auth middleware (Supabase session refresh + protected-route gating) | `apps/web/src/middleware.ts` |
+| `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase Auth active in production |
+| **Supabase Auth (production runtime)** | Google OAuth dance · `/auth/callback` handler · HttpOnly cookies · `handle_new_user` trigger. Public Beta Mode: `PROTECTED_PREFIXES=[]` — anonymous browsing allowed everywhere |
+| **Google OAuth provider** | Configured in Supabase Dashboard + Google Cloud Console with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`. `/auth/v1/settings` reports `"google": true` |
+| Auth middleware (Supabase session refresh) | `apps/web/src/middleware.ts` — refreshes cookie unconditionally; route-protection branch dormant via empty `PROTECTED_PREFIXES` |
 | OAuth callback handler | `apps/web/src/app/auth/callback/route.ts` |
 | Supabase clients (lib/supabase/*) | barrel split (browser-only); server-only direct-imports |
 | Supabase schema applied — 32 tables, all with RLS | project `twebgqutuqgonabvhzjk` (eu-central, PG 17) — migrations `0001`–`0005` |
@@ -30,18 +32,16 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Postgres (local Docker) | apps/api dev only |
 | FastAPI `/review` surface | apps/api/app/api/v1/review |
 
-## 🟡 Partial (6)
+## 🟡 Partial (4)
 
 | Service | What's missing |
 |---|---|
-| Supabase Auth (production runtime) | Code complete (`useAuth` adapter, `/auth/callback`, middleware). Activation pending Supabase Dashboard wiring + `AUTH_ENABLED=true` / `NEXT_PUBLIC_AUTH_ENABLED=true` on Vercel — see `docs/auth.md` |
-| Google OAuth provider | Code routes through Supabase. Pending OAuth client creation at console.cloud.google.com + paste credentials into Supabase Dashboard |
 | Library institutional map | Static grayscale image — swap to Mapbox in Phase 4 |
 | FastAPI backend | Built endpoints (valuations/imports/auth) NOT consumed by frontend |
 | Resend sandbox sender | Only delivers to Resend account owner |
 | PDF exports | `window.print()` wrapper; server-side renderer planned |
 
-## 🔴 Not configured (2)
+## 🔴 Not configured (3)
 
 | Service | Activation |
 |---|---|
@@ -70,14 +70,14 @@ None.
 
 ## Health score
 
-**19 🟢 · 6 🟡 · 3 🔴 · 0 ⚫ across 28 active services**
+**21 🟢 · 4 🟡 · 3 🔴 · 0 ⚫ across 28 active services**
 
-Weighted score: (19 × 1.0 + 6 × 0.5 + 3 × 0.0) / 28 = **78.6%**. Supabase Auth + Google OAuth joined as 🟡 (code complete · manual Dashboard activation pending). Flipping them to 🟢 after the operator finishes the `docs/auth.md` checklist takes the score to **82%**.
+Weighted score: (21 × 1.0 + 4 × 0.5 + 3 × 0.0) / 28 = **82%**. Supabase Auth + Google OAuth flipped to 🟢 end-to-end. Platform is in **Public Beta / Showcase Mode**: auth wired and operational but `PROTECTED_PREFIXES = []` in middleware → no anonymous traffic redirected anywhere while the financial engine + underwriting + reports + Library are validated.
 
 ## Next 5 actions (prioritised)
 
-1. **Activate Supabase Auth** — follow `docs/auth.md`: Google Cloud Console OAuth client → Supabase Dashboard (Providers + URL allowlist) → Vercel `AUTH_ENABLED=true` + `NEXT_PUBLIC_AUTH_ENABLED=true` → redeploy.
-2. **Add sign-up + password-reset flows** — `supabase.auth.signUp` and `supabase.auth.resetPasswordForEmail`. Today only Google OAuth creates accounts.
-3. **Realtime subscription on `valuations`** — `supabase.channel("public:valuations").on("postgres_changes", …)` → `queryClient.invalidateQueries({ queryKey: libraryKeys.all })`.
-4. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients.
+1. **Realtime subscription on `valuations`** — `supabase.channel("public:valuations").on("postgres_changes", …)` → `queryClient.invalidateQueries({ queryKey: libraryKeys.all })`.
+2. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients.
+3. **Submit Google OAuth consent for verification** — Google Cloud Console currently set to "Testing" with allowlisted users. Required for any Google account to sign in.
+4. **Sign-up + password-reset flows** — `supabase.auth.signUp` and `resetPasswordForEmail`. Optional today (Google OAuth is enough) but useful before broader rollout.
 5. **Workspace switcher** — read `public.user_roles` joined with `public.organizations`; surface in AppHeader.

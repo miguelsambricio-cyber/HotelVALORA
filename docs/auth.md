@@ -3,6 +3,7 @@
 HotelVALORA's production authentication runs on **Supabase Auth** (OAuth + sessions + cookie management). The Auth.js v5 scaffold is still in the repo but inert — kept for future non-OAuth flows.
 
 **Last refreshed:** 2026-05-11
+**Platform mode:** 🟢 Public Beta / Institutional Showcase — auth is **wired and operational** (Google OAuth · Supabase sessions · HttpOnly cookies) but route protection is **disabled platform-wide** while the financial engine, underwriting, report rendering and Library are validated. Anonymous visitors can navigate every surface. See § "Public Beta / Showcase Mode" below.
 
 ---
 
@@ -14,12 +15,62 @@ HotelVALORA's production authentication runs on **Supabase Auth** (OAuth + sessi
 | Provider credentials | Supabase Dashboard → Authentication → Providers (NOT Vercel env) |
 | Cookie strategy | HttpOnly, `__Secure-` prefixed in prod, `sameSite: lax` (handled by `@supabase/ssr`) |
 | Session refresh | Middleware (`apps/web/src/middleware.ts`) calls `supabase.auth.getUser()` to rotate the JWT on every request |
-| Protected routes | `/settings`, `/library`, `/report`, `/dashboard` (only when `AUTH_ENABLED=true`) |
+| Protected routes | **None during Public Beta** — `PROTECTED_PREFIXES` is intentionally empty. Future entries listed in middleware.ts comment block |
 | User provisioning | `handle_new_user` trigger on `auth.users` → auto-inserts `public.users` + `public.profiles` |
 | RBAC | `public.users.role` enum (`user` / `admin` / `owner`); RLS uses `auth.uid()` |
 | Org membership | `public.user_roles (user_id, organization_id, role)` join |
 | Client surface | `useAuth()` — engine-agnostic, picks Supabase or Zustand mock at build time |
-| Migration safety | `AUTH_ENABLED` flag, off by default; Zustand mock continues to drive the app |
+| Migration safety | `AUTH_ENABLED` flag controls Supabase Auth runtime; `PROTECTED_PREFIXES` array (separate concern) controls which routes redirect anonymous traffic |
+
+---
+
+## Public Beta / Institutional Showcase Mode
+
+This is the platform's current operating mode. **Auth must exist and work, but auth must not block access anywhere yet.**
+
+### Why
+
+HotelVALORA today is being validated by partners, prospects and the underwriting team:
+
+- Financial engine (DCF, NOI, RevPAR, IRR, exit-cap, sensitivity grids)
+- Underwriting workflows (assumption surfaces, scenario forking, tier-gated lock pattern)
+- Report rendering shell (executive summary, market overview, financials, competitive set, asset analysis)
+- Library system (saved + community + TOP PROMOTE surfaces, ⭐ favourites)
+- Infrastructure wiring (Supabase schema + Storage + RLS + Edge middleware)
+- Production deployments (Vercel + custom domain + cookie strategy)
+
+None of these surfaces have private-user features yet. **Forced login on a showcase product kills the showcase.**
+
+### How it's enforced
+
+```ts
+// apps/web/src/middleware.ts
+const PROTECTED_PREFIXES: readonly string[] = [];
+```
+
+`isProtected(pathname)` calls `.some()` on that empty array → always `false` → the redirect branch never fires, even when `AUTH_ENABLED=true`. The Supabase session refresh half of the middleware still runs unconditionally — so a user who DOES sign in via Google keeps their session warm across navigations.
+
+### What stays unaffected
+
+- **RLS** on `public.valuations` etc. — the public-read policy already grants anonymous SELECT on `visibility ∈ ('public','top-promote')` rows. The Library has been showing those rows to anon callers for days already.
+- **Supabase Auth** — Google OAuth dance, callback handler, cookie management, `useAuth()` hydration — all live and tested. Any user who clicks "Sign in with Google" gets a real session.
+- **`useAuth()` surface** — when `NEXT_PUBLIC_AUTH_ENABLED=true` it sources from Supabase (real session); the Zustand mock is the dev-only fallback when the flag is off.
+
+### When this changes
+
+Private-user features that will be added later trigger flipping prefixes back in:
+
+| Future surface | Prefix to add | Phase |
+|---|---|---|
+| Saved-report management | `/library/saved` | Phase 4 — when the "save a report" feature lands |
+| CRM | `/crm` | Phase 5 |
+| Collaboration / shares | `/share/*` | Phase 5 |
+| Stripe billing | `/billing` | Phase 5 |
+| Institutional dashboards | `/dashboard` | Phase 5 |
+| Operator admin | `/admin` | Phase 5 |
+| User preferences | `/settings` | Whenever the settings surface stops being a public underwriting workbench |
+
+Editing one line of `PROTECTED_PREFIXES` activates protection for the listed prefix — no other code change required.
 
 ---
 
@@ -78,7 +129,7 @@ Browser
 
 ## Activation checklist
 
-Follow these steps **in order**. Until step 5 is done the app continues to run on the Zustand mock, so production is never gated on a broken half-state.
+Follow these steps **in order**. Step 1–4 give the platform a working Google OAuth flow without blocking anonymous access (Public Beta mode). To enable route protection later, see § "Public Beta / Showcase Mode" — flip prefixes into `PROTECTED_PREFIXES`.
 
 ### 1. Google Cloud Console
 

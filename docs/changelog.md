@@ -4,6 +4,64 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Public Beta / Showcase Mode (auth wired, never blocking)
+
+Activated Google OAuth end-to-end through Supabase Auth, then immediately reconfigured the middleware so route protection is dormant platform-wide while HotelVALORA is being validated by partners. Auth still works, sessions still persist, RLS still resolves via `auth.uid()` — but no anonymous visitor is ever redirected.
+
+### What changed in code
+
+```ts
+// apps/web/src/middleware.ts
+const PROTECTED_PREFIXES: readonly string[] = [];
+```
+
+Previously `["/settings", "/library", "/report", "/dashboard"]`. The Supabase-session-refresh branch of the middleware still runs unconditionally so that signed-in users keep their session warm; the redirect branch evaluates `false && …` and never fires. When private-user surfaces land later (saved-report management, CRM, billing, admin), the operator adds the relevant prefix back to that array — no other code change needed.
+
+### Why
+
+HotelVALORA is in **Public Beta / Institutional Showcase Mode**. Partners, prospects and the underwriting team need to navigate the entire platform — financial engine, underwriting workflows, report rendering, Library, infrastructure — without forced login. There are no private-user features in production yet. Auth gating exists in code (Public Beta is the toggle position), not in deletion.
+
+### Operator activation completed in this session
+
+End-to-end activation per `docs/auth.md`:
+
+1. **Google Cloud Console** — created project HotelVALORA, OAuth consent screen (External, Testing), OAuth client ID `1023396989060-…apps.googleusercontent.com` with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`.
+2. **Supabase Dashboard** → Authentication → Providers → Google enabled with the OAuth client credentials. URL Configuration → Site URL = `https://www.hotelvalora.com`; Redirect URLs include prod, www, localhost and `https://*.vercel.app/auth/callback`.
+3. **Vercel env** — `AUTH_ENABLED=true` + `NEXT_PUBLIC_AUTH_ENABLED=true` on production.
+4. **Production deploy** — `dpl_GcD2jM47icS8KzWDRNdYcyZY6iZF` (commit `5c3ef91`), then current commit ships the empty `PROTECTED_PREFIXES`.
+
+Verification:
+- `GET https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/settings` returns `"external.google": true`.
+- `GET /auth/callback` returns 307 to `/login?error=Missing+OAuth+code` (route handler live).
+- `GET /library/favorites-map` returns 200 (anonymous browsing restored after empty PROTECTED_PREFIXES deploy).
+- `GET /report/executive-summary` returns 200.
+
+### Rollback episode (kept for the record)
+
+The first deploy with `AUTH_ENABLED=true` AND the original `PROTECTED_PREFIXES` list locked anonymous viewers out of `/library` and `/report` because Zustand-mock sessions don't satisfy the Supabase middleware. Recovery: removed both env vars + redeployed (~90s), then introduced the empty `PROTECTED_PREFIXES` as the canonical Public Beta posture. Documented in `docs/auth.md` § "Public Beta / Showcase Mode" so the trap doesn't get re-set.
+
+### Files
+
+- `apps/web/src/middleware.ts` — `PROTECTED_PREFIXES = []` + extensive comment block listing future prefixes to add when private surfaces ship
+- `docs/auth.md` — new § "Public Beta / Institutional Showcase Mode" section; TL;DR row updated; activation checklist preamble revised
+- `docs/HOTELVALORA_MASTER_SYSTEM.md` — auth status reframed as "wired and operational, non-blocking by design"
+- `docs/infrastructure/HOTELVALORA_TECH_STACK_MASTER.md` — Supabase Auth + Google OAuth flipped to 🟢 with Public Beta annotation
+- `docs/infrastructure/INFRASTRUCTURE_MASTER_TRACKER.md` — health score recomputed to 82%; per-service rows updated
+- `docs/infrastructure/service-status.md` — 19 → 21 🟢; auth + OAuth out of 🟡 bucket
+- `docs/infrastructure/deployment-status.md` — recent-deploys table refreshed; env inventory bumped 6 → 8 vars
+- `docs/roadmap/current-sprint.md` — Public Beta entry in "Just shipped"
+- Vercel production env: `AUTH_ENABLED=true`, `NEXT_PUBLIC_AUTH_ENABLED=true`
+- Supabase Dashboard: Google provider enabled; URL allowlist populated
+
+### What stays unchanged
+
+- RLS on every public table — `auth.uid()` resolves naturally for signed-in users, anonymous users get the public-read policy on `valuations.visibility ∈ ('public','top-promote')`.
+- `useAuth()` surface — every consumer (`AuthCard`, `AppHeader`, `SettingsSidebar`, `useTier`, `LinkedInstitutionalAccounts`, etc.) keeps reading the same shape.
+- `handle_new_user` trigger on `auth.users` — fires for any Google sign-in and provisions `public.users` + `public.profiles` automatically.
+- Storage buckets + signed-URL helpers — untouched.
+
+---
+
 ## 2026-05-11 — Production auth via Supabase Auth (Google OAuth-ready)
 
 Replaces the Zustand mock auth on the production path with **Supabase Auth**. The Auth.js v5 scaffold stays in the repo (inert) for future non-OAuth flows; the swap was a `useAuth()` rewrite, not a scaffold change.

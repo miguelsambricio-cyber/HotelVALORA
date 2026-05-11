@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (overnight — production auth wired via Supabase Auth + Google OAuth; `useAuth()` rewritten as a dual-source picker; Auth.js v5 scaffold parked).
+**Last refreshed:** 2026-05-11 (overnight — Supabase Auth + Google OAuth activated end-to-end. Platform set to **Public Beta / Showcase Mode**: auth wired and operational but `PROTECTED_PREFIXES=[]` in middleware so anonymous browsing is unrestricted during financial-engine + underwriting validation).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -73,8 +73,8 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Supabase Auth | Auth runtime | 🟡 | Project provisioned; OAuth not yet enabled in Dashboard | Code wired (callback handler · middleware · `useAuth()` adapter · OAuth hook). `AUTH_ENABLED` flag still off — Zustand mock keeps the app accessible until activation | Activate via `docs/auth.md` checklist (Google Cloud + Supabase Dashboard + Vercel env) |
-| Google OAuth provider | OAuth | 🟡 | Credentials live in Supabase Dashboard (NOT Vercel env) | Code routes through `supabase.auth.signInWithOAuth({ provider: "google" })` when `AUTH_ENABLED=true` | Create OAuth client in Google Cloud Console + paste credentials into Supabase Dashboard |
+| Supabase Auth | Auth runtime | 🟢 | Activated end-to-end · `AUTH_ENABLED=true` + `NEXT_PUBLIC_AUTH_ENABLED=true` on Vercel production | Google OAuth dance + `/auth/callback` + `useAuth()` adapter all live. Public Beta Mode: `PROTECTED_PREFIXES=[]` in middleware so no route blocks anonymous traffic | Submit Google OAuth consent for verification (Testing → Production); add prefixes back when private surfaces land |
+| Google OAuth provider | OAuth | 🟢 | OAuth client `1023396989060-…apps.googleusercontent.com`; credentials inside Supabase Dashboard | `/auth/v1/settings` returns `"google": true`; redirect URI = `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`; URL allowlist on Supabase includes prod + localhost + Vercel preview wildcard | Submit consent screen for verification to allow any Google user |
 | LinkedIn OAuth provider | OAuth | 🔴 | Not wired in Supabase Dashboard | Code maps to Supabase's `linkedin_oidc` provider | Enable LinkedIn in Supabase Dashboard with OAuth credentials |
 | Apple OAuth provider | OAuth | 🔴 | Not wired in Supabase Dashboard | Apple Developer Account required ($99/yr) | Enable Apple in Supabase Dashboard with Service ID + .p8 |
 | Microsoft / Azure AD | OAuth | 🔵 | Future enterprise SSO | Code maps to Supabase's `azure` provider | — |

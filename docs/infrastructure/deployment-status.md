@@ -35,22 +35,32 @@ Aliased: https://www.hotelvalora.com    (~50-60s end to end)
 
 ## Recent deploys
 
-| Commit | Feature | Status |
-|---|---|---|
-| `407599f` | Supabase architecture initialized | Deployed |
-| `e2ba909` | Resend wired for tour-request CTA | Deployed |
-| `8c66542` | Auth.js v5 institutional scaffold | Deployed |
-| `f2136e0` | Contact card popover for top-promoted reports | Deployed |
-| `fb03160` | `/library/top-list` (Top Reports institutional list) | Deployed |
-| `ced6f2e` | `/library/favorites-list` (Bloomberg-grade table) | Deployed |
-| `429446e` | `/library/top-map` | Deployed |
-| `f7ea4c3` | `/library/favorites-map` | Deployed |
+| Commit | Feature | Deploy ID | Status |
+|---|---|---|---|
+| _next_ | Public Beta / Showcase Mode — `PROTECTED_PREFIXES=[]` in middleware | _pending_ | _pending_ |
+| `5c3ef91` | Supabase Auth wired (Google OAuth-ready) | `dpl_GcD2jM47icS8KzWDRNdYcyZY6iZF` | Deployed |
+| `d754a69` | Library surfaces wired to Supabase via TanStack Query | _bundled in 5c3ef91_ | Deployed |
+| `2d891c2` | Supabase Storage + typed helpers + regen TS types | _bundled in 5c3ef91_ | Deployed |
+| `f7e40b4` | Apply Supabase initial schema + harden SECURITY DEFINER | _bundled in 5c3ef91_ | Deployed |
+| `b326f0b` | Comprehensive Supabase schema (30 tables) | _bundled in 5c3ef91_ | Deployed |
+| `14f523a` | Reusable Supabase migration runner script | _bundled in 5c3ef91_ | Deployed |
+| `407599f` | Supabase architecture initialized | `dpl_2MK3gkWCX3Uga334vmWqi7hmt7mS` | Superseded |
+| `e2ba909` | Resend wired for tour-request CTA | `dpl_3yY1Tfah8ZsZq2h5SggSw42hS8kL` | Superseded |
+| `8c66542` | Auth.js v5 institutional scaffold | — | Superseded |
+| `f2136e0` | Contact card popover for top-promoted reports | `dpl_EV43K26b198Wsu6QZUpx6KsFisGD` | Superseded |
+| `fb03160` | `/library/top-list` (Top Reports institutional list) | `dpl_FVjv1WfUhxRbtcpQvtxtTL7nYDbQ` | Superseded |
 
 Full history: `docs/changelog.md`.
 
 ## Production env (encrypted at Vercel)
 
-6 variables, all encrypted at rest. See `environment-variables.md` for the full inventory.
+8 variables, all encrypted at rest:
+- `NEXT_PUBLIC_MAPBOX_TOKEN`
+- `RESEND_API_KEY` · `RESEND_FROM_EMAIL`
+- `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` · `SUPABASE_SERVICE_ROLE_KEY`
+- `AUTH_ENABLED` · `NEXT_PUBLIC_AUTH_ENABLED`
+
+See `environment-variables.md` for the full inventory and `auth.md` for why both auth flags exist together.
 
 ## Preview environments
 

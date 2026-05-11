@@ -25,12 +25,13 @@
 | **Supabase Storage buckets provisioned** via migration — 5 buckets (`reports`/`pdfs`/`excel-uploads`/`renders`/`avatars`) with 19 own-namespace RLS policies + size + MIME caps. Advisor warning on broad-public-read fixed by `0004` | *(this commit)* | ✅ |
 | **Typed Storage helpers** — `lib/supabase/storage.ts` (browser: `BUCKETS`, `uploadOwnFile`, `validateForBucket`, `getPublicUrl`) + `lib/supabase/storage-server.ts` (signed URLs, admin move/delete) | `2d891c2` | ✅ |
 | **Library surfaces wired to Supabase** — all four `/library/*` routes read `valuations` + `top_promote_reports` + `favorite_reports` via TanStack Query (`lib/library/queries/*` + `lib/library/adapters/valuation-to-report.ts`). Optimistic ⭐ toggle, loading/error/empty states, `mock-reports.ts` deleted. Bundle architecture fix: `@/lib/supabase` barrel split into browser-only re-exports | `d754a69` | ✅ |
-| **Production authentication — Supabase Auth (Google OAuth-ready)** — `useAuth()` rewritten as a dual-source picker (Supabase Auth when `NEXT_PUBLIC_AUTH_ENABLED=true`, Zustand mock otherwise). `/auth/callback` route handler exchanges OAuth codes for HttpOnly session cookies. Middleware enforces `/settings`, `/library`, `/report`, `/dashboard` when `AUTH_ENABLED=true`. RLS now resolves naturally via `auth.uid()`; no schema changes. Auth.js v5 scaffold stays parked for future non-OAuth flows. Full activation checklist in `docs/auth.md`. | *(this commit)* | ✅ |
+| **Production authentication — Supabase Auth (Google OAuth-ready)** — `useAuth()` rewritten as a dual-source picker (Supabase Auth when `NEXT_PUBLIC_AUTH_ENABLED=true`, Zustand mock otherwise). `/auth/callback` route handler exchanges OAuth codes for HttpOnly session cookies. Middleware enforces protected routes when `AUTH_ENABLED=true`. RLS resolves naturally via `auth.uid()`; no schema changes. Auth.js v5 scaffold stays parked. | `5c3ef91` | ✅ |
+| **Google OAuth activated end-to-end** — Google Cloud OAuth client created, Supabase Dashboard provider enabled, URL allowlist configured, Vercel env vars set, production deployed. Verified: `/auth/v1/settings` reports `"google": true`; `/auth/callback` exchanges codes correctly. | manual + `dpl_GcD2jM47icS8KzWDRNdYcyZY6iZF` | ✅ |
+| **Public Beta / Showcase Mode** — `PROTECTED_PREFIXES = []` in `apps/web/src/middleware.ts`. Auth remains wired and operational (Google sign-in works, sessions persist) but no route redirects anonymous traffic. Restores Library + Report access for everyone during financial-engine + underwriting validation. Documented in `docs/auth.md` § "Public Beta / Showcase Mode". | *(this commit)* | ✅ |
 
 ## In flight
 
 - 🟡 Architecture docs scaffolding (`docs/architecture/*`, `docs/roadmap/*`, `docs/features/*`, etc.)
-- 🟡 **Auth activation manual steps** — Google Cloud Console (OAuth client) + Supabase Dashboard (Google provider + redirect URL allowlist) + Vercel env (`AUTH_ENABLED=true` · `NEXT_PUBLIC_AUTH_ENABLED=true`). Detailed checklist at `docs/auth.md`.
 
 ## Up next (rough order of pull)
 

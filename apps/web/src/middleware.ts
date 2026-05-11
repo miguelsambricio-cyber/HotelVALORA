@@ -4,28 +4,36 @@ import { createServerClient } from "@supabase/ssr";
 /**
  * Edge middleware.
  *
- * Two responsibilities, both runtime-gated:
+ * Two responsibilities:
  *
  *   1. Supabase session refresh — reads / rotates the HttpOnly auth
  *      cookies on every request. Safe no-op when Supabase env is
- *      absent.
+ *      absent. Runs unconditionally so that, when a user DOES sign
+ *      in via Google (or password), their session sticks around.
  *
- *   2. Route protection — when AUTH_ENABLED=true, redirect
- *      unauthenticated requests to /login?next=<original-path>.
- *      Protected prefixes are listed below; the public surface
- *      (/, /login, /landing, /dev/*, /auth/*) stays anonymous.
+ *   2. Route protection — gated on `AUTH_ENABLED=true` AND a non-empty
+ *      `PROTECTED_PREFIXES` list. Today the list is intentionally
+ *      empty: HotelVALORA is in "Public Beta / Institutional Showcase
+ *      Mode" — every surface is anonymous-readable while the financial
+ *      engine, underwriting, report rendering and Library are being
+ *      validated by partners and prospects. Auth still exists for
+ *      session testing + future-ready account architecture, but it
+ *      MUST NOT block access anywhere yet.
  *
- * When AUTH_ENABLED is unset or "false", route protection is OFF and
- * the existing mock auth (Zustand) continues to drive `useAuth()` —
- * the app keeps working through every migration step.
+ *      When private surfaces land (saved reports, CRM, collaboration,
+ *      payments, admin), add their prefixes to PROTECTED_PREFIXES.
+ *      Likely future entries:
+ *
+ *        "/settings",  // user-owned preferences
+ *        "/dashboard", // institutional portfolio view
+ *        "/admin",     // operator surface
+ *        "/billing",   // Stripe-connected billing surface
+ *
+ *      The route-protection path is fully wired — the only thing
+ *      stopping it firing today is this empty list.
  */
 
-const PROTECTED_PREFIXES = [
-  "/settings",
-  "/library",
-  "/report",
-  "/dashboard",
-] as const;
+const PROTECTED_PREFIXES: readonly string[] = [];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
