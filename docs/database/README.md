@@ -3,7 +3,7 @@
 Single source of truth for the HotelVALORA Postgres schema, hosted on Supabase project `twebgqutuqgonabvhzjk` (EU-Central — Frankfurt, Postgres 17).
 
 **Last refreshed:** 2026-05-11
-**Schema status:** ✅ applied (migrations `20260511015418_initial_schema` + `harden_security_definer_functions`). 32 tables, all with RLS enabled.
+**Schema status:** ✅ applied — 32 public tables (all with RLS) + 5 Storage buckets with per-bucket RLS. Migrations registered: `initial_schema` · `harden_security_definer_functions` · `storage_buckets_and_policies` · `restrict_avatar_listing`.
 
 ## Layout
 
@@ -12,9 +12,14 @@ docs/database/
   README.md                              ← this file (ER summary + how-to)
   schema.sql                             ← thin pointer to migrations/
   migrations/
-    0001_initial_schema.sql              ← 32 tables · all 6 domains · v1 (applied)
-    0002_harden_security_definer_functions.sql  ← pins search_path + revokes
-                                                    RPC exposure (applied)
+    0001_initial_schema.sql                       ← 32 tables · all 6 domains (applied)
+    0002_harden_security_definer_functions.sql    ← pins search_path + revokes
+                                                     RPC exposure (applied)
+    0003_storage_buckets_and_policies.sql         ← 5 Storage buckets + 19 RLS
+                                                     policies on storage.objects
+                                                     (applied)
+    0004_restrict_avatar_listing.sql              ← scopes avatar listing to
+                                                     own namespace (applied)
 ```
 
 Every future schema change ships as a numbered migration file under `migrations/` — never edit `0001_initial_schema.sql` after it has been applied.
@@ -142,19 +147,44 @@ Every public table has RLS enabled. The default policy template:
 
 Full per-policy list lives in `migrations/0001_initial_schema.sql` § ROW LEVEL SECURITY.
 
-## Storage buckets (configure separately, in the dashboard)
+## Storage buckets (provisioned by migration 0003)
 
-The migration ONLY creates the SQL metadata tables. The actual buckets live in Supabase Storage and must be created via the dashboard:
+The five canonical buckets are created and RLS-locked by migration `0003_storage_buckets_and_policies.sql`. No manual dashboard step is required.
 
-| Bucket | Access | Per-bucket RLS template |
-|---|---|---|
-| `reports` | public read | `(auth.uid() = (storage.foldername(name))[1]::uuid)` for write |
-| `pdfs` | private (signed URLs) | owner write only |
-| `excel-uploads` | private | owner write/read only |
-| `renders` | public read | owner write only |
-| `avatars` | public read | own write only |
+| Bucket | Public? | MIME allowlist | Size cap | Access pattern |
+|---|---|---|---|---|
+| `reports` | private | any | 50 MB | own namespace; share via server-minted signed URL |
+| `pdfs` | private | `application/pdf` | 100 MB | own namespace; delivered via signed URL |
+| `excel-uploads` | private | `xlsx`, `xls` | 25 MB | uploader-only |
+| `renders` | private | `png` · `jpeg` · `webp` | 10 MB | requester-only; served via signed URL |
+| `avatars` | **public** | `png` · `jpeg` · `webp` | 5 MB | own writes; reads via public CDN URL |
 
-See `docs/integrations/supabase.md` for the storage activation checklist.
+### Path convention
+
+Every bucket follows the same layout:
+
+```
+{bucket}/{auth.uid()}/{rest...}
+```
+
+The first folder is always the caller's user id. `storage.objects` RLS enforces it via:
+
+```sql
+(storage.foldername(name))[1] = auth.uid()::text
+```
+
+Use the typed helpers at `apps/web/src/lib/supabase/storage.ts` (browser) and `apps/web/src/lib/supabase/storage-server.ts` (server) — they build paths, validate size/MIME, and mint signed URLs through the service-role client.
+
+### Signed URLs
+
+Every private bucket exposes objects to the UI through **time-limited signed URLs** minted server-side with the service-role key. Defaults:
+
+- `DEFAULT_SIGNED_URL_TTL_SECONDS = 300` (5 minutes).
+- Pass `downloadAs: "<filename>"` to force `Content-Disposition: attachment` (used by the "Download PDF" CTA).
+
+### Avatar listing policy note
+
+Migration `0003` originally issued a broad `avatars: public read` policy on `storage.objects`. The Supabase advisor (`0025_public_bucket_allows_listing`) flagged it — a `public=true` bucket already serves object URLs through the CDN without any SELECT policy, so a broad policy only granted the ability to **list** every user's avatars. Migration `0004` replaces that with an own-namespace listing policy. Anon clients can still hit a known avatar URL; they just can't enumerate the bucket.
 
 ## After applying — regenerate TS types
 

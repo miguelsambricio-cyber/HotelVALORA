@@ -83,7 +83,10 @@ Maps tasks to exact files. Start here before scanning.
 | Email server actions (`sendTourRequestAction`) | `apps/web/src/lib/email/actions.ts` |
 | Supabase clients (browser / server / middleware / admin / auth-helpers / barrel) | `apps/web/src/lib/supabase/` |
 | Supabase connection-test probe page | `apps/web/src/app/dev/supabase-test/page.tsx` |
-| Supabase SQL schema proposal (7 tables + enums + triggers + RLS) | `docs/database/schema.sql` |
+| Supabase generated TypeScript types (from live schema) | `apps/web/src/lib/supabase/types.ts` |
+| Supabase Storage — browser helpers (`BUCKETS`, `uploadOwnFile`, `getPublicUrl`, …) | `apps/web/src/lib/supabase/storage.ts` |
+| Supabase Storage — server helpers (`createStorageSignedUrl`, `moveStorageObject`, …) | `apps/web/src/lib/supabase/storage-server.ts` |
+| Supabase migrations (initial schema · hardening · storage buckets) | `docs/database/migrations/` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library mock dataset (6 hotels) | `apps/web/src/lib/library/mock-reports.ts` |

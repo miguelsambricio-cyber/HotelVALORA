@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (evening — Supabase initial schema applied to production project: 32 tables live + RLS + advisor warnings closed).
+**Last refreshed:** 2026-05-11 (evening — Supabase Storage buckets provisioned, TS types regenerated from live schema, typed storage helpers wired).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -56,10 +56,11 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Supabase project | Postgres + Storage | 🟢 | Project `twebgqutuqgonabvhzjk` provisioned, schema applied (32 tables · RLS · 2 migrations registered), env wired Vercel | Migration `20260511015418_initial_schema` + `harden_security_definer_functions` applied via MCP; only intentional advisory left (`payment_events` service-role only) | Configure Storage buckets · regenerate `apps/web/src/lib/supabase/types.ts` via CLI |
-| Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers + full `Database` type | Auto-regenerate `types.ts` with CLI when access token lands |
+| Supabase project | Postgres + Storage | 🟢 | Project `twebgqutuqgonabvhzjk` provisioned, schema applied (32 tables · RLS · 4 migrations registered), env wired Vercel | Migrations `0001`–`0004` applied via MCP; only intentional advisory left (`payment_events` service-role only) | Wire app reads against live `valuations` / `favorite_reports` / `top_promote_reports` |
+| Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers + CLI-generated `Database` type | — |
 | Supabase Auth | Identity | 🔴 | Project provisioned, no providers configured | Future home of OAuth + magic links | Defer to Phase 3 (Auth.js owns OAuth today) |
-| Supabase Storage | Object storage | 🔴 | Project provisioned, buckets NOT created | Planned: reports / pdfs / excel-uploads / renders / avatars | Configure buckets via dashboard |
+| Supabase Storage | Object storage | 🟢 | 5 buckets provisioned via migration `0003` (`reports`/`pdfs`/`excel-uploads`/`renders`/`avatars`) with 19 own-namespace RLS policies on `storage.objects` | Path convention `{bucket}/{auth.uid}/…`; private buckets served via signed URLs minted server-side; avatars on public CDN | Wire upload UI to `lib/supabase/storage.ts` when Settings → Avatar / Reports → Attachments / Imports → Excel surfaces ship |
+| Supabase Storage helpers | Frontend | 🟢 | `apps/web/src/lib/supabase/storage.ts` (browser) + `storage-server.ts` (signed URLs, admin moves/deletes) | Typed against generated `Database` shape; `BUCKETS` catalog mirrors migration 0003 | — |
 | FastAPI (apps/api) | API | 🟡 | Local Docker only | Auth + valuations + imports built; only `/review` consumed today | Decide Phase 3: keep FastAPI vs. migrate to Supabase Edge Functions |
 | PostgreSQL 16 (local Docker) | Dev DB | 🟢 | docker-compose | Powers FastAPI in dev | — |
 | Alembic | Migrations (FastAPI side) | 🟢 | Local | Migrations 0001 → 0005 | Next: `0006` when needed |

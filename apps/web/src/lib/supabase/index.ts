@@ -22,3 +22,24 @@ export {
 export type { SupabaseUser } from "./auth-helpers";
 
 export type { Database } from "./types";
+
+// Storage — browser-safe surface. Server-only helpers (signed URLs,
+// move/delete as admin) live in `./storage-server` and must never be
+// re-exported from this barrel.
+export {
+  BUCKETS,
+  ownPath,
+  timestampedName,
+  validateForBucket,
+  uploadOwnFile,
+  deleteOwnFiles,
+  listOwnFiles,
+  getPublicUrl,
+} from "./storage";
+export type {
+  StorageBucket,
+  StorageBucketSpec,
+  StorageValidationError,
+  UploadResult,
+  UploadOptions,
+} from "./storage";

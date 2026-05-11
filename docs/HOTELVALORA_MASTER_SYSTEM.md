@@ -69,7 +69,7 @@ Today's runtime reality:
 - The FastAPI backend exists with auth + review + dedup + valuations + imports endpoints but isn't yet driving the report / library / dashboard surfaces.
 - Mock data lives in `apps/web/src/lib/{report,library,…}/*-data.ts` and `apps/web/src/lib/library/mock-reports.ts`.
 - **Auth.js v5 is wired** (Google + LinkedIn + Apple providers, JWT sessions, gated middleware) but currently inert — `AUTH_ENABLED=false` until OAuth credentials are minted. The mock Zustand auth store coexists for demos.
-- **Supabase is live in production** — project `twebgqutuqgonabvhzjk` (eu-central · Postgres 17). The 32-table initial schema is applied (`docs/database/migrations/0001_initial_schema.sql` + `0002_harden_security_definer_functions.sql`), every table has RLS, env wired on Vercel. Storage buckets + Supabase Auth still outstanding. Clients in `lib/supabase/*` + probe page `/dev/supabase-test` confirm green.
+- **Supabase is live in production** — project `twebgqutuqgonabvhzjk` (eu-central · Postgres 17). The 32-table schema + 5 Storage buckets are applied (migrations `0001`–`0004`), every table and `storage.objects` namespace has RLS, env wired on Vercel. `apps/web/src/lib/supabase/types.ts` is regenerated from the live schema; typed Storage helpers ship at `lib/supabase/storage.ts` (browser) + `lib/supabase/storage-server.ts` (signed URLs). Supabase Auth still outstanding — Auth.js v5 owns identity today. Library / report / favorites surfaces still render from `lib/library/mock-reports.ts` — wiring those reads is the next milestone.
 - **Resend transactional email is live** in production (`RESEND_API_KEY` + sandbox sender). The Library "Schedule a Tour" CTA on top-promoted reports sends real emails.
 
 ---

@@ -74,11 +74,11 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 |---|---|
 | Category | Database + Storage + (future) Auth |
 | Status | 🟢 |
-| Configured? | Yes — project provisioned, env wired, schema applied (32 tables · RLS · 2 migrations registered) |
-| Working? | Env probe (`/dev/supabase-test`) returns green; schema live, no app queries yet |
-| Production ready? | Yes for DDL; Storage buckets + Auth still pending |
-| Partially implemented? | Yes (Storage buckets + Auth still outstanding) |
-| Frontend connected? | Yes (clients in `lib/supabase/*`, middleware refresh wired) |
+| Configured? | Yes — project provisioned, env wired, schema + Storage buckets applied (32 tables · 5 buckets · RLS everywhere · 4 migrations registered) |
+| Working? | Env probe (`/dev/supabase-test`) returns green; schema + Storage live, typed helpers in place, no app reads yet |
+| Production ready? | Yes for DDL + Storage; Auth still pending |
+| Partially implemented? | Yes (Supabase Auth still outstanding; Auth.js owns identity today) |
+| Frontend connected? | Yes (`lib/supabase/*` clients + middleware refresh + storage helpers + generated `Database` types) |
 | Backend connected? | N/A (Supabase IS the backend) |
 | Env vars added? | Yes (URL + anon + service-role on Vercel) |
 | Vercel configured? | Yes |
@@ -87,7 +87,7 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Local tested? | Probe page yes; queries no |
 | Production tested? | Probe page yes; queries no |
 | Blockers | None |
-| Notes | Migrations `20260511015418_initial_schema` + `harden_security_definer_functions` applied via Supabase MCP. Next: regenerate `apps/web/src/lib/supabase/types.ts` (CLI) and configure Storage buckets |
+| Notes | Migrations `0001`–`0004` applied via Supabase MCP. Next: wire app reads against `valuations`/`favorite_reports`/`top_promote_reports` and swap mock auth to Supabase Auth / Auth.js adapter |
 
 ## Auth.js v5
 
@@ -253,5 +253,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 73%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 15×1 + 5×0.5 = 17.5 of 24 active services = 73% after Supabase schema flipped to 🟢)
+**Infrastructure health score: 76%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 17×1 + 4×0.5 = 19 of 25 active services = 76% after Storage flipped to 🟢 and TS types retired from 🟡)

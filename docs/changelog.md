@@ -4,6 +4,54 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Supabase Storage buckets + typed helpers + regenerated TS types
+
+Closed the entire post-schema gap on the Supabase side: types regenerated from the live database, the five canonical Storage buckets provisioned via migration with per-bucket RLS, and typed frontend helpers wired through the existing `lib/supabase/*` barrel.
+
+### Migrations applied
+
+- `0003_storage_buckets_and_policies.sql` — provisions `reports` / `pdfs` / `excel-uploads` / `renders` / `avatars` with explicit `public` flag, MIME allowlists, size caps, and 19 own-namespace RLS policies on `storage.objects`.
+- `0004_restrict_avatar_listing.sql` — fixes the `0025_public_bucket_allows_listing` advisor: drops the broad `avatars: public read` policy (CDN-served objects don't need one) and replaces it with own-namespace listing.
+
+### TypeScript types
+
+Generated from the live schema via `mcp__claude_ai_Supabase__generate_typescript_types` and written to `apps/web/src/lib/supabase/types.ts`. The hand-rolled shim is gone — every table, enum, FK relationship and `Database["public"]["Tables"][T]["Row"|"Insert"|"Update"]` shape is now authoritative. `pnpm typecheck` still passes.
+
+### Frontend storage layer
+
+- `apps/web/src/lib/supabase/storage.ts` — browser-safe primitives: `BUCKETS` catalog, `ownPath`, `timestampedName`, `validateForBucket`, `uploadOwnFile`, `deleteOwnFiles`, `listOwnFiles`, `getPublicUrl` (narrowed to `avatars`).
+- `apps/web/src/lib/supabase/storage-server.ts` — service-role helpers: `createStorageSignedUrl` / `createStorageSignedUrls` (5-minute default TTL, optional `downloadAs`), `moveStorageObject`, `deleteStorageObjectsAsAdmin`. Server-only enforced by `import "server-only"`.
+- Barrel `apps/web/src/lib/supabase/index.ts` re-exports the browser surface; the server module must be imported directly so client bundles can't pick it up.
+
+### Bucket policy summary
+
+| Bucket | Public? | MIME allowlist | Size cap |
+|---|---|---|---|
+| `reports` | private | any | 50 MB |
+| `pdfs` | private | `application/pdf` | 100 MB |
+| `excel-uploads` | private | `xlsx`, `xls` | 25 MB |
+| `renders` | private | `png`/`jpeg`/`webp` | 10 MB |
+| `avatars` | public | `png`/`jpeg`/`webp` | 5 MB |
+
+Path convention everywhere: `{bucket}/{auth.uid()}/{rest…}` so a single RLS template `(storage.foldername(name))[1] = auth.uid()::text` enforces ownership.
+
+### Files
+
+- `apps/web/src/lib/supabase/types.ts` — regenerated
+- `apps/web/src/lib/supabase/storage.ts` — new
+- `apps/web/src/lib/supabase/storage-server.ts` — new
+- `apps/web/src/lib/supabase/index.ts` — barrel updated
+- `docs/database/migrations/0003_storage_buckets_and_policies.sql` — new
+- `docs/database/migrations/0004_restrict_avatar_listing.sql` — new
+- `docs/database/README.md` — Storage section rewritten
+- Infra trackers + master system doc + sprint refreshed; ENTRYPOINTS.md gained the storage entries
+
+### What's still mock vs Supabase-backed
+
+Schema and storage are fully live. The frontend has not yet started consuming them — every Library / report / favorites / top-promote surface still renders from `apps/web/src/lib/library/mock-reports.ts`, and auth is still the in-memory Zustand mock at `apps/web/src/lib/auth/store.ts`. Wiring those reads (and replacing the mock auth with Supabase Auth or Auth.js + adapter) is the next milestone.
+
+---
+
 ## 2026-05-11 — Supabase initial schema applied to production project
 
 Applied `0001_initial_schema.sql` to project `twebgqutuqgonabvhzjk` via the Supabase MCP server (`apply_migration`). 32 tables created, all with RLS enabled. Registered as migration `20260511015418_initial_schema`.

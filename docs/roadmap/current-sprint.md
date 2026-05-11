@@ -20,7 +20,10 @@
 | Supabase architecture initialized — clients + middleware + schema proposal + probe page | `407599f` | ✅ |
 | Comprehensive Supabase schema drafted — 30 tables · 6 domains · RLS on every table · hand-rolled `Database` type | `b326f0b` | ✅ |
 | Supabase MCP wiring (`.mcp.json`) for in-editor schema ops | *(this commit)* | ✅ |
-| **Supabase initial schema applied to production project** — 32 tables, all RLS, advisor warnings closed (`harden_security_definer_functions`) | *(this commit)* | ✅ |
+| **Supabase initial schema applied to production project** — 32 tables, all RLS, advisor warnings closed (`harden_security_definer_functions`) | `f7e40b4` | ✅ |
+| **Supabase TS types regenerated** from the live schema — replaced the hand-rolled `types.ts` shim with the CLI-generated `Database` surface (1750 lines, all enums + FKs accurate) | *(this commit)* | ✅ |
+| **Supabase Storage buckets provisioned** via migration — 5 buckets (`reports`/`pdfs`/`excel-uploads`/`renders`/`avatars`) with 19 own-namespace RLS policies + size + MIME caps. Advisor warning on broad-public-read fixed by `0004` | *(this commit)* | ✅ |
+| **Typed Storage helpers** — `lib/supabase/storage.ts` (browser: `BUCKETS`, `uploadOwnFile`, `validateForBucket`, `getPublicUrl`) + `lib/supabase/storage-server.ts` (signed URLs, admin move/delete) | *(this commit)* | ✅ |
 
 ## In flight
 
@@ -28,12 +31,13 @@
 
 ## Up next (rough order of pull)
 
-1. Regenerate `apps/web/src/lib/supabase/types.ts` from the live schema (`pnpm dlx supabase gen types typescript --project-id twebgqutuqgonabvhzjk --schema public`) and replace the hand-rolled shim.
-2. Configure Supabase Storage buckets (`reports`, `pdfs`, `excel-uploads`, `renders`, `avatars`) with per-bucket RLS.
-3. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
-4. Marketplace placeholder — "Activate Top Promote" CTA inside the report shell (mock checkout).
-5. Replace mock auth with NextAuth (keep the `useAuth()` surface).
-6. Start `/api/v1/library/*` resource backed by the existing `LibraryReport` shape.
+1. Wire Library reads to Supabase — first the public-visibility valuations list (replace `lib/library/mock-reports.ts` consumers with a TanStack Query hook backed by `supabase.from('valuations').select(...).in('visibility', ['public','top-promote'])`).
+2. Wire favourites to `public.favorite_reports` (toggling the ⭐ column inserts/deletes the join row under RLS).
+3. Wire Top Promote slot rendering to `public.top_promote_reports` join, including the `promoted_until > now()` filter (callers derive activeness inline since the column is no longer generated).
+4. Replace the mock Zustand auth store with Supabase Auth (or keep Auth.js v5 + `@auth/supabase-adapter`) — keep the `useAuth()` surface unchanged.
+5. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
+6. Marketplace placeholder — "Activate Top Promote" CTA inside the report shell (mock checkout).
+7. Verify a domain in Resend; create the Google OAuth client; generate `AUTH_SECRET`.
 
 ## Decisions made this sprint
 
