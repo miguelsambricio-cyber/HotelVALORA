@@ -5,16 +5,17 @@ Design of the daily fetch → parse → normalise → categorise → dedupe → 
 **Status:** implementation live (apps/web/src/lib/intelligence/) — Phase 2 shipped 2026-05-11.
 **Last refreshed:** 2026-05-11
 
-## Two ingestion branches
+## Three ingestion branches
 
-The Intelligence Engine has TWO parallel ingestion paths feeding the same downstream consumers:
+The Intelligence Engine has THREE parallel ingestion paths feeding the same downstream consumers:
 
 | Branch | Source | Destination | Driver |
 |---|---|---|---|
 | **A. Automated news** | RSS / scrape / API (10 catalogued sources) | `public.market_news` + `news_tags` + `news_ingestion_runs` | Daily cron `48 7 * * *` UTC at `/api/cron/hospitality-intel` |
-| **B. Operator masters** | Manual XLSX/CSV drops in `services/transactions/INPUT_*/` | `MASTER/HOTEL_TRANSACCIONES_MASTER.xlsx` + `MASTER/HOTEL_PROYECTOS_MASTER.xlsx` | Data Ingestion Agent (manual trigger today; cron in Phase 2) |
+| **B. Transactions + projects masters** | Manual XLSX/CSV drops in `services/transactions/INPUT_*/` | `MASTER/HOTEL_TRANSACCIONES_MASTER.xlsx` + `MASTER/HOTEL_PROYECTOS_MASTER.xlsx` | Data Ingestion Agent — CLI live (Phase 2.3.b) |
+| **C. CoStar hospitality market warehouse** | Manual XLSX/CSV drops in `services/costar/{PAIS,MERCADO,SUBMERCADO,COMPSET}/INPUT/` | `MASTER/COSTAR_MASTER_{PAIS,MERCADOS,SUBMERCADOS,COMPSETS}.xlsx` | Data Ingestion Agent — CLI lands in Phase 2.3.d (substrate live now) |
 
-Sections 1–9 below describe Branch A. Branch B follows the same fetch → parse → normalise → categorise → dedupe → store shape but the storage target is an XLSX workbook with full ingestion-meta. The detailed contract for Branch B lives in `transaction-ingestion-workflow.md` + `data-normalization-rules.md`.
+All three share architectural primitives (ingestion-meta block, audit-chain unification via `/api/agents/data-ingestion-summary`, append-only discipline). Sections 1–9 below describe Branch A. Branch B contract lives in `transaction-ingestion-workflow.md` + `data-normalization-rules.md`. Branch C contract lives in `costar-ingestion-workflow.md` + `costar-normalization-rules.md` + the four per-granularity schema docs.
 
 ---
 

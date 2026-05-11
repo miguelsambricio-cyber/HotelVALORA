@@ -7,9 +7,16 @@
 **Last refreshed:** 2026-05-11
 **Phase status:** 🟢 Phase 1 foundation live · 🟡 Phase 2 Tier 1 agents shipped (Market Intelligence + Data Ingestion + QA / Monitoring). Runtime in `apps/web/src/lib/ai-agents/core/` is the deterministic shell every future agent inherits. CEO Agent intentionally still `planned` — activates in Phase 3.
 
-## Data Ingestion Agent — institutional masters workspace
+## Data Ingestion Agent — institutional masters workspaces
 
-The Data Ingestion Agent owns the operational ingestion of institutional transactions + projects datasets at `services/transactions/`. Its supervision contract:
+The Data Ingestion Agent owns the operational ingestion of TWO institutional XLSX workspaces:
+
+1. **`services/transactions/`** — hotel transactions + projects (2 masters, 2 pipelines)
+2. **`services/costar/`** — CoStar hospitality market intelligence (4 masters, 4 pipelines: country / market / submarket / compset)
+
+Both workspaces share the same architectural primitives (14-column ingestion-meta block, append-only discipline, audit-chain unification via `/api/agents/data-ingestion-summary`, .gitignore that tracks contract not data). Phase 2.3.b shipped the transactions CLI; Phase 2.3.d wires the costar CLI on top of the same primitives.
+
+Its supervision contract (applies to both workspaces):
 
 - Reads files from `INPUT_TRANSACCIONES/` + `INPUT_PROYECTOS/`
 - Parses · validates · normalises · deduplicates per `docs/intelligence/data-normalization-rules.md`

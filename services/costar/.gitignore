@@ -1,0 +1,52 @@
+# services/costar — institutional hospitality market intelligence workspace
+#
+# Same philosophy as services/transactions/.gitignore: git tracks the CONTRACT
+# (directory structure + master canonical datasets + templates + schemas),
+# NOT the day-to-day data. Real CoStar exports, processed archives, staging
+# artefacts and run logs stay local + auditable but never travel through
+# commits.
+
+# Inbound raw imports (operator drops these — never commit)
+PAIS/INPUT/*
+!PAIS/INPUT/.gitkeep
+PAIS/old.pais/*
+!PAIS/old.pais/.gitkeep
+
+MERCADO/INPUT/*
+!MERCADO/INPUT/.gitkeep
+MERCADO/old.mercado/*
+!MERCADO/old.mercado/.gitkeep
+
+SUBMERCADO/INPUT/*
+!SUBMERCADO/INPUT/.gitkeep
+SUBMERCADO/old.submercado/*
+!SUBMERCADO/old.submercado/.gitkeep
+
+COMPSET/INPUT/*
+!COMPSET/INPUT/.gitkeep
+COMPSET/old.compset/*
+!COMPSET/old.compset/.gitkeep
+
+# Staging — failed parses, manual-review queue, temp normalisation files
+staging/failed/*
+!staging/failed/.gitkeep
+
+staging/review/*
+!staging/review/.gitkeep
+
+staging/temp/*
+!staging/temp/.gitkeep
+
+# Operational run logs
+logs/*
+!logs/.gitkeep
+
+# Local-only working copies of the masters
+MASTER/*.bak
+MASTER/*~
+MASTER/.~lock.*
+
+# Python pipeline runtime artefacts
+scripts/__pycache__/
+scripts/*.pyc
+scripts/.pytest_cache/

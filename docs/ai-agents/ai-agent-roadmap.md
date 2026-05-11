@@ -69,6 +69,8 @@ Phased rollout of the 9 operational AI systems.
 | Field-by-field normalisation (geography · dates · prices · entities · URLs · enums) | ✅ Phase 2.3.b |
 | Append-only MASTER writes + INGESTION_LOG · `old.*/` archive · `staging/{failed,review}/` · per-run jsonl logs | ✅ Phase 2.3.b |
 | Audit-chain unification (Python CLI → POST → `ai_agent_runs`) | ✅ Phase 2.3.c — cloud handler `/api/agents/data-ingestion-summary` records one `ai_agent_runs` row per file with `metadata.python_ingestion_id` cross-reference + emits `data_ingestion_staged` event. CLI soft-fails on network/auth issues; local MASTER remains authoritative. Operator env vars: `INGESTION_AUDIT_TOKEN` + `INGESTION_AUDIT_URL`. |
+| **Institutional CoStar workspace at `services/costar/`** | ✅ Phase 2.3.d.0 — directory + 4 canonical MASTER xlsx (PAIS 39c · MERCADOS 40c · SUBMERCADOS 41c · COMPSETS 48c) + reproducible `scripts/build_masters.py` + 4 csv templates + 7 architecture docs in `docs/intelligence/`. See `services/costar/README.md`. |
+| **CoStar CLI pipeline at `services/costar/scripts/`** | ⏸ Phase 2.3.d.1 — substrate ready, parser + CLI to mirror the transactions pipeline (per-granularity sweep, normalise, dedup, route, archive, audit-sync). Reuses the same cloud endpoint. |
 
 ### Phase 2.4 — QA / Monitoring Agent ✅
 

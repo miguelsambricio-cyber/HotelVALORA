@@ -9,12 +9,13 @@
 
 ## Operational ingestion workspace
 
-The corpus is fed by two complementary streams:
+The corpus is fed by THREE complementary streams:
 
 1. **Automated news ingestion** — daily cron reads RSS / scrape / API sources into `public.market_news`. Implementation in `apps/web/src/lib/intelligence/`.
-2. **Operator-curated masters** — institutional XLSX workbooks under `services/transactions/MASTER/` that capture transactions + projects with full ingestion-meta. Reference docs in `docs/intelligence/{transaction-ingestion-workflow,master-dataset-architecture,data-normalization-rules,transaction-schema,project-schema}.md`.
+2. **Operator-curated transactions + projects masters** — institutional XLSX workbooks under `services/transactions/MASTER/` capturing deals + pipeline events with full ingestion-meta. Reference docs in `docs/intelligence/{transaction-ingestion-workflow,master-dataset-architecture,data-normalization-rules,transaction-schema,project-schema}.md`.
+3. **Operator-curated CoStar hospitality market warehouse** — four institutional XLSX masters under `services/costar/MASTER/` (country, market, submarket, compset) covering hospitality KPIs + indices (RevPAR / ADR / Occupancy / MPI / ARI / RGI). Reference docs in `docs/intelligence/{costar-ingestion-workflow,costar-master-dataset-architecture,costar-normalization-rules,costar-country-schema,costar-market-schema,costar-submarket-schema,costar-compset-schema}.md`.
 
-Both flow into the same downstream consumers (Library, Underwriting, Maps, CRM). The Data Ingestion Agent supervises the masters workspace end-to-end starting Phase 2.
+All three flow into the same downstream consumers (Library, Underwriting, Maps, CRM, Report Generation). The Data Ingestion Agent supervises both XLSX workspaces (transactions + costar) end-to-end with the same primitives + the same audit-chain unification pattern.
 
 ---
 
