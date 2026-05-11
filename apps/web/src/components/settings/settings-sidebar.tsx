@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowRight,
   Briefcase,
   Building2,
   HelpCircle,
@@ -27,7 +28,6 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const SECONDARY_NAV: NavItem[] = [
-  { href: "/user/admin", label: "Admin", icon: Shield },
   { href: "#support", label: "Support", icon: HelpCircle },
 ];
 
@@ -35,6 +35,10 @@ const SECONDARY_NAV: NavItem[] = [
  * Settings shell sidebar. Sticky on desktop (top-24 to clear the sticky
  * AppHeader). Items float on the page background — active item becomes a
  * white pill with a lime-yellow accent rail and forest-900 text.
+ *
+ * Below the standard nav sits the Administrator CTA card — institutional
+ * dark + lime-300 styling, always visible from every /settings/* page so
+ * the operator has a single-click path to the Operations Center.
  */
 export function SettingsSidebar() {
   const pathname = usePathname();
@@ -79,11 +83,7 @@ export function SettingsSidebar() {
       {/* Secondary nav + sign out */}
       <nav aria-label="Account actions" className="space-y-1">
         {SECONDARY_NAV.map((item) => (
-          <SidebarItem
-            key={item.href}
-            item={item}
-            active={item.href === "/user/admin" && (pathname?.startsWith("/user/admin") ?? false)}
-          />
+          <SidebarItem key={item.href} item={item} active={false} />
         ))}
         <button
           type="button"
@@ -97,6 +97,9 @@ export function SettingsSidebar() {
           Sign Out
         </button>
       </nav>
+
+      {/* Administrator featured CTA — institutional dark · always visible */}
+      <AdminCtaCard />
     </aside>
   );
 }
@@ -124,6 +127,51 @@ function SidebarItem({ item, active }: { item: NavItem; active: boolean }) {
       )}
       <Icon size={16} strokeWidth={2.2} />
       {item.label}
+    </Link>
+  );
+}
+
+// ── Administrator CTA — featured dark card at the bottom of the sidebar ─────
+
+function AdminCtaCard() {
+  return (
+    <Link
+      href="/user/admin"
+      className={cn(
+        "group mt-6 block overflow-hidden rounded-xl",
+        "bg-gradient-to-br from-slate-950 via-forest-900 to-slate-950",
+        "ring-1 ring-slate-800",
+        "transition-transform hover:scale-[1.01] active:scale-[0.99]",
+        "shadow-[0_10px_30px_-12px_rgba(6,44,28,0.55)]",
+      )}
+      aria-label="Open the Administrator operations center"
+    >
+      <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-lime-300/15 ring-1 ring-lime-300/30">
+            <Shield size={14} className="text-lime-300" strokeWidth={2.4} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-lime-300">
+              Administrator
+            </p>
+            <p className="font-headline text-[12px] font-extrabold leading-tight text-white">
+              Operations Center
+            </p>
+          </div>
+        </div>
+        <ArrowRight
+          size={14}
+          className="shrink-0 text-lime-300/80 transition-transform group-hover:translate-x-0.5"
+        />
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-slate-800/60 bg-slate-950/40 px-3.5 py-2 font-mono text-[9.5px] uppercase tracking-widest text-lime-300/60">
+        <span className="inline-flex items-center gap-1">
+          <span aria-hidden className="text-emerald-400 animate-pulse">●</span>
+          Live
+        </span>
+        <span>10 agents</span>
+      </div>
     </Link>
   );
 }
