@@ -125,7 +125,7 @@ Production has never been rolled back as of this refresh.
 
 - No Sentry on the frontend (apps/web)
 - No PostHog
-- No Vercel Analytics
+- ✅ Vercel Analytics installed since 2026-05-11 (`@vercel/analytics` 2.0.1, mounted in `apps/web/src/app/layout.tsx`)
 - Vercel runtime logs accessible via `vercel logs <deploy-url>` only
 
 Activation roadmap: `docs/roadmap/master-roadmap.md` Phase 4 + 5.

@@ -4,6 +4,30 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Vercel Analytics enabled
+
+Installed `@vercel/analytics` 2.0.1 in `apps/web` and mounted `<Analytics />` in the root layout. Cookie-free, GDPR-compliant page-view + custom-event tracking. Auto-enabled on production deploys via the Vercel platform — no env vars to configure.
+
+### What changed
+- `apps/web/package.json`: + `@vercel/analytics` ^2.0.1
+- `apps/web/src/app/layout.tsx`: imports `Analytics` from `@vercel/analytics/next`, renders inside `<body>` (after `<Providers>` so Suspense boundaries don't interfere)
+
+### Bundle delta
+Library route `First Load JS` stayed at 214 kB (the Analytics script is < 1 KB gzipped and lives in the shared chunk). Middleware unchanged at 81.8 kB. No measurable regression.
+
+### Behaviour
+- **On Vercel production**: pings `/insights/event` on navigation; visible in the Vercel Dashboard → Analytics tab within ~30 s of the next deploy
+- **On Vercel preview**: no-op (Vercel only counts production traffic on the Hobby plan)
+- **On localhost (`pnpm dev`)**: no-op (production-only mode by default)
+
+### Documentation
+- `HOTELVALORA_TECH_STACK_MASTER.md`: row flipped 🔴 → 🟢 with version + mount location
+- `service-status.md`: moved out of `🔵 Planned`, added to `🟢 Working` (26 → 27)
+- `INFRASTRUCTURE_MASTER_TRACKER.md`: health score recomputed
+- `deployment-status.md`: observability gap closed
+
+---
+
 ## 2026-05-11 — CEO / Orchestration Agent — Tier 0 added to the AI Operations Layer
 
 Adds the **10th and supervisory agent** — the CEO / Orchestration Agent — to the AI Operations Layer. The CEO Agent sits ABOVE the 9 operational agents in a new **Tier 0** position. It is **NOT a chatbot. NOT customer-facing.** It is the operations command center, AI chief-of-staff, and escalation router for the entire platform.

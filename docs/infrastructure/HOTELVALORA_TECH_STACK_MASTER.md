@@ -100,7 +100,7 @@
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
 | PostHog | Product analytics | 🔵 | Not installed | Planned: event tracking + funnels + session replay | Phase 5 — `pnpm add posthog-js`; install at `apps/web/src/components/providers.tsx` |
-| Vercel Analytics | RUM | 🔴 | Not installed | Free with Vercel Hobby | Enable via Vercel dashboard → Analytics |
+| Vercel Analytics 2.0.1 | RUM + page-view tracking | 🟢 | Installed in `apps/web` 2026-05-11 · `<Analytics />` mounted in root layout | Cookie-free, GDPR-compliant; auto-enabled on production deploys via Vercel. No env vars needed | — |
 
 ### Error tracking + observability
 

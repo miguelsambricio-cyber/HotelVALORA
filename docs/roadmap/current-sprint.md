@@ -33,7 +33,8 @@
 | **Auth log noise eliminated** — `<SessionProvider>` removed from `providers.tsx` (legacy Auth.js scaffold polling `/api/auth/session` with no `AUTH_SECRET` produced 500s on every page load). | `32b1cd2` | ✅ |
 | **Hospitality Intelligence Engine — Phase 1 foundation** — migration `0006` applied (9 tables · 5 enums · RLS public-read · 10 seeded sources). 6 strategic + technical docs in `docs/intelligence/`. Trackers updated. NO ingestion code yet — Phase 2 lands the pipeline. | `3158615` | ✅ |
 | **AI Operations Layer — Phase 1 foundation** — migration `0007` applied (7 tables · 6 enums · 9 agents seeded · 20 tools catalogued). 8 strategic + technical docs in `docs/ai-agents/`. Establishes deterministic-shell + audit + permissions + memory + escalation philosophy for 9 future operational AI systems (NOT chatbots). | `7b841c5` | ✅ |
-| **CEO / Orchestration Agent added as Tier 0** — migration `0008` applied (extends `ai_agent_id` enum + adds 3 new event kinds + seeds CEO agent + 10 supervisory tools). Tier 0 sits ABOVE the 9 operational agents. Hourly + daily supervisory cycles. NOT a chatbot — operations command center. Lands in Phase 3 alongside reactive orchestrator + pgvector + admin dashboard. | *(this commit)* | ✅ |
+| **CEO / Orchestration Agent added as Tier 0** — migration `0008` applied (extends `ai_agent_id` enum + adds 3 new event kinds + seeds CEO agent + 10 supervisory tools). Tier 0 sits ABOVE the 9 operational agents. Hourly + daily supervisory cycles. NOT a chatbot — operations command center. Lands in Phase 3 alongside reactive orchestrator + pgvector + admin dashboard. | `e6ec45c` | ✅ |
+| **Vercel Analytics installed** — `@vercel/analytics` 2.0.1 + `<Analytics />` mounted in `apps/web/src/app/layout.tsx`. Cookie-free, GDPR-compliant page-view + event tracking. Auto-enabled on production deploys. | *(this commit)* | ✅ |
 
 ## In flight
 

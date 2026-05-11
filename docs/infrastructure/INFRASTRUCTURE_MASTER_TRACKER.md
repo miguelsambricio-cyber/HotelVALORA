@@ -293,5 +293,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 84%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 26×1 + 3×0.5 + 3×0.0 = 27.5 of 32 active services = 86%. AI Operations Layer Phase 1 foundation joins inventory as 🟢. Phase 2+ agent runtimes live in 🔵 Planned and don't count toward active until shipped.)
+**Infrastructure health score: 86%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 27×1 + 3×0.5 + 3×0.0 = 28.5 of 33 active services = 86%. Vercel Analytics now installed + mounted — page-view + custom-event tracking on production deploys, GDPR-friendly, no env vars. Quick-win observability shipped.)

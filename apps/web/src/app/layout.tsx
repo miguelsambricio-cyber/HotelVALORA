@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -20,6 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <Toaster position="top-right" richColors />
         </Providers>
+        {/* Vercel Analytics — cookie-free, GDPR-compliant page-view + event
+            tracking. No-op outside production deploys on Vercel. */}
+        <Analytics />
       </body>
     </html>
   );

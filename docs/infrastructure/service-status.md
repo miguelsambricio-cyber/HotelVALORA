@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (26)
+## 🟢 Working (27)
 
 | Service | Production URL / scope |
 |---|---|
@@ -22,6 +22,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Resend production sender (`noreply@hotelvalora.com`) | `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS) since 2026-05-11; delivers to any recipient inbox |
 | **Hospitality Intelligence Engine — Phase 1 foundation** | Migration `0006` applied: 9 tables (`market_news`, `hotel_transactions`, `hotel_projects`, `investors`, `operators`, `sources`, `news_entities`, `news_tags`, `news_ingestion_runs`) · 10 sources seeded · RLS public-read · ingestion code lands in Phase 2. See `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` |
 | **AI Operations Layer — Phase 1 foundation** | Migrations `0007` + `0008` applied: 7 tables (`ai_agents`, `ai_agent_runs`, `ai_events`, `ai_agent_permissions`, `ai_memory`, `ai_tools`, `ai_human_review`) · **10 agents seeded** (Tier 0 CEO / Orchestration + 9 operational) · 30 tools catalogued · NOT chatbots — operational AI systems with permissions + memory + audit + escalation. See `docs/ai-agents/AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` |
+| Vercel Analytics 2.0.1 | `<Analytics />` mounted in `apps/web/src/app/layout.tsx`. Cookie-free, GDPR-compliant page-view + event tracking. Auto-enabled on production deploys (no env vars) |
 | `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase Auth active in production |
 | **Supabase Auth (production runtime)** | Google OAuth dance · `/auth/callback` handler · HttpOnly cookies · `handle_new_user` trigger. Public Beta Mode: `PROTECTED_PREFIXES=[]` — anonymous browsing allowed everywhere |
 | **Google OAuth provider** | Configured in Supabase Dashboard + Google Cloud Console with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`. `/auth/v1/settings` reports `"google": true` |
@@ -57,7 +58,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 None.
 
-## 🔵 Planned (13)
+## 🔵 Planned (12)
 
 | Service | Phase |
 |---|---|
@@ -68,7 +69,6 @@ None.
 | PostHog | Phase 5 |
 | Sentry (frontend) | Phase 4 |
 | OpenAI / Anthropic / Vercel AI Gateway | Phase 4 (Intelligence summaries) + Phase 5 (UI) |
-| Vercel Analytics | Quick win — enable via dashboard |
 | Server-side PDF rendering (Puppeteer or react-pdf) | Phase 4 |
 | CoStar (live API) / STR / Booking / Catastro / CBRE / MSCI | Phase 5–6 |
 | Microsoft / Azure AD OAuth | Future enterprise SSO |
@@ -76,9 +76,9 @@ None.
 
 ## Health score
 
-**26 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 32 active services**
+**27 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 33 active services**
 
-Weighted score: (26 × 1.0 + 3 × 0.5 + 3 × 0.0) / 32 = **86%**. AI Operations Layer Phase 1 (schema + 9 agents + 20 tools + 8 strategic docs) joins as 🟢. Tier 1 agent runtimes (Market Intelligence + Data Ingestion + QA / Monitoring) are the next-sprint candidate. Platform remains in **Public Beta / Showcase Mode**.
+Weighted score: (27 × 1.0 + 3 × 0.5 + 3 × 0.0) / 33 = **86%**. Vercel Analytics installed + mounted in root layout — quick-win observability now live. Tier 1 AI agents (Market Intelligence + Data Ingestion + QA / Monitoring) remain the next-sprint candidate. Platform remains in **Public Beta / Showcase Mode**.
 
 ## Next 5 actions (prioritised)
 
