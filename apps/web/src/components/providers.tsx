@@ -1,9 +1,17 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
+
+// Note on auth providers: HotelVALORA runs on Supabase Auth (cookies
+// managed by `@supabase/ssr` in middleware + `lib/auth/use-supabase-auth`).
+// The Auth.js v5 scaffold stays parked in the repo for future non-OAuth
+// flows — but `<SessionProvider>` from `next-auth/react` is NOT mounted
+// here. Mounting it makes the client poll `/api/auth/session` on every
+// page load, which returns 500 because `AUTH_SECRET` is unset (we don't
+// run the Auth.js JWT path). Re-add `<SessionProvider>` only when Auth.js
+// reactivates as a real session source.
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -19,15 +27,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    // SessionProvider hydrates `useSession()` from the JWT cookie minted
-    // by Auth.js — works even when AUTH_ENABLED is false (the session is
-    // simply null and any consumer falls back to the mock auth store).
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
-        </ThemeProvider>
-      </QueryClientProvider>
-    </SessionProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        {children}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

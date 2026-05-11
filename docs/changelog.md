@@ -4,6 +4,28 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Auth log noise fix (`/api/auth/session` 500s)
+
+Removes the legacy `<SessionProvider>` from `apps/web/src/components/providers.tsx`. The provider was a leftover from the Auth.js v5 scaffold; nothing in the codebase calls `useSession()` from `next-auth/react` (verified by grep). Its only behaviour was polling `/api/auth/session` on every page load → the endpoint threw `MissingSecret` (because `AUTH_SECRET` is not set on Vercel; we run on Supabase Auth, not Auth.js) → Vercel logs flooded with 500s.
+
+### What changed
+
+- `<SessionProvider>` removed from `Providers`. The component tree is now `QueryClientProvider > ThemeProvider > children`.
+- Component comment block updated explaining why `SessionProvider` is intentionally absent + the one-line restore path if Auth.js ever reactivates.
+
+### What stays
+
+- Auth.js v5 scaffold (`auth.ts`, `auth.config.ts`, `app/api/auth/[...nextauth]/route.ts`) untouched — kept parked for future non-OAuth flows per `docs/auth.md` § "Why Supabase Auth and not Auth.js v5".
+- The route handler still exists, so direct probes to `/api/auth/session` (bots, scanners) will still 500 — but no internal traffic hits that endpoint anymore. Volume goes from "every page load × every visitor" to "occasional external probe".
+
+### Verification
+
+- `pnpm typecheck` ✅
+- Vercel runtime logs after deploy: zero `/api/auth/session` 500s from internal traffic
+- No UX impact — `useAuth()` continues to read from Supabase Auth (or Zustand mock fallback)
+
+---
+
 ## 2026-05-11 — GitHub → Vercel auto-deploy enabled
 
 Connected the GitHub repo to the Vercel project via `vercel git connect`. From here forward:
