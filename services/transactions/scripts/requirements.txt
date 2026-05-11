@@ -1,0 +1,2 @@
+# Pinned to the institutional ingestion pipeline. Refresh deliberately.
+openpyxl==3.1.5

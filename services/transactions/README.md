@@ -2,7 +2,7 @@
 
 The operational substrate for HOTELVALORA's institutional transactions + projects intelligence. This is **not a simple upload folder**: it is the ingest layer of a hospitality data warehouse, designed to scale into centralised transaction intelligence + underwriting enrichment + AI-assisted institutional datasets.
 
-**Phase 1** — directory + schema + workflow design. **No automation yet** — that lands in Phase 2 of the Data Ingestion Agent.
+**Status** — Phase 2.3.a (directory + schema + workflow) + Phase 2.3.b (operator-side ingestion CLI) shipped. The Python pipeline at `scripts/ingest.py` is the live operator-facing Data Ingestion Agent for this workspace; see `scripts/README.md` for the CLI reference.
 
 ---
 
@@ -54,15 +54,21 @@ Two parallel pipelines because the domains have different schemas, lifecycles, u
 
 See `services/transactions/.gitignore` for the explicit rules.
 
-## Operator workflow (manual today, agent-supervised in Phase 2)
+## Operator workflow
 
-1. Drop a raw file into `INPUT_TRANSACCIONES/` or `INPUT_PROYECTOS/`
-2. Trigger the Data Ingestion Agent (today: TODO — Phase 2 wires the trigger)
-3. The agent parses · validates · normalises · deduplicates · enriches metadata
-4. Valid rows are appended to the matching MASTER workbook with full ingestion-meta
-5. The processed file is moved to `old.*/`
-6. Failures land in `staging/failed/` with an error report
-7. Borderline rows land in `staging/review/` for operator approval
+1. Drop a raw file (`.xlsx`, `.csv`) into `INPUT_TRANSACCIONES/` or `INPUT_PROYECTOS/`.
+2. Run the Data Ingestion Agent:
+   ```bash
+   python services/transactions/scripts/ingest.py --target transactions
+   # or --target projects, --target both, --dry-run, --verbose
+   ```
+3. The agent parses · validates · normalises · deduplicates · enriches metadata.
+4. Valid rows are appended to the matching MASTER workbook with full ingestion-meta.
+5. The processed file is moved to `old.*/` with a timestamp + ingestion-id prefix.
+6. Failures land in `staging/failed/<ingestion_id>/` with an error report.
+7. Borderline rows land in `staging/review/<ingestion_id>/` for operator approval.
+8. Per-run jsonl trace lands in `logs/<YYYY-MM>/<ingestion_id>.jsonl`.
+9. A row is appended to the MASTER's `INGESTION_LOG` sheet.
 
 After step 5, `INPUT_*` should contain ONLY files still waiting to be processed.
 

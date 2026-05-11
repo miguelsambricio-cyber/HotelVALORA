@@ -4,6 +4,79 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Data Ingestion Agent — operator pipeline (Phase 2.3.b)
+
+Built the Python CLI that owns the operational side of the Data Ingestion Agent: sweeps `services/transactions/INPUT_*/`, parses operator-supplied XLSX + CSV files, normalises per the rules, deduplicates against the canonical MASTER, routes valid rows to MASTER + borderline rows to `staging/review/` + broken rows to `staging/failed/`, archives processed source files to `old.*/`, writes per-run jsonl traces to `logs/`, and appends to each master's `INGESTION_LOG` sheet.
+
+### Architectural decision — Python CLI, not Vercel Function
+
+The cloud-runtime agent at `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` cannot touch the local filesystem (Vercel Functions are ephemeral). The workspace's INPUT_* / staging / old.*/ / MASTER xlsx all live on disk. The correct split:
+
+- **Cloud-runtime half** (`apps/web/...`): Supabase-Storage-backed uploads, multi-user web flow (Phase 5)
+- **Operator-side half** (`services/transactions/scripts/`): local filesystem operations, the workhorse today
+
+Both share the same normalisation rules and ingestion-meta contract. A Phase 4 audit-chain unification will have the CLI POST a run summary to the cloud agent so `ai_agent_runs` becomes the single audit lens.
+
+### Module map (services/transactions/scripts/)
+
+| Module | Lines | Role |
+|---|---|---|
+| `ingest.py` | ~340 | CLI entry — sweep, parse, route, archive, log |
+| `normalization.py` | ~420 | Field-by-field rules + 60+ header aliases per master |
+| `master_io.py` | ~95 | Batch-in-memory MASTER append, atomic .tmp+rename save |
+| `staging_io.py` | ~85 | Failed + review jsonl routing, source-file archive |
+| `source_readers.py` | ~95 | Lenient XLSX + CSV readers with header folding |
+| `dedup.py` | ~80 | sha256 dedup_key + content_hash helpers |
+| `build_masters.py` | (pre-existing) | Reproducible MASTER generator |
+
+Test fixture at `scripts/tests/fixtures/smoke_transactions.csv`. `requirements.txt` pins openpyxl==3.1.5.
+
+### Smoke test verified
+
+A 9-row fixture covering all routing decisions:
+- 5 rows → MASTER (clean acquisitions, sales, JV)
+- 1 row → silently skipped (same-file exact duplicate)
+- 2 rows → `staging/review/` (non-EUR currency, out-of-range price)
+- 1 row → `staging/failed/` (missing required `asset_name`)
+- 1 source file → archived to `old.transacciones/20260511T185854Z_<short-id>_smoke_test.csv`
+- 1 row → `INGESTION_LOG` sheet (outcome='partial')
+- 1 file → `logs/2026-05/<ingestion_id>.jsonl` (full per-row trace)
+
+### CLI
+
+```bash
+python services/transactions/scripts/ingest.py --target transactions
+python services/transactions/scripts/ingest.py --target projects --dry-run
+python services/transactions/scripts/ingest.py --target both --verbose
+```
+
+Exit codes: 0 (success/partial), 1 (catastrophic), 2 (bad args).
+
+### Safety design
+
+- **Batch-in-memory MASTER writes** — load → accumulate → single save at end. Crash mid-run → MASTER unchanged on disk → safe retry.
+- **Atomic-ish save** — write to `.tmp`, then rename. POSIX-atomic; Windows best-effort.
+- **Per-file isolation** — one file's catastrophic failure doesn't block the others.
+- **Append-only contract** — never DELETE or UPDATE canonical rows. The one allowed in-place update is flipping `ingestion_status='superseded'` when a later row carries `supersedes_id`.
+- **Archive collision-free** — `<YYYYMMDDTHHMMSSZ>_<short-id>_<originalname>` prefix.
+
+### Build/lint
+No application code touched. `pnpm typecheck` clean.
+
+### New files
+- `services/transactions/scripts/{__init__,dedup,normalization,master_io,staging_io,source_readers,ingest}.py`
+- `services/transactions/scripts/{requirements.txt,README.md}`
+- `services/transactions/scripts/tests/fixtures/smoke_transactions.csv`
+
+### Updated files
+- `services/transactions/README.md` (CLI usage, workflow flipped to live)
+- `services/transactions/.gitignore` (add __pycache__)
+- `docs/ai-agents/ai-agent-roadmap.md` (Phase 2.3.b flipped ⏸→✅)
+- `docs/roadmap/current-sprint.md` (Just shipped + Up next bumped)
+- `docs/infrastructure/service-status.md` (workspace pipeline live)
+
+---
+
 ## 2026-05-11 — Institutional transactions + projects ingestion workspace
 
 Scaffolded the operational substrate for HOTELVALORA's institutional transaction + project intelligence. This is NOT a simple upload folder — it is the ingest layer of a hospitality data warehouse, designed to scale into centralised transaction intelligence + underwriting enrichment + AI-assisted institutional datasets.

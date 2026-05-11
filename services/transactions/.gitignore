@@ -39,3 +39,8 @@ logs/*
 MASTER/*.bak
 MASTER/*~
 MASTER/.~lock.*
+
+# Python pipeline runtime artefacts
+scripts/__pycache__/
+scripts/*.pyc
+scripts/.pytest_cache/

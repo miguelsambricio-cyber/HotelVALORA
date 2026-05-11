@@ -54,18 +54,21 @@ Phased rollout of the 9 operational AI systems.
 | Integration with the Intelligence Engine ingestion cron (cursor-based window read) | ✅ via `getCursor` / `setCursor` |
 | Unit + integration tests | ☐ deferred |
 
-### Phase 2.3 — Data Ingestion Agent ✅ (initial) · 🟡 (masters workspace supervision)
+### Phase 2.3 — Data Ingestion Agent ✅
 
 | Deliverable | Status |
 |---|---|
 | Phase 2 permissions migration (same as 2.2 — single combined migration) | ✅ |
-| Agent implementation at `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` | ✅ dry-run validator + approval gate for parser execution |
+| Agent implementation at `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` (cloud-runtime half) | ✅ dry-run validator + approval gate for parser execution |
 | Manual-trigger surface at `apps/web/src/app/api/agents/data-ingestion/route.ts` | ✅ requires Supabase auth |
-| Parser execution | ⏸ deferred — gated behind `costar.exports.parse` approval |
-| **Institutional masters workspace at `services/transactions/`** | ✅ Phase 1 — directory + canonical MASTER xlsx + templates + 5 architecture docs in `docs/intelligence/`. See `services/transactions/README.md`. |
-| **Workspace supervision (INPUT_* sweep, MASTER append, staging routing, old.* archive, INGESTION_LOG write)** | ⏸ Phase 2.3.b — wires the agent into the workspace |
-| **Excel/CSV parser** + normalisation per `data-normalization-rules.md` | ⏸ Phase 2.3.b |
-| **`old.transacciones/` + `old.proyectos/` move-on-success** | ⏸ Phase 2.3.b |
+| Cloud-runtime parser execution | ⏸ deferred — gated behind `costar.exports.parse` approval |
+| **Institutional masters workspace at `services/transactions/`** | ✅ Phase 2.3.a — directory + canonical MASTER xlsx + templates + 5 architecture docs in `docs/intelligence/`. See `services/transactions/README.md`. |
+| **Operator-side workspace pipeline (Python CLI)** at `services/transactions/scripts/ingest.py` | ✅ Phase 2.3.b — full sweep / parse / normalise / dedup / route / archive / log. Smoke-tested end-to-end (5 ingested + 1 skip + 2 review + 1 failed from 9-row fixture). |
+| Pipeline modules: `dedup.py` · `normalization.py` · `master_io.py` · `staging_io.py` · `source_readers.py` · `build_masters.py` | ✅ Phase 2.3.b |
+| Lenient XLSX + CSV readers with header alias folding (~60 aliases per master) | ✅ Phase 2.3.b |
+| Field-by-field normalisation (geography · dates · prices · entities · URLs · enums) | ✅ Phase 2.3.b |
+| Append-only MASTER writes + INGESTION_LOG · `old.*/` archive · `staging/{failed,review}/` · per-run jsonl logs | ✅ Phase 2.3.b |
+| Audit-chain unification (Python CLI → POST → `ai_agent_runs`) | ⏸ Phase 4 — both halves write to the same DB row when wired |
 
 ### Phase 2.4 — QA / Monitoring Agent ✅
 

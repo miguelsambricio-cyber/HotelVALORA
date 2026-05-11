@@ -126,6 +126,15 @@ Maps tasks to exact files. Start here before scanning.
 | Canonical transactions MASTER (59 cols, 5 sheets, append-only) | `services/transactions/MASTER/HOTEL_TRANSACCIONES_MASTER.xlsx` |
 | Canonical projects MASTER (50 cols, 5 sheets, append-only) | `services/transactions/MASTER/HOTEL_PROYECTOS_MASTER.xlsx` |
 | Reproducible MASTER generator (openpyxl) | `services/transactions/scripts/build_masters.py` |
+| **Data Ingestion Agent — operator pipeline CLI** | `services/transactions/scripts/ingest.py` (entry point) |
+| Pipeline — normalisation rules + header aliases | `services/transactions/scripts/normalization.py` |
+| Pipeline — dedup_key + content_hash | `services/transactions/scripts/dedup.py` |
+| Pipeline — MASTER read/append/INGESTION_LOG | `services/transactions/scripts/master_io.py` |
+| Pipeline — staging routing + source archive + per-run jsonl | `services/transactions/scripts/staging_io.py` |
+| Pipeline — XLSX + CSV lenient readers | `services/transactions/scripts/source_readers.py` |
+| Pipeline — pinned dependencies | `services/transactions/scripts/requirements.txt` |
+| Pipeline — operator README (CLI ref + smoke procedure) | `services/transactions/scripts/README.md` |
+| Smoke fixture | `services/transactions/scripts/tests/fixtures/smoke_transactions.csv` |
 | Operator import templates (CSV) | `services/transactions/templates/{transaction,project}_import_template.csv` |
 | Transactions ingestion workflow doc | `docs/intelligence/transaction-ingestion-workflow.md` |
 | Master dataset architecture | `docs/intelligence/master-dataset-architecture.md` |
