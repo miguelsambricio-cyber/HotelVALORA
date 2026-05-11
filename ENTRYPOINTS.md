@@ -122,6 +122,16 @@ Maps tasks to exact files. Start here before scanning.
 | Intelligence probe page | `apps/web/src/app/dev/intelligence-test/page.tsx` |
 | AI Ops probe page (agents · runs · events · approvals · escalations) | `apps/web/src/app/dev/ai-ops/page.tsx` |
 | Vercel Cron schedule | `apps/web/vercel.json` (3 entries) |
+| Institutional transactions + projects ingestion workspace | `services/transactions/` (README at root of the workspace) |
+| Canonical transactions MASTER (59 cols, 5 sheets, append-only) | `services/transactions/MASTER/HOTEL_TRANSACCIONES_MASTER.xlsx` |
+| Canonical projects MASTER (50 cols, 5 sheets, append-only) | `services/transactions/MASTER/HOTEL_PROYECTOS_MASTER.xlsx` |
+| Reproducible MASTER generator (openpyxl) | `services/transactions/scripts/build_masters.py` |
+| Operator import templates (CSV) | `services/transactions/templates/{transaction,project}_import_template.csv` |
+| Transactions ingestion workflow doc | `docs/intelligence/transaction-ingestion-workflow.md` |
+| Master dataset architecture | `docs/intelligence/master-dataset-architecture.md` |
+| Data normalization rules (field-by-field) | `docs/intelligence/data-normalization-rules.md` |
+| Transaction schema (full 59-col reference) | `docs/intelligence/transaction-schema.md` |
+| Project schema (full 50-col reference) | `docs/intelligence/project-schema.md` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library seed (6 institutional showcases — live in DB) | `docs/database/migrations/0005_seed_library_demo_data.sql` |

@@ -5,7 +5,21 @@
 > Read this once. The AI Operations Layer is the institutional muscle that turns the platform from "calculator with UI" into an autonomous, auditable, hospitality investment operating system. Future engineers and AI agents reading this should treat the architecture commitments as load-bearing — violating them turns the platform back into a script collection.
 
 **Last refreshed:** 2026-05-11
-**Phase status:** 🟢 Phase 1 (foundation) live — schema applied (migrations `0007` + `0008`), **10 agents registered (CEO Agent added as Tier 0)**, 30 tools catalogued, RLS posture in place. **Zero agent implementation yet** — that lands phase by phase per `ai-agent-roadmap.md`.
+**Phase status:** 🟢 Phase 1 foundation live · 🟡 Phase 2 Tier 1 agents shipped (Market Intelligence + Data Ingestion + QA / Monitoring). Runtime in `apps/web/src/lib/ai-agents/core/` is the deterministic shell every future agent inherits. CEO Agent intentionally still `planned` — activates in Phase 3.
+
+## Data Ingestion Agent — institutional masters workspace
+
+The Data Ingestion Agent owns the operational ingestion of institutional transactions + projects datasets at `services/transactions/`. Its supervision contract:
+
+- Reads files from `INPUT_TRANSACCIONES/` + `INPUT_PROYECTOS/`
+- Parses · validates · normalises · deduplicates per `docs/intelligence/data-normalization-rules.md`
+- Appends to `MASTER/HOTEL_TRANSACCIONES_MASTER.xlsx` + `MASTER/HOTEL_PROYECTOS_MASTER.xlsx` with full ingestion-meta (canonical_id, ingestion_id, dedup_key, ingestion_status, supersedes_id, …)
+- Routes failures to `staging/failed/`, review-required rows to `staging/review/`, temp artefacts to `staging/temp/`
+- Moves processed source files to `old.transacciones/` or `old.proyectos/`
+- Writes a row to the workbook's `INGESTION_LOG` sheet and to `logs/<YYYY-MM>/<ingestion_id>.jsonl`
+- Emits `data_ingestion_staged` event so QA / Monitoring can react
+
+Today: Phase 1 of the workspace (directory + masters + schema + workflow docs) is live; Phase 2 of the agent wires the supervision end-to-end. The XLSX masters are the canonical until Phase 5 migrates them into Supabase tables.
 
 ---
 

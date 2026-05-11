@@ -5,7 +5,16 @@
 > Future engineers and AI agents reading this should understand: the Intelligence Engine is the dataset advantage that compounds every other capability — Underwriting, Library, Maps, CRM, Alerts. Building it right early is what separates an institutional-grade product from a frontend demo.
 
 **Last refreshed:** 2026-05-11
-**Phase status:** 🟢 Phase 1 (foundation) live — schema applied, sources seeded, pipeline architecture documented. Ingestion code lands in Phase 2.
+**Phase status:** 🟢 Phase 1 (foundation) live · 🟡 Phase 2 partial — ingestion pipeline shipped, agents shipped, operational masters workspace shipped (`services/transactions/`).
+
+## Operational ingestion workspace
+
+The corpus is fed by two complementary streams:
+
+1. **Automated news ingestion** — daily cron reads RSS / scrape / API sources into `public.market_news`. Implementation in `apps/web/src/lib/intelligence/`.
+2. **Operator-curated masters** — institutional XLSX workbooks under `services/transactions/MASTER/` that capture transactions + projects with full ingestion-meta. Reference docs in `docs/intelligence/{transaction-ingestion-workflow,master-dataset-architecture,data-normalization-rules,transaction-schema,project-schema}.md`.
+
+Both flow into the same downstream consumers (Library, Underwriting, Maps, CRM). The Data Ingestion Agent supervises the masters workspace end-to-end starting Phase 2.
 
 ---
 

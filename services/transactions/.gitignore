@@ -1,0 +1,41 @@
+# services/transactions — institutional ingestion workspace
+#
+# Philosophy: git tracks the CONTRACT (directory structure + master canonical
+# datasets + templates + schemas), NOT the day-to-day data. Real imports,
+# processed archives, staging artefacts and run logs stay local + auditable
+# but never travel through commits.
+
+# Inbound raw imports (operator drops these — never commit)
+INPUT_TRANSACCIONES/*
+!INPUT_TRANSACCIONES/.gitkeep
+!INPUT_TRANSACCIONES/old.transacciones/
+
+INPUT_TRANSACCIONES/old.transacciones/*
+!INPUT_TRANSACCIONES/old.transacciones/.gitkeep
+
+INPUT_PROYECTOS/*
+!INPUT_PROYECTOS/.gitkeep
+!INPUT_PROYECTOS/old.proyectos/
+
+INPUT_PROYECTOS/old.proyectos/*
+!INPUT_PROYECTOS/old.proyectos/.gitkeep
+
+# Staging — failed parses, manual-review queue, temp normalisation files
+staging/failed/*
+!staging/failed/.gitkeep
+
+staging/review/*
+!staging/review/.gitkeep
+
+staging/temp/*
+!staging/temp/.gitkeep
+
+# Operational run logs
+logs/*
+!logs/.gitkeep
+
+# Local-only working copies of the masters (operators may snapshot before
+# heavy edits — keep the committed canonical version as source of truth)
+MASTER/*.bak
+MASTER/*~
+MASTER/.~lock.*

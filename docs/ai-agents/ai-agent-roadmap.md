@@ -54,7 +54,7 @@ Phased rollout of the 9 operational AI systems.
 | Integration with the Intelligence Engine ingestion cron (cursor-based window read) | ✅ via `getCursor` / `setCursor` |
 | Unit + integration tests | ☐ deferred |
 
-### Phase 2.3 — Data Ingestion Agent ✅
+### Phase 2.3 — Data Ingestion Agent ✅ (initial) · 🟡 (masters workspace supervision)
 
 | Deliverable | Status |
 |---|---|
@@ -62,6 +62,10 @@ Phased rollout of the 9 operational AI systems.
 | Agent implementation at `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` | ✅ dry-run validator + approval gate for parser execution |
 | Manual-trigger surface at `apps/web/src/app/api/agents/data-ingestion/route.ts` | ✅ requires Supabase auth |
 | Parser execution | ⏸ deferred — gated behind `costar.exports.parse` approval |
+| **Institutional masters workspace at `services/transactions/`** | ✅ Phase 1 — directory + canonical MASTER xlsx + templates + 5 architecture docs in `docs/intelligence/`. See `services/transactions/README.md`. |
+| **Workspace supervision (INPUT_* sweep, MASTER append, staging routing, old.* archive, INGESTION_LOG write)** | ⏸ Phase 2.3.b — wires the agent into the workspace |
+| **Excel/CSV parser** + normalisation per `data-normalization-rules.md` | ⏸ Phase 2.3.b |
+| **`old.transacciones/` + `old.proyectos/` move-on-success** | ⏸ Phase 2.3.b |
 
 ### Phase 2.4 — QA / Monitoring Agent ✅
 
