@@ -4,6 +4,67 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Comprehensive Supabase schema drafted (30 tables, 6 domains)
+
+Expanded the v1 schema proposal from 7 tables to a production-grade 30-table surface across six domains. Migration file ready to apply via the SQL editor; hand-rolled `Database` type already in repo so frontend queries compile against the future shape.
+
+### Domains shipped in the migration
+
+| Domain | Tables |
+|---|---|
+| ① Auth + users | `users` · `profiles` · `organizations` · `user_roles` · `sessions` · `oauth_accounts` |
+| ② Library | `valuations` · `saved_reports` · `favorite_reports` · `top_promote_reports` · `report_visibility` · `report_shares` |
+| ③ Investment engine | `investment_requirements` · `market_preferences` · `valuation_preferences` · `revpar_scenarios` · `hotel_filters` |
+| ④ CRM | `companies` · `contacts` · `leads` · `notes` · `activity_log` |
+| ⑤ Files (Storage metadata) | `report_files` · `generated_pdfs` · `uploaded_excels` · `renders` · `avatars` |
+| ⑥ System | `audit_logs` · `notifications` · `feature_flags` · `subscriptions` · `payment_events` |
+
+### Files
+
+- `docs/database/migrations/0001_initial_schema.sql` — single-file migration (~720 lines)
+- `docs/database/README.md` — ER summary, ready-vs-placeholder map, apply instructions
+- `docs/database/schema.sql` — deprecation pointer (replaced by migrations folder)
+- `apps/web/src/lib/supabase/types.ts` — hand-rolled `Database` type matching all 30 tables + 15 enums
+
+### Schema features
+
+- **15 enums** (`user_tier`, `org_role`, `oauth_provider`, `report_visibility_t`, `report_type_badge`, `report_status`, `report_role`, `report_objective`, `share_permission`, `lead_status`, `pdf_status`, `excel_status`, `subscription_status`, `notification_kind`, `user_role`)
+- **30 RLS policies** — every table enabled with own-only / public-read / parent-derived / org-scoped patterns
+- **Triggers**:
+  - `handle_new_user()` — auto-creates `public.users` + `public.profiles` on Supabase auth signup
+  - `set_updated_at()` — bumped on update across 13 mutable tables
+- **Indexes** on every FK + common query paths (`visibility`, `city`, `status`, partial indexes for active rows)
+- **Generated column** `top_promote_reports.is_active` (boolean derived from `promoted_until > now()`)
+- **Polymorphic notes + activity log** via `(entity_type, entity_id)` index pattern
+
+### Architecture decisions
+
+- `public.users` is split from `public.profiles` — auth-adjacent fields (tier, current_org) live separately from display fluff (avatar, locale, bio). Cuts churn surface on tier reads.
+- `public.organizations` carries the multi-tenant boundary. `user_roles` is the N:M junction.
+- `report_visibility` is an **audit log of transitions**, not a column duplication (`valuations.visibility` is the current state).
+- `report_shares` supports both link-shares (anonymous, token-based) and per-user grants.
+- `payment_events` has NO authenticated RLS policy by design — only the service-role Stripe webhook writes there.
+- `feature_flags` is scoped to EITHER a user OR an organization (XOR check constraint).
+
+### Apply path
+
+The migration is not yet applied — DDL execution needs either the database password or a personal access token, neither of which is in the env today. The user will paste the file into the Supabase SQL editor manually. Once applied:
+
+```bash
+pnpm dlx supabase gen types typescript \
+  --project-id twebgqutuqgonabvhzjk    \
+  --schema public                       \
+  > apps/web/src/lib/supabase/types.ts
+```
+
+regenerates the type surface; until then the hand-rolled types in `types.ts` match the migration 1:1.
+
+### Build
+
+Typecheck clean. No runtime change (no frontend code consumes Supabase tables yet — Phase 3 wiring is the next milestone).
+
+---
+
 ## 2026-05-11 — Supabase architecture initialized
 
 Production-grade scaffold for the Supabase layer: Postgres + Storage + (future) Auth.js adapter. Architecture lands today; project provisioning + credential paste-in lands on the user's next action.

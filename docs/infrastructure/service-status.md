@@ -27,7 +27,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 | Service | What's missing |
 |---|---|
-| Supabase project `twebgqutuqgonabvhzjk` | Schema NOT applied; storage buckets NOT created |
+| Supabase project `twebgqutuqgonabvhzjk` | **Schema drafted** (`docs/database/migrations/0001_initial_schema.sql` · 30 tables · all RLS policies) — **apply pending via SQL editor**; storage buckets NOT created |
 | Library institutional map | Static grayscale image — swap to Mapbox in Phase 4 |
 | Auth.js v5 scaffold | OAuth credentials missing; `AUTH_SECRET` + `AUTH_ENABLED` not set |
 | FastAPI backend | Built endpoints (valuations/imports/auth) NOT consumed by frontend |

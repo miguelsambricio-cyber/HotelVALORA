@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 — bump this date after every commit that adds, removes or moves a service.
+**Last refreshed:** 2026-05-11 (afternoon — Supabase 30-table schema drafted, awaiting apply).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -56,8 +56,8 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Supabase project | Postgres + Storage | 🟡 | Project `twebgqutuqgonabvhzjk` provisioned, env wired Vercel | Schema NOT applied yet | Run `docs/database/schema.sql` via SQL editor |
-| Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers wired | Apply schema → regenerate `types.ts` |
+| Supabase project | Postgres + Storage | 🟡 | Project `twebgqutuqgonabvhzjk` provisioned, env wired Vercel | 30-table schema drafted at `docs/database/migrations/0001_initial_schema.sql`, awaiting apply | Run migration via SQL editor (see `docs/database/README.md`) |
+| Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers + full `Database` type | Auto-regenerate `types.ts` with CLI when access token lands |
 | Supabase Auth | Identity | 🔴 | Project provisioned, no providers configured | Future home of OAuth + magic links | Defer to Phase 3 (Auth.js owns OAuth today) |
 | Supabase Storage | Object storage | 🔴 | Project provisioned, buckets NOT created | Planned: reports / pdfs / excel-uploads / renders / avatars | Configure buckets via dashboard |
 | FastAPI (apps/api) | API | 🟡 | Local Docker only | Auth + valuations + imports built; only `/review` consumed today | Decide Phase 3: keep FastAPI vs. migrate to Supabase Edge Functions |

@@ -17,7 +17,8 @@
 | Architecture docs initialization | `19fdf49` | ✅ |
 | Auth.js v5 institutional scaffold (Google + LinkedIn + Apple, middleware gated by `AUTH_ENABLED`) | `8c66542` | ✅ |
 | Resend wired for "Schedule a Tour" — server action + typed template | `e2ba909` | ✅ |
-| Supabase architecture initialized — clients + middleware + schema proposal + probe page | *(this commit)* | 🟡 |
+| Supabase architecture initialized — clients + middleware + schema proposal + probe page | `407599f` | ✅ |
+| Comprehensive Supabase schema drafted — 30 tables · 6 domains · RLS on every table · hand-rolled `Database` type | *(this commit)* | 🟡 (apply pending) |
 
 ## In flight
 
