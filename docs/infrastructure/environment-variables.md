@@ -2,7 +2,7 @@
 
 Single inventory of every env var that exists, where it's set, who consumes it, and whether it's safe.
 
-**Last refreshed:** 2026-05-11
+**Last refreshed:** 2026-05-12
 
 ## Convention
 
@@ -129,6 +129,54 @@ All three are **pending** activation on Vercel as of 2026-05-12. The system soft
 - Cron routes deny in production (defence in depth)
 - CLI audit-sync prints a recovery hint
 - QA escalations land at the hardcoded fallback inbox
+
+## Authenticated Intelligence Sources (Phase 2.5+)
+
+Three-tier credential model. Validation source: **Hosteltur**. Full architecture: `docs/integrations/hosteltur.md`. Migration: `docs/database/migrations/0009_intelligence_source_sessions.sql`.
+
+| Tier | Var | Scope | Purpose | Generate |
+|---|---|---|---|---|
+| T1 | `HOSTELTUR_USERNAME` | Vercel Production + local `.env.local` | Hosteltur subscriber email | Manually — from Hosteltur account |
+| T1 | `HOSTELTUR_PASSWORD` | Vercel Production + local `.env.local` | Hosteltur subscriber password | Manually — from Hosteltur account |
+| T1 | `HOSTELTUR_LOGIN_URL` | optional, Vercel + local | Override if login URL moves | Default `https://www.hosteltur.com/login` |
+| T1.5 | `INTELLIGENCE_SESSION_ENC_KEY` | Vercel Production + local `.env.local` | AES-256-GCM KEK that wraps every `intelligence_source_sessions` row | `openssl rand -base64 32` |
+| T1.5 | `INTELLIGENCE_SESSION_ENC_KEY_ID` | Vercel + local | Active-KEK identifier (`v1`, `v2`, …) | Literal string, default `v1` |
+| T1 | `INTELLIGENCE_REFRESH_TOKEN` | Vercel Production + local | Auth for future `POST /api/agents/refresh-session` | `openssl rand -hex 32` |
+
+### Hard rules
+
+1. **Sensitive flag must be set in Vercel** for every variable above. Sensitive keeps values out of build logs and out of the dashboard UI after creation.
+2. **Production scope only** in Vercel — never Preview, never Development. Preview deployments must not receive subscription credentials (PR previews are public URLs).
+3. **Never log these values.** The Market Intelligence Agent's `fetch` wrapper logs status + host + timing only — no headers, no body, no cookies. Errors are sanitised via `lib/secrets/redact.ts`.
+4. **Never write these values to `ai_agent_runs.inputs` / `.outputs` / `.error`.** The audit row references the session by `source_slug` + `enc_key_id` + `refreshed_at`, never by credential.
+5. **Never expose via a `NEXT_PUBLIC_*` mirror.** There is no client-side consumer.
+6. **Rotate quarterly** plus immediately on any incident (suspected leak, role change, vendor compromise).
+
+### Generation runbook
+
+```bash
+# One-time per environment — different values per env.
+openssl rand -base64 32   # → INTELLIGENCE_SESSION_ENC_KEY
+openssl rand -hex 32      # → INTELLIGENCE_REFRESH_TOKEN
+
+# Then add to Vercel (Sensitive · Production):
+vercel env add INTELLIGENCE_SESSION_ENC_KEY production
+vercel env add INTELLIGENCE_SESSION_ENC_KEY_ID production   # paste "v1"
+vercel env add INTELLIGENCE_REFRESH_TOKEN production
+vercel env add HOSTELTUR_USERNAME production
+vercel env add HOSTELTUR_PASSWORD production
+
+# Pull to local:
+vercel env pull apps/web/.env.local --environment=production
+```
+
+### KEK rotation procedure
+
+1. Generate new key: `openssl rand -base64 32`.
+2. Set `INTELLIGENCE_SESSION_ENC_KEY_V2` (new) and `INTELLIGENCE_SESSION_ENC_KEY_V1` (old, kept for decrypt of legacy rows).
+3. Flip `INTELLIGENCE_SESSION_ENC_KEY_ID=v2`.
+4. New writes wrap with v2; old rows decrypt with v1 until they expire.
+5. Once `WHERE enc_key_id = 'v1'` returns zero rows, remove `INTELLIGENCE_SESSION_ENC_KEY_V1`.
 
 ## Verification
 

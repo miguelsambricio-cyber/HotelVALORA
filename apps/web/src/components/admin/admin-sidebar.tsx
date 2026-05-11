@@ -8,6 +8,7 @@ import {
   Database,
   Gauge,
   LayoutGrid,
+  Plug,
   ScrollText,
   Shield,
   Building2,
@@ -27,6 +28,7 @@ interface NavItem {
 const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
   { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live" },
+  { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [

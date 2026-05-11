@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowUpRight, Plug } from "lucide-react";
 import {
   EXECUTIVE_KPIS,
   INFRA_SERVICES,
@@ -12,6 +14,8 @@ import {
   KpiCard,
   PipelineCard,
 } from "@/components/admin";
+import { INTEGRATIONS_REGISTRY } from "@/lib/admin/integrations";
+import { IntegrationCard } from "@/components/admin/integrations/integration-card";
 
 export const metadata: Metadata = {
   title: "Executive Control Room · Admin",
@@ -85,11 +89,39 @@ export default function ExecutiveControlRoom() {
         <AiOpsFeatureCard />
       </section>
 
-      {/* ── 3. DATA PIPELINE CENTER ─────────────────────────────────────── */}
+      {/* ── 3. INTEGRATIONS (institutional intelligence applications) ────── */}
+      <section aria-labelledby="integrations-h">
+        <SectionHeader
+          id="integrations-h"
+          eyebrow="Section 03"
+          title="Integrations"
+          subline="Institutional hospitality intelligence sources · connection · auth · ingestion"
+          rightSlot={
+            <Link
+              href="/user/admin/integrations"
+              className="inline-flex items-center gap-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-forest-900 hover:text-lime-600"
+            >
+              <Plug size={12} aria-hidden /> View directory
+              <ArrowUpRight size={12} aria-hidden />
+            </Link>
+          }
+        />
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {/* Surface the 3 most-relevant integrations on the overview:
+              both authenticated sources + one anchor public source. */}
+          {INTEGRATIONS_REGISTRY.filter((i) =>
+            ["hosteltur", "alimarket", "hospitalitynet"].includes(i.id),
+          ).map((integration) => (
+            <IntegrationCard key={integration.id} integration={integration} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── 4. DATA PIPELINE CENTER ─────────────────────────────────────── */}
       <section aria-labelledby="pipelines-h">
         <SectionHeader
           id="pipelines-h"
-          eyebrow="Section 03"
+          eyebrow="Section 04"
           title="Data Pipeline Center"
           subline="6 institutional pipelines · last update · queue · success rate"
         />
@@ -100,11 +132,11 @@ export default function ExecutiveControlRoom() {
         </div>
       </section>
 
-      {/* ── 4. INFRASTRUCTURE MONITORING ────────────────────────────────── */}
+      {/* ── 5. INFRASTRUCTURE MONITORING ────────────────────────────────── */}
       <section aria-labelledby="infra-h">
         <SectionHeader
           id="infra-h"
-          eyebrow="Section 04"
+          eyebrow="Section 05"
           title="Infrastructure Monitoring"
           subline="Vercel · Supabase · Resend · Cron Jobs · Storage · API Status"
         />
@@ -115,11 +147,11 @@ export default function ExecutiveControlRoom() {
         </div>
       </section>
 
-      {/* ── 5. RECENT OPERATIONAL ACTIVITY ──────────────────────────────── */}
+      {/* ── 6. RECENT OPERATIONAL ACTIVITY ──────────────────────────────── */}
       <section aria-labelledby="activity-h">
         <SectionHeader
           id="activity-h"
-          eyebrow="Section 05"
+          eyebrow="Section 06"
           title="Recent Operational Activity"
           subline="Timeline · agent runs · ingestions · cron firings · deploys"
         />
@@ -136,11 +168,13 @@ function SectionHeader({
   eyebrow,
   title,
   subline,
+  rightSlot,
 }: {
   id: string;
   eyebrow: string;
   title: string;
   subline: string;
+  rightSlot?: React.ReactNode;
 }) {
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
@@ -156,6 +190,7 @@ function SectionHeader({
         </h2>
         <p className="text-[12px] text-slate-500">{subline}</p>
       </div>
+      {rightSlot && <div className="shrink-0">{rightSlot}</div>}
     </div>
   );
 }

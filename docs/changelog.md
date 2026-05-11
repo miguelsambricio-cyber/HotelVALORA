@@ -4,6 +4,73 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Institutional Hospitality Intelligence Terminal + Integrations admin surface
+
+Two new admin surfaces ship as one bundle. Mock data layer shaped 1:1 against migration 0006 + 0009 so Phase 3 realtime swap is mechanical.
+
+### `/user/admin/integrations` · Integrations directory
+
+Hosteltur and Alimarket — the two paid Spain-market sources — surface as institutional integration tiles, **not generic feeds**. Each tile exposes every operator-relevant axis:
+
+- **Connection status** (Operational · Degraded · Session Expired · Awaiting Credentials · Failing · Not Configured)
+- **Authentication status** (No Auth · Active Session · Expiring Soon · Expired · Refresh Failed · Not Provisioned)
+- **Last successful sync** (relative · ISO)
+- **Ingestion health** (runs success / failed last 7d · mean items per run · last run status)
+- **Session validity** (encryption key id · refreshed at · expires at · refresh count · last error · runbook hint)
+- **Article volume** (today / 7d / 30d)
+- **Source type** (RSS · API · Scrape · Manual) + **tier** (Public · Freemium Premium · Paid Subscription · Paid API)
+
+Grouped on the directory page by category: Authenticated Spain (Hosteltur · Alimarket) · Public EU/ES (HospitalityNet · Expansión) · Public Global + Research (Skift · HVS · Reuters) · Deferred (CoStar · Hotel News Now · THP News). 10 SSG paths under `/user/admin/integrations/[integrationId]`.
+
+### `/user/admin/agents/market_intelligence` · Intelligence Terminal
+
+The Market Intelligence Agent **is the terminal**. When the agent slug is visited, the page renders `IntelligenceTerminal` instead of the standard agent dashboard:
+
+- **Volume KPI strip** — 6 tiles · articles today / 7d / transactions detected / pipeline projects / disclosed deal volume / authenticated-source health
+- **High-relevance alerts band** — critical + high items pulled forward · rose-tinted card border for institutional urgency
+- **Source-coverage matrix** — per-source ingest health · links each row into `/user/admin/integrations/<id>`
+- **Category breakdown** — horizontal bars by `news_category` (acquisition · sale · JV · development · refinancing · rebranding · operator_change · branded_residences · flex_living · pipeline_announcement · distress · investment · other)
+- **Trending entities** — investors + operators ranked by 7d mentions · last-seen + trend delta per row
+- **Extracted deals + projects table** — every field the underwriting pipeline cares about: rooms · price · €/key · cap rate · buyer · seller · operator · brand · buy-side advisor · sell-side advisor · capex · estimated opening · original source URL on every row
+- **Latest intelligence feed** — full news items with title · source · publication date · country · market · category · tags · entity chips (role · raw mention) · hotel segment · brand affiliation · relevance score · **original source URL preserved verbatim** as a footer trace link
+
+### Data layer · swap-target shape
+
+| Mock module | Real DB target (Phase 3) |
+|---|---|
+| `lib/admin/integrations/registry.ts` | `public.sources × intelligence_source_sessions × news_ingestion_runs (7d rollup)` |
+| `lib/admin/intelligence/data.ts` `recentNews` | `public.market_news` + joined `news_tags`, `news_entities` |
+| `extractedDeals` | `public.hotel_transactions` joined to `market_news`, `investors`, `operators` |
+| `extractedProjects` | `public.hotel_projects` joined to `market_news`, `investors`, `operators` |
+| `entityMentions` rollup | `public.news_entities` grouped by `(entity_kind, entity_id, role)` |
+| `categoryBreakdown` rollup | `market_news` grouped by `category` |
+| `sourceCoverage` rollup | `news_ingestion_runs` grouped by `source_id` |
+| `relevanceAlerts` filter | `market_news` where `relevance_band in ('critical','high')` |
+
+### Original-URL preservation contract
+
+Every news item, deal, project, and alert exposes its source URL verbatim — no UTM injection, no canonical rewrite, no parameter mutation. Load-bearing for institutional traceability: an analyst can click any extracted price/room/buyer cell through to the article that produced it, a compliance audit can verify the corpus against the source-of-truth, a re-ingestion run can re-fetch canonically.
+
+### Navigation integration
+
+- AdminSidebar gains an `Integrations` primary nav entry (Plug icon · `Live` badge)
+- Executive Control Room renumbers from 5 sections → 6 with `Section 03 · Integrations` inserted between AI Operations (02) and Data Pipeline (04). Section 03 surfaces the 3 most-relevant integrations (Hosteltur · Alimarket · HospitalityNet) with a right-slot "View directory" CTA.
+- The market_intelligence agent route preserves SSG and the `/user/admin/agents` directory; only the rendered body changes.
+
+### Visual contract
+
+Bloomberg-terminal aesthetic throughout — dark `forest-900 → slate-950` panel canvases, `lime-300` numerals, tracked-out `[0.18–0.25em]` uppercase micro-labels, `font-mono` timestamps + tickers + structured fields, 4-signal tint system (`ok / warn / error / neutral`) reused from `signal-tints.ts`, per-category tints (acquisition/sale=ok · refinancing/development=warn · distress=error · rebrand=neutral).
+
+### Build characteristics
+
+`pnpm typecheck` clean · `pnpm build` clean — 52 routes total · `/user/admin/integrations` 94.9 kB First Load · `/user/admin/integrations/[integrationId]` SSG with 10 pre-rendered paths. Mock data only; no Supabase reads added.
+
+### Phase 3 path (mechanical swap)
+
+`getTerminalData()` and `getIntegrations()` become server-side reads against the live tables. Components stay unchanged. Realtime subscriptions (Supabase Realtime on `ai_agent_runs` + `market_news`) are a Phase 4 follow-up.
+
+---
+
 ## 2026-05-12 — Documentation stabilization wave (debt cleanup · admin surface · enforcement · legacy archive)
 
 Four-phase synchronization pass after the documentation audit revealed that the discipline relied on human memory and fell behind the platform work shipped on 2026-05-11. No new doc surface added — only catch-up, admin coverage, automation, and structural cleanup.
@@ -24,6 +91,8 @@ First green-light run after Phase 3 surfaced three pre-existing items: catch-up 
 Moved 10 superseded top-level `.md` files into `docs/legacy/` (frozen archive): `ARCHITECTURE.md` · `ARCHITECTURE_SCORECARD.md` · `CHANGELOG.md` · `COMPONENTS.md` · `NEXT_PHASE_PLAN.md` · `REPORT_PAGES.md` · `ROADMAP.md` · `TECH_AUDIT.md` · `TODO.md` · `UI_COMPONENTS.md`. Each maps cleanly to a current source-of-truth (mapping table in `docs/legacy/README.md`). Root surface now consolidates to five active AI-facing files: `AI_CONTEXT.md` · `CLAUDE.md` · `ENTRYPOINTS.md` · `README.md` · `RULES.md`. Updated `README.md` and `ENTRYPOINTS.md` to drop legacy references.
 
 Operating principle locked in by this wave: **the documentation surface is already strong enough — the problem is synchronization and enforcement, not coverage**. Future PRs should not expand the surface; they should keep it green.
+
+Wave landed as a single commit: `c61d7f6` (26 files · +1133/-41).
 
 ### Pre-stabilization platform commits formally referenced
 

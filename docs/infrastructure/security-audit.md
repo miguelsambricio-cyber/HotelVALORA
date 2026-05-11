@@ -99,6 +99,43 @@ The schema proposal (`docs/database/schema.sql`) enables RLS on every public tab
 
 Storage policies live in the dashboard and need to be set explicitly per bucket — listed in `integration-checklist.md`.
 
+## Authenticated Intelligence Sources — credential controls
+
+Source-of-truth: `docs/integrations/hosteltur.md` (validation source). The three-tier model below applies to every paid source we onboard (Hosteltur, then Alimarket, then STR).
+
+### Three-tier credential model
+
+| Tier | What | Where it lives | Read by | RLS / scope |
+|---|---|---|---|---|
+| T1 | Raw login credentials (`*_USERNAME`, `*_PASSWORD`) | Vercel env (Production · Sensitive) + operator `.env.local` (gitignored) | Refresh script only | n/a — env vars |
+| T1.5 | Encryption key (`INTELLIGENCE_SESSION_ENC_KEY`) | Vercel env + local | Refresh writer + ingestion reader | n/a — env vars |
+| T2 | Session artifact (AES-256-GCM encrypted `storageState`) | `public.intelligence_source_sessions` | Service-role only | RLS enabled · zero policies · `revoke all` from `anon` / `authenticated` |
+| T3 | Article content (no credentials) | `public.market_news` + companions | Standard read policies (existing) | Same as current intelligence tables |
+
+### Hard guarantees enforced by the architecture
+
+1. **No plaintext credential in the database.** T1 only lives in env vars. T2 is encrypted with AES-256-GCM before INSERT.
+2. **No anon / authenticated read of T2.** Migration 0009 enables RLS, defines zero policies, and `revoke all on public.intelligence_source_sessions from anon, authenticated`. Even a future permissive-policy mistake cannot bypass this without granting privileges first.
+3. **No browser exposure.** No `NEXT_PUBLIC_*` mirror exists for any credential variable. The `import "server-only"` guards on `lib/intelligence/*` and `lib/supabase/admin.ts` mean a build error fires the moment a client component imports these.
+4. **No credentials in audit rows.** `ai_agent_runs` references sessions by `source_slug` + `enc_key_id` + `refreshed_at` — never by credential value. The redaction utility (`lib/secrets/redact.ts`) replaces any known-credential-name key in structured logs.
+5. **No credentials in logs.** The Market Intelligence Agent's `fetch` wrapper logs status + host + timing only. No headers, no body, no cookies. Errors are sanitised before reaching Vercel function logs.
+6. **No credentials in Git.** `.env.local` and `.env` are gitignored. `.env.example` documents NAMES only. `gitleaks` pre-commit hook (planned · backlog) catches accidental commits.
+
+### Rotation policy
+
+| Trigger | Action |
+|---|---|
+| Quarterly (calendar) | Rotate `*_PASSWORD` at source · update Vercel · run `pnpm intel:refresh` |
+| Suspected leak | Same as quarterly, immediately, plus `git filter-repo` if the leak was committed |
+| Operator offboard | Rotate `*_PASSWORD` + `INTELLIGENCE_SESSION_ENC_KEY` + `INTELLIGENCE_REFRESH_TOKEN` |
+| KEK rotation | See `docs/infrastructure/environment-variables.md` § KEK rotation procedure |
+
+### What to verify after every deploy
+
+- `select count(*) from public.intelligence_source_sessions` — anon role must return permission-denied; service-role must return the row count.
+- `\d+ public.intelligence_source_sessions` — RLS must be `on`, no policies listed.
+- Vercel function logs for the daily cron — `grep -i "hosteltur\|password\|cookie:" $LOG` must return zero credential-bearing lines.
+
 ## Audit cadence
 
 After every commit that:
@@ -107,5 +144,6 @@ After every commit that:
 - Touches RLS or storage policies
 - Introduces a new server action that mutates data
 - Adds a new third-party SDK
+- Onboards a new authenticated intelligence source
 
 ...refresh this file. The audit should answer: "did this change add any path where a non-owner can read or mutate someone else's data?"

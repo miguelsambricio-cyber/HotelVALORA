@@ -33,9 +33,11 @@
 | `/library/top-map` | `app/library/top-map/page.tsx` | `LibraryShell` | Library — Top Reports map (sibling of favorites-map; route-driven FAVORITOS/TOP segmented nav) |
 | `/library/favorites-list` | `app/library/favorites-list/page.tsx` | `LibraryShell` | Library — Favorites institutional list (Bloomberg-grade table: 8 amenities + financials + indicators + locked-cell pattern, sticky thead + sticky first column, h-scroll) |
 | `/library/top-list` | `app/library/top-list/page.tsx` | `LibraryShell` | Library — Top Reports institutional list (same table, REF column added, "TOP REPORTS" header copy) |
-| `/user/admin` | `app/user/admin/page.tsx` | `AdminLayout` | Executive Control Room — 5-section institutional dashboard (Executive Overview · AI Operations · Data Pipeline Center · Infrastructure · Recent Activity) |
+| `/user/admin` | `app/user/admin/page.tsx` | `AdminLayout` | Executive Control Room — 6-section institutional dashboard (Executive Overview · AI Operations · Integrations · Data Pipeline · Infrastructure · Recent Activity) |
 | `/user/admin/agents` | `app/user/admin/agents/page.tsx` | `AdminLayout` | AI Operations Center — orbital layout (CEO centre · 9 operational agents) + agent directory grouped by Tier |
-| `/user/admin/agents/[agentId]` | `app/user/admin/agents/[agentId]/page.tsx` | `AdminLayout` | Per-agent dashboard · SSG with 11 pre-rendered paths (10 visible agents + hidden `crm_dealflow`) |
+| `/user/admin/agents/[agentId]` | `app/user/admin/agents/[agentId]/page.tsx` | `AdminLayout` | Per-agent dashboard · SSG · `market_intelligence` renders the institutional Intelligence Terminal (volume KPIs · alerts · extracted deals · category breakdown · entity mentions · source coverage · news feed) |
+| `/user/admin/integrations` | `app/user/admin/integrations/page.tsx` | `AdminLayout` | Integrations directory — 10 hospitality intelligence sources grouped by category (Authenticated · Public EU/ES · Global · Deferred) with connection / auth / session / health / volume metrics |
+| `/user/admin/integrations/[integrationId]` | `app/user/admin/integrations/[integrationId]/page.tsx` | `AdminLayout` | Per-integration detail · SSG with 10 pre-rendered paths · session-status panel (T2 row · KEK · expiry) · ingestion-health rollup · operator notes · external links |
 
 ### HTTP redirects (`next.config.mjs`)
 

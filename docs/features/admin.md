@@ -13,9 +13,11 @@ Institutional Operations Center for HOTELVALORA. The visual layer of the AI Oper
 
 | Route | Surface | Build mode |
 |---|---|---|
-| `/user/admin` | Executive Control Room (5-section dashboard) | Static |
+| `/user/admin` | Executive Control Room (6-section dashboard) | Static |
 | `/user/admin/agents` | AI Operations Center (orbital + agent directory) | Static |
-| `/user/admin/agents/[agentId]` | Per-agent dashboard | SSG · 11 pre-rendered paths |
+| `/user/admin/agents/[agentId]` | Per-agent dashboard · `market_intelligence` renders the **Intelligence Terminal** | SSG · 11 pre-rendered paths |
+| `/user/admin/integrations` | Integrations directory (10 hospitality intelligence sources · grouped by category) | Static |
+| `/user/admin/integrations/[integrationId]` | Per-integration detail (connection · session · ingestion health) | SSG · 10 pre-rendered paths |
 
 Plus three defensive HTTP redirects (`next.config.mjs` `redirects()`):
 
@@ -62,7 +64,11 @@ Data source: `apps/web/src/lib/admin/dashboard/data.ts` → `EXECUTIVE_KPIS`.
 
 Featured card (`AiOpsFeatureCard`) with a mini orbital SVG glyph + bright lime CTA into `/user/admin/agents`. The micro-orbit renders 9 nodes (status-tinted dots: 3 green, 2 amber, 4 slate) around the central CEO.
 
-### Section 03 — Data Pipeline Center
+### Section 03 — Integrations
+
+Highlight strip of the three most-relevant integrations (Hosteltur · Alimarket · HospitalityNet) rendered as `IntegrationCard`. Each card shows connection status, auth status, article volume (today / 7d / 30d), reliability score, and links into the per-integration detail page. Right-slot CTA ("View directory") links into `/user/admin/integrations`. See `docs/features/intelligence-terminal.md` and `docs/integrations/hosteltur.md` for the institutional architecture.
+
+### Section 04 — Data Pipeline Center
 
 Six pipeline cards (`PipelineCard`) covering the institutional ingestion surfaces:
 
@@ -77,7 +83,7 @@ Six pipeline cards (`PipelineCard`) covering the institutional ingestion surface
 
 Each card surfaces: name · domain subline · status pill · last update · queue size · success rate · workspace path.
 
-### Section 04 — Infrastructure Monitoring
+### Section 05 — Infrastructure Monitoring
 
 Six infrastructure indicators (`InfraIndicator`) with subtle operational pulse on the status dot:
 
@@ -90,9 +96,40 @@ Six infrastructure indicators (`InfraIndicator`) with subtle operational pulse o
 | Storage | 5 buckets + RLS | eu-central |
 | API Status | Cron + agent + auth routes | fra1 |
 
-### Section 05 — Recent Operational Activity
+### Section 06 — Recent Operational Activity
 
 Bloomberg-style timeline (`ActivityTimeline`) — channel-labelled rows with timestamps (relative: `just now` / `3m ago` / `2026-05-09`) and signal-coloured dots. Channel labels: `AGENT` / `INGEST` / `CRON` / `DEPLOY` / `AUDIT` / `INFRA`.
+
+## 4a. Integrations directory (`/user/admin/integrations`)
+
+Institutional hospitality intelligence sources surfaced as **integrated applications**, not feeds. Each integration shows: connection status, authentication status, last successful sync, ingestion health, session validity (when authenticated), article volume (today / 7d / 30d), source type, reliability score.
+
+### Group structure on the directory
+
+| Group | Sources | Status today |
+|---|---|---|
+| Authenticated · Spain Market Intelligence | Hosteltur · Alimarket | Awaiting credentials · Not configured |
+| Public · European + Spain Market | HospitalityNet · Expansión | Operational |
+| Public · Global Market + Research Houses | Skift · HVS · Reuters | Operational |
+| Deferred · API / Vendor Pending | CoStar News · Hotel News Now · THP News | Not configured |
+
+### Per-integration detail page
+
+Lives at `/user/admin/integrations/[integrationId]`. Composes:
+
+- **Hero** — name · region · language · ingestion kind · tagline · connection + auth badges · reliability score
+- **Telemetry strip** — articles today / 7d / 30d + runs success/failed in last 7d
+- **SessionStatusPanel** — when authenticated: T2 row · KEK identifier · refresh count · hours-to-expiry · last refresh · expires · last error · operator runbook hint. When public: zero-credentials banner.
+- **IngestionHealthPanel** — last run timestamp · success / failure counts · mean items per run
+- **Operator notes** + **External links** (login portal · premium signup · public RSS hub · integration dossier)
+
+Single source of truth: `apps/web/src/lib/admin/integrations/registry.ts` — shaped against `public.sources × intelligence_source_sessions × news_ingestion_runs` for Phase 3 mechanical swap.
+
+## 4b. Market Intelligence Terminal (`/user/admin/agents/market_intelligence`)
+
+The `market_intelligence` agent slug renders the **Intelligence Terminal** in place of the standard agent dashboard. Full spec: `docs/features/intelligence-terminal.md`.
+
+Composition: hero · volume KPIs (6 tiles) · high-relevance alerts band · source coverage matrix · category breakdown + entity mentions (two-column) · extracted deals + projects tables · latest hospitality intelligence feed. Every item preserves its original source URL for institutional traceability.
 
 ## 4. AI Operations Center (`/user/admin/agents`)
 
