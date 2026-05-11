@@ -4,6 +4,41 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Resend leaves the sandbox (verified domain · production delivery)
+
+`hotelvalora.com` verified at https://resend.com/domains (DKIM + SPF added in Namecheap DNS). `RESEND_FROM_EMAIL` on Vercel switched from the sandbox sender (`onboarding@resend.dev`) to `HotelVALORA <noreply@hotelvalora.com>`. The full email path now delivers to any recipient — no more "only to miguel.sambricio@metcub.com" sandbox restriction.
+
+### What changed
+
+| Concern | Before | After |
+|---|---|---|
+| Sender | `HotelVALORA <onboarding@resend.dev>` (Resend sandbox) | `HotelVALORA <noreply@hotelvalora.com>` (verified domain) |
+| Delivery surface | Resend account owner only | Any recipient inbox |
+| DKIM / SPF on `hotelvalora.com` | Not set | Set in Namecheap → verified by Resend |
+| Code path | Unchanged — `sendTourRequestAction` + `getDefaultFromAddress()` | Same |
+
+### Verification
+
+- `vercel env ls production` shows `RESEND_FROM_EMAIL` (Encrypted) updated.
+- Resend domains panel shows `hotelvalora.com` as verified.
+- Auto-deploy triggered by this commit's push to `main`.
+
+### What stays unchanged
+
+- The Resend API key is unchanged (same `RESEND_API_KEY`).
+- The server action `sendTourRequestAction`, the `getResend()` singleton, and the `tour-request` template are all unmodified.
+- `replyTo` logic + analytics tags untouched.
+
+### Re-test plan
+
+After the auto-deploy lands, clicking "Schedule a Tour" on a top-promoted report (e.g. Mandarin Oriental Ritz with account manager `sara.smith@mandarinoriental.com`) should result in:
+
+- HTTP 200 from the server action
+- Resend send-id returned cleanly
+- The email arriving at `sara.smith@mandarinoriental.com` (no sandbox bounce)
+
+---
+
 ## 2026-05-11 — Auth log noise fix (`/api/auth/session` 500s)
 
 Removes the legacy `<SessionProvider>` from `apps/web/src/components/providers.tsx`. The provider was a leftover from the Auth.js v5 scaffold; nothing in the codebase calls `useSession()` from `next-auth/react` (verified by grep). Its only behaviour was polling `/api/auth/session` on every page load → the endpoint threw `MissingSecret` (because `AUTH_SECRET` is not set on Vercel; we run on Supabase Auth, not Auth.js) → Vercel logs flooded with 500s.

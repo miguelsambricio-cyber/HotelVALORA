@@ -41,15 +41,20 @@ Resend API   →  account-manager@…
 ### Sandbox vs production
 
 - **Sandbox** (`onboarding@resend.dev`): only delivers to the Resend account owner's verified email. Use for local dev — every other recipient bounces.
-- **Production**: verify a domain in the Resend dashboard, then set `RESEND_FROM_EMAIL=HotelVALORA <noreply@hotelvalora.com>`. Resend will deliver to any recipient.
+- **Production** (current state since 2026-05-11): `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS) → `RESEND_FROM_EMAIL=HotelVALORA <noreply@hotelvalora.com>` on Vercel. Delivers to any recipient.
 
-To activate production delivery:
+To re-do the activation from scratch (eg. after rotating the API key):
 
 ```bash
-# Verify the domain (DKIM / SPF records added in DNS):
-#   https://resend.com/domains
-vercel env add RESEND_API_KEY production
-vercel env add RESEND_FROM_EMAIL production
+# 1. Verify the domain at https://resend.com/domains (add DKIM/SPF records
+#    at your DNS registrar). hotelvalora.com is already verified as of
+#    2026-05-11 — skip this step unless re-creating the Resend account.
+# 2. Update the env vars on Vercel:
+vercel env rm RESEND_API_KEY production --yes
+vercel env add RESEND_API_KEY production  # paste re_…
+vercel env rm RESEND_FROM_EMAIL production --yes
+echo "HotelVALORA <noreply@hotelvalora.com>" | vercel env add RESEND_FROM_EMAIL production
+# 3. Trigger a deploy (auto via git push, or `vercel deploy --prod --yes`).
 ```
 
 ## Reply-to behaviour

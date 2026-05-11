@@ -39,10 +39,9 @@ State: 🔴 → 🟢
 3. ☐ Configure per-bucket policies in the dashboard (RLS toggle + policy editor)
 4. ☐ Document the bucket policies in `docs/integrations/supabase.md`
 
-## ☐ Resend domain verification (leave sandbox)
+## ☑ Resend domain verification (DONE 2026-05-11)
 
-State: 🟡 → 🟢
-Audited: 2026-05-11
+State: 🟢 (was 🟡, completed 2026-05-11 evening — `hotelvalora.com` verified with DKIM + SPF in Namecheap DNS, `RESEND_FROM_EMAIL` switched to `HotelVALORA <noreply@hotelvalora.com>`)
 
 ### Pre-flight — what's already in place (audit findings)
 
@@ -58,15 +57,15 @@ The integration is **fully wired in code and Vercel env**. Only DNS / domain ver
 - ✅ Comprehensive docs (`docs/integrations/resend.md`)
 - 🟡 Sender resolves to the Resend sandbox (`onboarding@resend.dev`) → only the Resend account owner's inbox receives messages
 
-### Steps to leave sandbox
+### Steps to leave sandbox — all completed 2026-05-11
 
-1. ☐ Open `https://resend.com/domains`
-2. ☐ Add `hotelvalora.com`
-3. ☐ Copy the DKIM + SPF records and add them to the DNS at the domain registrar
-4. ☐ Wait for verification (usually < 10 min)
-5. ☐ Update Vercel env: `vercel env rm RESEND_FROM_EMAIL production --yes` → `echo "HotelVALORA <noreply@hotelvalora.com>" | vercel env add RESEND_FROM_EMAIL production`
-6. ☐ Redeploy: GitHub auto-deploy on the next push to `main`, or `vercel deploy --prod --yes` for an immediate trigger
-7. ☐ Verify: send a tour request from the Library — should land in any inbox the account manager owns
+1. ☑ Open `https://resend.com/domains`
+2. ☑ Add `hotelvalora.com`
+3. ☑ Copy the DKIM + SPF records and add them to the DNS at the domain registrar (Namecheap Advanced DNS)
+4. ☑ Wait for verification (Resend confirmed verified by 2026-05-11 evening)
+5. ☑ Update Vercel env: `vercel env rm RESEND_FROM_EMAIL production --yes` → `echo "HotelVALORA <noreply@hotelvalora.com>" | vercel env add RESEND_FROM_EMAIL production`
+6. ☑ Redeploy: GitHub auto-deploy triggered by this commit's push to `main`
+7. ☐ Final smoke test (pending re-test after this deploy lands)
 
 ## ☐ Auth.js production wire (Google first)
 

@@ -254,5 +254,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 83%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 22×1 + 4×0.5 + 2×0.0 = 24 of 29 active services = 83%. Vercel-GitHub auto-deploy joined the inventory as 🟢 — push to `main` → production, branches → preview, commit status checks live.)
+**Infrastructure health score: 85%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 24×1 + 3×0.5 + 3×0.0 = 25.5 of 30 active services = 85%. Resend left the sandbox after `hotelvalora.com` domain verification at 2026-05-11 evening — sender switched to `noreply@hotelvalora.com`, full production delivery surface open.)

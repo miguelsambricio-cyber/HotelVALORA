@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (23)
+## 🟢 Working (24)
 
 | Service | Production URL / scope |
 |---|---|
@@ -19,6 +19,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Resend SDK 6.12.3 | server actions in `apps/web/src/lib/email/{client,actions}.ts` + template at `templates/tour-request.ts` |
 | Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted — both set, both required for server-action sends |
 | Resend integration (Library "Schedule a Tour" CTA) | wired to `ContactCell` on top-promoted reports — compiles + executes in production, send acknowledged by Resend |
+| Resend production sender (`noreply@hotelvalora.com`) | `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS) since 2026-05-11; delivers to any recipient inbox |
 | `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase Auth active in production |
 | **Supabase Auth (production runtime)** | Google OAuth dance · `/auth/callback` handler · HttpOnly cookies · `handle_new_user` trigger. Public Beta Mode: `PROTECTED_PREFIXES=[]` — anonymous browsing allowed everywhere |
 | **Google OAuth provider** | Configured in Supabase Dashboard + Google Cloud Console with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`. `/auth/v1/settings` reports `"google": true` |
@@ -34,13 +35,12 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Postgres (local Docker) | apps/api dev only |
 | FastAPI `/review` surface | apps/api/app/api/v1/review |
 
-## 🟡 Partial (4)
+## 🟡 Partial (3)
 
 | Service | What's missing |
 |---|---|
 | Library institutional map | Static grayscale image — swap to Mapbox in Phase 4 |
 | FastAPI backend | Built endpoints (valuations/imports/auth) NOT consumed by frontend |
-| Resend sandbox sender | Audited 2026-05-11: `RESEND_FROM_EMAIL` resolves to the sandbox (`onboarding@resend.dev`). Only the Resend account owner's inbox receives messages; all other recipients silently bounce. Code path is production-safe — only DNS / domain verification is missing. See `docs/integrations/resend.md` and `integration-checklist.md` § "Resend domain verification" |
 | PDF exports | `window.print()` wrapper; server-side renderer planned |
 
 ## 🔴 Not configured (3)
@@ -72,9 +72,9 @@ None.
 
 ## Health score
 
-**23 🟢 · 4 🟡 · 3 🔴 · 0 ⚫ across 30 active services**
+**24 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 30 active services**
 
-Weighted score: (23 × 1.0 + 4 × 0.5 + 3 × 0.0) / 30 = **83%**. Resend integration row split out from the env row after 2026-05-11 audit (production-wired, sandbox-bound). Platform is in **Public Beta / Showcase Mode**; every push to `main` auto-deploys to production, branches auto-deploy to preview.
+Weighted score: (24 × 1.0 + 3 × 0.5 + 3 × 0.0) / 30 = **85%**. Resend left the sandbox — `hotelvalora.com` verified, sender switched to `noreply@hotelvalora.com`, production delivery to any recipient. Platform is in **Public Beta / Showcase Mode**; every push to `main` auto-deploys to production, branches auto-deploy to preview.
 
 ## Next 5 actions (prioritised)
 
