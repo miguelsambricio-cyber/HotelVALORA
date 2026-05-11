@@ -4,6 +4,65 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Phase 2 shipped: Hospitality Intelligence pipeline + Tier 1 AI agents
+
+Bundled delivery of the two tracks that depend on each other. The Intelligence Engine produces the substrate; the Tier 1 agents operate on top of it through a deterministic runtime that becomes the foundation for all future AI systems.
+
+### Migration applied
+`phase2_tier1_runtime_and_permissions` (via Supabase MCP):
+- New tool `monitoring.escalate.email` (Resend-backed internal alerts, env-pinned recipients, no per-send approval)
+- Operational config written to `ai_agents.config` for `market_intelligence` ($0.20 daily cap), `data_ingestion` ($0.10), `qa_monitoring` ($0.05) — escalation_channel='resend', retention windows, approval_required_for lists
+- Status flipped `planned` → `beta` + `enabled=true` on the three Tier 1 agents (CEO Agent intentionally left `planned`)
+- 43 default-deny permission rows across the three agents (market: 18, data: 6, qa: 19)
+
+### Track A — Hospitality Intelligence ingestion pipeline
+- `apps/web/src/lib/intelligence/{types,fetchers,normalise,categorise,ingest}.ts` — RSS fetcher (regex XML parser, no new dep), URL canonicalisation + sha256 dedup, regex categoriser (13 news categories + tag taxonomy), per-source orchestrator with writes to `news_ingestion_runs` + `market_news` + `news_tags`
+- `apps/web/src/app/api/cron/hospitality-intel/route.ts` — Bearer CRON_SECRET, runs all enabled sources, 300s budget
+- `apps/web/vercel.json` — three cron entries: `48 7 * * *` (intel), `20 8 * * *` (market-intelligence agent), `0 * * * *` (qa-monitoring)
+- `apps/web/src/app/dev/intelligence-test/page.tsx` — env probe + sources catalogue + last 10 runs + corpus-by-category (30d)
+- Scrape + API sources stubbed: alimarket, costar-news, hotelnewsnow, thp-news report `status=success / items_seen=0 / metadata.note='scrape_not_implemented_phase2'` so QA Agent can surface them
+
+### Track B — Tier 1 AI agents (runtime + 3 agents)
+- `apps/web/src/lib/ai-agents/core/` — 9 files: types · audit · permissions · budget · events · memory · approval · escalation · runtime · index
+- `apps/web/src/lib/ai-agents/agents/market-intelligence.ts` — cursor-driven daily window read, aggregates by category/region/source/tag, writes summary to `ai_memory`, emits `custom` event
+- `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` — manual-trigger zod-validated payload, inserts `uploaded_excels`, routes parser execution through `approvalGate` when requested
+- `apps/web/src/lib/ai-agents/agents/qa-monitoring.ts` — hourly read-only probes (ingestion failures, agent failures, stuck approvals, cost-cap headroom), Resend escalation with 15-min cooldown, severity ladder (info/warning/critical)
+- `apps/web/src/app/api/cron/market-intelligence/route.ts` + `apps/web/src/app/api/cron/qa-monitoring/route.ts` + `apps/web/src/app/api/agents/data-ingestion/route.ts`
+- `apps/web/src/app/dev/ai-ops/page.tsx` — operator probe page: agent registry with today's cost vs cap, last 15 runs, last 15 events, pending approvals, last-24h escalations
+
+### Architectural primitives (live but partially dormant)
+- **Manual approval architecture** — `approval.ts` gate is wired; only `data_ingestion` + `costar.exports.parse` actively use it. Pattern proven, ready for Tier 2 destructive surfaces.
+- **AI cost guardrails** — `budget.ts` preflight + account; daily caps in `ai_agents.config`; QA Agent escalates at 80% / 100%. No LLM use in Phase 2 so spend is ~0 — guardrails ship ahead of need.
+- **Execution auditability** — `ai_agent_runs` records input + steps + output + cost + tokens + duration per invocation; `ai_events` captures every emission; `ai_memory` checkpoints state. Full replay surface in DB; the `/dev/ai-ops` page makes it queryable.
+
+### CEO / Orchestration Agent — NOT activated
+Status stays `planned` / `enabled=false`. Activates in Phase 3 once Tier 1 has generated 30+ days of telemetry. Documented in `docs/ai-agents/ai-agent-roadmap.md` Phase 3.
+
+### New docs
+- `docs/ai-agents/ai-agent-cost-guardrails.md` — load-bearing reference for the cost-cap layer
+- `docs/ai-agents/ai-agent-approval-flow.md` — load-bearing reference for the human-review flow
+
+### Bundle + build
+- New cron routes (3), new agent route (1), new dev pages (2). All `ƒ Dynamic` — server-only.
+- Library bundle unchanged at 214 kB. Middleware unchanged at 81.8 kB. No client-bundle regressions.
+- `pnpm typecheck` clean; `pnpm build` clean (37 pages generated).
+
+### Env vars
+- `CRON_SECRET` — required in production (cron route guard, denies on missing)
+- `INTERNAL_ALERT_RECIPIENTS` — comma-separated emails for QA escalations; falls back to `miguel.sambricio@metcub.com`
+
+### Exit criteria for Phase 2 (per roadmap)
+- 7+ consecutive days of all sources reaching `status=success` ☐
+- ≥10 new `market_news` rows / day on average ☐
+- Zero `news_ingestion_runs.status=failed` for sources we mean to keep enabled ☐
+- 14 days of Tier 1 agent runs with ≥95% success rate ☐
+- Zero permission denial spikes ☐
+- Operator dashboard shows live KPIs ✅
+
+The first 5 are observation criteria — auto-deploy fires, the next 24h decide.
+
+---
+
 ## 2026-05-11 — Vercel Speed Insights enabled
 
 Installed `@vercel/speed-insights` 2.0.0 in `apps/web` and mounted `<SpeedInsights />` next to `<Analytics />` in the root layout. Adds Real User Monitoring of Core Web Vitals (LCP, FID, CLS, INP, TTFB) per page to the existing page-view + custom-event tracking. Same cookie-free, GDPR-compliant posture. Same auto-enable on Vercel production — no env vars.

@@ -1,7 +1,3 @@
-// AUTO-GENERATED from Supabase project twebgqutuqgonabvhzjk via pnpm dlx supabase gen types typescript --schema public.
-// Regenerate by running the Supabase MCP generate_typescript_types tool or the CLI command above.
-// Do NOT edit by hand. Hand-rolled augmentations live in apps/web/src/lib/supabase/*.ts wrappers.
-
 export type Json =
   | string
   | number
@@ -55,6 +51,414 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_agent_permissions: {
+        Row: {
+          actions: Database["public"]["Enums"]["ai_permission_action"][]
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          created_at: string
+          granted_by: string | null
+          id: string
+          notes: string | null
+          resource_name: string
+          resource_type: string
+          scope: Json | null
+        }
+        Insert: {
+          actions: Database["public"]["Enums"]["ai_permission_action"][]
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          notes?: string | null
+          resource_name: string
+          resource_type: string
+          scope?: Json | null
+        }
+        Update: {
+          actions?: Database["public"]["Enums"]["ai_permission_action"][]
+          agent_id?: Database["public"]["Enums"]["ai_agent_id"]
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          notes?: string | null
+          resource_name?: string
+          resource_type?: string
+          scope?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_permissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_permissions_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_agent_runs: {
+        Row: {
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          cost_usd: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input: Json | null
+          metadata: Json | null
+          output: Json | null
+          run_completed_at: string | null
+          run_started_at: string
+          status: Database["public"]["Enums"]["ai_agent_run_status"]
+          steps: Json | null
+          tokens_in: number | null
+          tokens_out: number | null
+          trigger_kind: string
+          triggered_by: string | null
+          triggering_agent_id: Database["public"]["Enums"]["ai_agent_id"] | null
+          triggering_event_id: string | null
+        }
+        Insert: {
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          cost_usd?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input?: Json | null
+          metadata?: Json | null
+          output?: Json | null
+          run_completed_at?: string | null
+          run_started_at?: string
+          status?: Database["public"]["Enums"]["ai_agent_run_status"]
+          steps?: Json | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          trigger_kind: string
+          triggered_by?: string | null
+          triggering_agent_id?:
+            | Database["public"]["Enums"]["ai_agent_id"]
+            | null
+          triggering_event_id?: string | null
+        }
+        Update: {
+          agent_id?: Database["public"]["Enums"]["ai_agent_id"]
+          cost_usd?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input?: Json | null
+          metadata?: Json | null
+          output?: Json | null
+          run_completed_at?: string | null
+          run_started_at?: string
+          status?: Database["public"]["Enums"]["ai_agent_run_status"]
+          steps?: Json | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          trigger_kind?: string
+          triggered_by?: string | null
+          triggering_agent_id?:
+            | Database["public"]["Enums"]["ai_agent_id"]
+            | null
+          triggering_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_agent_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_agents: {
+        Row: {
+          config: Json | null
+          created_at: string
+          description: string | null
+          display_name: string
+          enabled: boolean
+          escalation_rules: Json | null
+          id: Database["public"]["Enums"]["ai_agent_id"]
+          kpis: Json | null
+          responsibilities: Json | null
+          status: Database["public"]["Enums"]["ai_agent_status"]
+          updated_at: string
+          workflows: Json | null
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          display_name: string
+          enabled?: boolean
+          escalation_rules?: Json | null
+          id: Database["public"]["Enums"]["ai_agent_id"]
+          kpis?: Json | null
+          responsibilities?: Json | null
+          status?: Database["public"]["Enums"]["ai_agent_status"]
+          updated_at?: string
+          workflows?: Json | null
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          enabled?: boolean
+          escalation_rules?: Json | null
+          id?: Database["public"]["Enums"]["ai_agent_id"]
+          kpis?: Json | null
+          responsibilities?: Json | null
+          status?: Database["public"]["Enums"]["ai_agent_status"]
+          updated_at?: string
+          workflows?: Json | null
+        }
+        Relationships: []
+      }
+      ai_events: {
+        Row: {
+          consumed_by: string[]
+          created_at: string
+          expires_at: string | null
+          id: string
+          kind: Database["public"]["Enums"]["ai_event_kind"]
+          occurred_at: string
+          payload: Json
+          scope_org_id: string | null
+          scope_user_id: string | null
+          source: string
+        }
+        Insert: {
+          consumed_by?: string[]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["ai_event_kind"]
+          occurred_at?: string
+          payload: Json
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          source: string
+        }
+        Update: {
+          consumed_by?: string[]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["ai_event_kind"]
+          occurred_at?: string
+          payload?: Json
+          scope_org_id?: string | null
+          scope_user_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_events_scope_org_id_fkey"
+            columns: ["scope_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_events_scope_user_id_fkey"
+            columns: ["scope_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_human_review: {
+        Row: {
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          created_at: string
+          expires_at: string | null
+          id: string
+          proposed_action: Json
+          reason: string | null
+          reviewed_at: string | null
+          reviewer_id: string | null
+          reviewer_notes: string | null
+          run_id: string
+          status: string
+        }
+        Insert: {
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          proposed_action: Json
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          run_id: string
+          status?: string
+        }
+        Update: {
+          agent_id?: Database["public"]["Enums"]["ai_agent_id"]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          proposed_action?: Json
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          run_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_human_review_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_human_review_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_human_review_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_memory: {
+        Row: {
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          content: string
+          created_at: string
+          embedding_ready: boolean
+          expires_at: string | null
+          id: string
+          importance_score: number | null
+          meta: Json | null
+          scope: Database["public"]["Enums"]["ai_memory_scope"]
+          scope_org_id: string | null
+          scope_session_id: string | null
+          scope_user_id: string | null
+        }
+        Insert: {
+          agent_id: Database["public"]["Enums"]["ai_agent_id"]
+          content: string
+          created_at?: string
+          embedding_ready?: boolean
+          expires_at?: string | null
+          id?: string
+          importance_score?: number | null
+          meta?: Json | null
+          scope: Database["public"]["Enums"]["ai_memory_scope"]
+          scope_org_id?: string | null
+          scope_session_id?: string | null
+          scope_user_id?: string | null
+        }
+        Update: {
+          agent_id?: Database["public"]["Enums"]["ai_agent_id"]
+          content?: string
+          created_at?: string
+          embedding_ready?: boolean
+          expires_at?: string | null
+          id?: string
+          importance_score?: number | null
+          meta?: Json | null
+          scope?: Database["public"]["Enums"]["ai_memory_scope"]
+          scope_org_id?: string | null
+          scope_session_id?: string | null
+          scope_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_memory_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_memory_scope_org_id_fkey"
+            columns: ["scope_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_memory_scope_user_id_fkey"
+            columns: ["scope_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_tools: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          integration: string | null
+          is_destructive: boolean
+          metadata: Json | null
+          requires_human_approval: boolean
+          schema_in: Json | null
+          schema_out: Json | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id: string
+          integration?: string | null
+          is_destructive?: boolean
+          metadata?: Json | null
+          requires_human_approval?: boolean
+          schema_in?: Json | null
+          schema_out?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          integration?: string | null
+          is_destructive?: boolean
+          metadata?: Json | null
+          requires_human_approval?: boolean
+          schema_in?: Json | null
+          schema_out?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       audit_logs: {
         Row: {
@@ -416,6 +820,173 @@ export type Database = {
           },
         ]
       }
+      hotel_projects: {
+        Row: {
+          capex_eur: number | null
+          category: Database["public"]["Enums"]["news_category"]
+          city: string | null
+          country: string | null
+          created_at: string
+          developer_id: string | null
+          estimated_opening: string | null
+          id: string
+          market: string | null
+          meta: Json | null
+          news_id: string | null
+          notes: string | null
+          operator_id: string | null
+          project_name: string | null
+          rooms: number | null
+          submarket: string | null
+        }
+        Insert: {
+          capex_eur?: number | null
+          category: Database["public"]["Enums"]["news_category"]
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          developer_id?: string | null
+          estimated_opening?: string | null
+          id?: string
+          market?: string | null
+          meta?: Json | null
+          news_id?: string | null
+          notes?: string | null
+          operator_id?: string | null
+          project_name?: string | null
+          rooms?: number | null
+          submarket?: string | null
+        }
+        Update: {
+          capex_eur?: number | null
+          category?: Database["public"]["Enums"]["news_category"]
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          developer_id?: string | null
+          estimated_opening?: string | null
+          id?: string
+          market?: string | null
+          meta?: Json | null
+          news_id?: string | null
+          notes?: string | null
+          operator_id?: string | null
+          project_name?: string | null
+          rooms?: number | null
+          submarket?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_projects_developer_id_fkey"
+            columns: ["developer_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_projects_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "market_news"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_projects_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_transactions: {
+        Row: {
+          announced_at: string | null
+          asset_name: string | null
+          buyer_id: string | null
+          cap_rate: number | null
+          category: Database["public"]["Enums"]["news_category"]
+          city: string | null
+          closed_at: string | null
+          country: string | null
+          created_at: string
+          id: string
+          market: string | null
+          meta: Json | null
+          news_id: string | null
+          notes: string | null
+          price_eur: number | null
+          price_per_key_eur: number | null
+          rooms: number | null
+          seller_id: string | null
+          submarket: string | null
+        }
+        Insert: {
+          announced_at?: string | null
+          asset_name?: string | null
+          buyer_id?: string | null
+          cap_rate?: number | null
+          category: Database["public"]["Enums"]["news_category"]
+          city?: string | null
+          closed_at?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          market?: string | null
+          meta?: Json | null
+          news_id?: string | null
+          notes?: string | null
+          price_eur?: number | null
+          price_per_key_eur?: number | null
+          rooms?: number | null
+          seller_id?: string | null
+          submarket?: string | null
+        }
+        Update: {
+          announced_at?: string | null
+          asset_name?: string | null
+          buyer_id?: string | null
+          cap_rate?: number | null
+          category?: Database["public"]["Enums"]["news_category"]
+          city?: string | null
+          closed_at?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          market?: string | null
+          meta?: Json | null
+          news_id?: string | null
+          notes?: string | null
+          price_eur?: number | null
+          price_per_key_eur?: number | null
+          rooms?: number | null
+          seller_id?: string | null
+          submarket?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_transactions_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_transactions_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "market_news"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_transactions_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "investors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investment_requirements: {
         Row: {
           asset: Json
@@ -456,6 +1027,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      investors: {
+        Row: {
+          aum_eur: number | null
+          created_at: string
+          hq_country: string | null
+          id: string
+          kind: string | null
+          meta: Json | null
+          name: string
+          notes: string | null
+          slug: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          aum_eur?: number | null
+          created_at?: string
+          hq_country?: string | null
+          id?: string
+          kind?: string | null
+          meta?: Json | null
+          name: string
+          notes?: string | null
+          slug: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          aum_eur?: number | null
+          created_at?: string
+          hq_country?: string | null
+          id?: string
+          kind?: string | null
+          meta?: Json | null
+          name?: string
+          notes?: string | null
+          slug?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
       }
       leads: {
         Row: {
@@ -511,6 +1124,98 @@ export type Database = {
           },
         ]
       }
+      market_news: {
+        Row: {
+          body: string | null
+          canonical_url: string
+          category: Database["public"]["Enums"]["news_category"]
+          city: string | null
+          content_hash: string | null
+          country: string | null
+          created_at: string
+          enriched_meta: Json | null
+          first_seen_at: string
+          hotel_segment: Database["public"]["Enums"]["hotel_segment"] | null
+          id: string
+          language: string
+          last_seen_at: string
+          market: string | null
+          occurrences: number
+          published_at: string | null
+          raw_meta: Json | null
+          region: string | null
+          source_id: string
+          submarket: string | null
+          summary: string | null
+          title: string
+          updated_at: string
+          url: string
+          url_hash: string
+        }
+        Insert: {
+          body?: string | null
+          canonical_url: string
+          category?: Database["public"]["Enums"]["news_category"]
+          city?: string | null
+          content_hash?: string | null
+          country?: string | null
+          created_at?: string
+          enriched_meta?: Json | null
+          first_seen_at?: string
+          hotel_segment?: Database["public"]["Enums"]["hotel_segment"] | null
+          id?: string
+          language?: string
+          last_seen_at?: string
+          market?: string | null
+          occurrences?: number
+          published_at?: string | null
+          raw_meta?: Json | null
+          region?: string | null
+          source_id: string
+          submarket?: string | null
+          summary?: string | null
+          title: string
+          updated_at?: string
+          url: string
+          url_hash: string
+        }
+        Update: {
+          body?: string | null
+          canonical_url?: string
+          category?: Database["public"]["Enums"]["news_category"]
+          city?: string | null
+          content_hash?: string | null
+          country?: string | null
+          created_at?: string
+          enriched_meta?: Json | null
+          first_seen_at?: string
+          hotel_segment?: Database["public"]["Enums"]["hotel_segment"] | null
+          id?: string
+          language?: string
+          last_seen_at?: string
+          market?: string | null
+          occurrences?: number
+          published_at?: string | null
+          raw_meta?: Json | null
+          region?: string | null
+          source_id?: string
+          submarket?: string | null
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          url?: string
+          url_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "market_news_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_preferences: {
         Row: {
           city: string | null
@@ -548,6 +1253,123 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news_entities: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          entity_id: string | null
+          entity_kind: string
+          id: string
+          news_id: string
+          raw_mention: string | null
+          role: Database["public"]["Enums"]["entity_role"]
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          entity_id?: string | null
+          entity_kind: string
+          id?: string
+          news_id: string
+          raw_mention?: string | null
+          role: Database["public"]["Enums"]["entity_role"]
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          entity_id?: string | null
+          entity_kind?: string
+          id?: string
+          news_id?: string
+          raw_mention?: string | null
+          role?: Database["public"]["Enums"]["entity_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_entities_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "market_news"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news_ingestion_runs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          items_inserted: number | null
+          items_seen: number | null
+          items_skipped: number | null
+          items_updated: number | null
+          metadata: Json | null
+          run_completed_at: string | null
+          run_started_at: string
+          source_id: string | null
+          status: Database["public"]["Enums"]["ingestion_status"]
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          items_inserted?: number | null
+          items_seen?: number | null
+          items_skipped?: number | null
+          items_updated?: number | null
+          metadata?: Json | null
+          run_completed_at?: string | null
+          run_started_at?: string
+          source_id?: string | null
+          status?: Database["public"]["Enums"]["ingestion_status"]
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          items_inserted?: number | null
+          items_seen?: number | null
+          items_skipped?: number | null
+          items_updated?: number | null
+          metadata?: Json | null
+          run_completed_at?: string | null
+          run_started_at?: string
+          source_id?: string | null
+          status?: Database["public"]["Enums"]["ingestion_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_ingestion_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      news_tags: {
+        Row: {
+          news_id: string
+          tag: string
+        }
+        Insert: {
+          news_id: string
+          tag: string
+        }
+        Update: {
+          news_id?: string
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "news_tags_news_id_fkey"
+            columns: ["news_id"]
+            isOneToOne: false
+            referencedRelation: "market_news"
             referencedColumns: ["id"]
           },
         ]
@@ -662,6 +1484,56 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operators: {
+        Row: {
+          created_at: string
+          hq_country: string | null
+          id: string
+          kind: string | null
+          meta: Json | null
+          name: string
+          notes: string | null
+          parent_id: string | null
+          slug: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          hq_country?: string | null
+          id?: string
+          kind?: string | null
+          meta?: Json | null
+          name: string
+          notes?: string | null
+          parent_id?: string | null
+          slug: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          hq_country?: string | null
+          id?: string
+          kind?: string | null
+          meta?: Json | null
+          name?: string
+          notes?: string | null
+          parent_id?: string | null
+          slug?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operators_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
             referencedColumns: ["id"]
           },
         ]
@@ -1134,6 +2006,69 @@ export type Database = {
           },
         ]
       }
+      sources: {
+        Row: {
+          api_endpoint: string | null
+          base_url: string
+          created_at: string
+          enabled: boolean
+          id: string
+          ingestion_kind: Database["public"]["Enums"]["ingestion_source_kind"]
+          language: string
+          last_ingested_at: string | null
+          meta: Json | null
+          name: string
+          notes: string | null
+          region: string
+          reliability_score: number | null
+          rss_url: string | null
+          schedule_hint: string | null
+          scrape_selector: Json | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          api_endpoint?: string | null
+          base_url: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          ingestion_kind: Database["public"]["Enums"]["ingestion_source_kind"]
+          language?: string
+          last_ingested_at?: string | null
+          meta?: Json | null
+          name: string
+          notes?: string | null
+          region: string
+          reliability_score?: number | null
+          rss_url?: string | null
+          schedule_hint?: string | null
+          scrape_selector?: Json | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          api_endpoint?: string | null
+          base_url?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          ingestion_kind?: Database["public"]["Enums"]["ingestion_source_kind"]
+          language?: string
+          last_ingested_at?: string | null
+          meta?: Json | null
+          name?: string
+          notes?: string | null
+          region?: string
+          reliability_score?: number | null
+          rss_url?: string | null
+          schedule_hint?: string | null
+          scrape_selector?: Json | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean
@@ -1542,7 +2477,84 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      ai_agent_id:
+        | "cfo"
+        | "cmo"
+        | "customer_success"
+        | "underwriting"
+        | "market_intelligence"
+        | "data_ingestion"
+        | "report_generation"
+        | "crm_dealflow"
+        | "qa_monitoring"
+        | "ceo"
+      ai_agent_run_status:
+        | "queued"
+        | "running"
+        | "success"
+        | "partial"
+        | "failed"
+        | "awaiting_approval"
+        | "cancelled"
+      ai_agent_status: "planned" | "beta" | "active" | "disabled"
+      ai_event_kind:
+        | "news_ingested"
+        | "valuation_created"
+        | "valuation_updated"
+        | "tour_requested"
+        | "user_signed_up"
+        | "payment_received"
+        | "deploy_completed"
+        | "health_check_failed"
+        | "system_alert"
+        | "human_approval_needed"
+        | "human_approved"
+        | "human_rejected"
+        | "cron_fired"
+        | "custom"
+        | "strategic_review_completed"
+        | "agent_anomaly_detected"
+        | "cost_cap_warning"
+      ai_memory_scope:
+        | "agent_global"
+        | "agent_org"
+        | "agent_user"
+        | "agent_session"
+        | "shared"
+      ai_permission_action:
+        | "select"
+        | "insert"
+        | "update"
+        | "delete"
+        | "execute"
+      entity_role:
+        | "buyer"
+        | "seller"
+        | "investor"
+        | "operator"
+        | "broker"
+        | "lender"
+        | "developer"
+        | "previous_operator"
+        | "new_operator"
+        | "partner"
+        | "mentioned"
       excel_status: "queued" | "parsing" | "staged" | "applied" | "failed"
+      hotel_segment:
+        | "luxury"
+        | "upper_upscale"
+        | "upscale"
+        | "upper_midscale"
+        | "midscale"
+        | "economy"
+        | "lifestyle"
+        | "resort"
+        | "boutique"
+        | "mixed_use"
+        | "serviced_apartments"
+        | "unknown"
+      ingestion_source_kind: "rss" | "scrape" | "api" | "manual"
+      ingestion_status: "queued" | "running" | "success" | "partial" | "failed"
       lead_status:
         | "new"
         | "qualified"
@@ -1550,6 +2562,20 @@ export type Database = {
         | "proposal"
         | "closed_won"
         | "closed_lost"
+      news_category:
+        | "acquisition"
+        | "sale"
+        | "joint_venture"
+        | "development"
+        | "refinancing"
+        | "rebranding"
+        | "operator_change"
+        | "branded_residences"
+        | "flex_living"
+        | "pipeline_announcement"
+        | "distress"
+        | "investment"
+        | "other"
       notification_kind:
         | "tour_request"
         | "promotion_expiring"
@@ -1705,7 +2731,85 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ai_agent_id: [
+        "cfo",
+        "cmo",
+        "customer_success",
+        "underwriting",
+        "market_intelligence",
+        "data_ingestion",
+        "report_generation",
+        "crm_dealflow",
+        "qa_monitoring",
+        "ceo",
+      ],
+      ai_agent_run_status: [
+        "queued",
+        "running",
+        "success",
+        "partial",
+        "failed",
+        "awaiting_approval",
+        "cancelled",
+      ],
+      ai_agent_status: ["planned", "beta", "active", "disabled"],
+      ai_event_kind: [
+        "news_ingested",
+        "valuation_created",
+        "valuation_updated",
+        "tour_requested",
+        "user_signed_up",
+        "payment_received",
+        "deploy_completed",
+        "health_check_failed",
+        "system_alert",
+        "human_approval_needed",
+        "human_approved",
+        "human_rejected",
+        "cron_fired",
+        "custom",
+        "strategic_review_completed",
+        "agent_anomaly_detected",
+        "cost_cap_warning",
+      ],
+      ai_memory_scope: [
+        "agent_global",
+        "agent_org",
+        "agent_user",
+        "agent_session",
+        "shared",
+      ],
+      ai_permission_action: ["select", "insert", "update", "delete", "execute"],
+      entity_role: [
+        "buyer",
+        "seller",
+        "investor",
+        "operator",
+        "broker",
+        "lender",
+        "developer",
+        "previous_operator",
+        "new_operator",
+        "partner",
+        "mentioned",
+      ],
       excel_status: ["queued", "parsing", "staged", "applied", "failed"],
+      hotel_segment: [
+        "luxury",
+        "upper_upscale",
+        "upscale",
+        "upper_midscale",
+        "midscale",
+        "economy",
+        "lifestyle",
+        "resort",
+        "boutique",
+        "mixed_use",
+        "serviced_apartments",
+        "unknown",
+      ],
+      ingestion_source_kind: ["rss", "scrape", "api", "manual"],
+      ingestion_status: ["queued", "running", "success", "partial", "failed"],
       lead_status: [
         "new",
         "qualified",
@@ -1713,6 +2817,21 @@ export const Constants = {
         "proposal",
         "closed_won",
         "closed_lost",
+      ],
+      news_category: [
+        "acquisition",
+        "sale",
+        "joint_venture",
+        "development",
+        "refinancing",
+        "rebranding",
+        "operator_change",
+        "branded_residences",
+        "flex_living",
+        "pipeline_announcement",
+        "distress",
+        "investment",
+        "other",
       ],
       notification_kind: [
         "tour_request",

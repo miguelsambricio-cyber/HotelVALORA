@@ -3,7 +3,7 @@
 Phased rollout of the 9 operational AI systems.
 
 **Last refreshed:** 2026-05-11
-**Current phase:** 🟢 **Phase 1** complete
+**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — runtime + 3 agents shipped, awaiting first cron firing**
 
 ---
 
@@ -25,49 +25,53 @@ Phased rollout of the 9 operational AI systems.
 - Audit + permissions + memory + escalation tables ready for agent code
 - Strategic clarity recorded so future engineers + AI sessions internalise the philosophy
 
-## Phase 2 — Tier 1 agents implementation (next sprint candidate)
+## Phase 2 — Tier 1 agents implementation (🟡 partial — code shipped 2026-05-11)
 
 **Goal:** Market Intelligence + Data Ingestion + QA / Monitoring agents go from `planned` → `beta`. Lowest-risk, highest-leverage — they work on existing data with no destructive surface.
 
-### Phase 2.1 — Agent runtime core
+### Phase 2.1 — Agent runtime core ✅
 
-| Deliverable | File |
+| Deliverable | File | Status |
+|---|---|---|
+| Runtime `invoke()` | `apps/web/src/lib/ai-agents/core/runtime.ts` | ✅ |
+| Permission checker | `apps/web/src/lib/ai-agents/core/permissions.ts` | ✅ default-deny + per-run cache |
+| Memory loader | `apps/web/src/lib/ai-agents/core/memory.ts` | ✅ load/persist + cursor helpers |
+| Event bus emit | `apps/web/src/lib/ai-agents/core/events.ts` | ✅ emit + flush + selectSince (Phase 3 swaps to Realtime) |
+| Audit shell | `apps/web/src/lib/ai-agents/core/audit.ts` | ✅ open/close/log/panic-close |
+| Cost guardrails | `apps/web/src/lib/ai-agents/core/budget.ts` | ✅ preflight + account + snapshot · see `ai-agent-cost-guardrails.md` |
+| Manual approval gate | `apps/web/src/lib/ai-agents/core/approval.ts` | ✅ live but dormant (no gated tools called yet) · see `ai-agent-approval-flow.md` |
+| Escalation (Resend, NOT Slack) | `apps/web/src/lib/ai-agents/core/escalation.ts` | ✅ env-pinned recipients + 15-min cooldown |
+| Tool registry | `apps/web/src/lib/ai-agents/core/tools.ts` | ⏸ deferred — agents call tools inline in Phase 2 |
+| LLM client wrapper | `apps/web/src/lib/ai-agents/llm-client.ts` | ⏸ Phase 4 — no LLM use in Phase 2 |
+
+### Phase 2.2 — Market Intelligence Agent ✅
+
+| Deliverable | Status |
 |---|---|
-| Runtime `invoke()` | `apps/web/src/lib/ai-agents/core/runtime.ts` |
-| Permission checker | `apps/web/src/lib/ai-agents/core/permissions.ts` |
-| Memory loader | `apps/web/src/lib/ai-agents/core/memory.ts` |
-| Event bus emit | `apps/web/src/lib/ai-agents/core/events.ts` |
-| Escalation helpers | `apps/web/src/lib/ai-agents/core/escalation.ts` |
-| Tool registry | `apps/web/src/lib/ai-agents/core/tools.ts` |
-| LLM client wrapper | `apps/web/src/lib/ai-agents/llm-client.ts` |
+| Phase 2 permissions migration `phase2_tier1_runtime_and_permissions` | ✅ |
+| Agent implementation at `apps/web/src/lib/ai-agents/agents/market-intelligence.ts` | ✅ regex-only, no LLM |
+| Cron route handler at `apps/web/src/app/api/cron/market-intelligence/route.ts` (`20 8 * * *` UTC) | ✅ |
+| Integration with the Intelligence Engine ingestion cron (cursor-based window read) | ✅ via `getCursor` / `setCursor` |
+| Unit + integration tests | ☐ deferred |
 
-### Phase 2.2 — Market Intelligence Agent
+### Phase 2.3 — Data Ingestion Agent ✅
 
-| Deliverable |
-|---|
-| Permissions migration `0008_market_intelligence_agent_permissions.sql` |
-| Agent implementation at `apps/web/src/lib/ai-agents/agents/market-intelligence.ts` |
-| Cron route handler at `apps/web/src/app/api/cron/market-intelligence/route.ts` |
-| Integration with the existing Hospitality Intelligence Engine ingestion cron (Phase 2 of `docs/intelligence/`) |
-| Unit + integration tests |
+| Deliverable | Status |
+|---|---|
+| Phase 2 permissions migration (same as 2.2 — single combined migration) | ✅ |
+| Agent implementation at `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` | ✅ dry-run validator + approval gate for parser execution |
+| Manual-trigger surface at `apps/web/src/app/api/agents/data-ingestion/route.ts` | ✅ requires Supabase auth |
+| Parser execution | ⏸ deferred — gated behind `costar.exports.parse` approval |
 
-### Phase 2.3 — Data Ingestion Agent
+### Phase 2.4 — QA / Monitoring Agent ✅
 
-| Deliverable |
-|---|
-| Permissions migration `0009_data_ingestion_agent_permissions.sql` |
-| Agent implementation |
-| Manual-trigger surface at `apps/web/src/app/api/agents/data-ingestion/route.ts` (file upload) |
-| Reuses `services/data_pipeline` Python parsers via HTTP — or ports them to TS |
-
-### Phase 2.4 — QA / Monitoring Agent
-
-| Deliverable |
-|---|
-| Permissions migration `0010_qa_monitoring_agent_permissions.sql` |
-| Agent implementation |
-| Cron route handler at `apps/web/src/app/api/cron/qa-monitoring/route.ts` (hourly probes) |
-| Slack webhook integration for escalations |
+| Deliverable | Status |
+|---|---|
+| Phase 2 permissions migration (read-only across the platform) | ✅ 19 permission rows |
+| Agent implementation at `apps/web/src/lib/ai-agents/agents/qa-monitoring.ts` | ✅ |
+| Cron route handler at `apps/web/src/app/api/cron/qa-monitoring/route.ts` (hourly probes) | ✅ |
+| ~~Slack webhook integration for escalations~~ → **Resend** internal alerts via `monitoring.escalate.email` tool | ✅ per Phase 2 directive |
+| Internal observability page `/dev/ai-ops` | ✅ |
 
 **Exit criteria for Phase 2:**
 - 14 consecutive days of all 3 agents with `success rate ≥ 95%`

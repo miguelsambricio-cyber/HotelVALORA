@@ -3,7 +3,7 @@
 Phased delivery plan for the HotelVALORA Hospitality Intelligence Engine.
 
 **Last refreshed:** 2026-05-11
-**Current phase:** 🟢 **Phase 1** complete
+**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing**
 
 ---
 
@@ -27,22 +27,22 @@ Phased delivery plan for the HotelVALORA Hospitality Intelligence Engine.
 - 10 seeded sources cover ES + EU + GLOBAL with reliability scores
 - Public-read access ready for the eventual showcase surface
 
-## Phase 2 — Pipeline implementation (next)
+## Phase 2 — Pipeline implementation (🟡 partial — code shipped 2026-05-11)
 
 **Goal**: live daily ingestion. 10 sources fetched, normalised, deduped, written to `market_news`. Categorisation via regex first pass.
 
 | Deliverable | Status |
 |---|---|
-| Cron route handler `apps/web/src/app/api/cron/hospitality-intel/route.ts` | ☐ |
-| `vercel.json` cron entry (`48 7 * * *`) at `apps/web/vercel.json` | ☐ |
-| Fetchers (RSS / scrape / API) at `apps/web/src/lib/intelligence/fetchers.ts` | ☐ |
-| Normaliser + canonicaliser at `apps/web/src/lib/intelligence/normalise.ts` | ☐ |
-| Regex categoriser at `apps/web/src/lib/intelligence/categorise.ts` | ☐ |
-| Ingest orchestrator at `apps/web/src/lib/intelligence/ingest.ts` | ☐ |
-| Unit tests for normaliser + categoriser | ☐ |
-| Integration test against fixture RSS payloads | ☐ |
-| Cron first firing verified — `news_ingestion_runs` populated, `market_news` rows landing | ☐ |
-| `/dev/intelligence-test` probe page (mirror of `/dev/supabase-test`) | ☐ |
+| Cron route handler `apps/web/src/app/api/cron/hospitality-intel/route.ts` | ✅ |
+| `vercel.json` cron entry (`48 7 * * *`) at `apps/web/vercel.json` | ✅ |
+| Fetchers (RSS / scrape / API) at `apps/web/src/lib/intelligence/fetchers.ts` | ✅ RSS live · scrape + api stubbed |
+| Normaliser + canonicaliser at `apps/web/src/lib/intelligence/normalise.ts` | ✅ |
+| Regex categoriser at `apps/web/src/lib/intelligence/categorise.ts` | ✅ |
+| Ingest orchestrator at `apps/web/src/lib/intelligence/ingest.ts` | ✅ |
+| Unit tests for normaliser + categoriser | ☐ (deferred — see Phase 2.1 follow-up) |
+| Integration test against fixture RSS payloads | ☐ (deferred) |
+| Cron first firing verified — `news_ingestion_runs` populated, `market_news` rows landing | ☐ awaiting first deploy cron tick |
+| `/dev/intelligence-test` probe page (mirror of `/dev/supabase-test`) | ✅ |
 
 **Exit criteria:**
 - 7 consecutive days of all-source `status=success` runs

@@ -1,6 +1,6 @@
 # Current Sprint
 
-> Updated 2026-05-10 — bump after every shipped task.
+> Updated 2026-05-11 — bump after every shipped task.
 
 ## Just shipped (last 7 days)
 
@@ -35,16 +35,22 @@
 | **AI Operations Layer — Phase 1 foundation** — migration `0007` applied (7 tables · 6 enums · 9 agents seeded · 20 tools catalogued). 8 strategic + technical docs in `docs/ai-agents/`. Establishes deterministic-shell + audit + permissions + memory + escalation philosophy for 9 future operational AI systems (NOT chatbots). | `7b841c5` | ✅ |
 | **CEO / Orchestration Agent added as Tier 0** — migration `0008` applied (extends `ai_agent_id` enum + adds 3 new event kinds + seeds CEO agent + 10 supervisory tools). Tier 0 sits ABOVE the 9 operational agents. Hourly + daily supervisory cycles. NOT a chatbot — operations command center. Lands in Phase 3 alongside reactive orchestrator + pgvector + admin dashboard. | `e6ec45c` | ✅ |
 | **Vercel Analytics installed** — `@vercel/analytics` 2.0.1 + `<Analytics />` mounted in `apps/web/src/app/layout.tsx`. Cookie-free, GDPR-compliant page-view + event tracking. Auto-enabled on production deploys. | `e490e98` | ✅ |
-| **Vercel Speed Insights installed** — `@vercel/speed-insights` 2.0.0 + `<SpeedInsights />` mounted in the same layout. Adds RUM + Core Web Vitals (LCP, FID, CLS, INP, TTFB) per page. | *(this commit)* | ✅ |
+| **Vercel Speed Insights installed** — `@vercel/speed-insights` 2.0.0 + `<SpeedInsights />` mounted in the same layout. Adds RUM + Core Web Vitals (LCP, FID, CLS, INP, TTFB) per page. | `df23107` | ✅ |
+| **Phase 2 — Hospitality Intelligence ingestion pipeline + Tier 1 AI agents** — single bundled delivery. Migration `phase2_tier1_runtime_and_permissions` (agent configs + 43 default-deny perms + escalation tool `monitoring.escalate.email`). Intelligence: 5 lib files (types/fetchers/normalise/categorise/ingest) + cron at `48 7 * * *` UTC + `/dev/intelligence-test`. AI runtime core: 9 files (`apps/web/src/lib/ai-agents/core/*`) with audit/permissions/budget/events/memory/approval/escalation/runtime. Three agents (`market-intelligence`, `data-ingestion`, `qa-monitoring`) with their cron / manual routes + `/dev/ai-ops` operator page. Resend internal escalation (NOT Slack) with env-pinned recipients + 15-min cooldown. CEO Agent intentionally left `planned`. Cost guardrails + manual-approval architecture live but largely dormant (Phase 2 uses regex only). New docs: `ai-agent-cost-guardrails.md` + `ai-agent-approval-flow.md`. | *(this commit)* | ✅ |
 
 ## In flight
 
 - 🟡 Architecture docs scaffolding (`docs/architecture/*`, `docs/roadmap/*`, `docs/features/*`, etc.)
+- 🟡 Phase 2 observation window — 7 days of source `status=success` + ≥10 news rows/day + ≥95% agent run success
+- 🟡 First cron tick verification — `/dev/intelligence-test` + `/dev/ai-ops` after `48 7 * * *` UTC / `0 * * * *` UTC
 
 ## Up next (rough order of pull)
 
-1. **AI Ops + Intelligence Engine Phase 2 together** — agent runtime core (`apps/web/src/lib/ai-agents/core/`) + Market Intelligence Agent (consumes the Intelligence Engine's daily ingestion) + Data Ingestion Agent + QA/Monitoring Agent. Combined because the Market Intelligence Agent IS the consumer of the Intelligence Engine's pipeline; building them together avoids two separate Phase 2s. See `docs/ai-agents/ai-agent-roadmap.md` § Phase 2 + `docs/intelligence/hospitality-intelligence-roadmap.md` § Phase 2.
-2. Sign-up flow — today the only way to create an account is Google OAuth. Add `supabase.auth.signUp` (email/password) and `supabase.auth.resetPasswordForEmail`.
+1. **`INTERNAL_ALERT_RECIPIENTS` env var configured on Vercel** — comma-separated operator emails. QA escalations default to miguel.sambricio@metcub.com until set.
+2. **`CRON_SECRET` env var verified on Vercel** — production cron routes deny without it (defence in depth).
+3. **Phase 2 unit + integration tests** — regex categoriser fixtures, URL canonicaliser edge cases, RSS parser against captured payloads. Deferred from Phase 2 ship; lands as `0a` follow-up.
+4. **Phase 3 prep** — pgvector enable migration, embedding back-fill cron, reactive orchestrator (Supabase Realtime subscriber on `ai_events`), CEO Agent activation.
+5. Sign-up flow — today the only way to create an account is Google OAuth. Add `supabase.auth.signUp` (email/password) and `supabase.auth.resetPasswordForEmail`.
 3. Realtime Library subscription — `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
 4. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route.
 5. Workspace switcher — read `public.user_roles` joined with `public.organizations`; surface in the AppHeader.

@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (28)
+## 🟢 Working (32)
 
 | Service | Production URL / scope |
 |---|---|
@@ -22,6 +22,11 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Resend production sender (`noreply@hotelvalora.com`) | `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS) since 2026-05-11; delivers to any recipient inbox |
 | **Hospitality Intelligence Engine — Phase 1 foundation** | Migration `0006` applied: 9 tables (`market_news`, `hotel_transactions`, `hotel_projects`, `investors`, `operators`, `sources`, `news_entities`, `news_tags`, `news_ingestion_runs`) · 10 sources seeded · RLS public-read · ingestion code lands in Phase 2. See `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` |
 | **AI Operations Layer — Phase 1 foundation** | Migrations `0007` + `0008` applied: 7 tables (`ai_agents`, `ai_agent_runs`, `ai_events`, `ai_agent_permissions`, `ai_memory`, `ai_tools`, `ai_human_review`) · **10 agents seeded** (Tier 0 CEO / Orchestration + 9 operational) · 30 tools catalogued · NOT chatbots — operational AI systems with permissions + memory + audit + escalation. See `docs/ai-agents/AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` |
+| **AI Operations Layer — Phase 2 Tier 1 runtime** | Migration `phase2_tier1_runtime_and_permissions` applied: 31 tools (added `monitoring.escalate.email`) · `market_intelligence` + `data_ingestion` + `qa_monitoring` flipped to `beta` / `enabled=true` · 43 default-deny permission rows · cost-cap configs ($0.05–$0.20/day) · escalation_channel='resend'. Core runtime in `apps/web/src/lib/ai-agents/core/` (audit · permissions · budget · events · memory · approval · escalation · runtime). CEO Agent kept `planned`. |
+| **Market Intelligence Agent (Tier 1)** | `apps/web/src/lib/ai-agents/agents/market-intelligence.ts` — cursor-driven daily window read of `market_news`, regex-only aggregation, emits `intel_daily_summary_ready` custom event. Cron at `20 8 * * *` UTC. No LLM in Phase 2. |
+| **Data Ingestion Agent (Tier 1)** | `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` — manual trigger via `POST /api/agents/data-ingestion` (Supabase-auth gated). Zod-validates payload, stages in `uploaded_excels`, routes `costar.exports.parse` through approval gate. |
+| **QA / Monitoring Agent (Tier 1)** | `apps/web/src/lib/ai-agents/agents/qa-monitoring.ts` — hourly read-only probes (ingestion failures, agent failures, stuck approvals, cost-cap %). Escalates via Resend `monitoring.escalate.email` with 15-min cooldown, severity ladder info/warning/critical. Cron at `0 * * * *` UTC. |
+| **Hospitality Intelligence Engine — Phase 2 pipeline** | Live ingestion code at `apps/web/src/lib/intelligence/{types,fetchers,normalise,categorise,ingest}.ts`. RSS fetcher (regex XML parser, no new dep), URL canonicalisation + sha256 dedup, regex categoriser (13 news_category values), per-source orchestrator writing to `news_ingestion_runs` + `market_news` + `news_tags`. Daily cron at `48 7 * * *` UTC. Scrape + API sources stubbed for follow-up. |
 | Vercel Analytics 2.0.1 | `<Analytics />` mounted in `apps/web/src/app/layout.tsx`. Cookie-free, GDPR-compliant page-view + event tracking. Auto-enabled on production deploys (no env vars) |
 | Vercel Speed Insights 2.0.0 | `<SpeedInsights />` mounted in `apps/web/src/app/layout.tsx`. Real User Monitoring · Core Web Vitals (LCP · FID · CLS · INP · TTFB) per page. Same cookie-free posture |
 | `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase Auth active in production |
@@ -77,14 +82,14 @@ None.
 
 ## Health score
 
-**28 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 34 active services**
+**32 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 38 active services**
 
-Weighted score: (28 × 1.0 + 3 × 0.5 + 3 × 0.0) / 34 = **87%**. Vercel Speed Insights joins Vercel Analytics — RUM + Core Web Vitals tracking now live alongside page-view + event tracking. Tier 1 AI agents (Market Intelligence + Data Ingestion + QA / Monitoring) remain the next-sprint candidate.
+Weighted score: (32 × 1.0 + 3 × 0.5 + 3 × 0.0) / 38 = **88%**. Phase 2 ships: Hospitality Intelligence pipeline (RSS fetchers + regex categoriser + sha256 dedup + daily cron) + the three Tier 1 agents (Market Intelligence + Data Ingestion + QA / Monitoring) on top of a new deterministic runtime (audit · permissions · budget · events · memory · approval · escalation). Cost guardrails + manual-approval architecture live but largely dormant. Next-sprint candidates: Phase 2 observation window (7-day stability) + Phase 3 (pgvector + reactive orchestrator + CEO Agent activation).
 
 ## Next 5 actions (prioritised)
 
-1. **Realtime subscription on `valuations`** — `supabase.channel("public:valuations").on("postgres_changes", …)` → `queryClient.invalidateQueries({ queryKey: libraryKeys.all })`.
-2. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients.
-3. **Submit Google OAuth consent for verification** — Google Cloud Console currently set to "Testing" with allowlisted users. Required for any Google account to sign in.
+1. **Set `CRON_SECRET` + `INTERNAL_ALERT_RECIPIENTS`** on Vercel production env. Without `CRON_SECRET` the cron routes deny in production. `INTERNAL_ALERT_RECIPIENTS` (comma-separated) configures QA escalation recipients; falls back to miguel.sambricio@metcub.com.
+2. **First-tick verification** — after Phase 2 deploy, watch `/dev/intelligence-test` for first `48 7 * * *` UTC firing and `/dev/ai-ops` for the hourly QA snapshot.
+3. **Phase 2 observation window** — 7 days of source `status=success` + ≥10 news rows/day + 14 days of agent runs at ≥95% success rate. Then declare Phase 2 stable.
 4. **Sign-up + password-reset flows** — `supabase.auth.signUp` and `resetPasswordForEmail`. Optional today (Google OAuth is enough) but useful before broader rollout.
-5. **Workspace switcher** — read `public.user_roles` joined with `public.organizations`; surface in AppHeader.
+5. **Phase 3 prep** — pgvector enable migration, embedding back-fill, reactive `ai_events` orchestrator, CEO Agent activation.

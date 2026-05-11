@@ -106,6 +106,22 @@ Maps tasks to exact files. Start here before scanning.
 | AI Operations Layer — KPI framework + cost caps | `docs/ai-agents/ai-agent-kpis.md` |
 | AI Operations Layer — phased rollout roadmap (Phases 1–7+) | `docs/ai-agents/ai-agent-roadmap.md` |
 | AI Operations Layer — schema migration (7 tables, 6 enums, 9 agents, 20 tools) | `docs/database/migrations/0007_ai_operations_layer_schema.sql` |
+| AI Operations Layer — Phase 2 migration (Tier 1 runtime + 43 perms + escalation tool) | applied via Supabase MCP — name: `phase2_tier1_runtime_and_permissions` |
+| AI Operations Layer — cost guardrails (caps · preflight · QA escalation thresholds) | `docs/ai-agents/ai-agent-cost-guardrails.md` |
+| AI Operations Layer — manual approval flow (gate · review queue · operator workflow) | `docs/ai-agents/ai-agent-approval-flow.md` |
+| AI agent runtime core — invoke / audit / permissions / budget / events / memory / approval / escalation | `apps/web/src/lib/ai-agents/core/` (10 files incl. `runtime.ts`, `audit.ts`, `permissions.ts`, `budget.ts`, `events.ts`, `memory.ts`, `approval.ts`, `escalation.ts`, `types.ts`, `index.ts`) |
+| Market Intelligence Agent (Tier 1) | `apps/web/src/lib/ai-agents/agents/market-intelligence.ts` |
+| Data Ingestion Agent (Tier 1) | `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` |
+| QA / Monitoring Agent (Tier 1) | `apps/web/src/lib/ai-agents/agents/qa-monitoring.ts` |
+| Intelligence ingestion pipeline (types · fetchers · normalise · categorise · ingest) | `apps/web/src/lib/intelligence/` |
+| Hospitality Intelligence daily cron | `apps/web/src/app/api/cron/hospitality-intel/route.ts` |
+| Market Intelligence daily cron | `apps/web/src/app/api/cron/market-intelligence/route.ts` |
+| QA / Monitoring hourly cron | `apps/web/src/app/api/cron/qa-monitoring/route.ts` |
+| Data Ingestion manual trigger (Supabase-auth gated) | `apps/web/src/app/api/agents/data-ingestion/route.ts` |
+| Cron Bearer-token auth helper | `apps/web/src/lib/cron-auth.ts` |
+| Intelligence probe page | `apps/web/src/app/dev/intelligence-test/page.tsx` |
+| AI Ops probe page (agents · runs · events · approvals · escalations) | `apps/web/src/app/dev/ai-ops/page.tsx` |
+| Vercel Cron schedule | `apps/web/vercel.json` (3 entries) |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library seed (6 institutional showcases — live in DB) | `docs/database/migrations/0005_seed_library_demo_data.sql` |

@@ -4,5 +4,19 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm build",
   "devCommand": "pnpm dev",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/cron/hospitality-intel",
+      "schedule": "48 7 * * *"
+    },
+    {
+      "path": "/api/cron/market-intelligence",
+      "schedule": "20 8 * * *"
+    },
+    {
+      "path": "/api/cron/qa-monitoring",
+      "schedule": "0 * * * *"
+    }
+  ]
 }
