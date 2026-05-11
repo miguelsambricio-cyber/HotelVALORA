@@ -16,7 +16,9 @@ import {
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  href: string;
+  /** Real Next.js route. Omit for disabled / planned items — they render as
+   *  static divs that never navigate (no hash anchors, no scroll-jacking). */
+  href?: string;
   label: string;
   icon: typeof Shield;
   badge?: string;
@@ -28,10 +30,10 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const PLANNED_NAV: NavItem[] = [
-  { href: "#workspaces", label: "Workspaces", icon: Database, badge: "Phase 3" },
-  { href: "#observability", label: "Observability", icon: Activity, badge: "Phase 3" },
-  { href: "#cost-controls", label: "Cost Controls", icon: Gauge, badge: "Phase 3" },
-  { href: "#audit-log", label: "Audit Log", icon: ScrollText, badge: "Phase 3" },
+  { label: "Workspaces", icon: Database, badge: "Phase 3" },
+  { label: "Observability", icon: Activity, badge: "Phase 3" },
+  { label: "Cost Controls", icon: Gauge, badge: "Phase 3" },
+  { label: "Audit Log", icon: ScrollText, badge: "Phase 3" },
 ];
 
 /**
@@ -75,12 +77,14 @@ export function AdminSidebar() {
       <nav aria-label="Admin sections" className="space-y-1">
         {PRIMARY_NAV.map((item) => (
           <SidebarItem
-            key={item.href}
+            key={item.label}
             item={item}
             active={
               item.href === "/user/admin"
                 ? pathname === "/user/admin"
-                : pathname?.startsWith(item.href) ?? false
+                : item.href
+                ? pathname?.startsWith(item.href) ?? false
+                : false
             }
           />
         ))}
@@ -94,7 +98,7 @@ export function AdminSidebar() {
       </p>
       <nav aria-label="Planned admin sections" className="space-y-1">
         {PLANNED_NAV.map((item) => (
-          <SidebarItem key={item.href} item={item} active={false} disabled />
+          <SidebarItem key={item.label} item={item} active={false} disabled />
         ))}
       </nav>
 
@@ -160,7 +164,7 @@ function SidebarItem({
     </span>
   );
 
-  if (disabled) {
+  if (disabled || !item.href) {
     return <div aria-disabled className="block">{inner}</div>;
   }
   return (
