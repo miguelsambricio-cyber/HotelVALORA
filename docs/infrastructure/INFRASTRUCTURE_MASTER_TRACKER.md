@@ -87,7 +87,7 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Local tested? | Probe page yes; queries no |
 | Production tested? | Probe page yes; queries no |
 | Blockers | None |
-| Notes | Migrations `0001`–`0004` applied via Supabase MCP. Next: wire app reads against `valuations`/`favorite_reports`/`top_promote_reports` and swap mock auth to Supabase Auth / Auth.js adapter |
+| Notes | Migrations `0001`–`0005` applied via Supabase MCP. Library surfaces production-backed via TanStack Query hooks + adapter. Next: swap mock auth to Supabase Auth / Auth.js adapter and add `postgres_changes` realtime invalidation |
 
 ## Auth.js v5
 
@@ -253,5 +253,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 76%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 17×1 + 4×0.5 = 19 of 25 active services = 76% after Storage flipped to 🟢 and TS types retired from 🟡)
+**Infrastructure health score: 78%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 19×1 + 4×0.5 = 21 of 27 active services = 78% after Library data + Library production reads flipped to 🟢)

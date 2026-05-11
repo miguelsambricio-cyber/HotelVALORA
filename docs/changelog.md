@@ -4,6 +4,70 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Library surfaces wired to Supabase (TanStack Query)
+
+All four Library routes (`/library/favorites-map`, `/library/favorites-list`, `/library/top-map`, `/library/top-list`) now read from the live database. The legacy `apps/web/src/lib/library/mock-reports.ts` has been removed; the six institutional showcases live in `public.valuations` with `visibility = 'public'` and are visible to anonymous viewers through the existing public-read RLS policy.
+
+### Query architecture
+
+- **`useLibraryReports(options?)`** — single source of truth. Reads `valuations` filtered to `visibility ∈ ('public','top-promote')` + left-joins `top_promote_reports`. Five-minute `staleTime`. Same hook powers the map and the list — TanStack Query dedupes across routes, so map↔list navigation never re-fetches.
+- **`useFavoriteValuationIds()`** — per-user favourites. RLS-scoped to `auth.uid()`. Anonymous callers get an empty set + `isAnonymous=true`; the adapter treats that as "render every public row as starred" to preserve the demo UX.
+- **`useToggleFavorite()`** — optimistic mutation against `favorite_reports`. Rollback on error, authoritative invalidate `onSettled`. Caller shows "sign in to save" when `isAnonymous`.
+- **`adaptValuationToLibraryReport()`** — pure adapter, DB row + joins + favourite-id set → existing `LibraryReport` shape. Category derived from active promotion + favourited flags; `tierBadge` / `visibilityTier` from `indicators` JSONB.
+
+### States
+
+Loading / error / empty / filtered-empty rendered inline in both `HotelMap` (pill overlay) and `FavoritesTable` (full-width row). Retry button on error states. Background image + chrome stay rendered so the route shell never collapses.
+
+### Migrations
+
+- `0005_seed_library_demo_data.sql` — seeds 1 demo `auth.users` row (UUID `…010001`) + 6 valuations (UUIDs `…020001`–`…020006`) + 2 active `top_promote_reports` (Ritz-Carlton Madrid until 2026-12-31, Mandarin Oriental Ritz until 2026-09-30) + 6 demo favourites. Fully idempotent (deterministic UUIDs + ON CONFLICT updates).
+
+### Bundle architecture
+
+The Supabase barrel `apps/web/src/lib/supabase/index.ts` previously re-exported every module — including server-only ones (`./server`, `./admin`, `./auth-helpers`). Webpack traces the whole graph before tree-shaking, so client components importing `createBrowserSupabaseClient` via the barrel pulled `import "server-only"` modules into client bundles and broke the build. The barrel now only exports browser-safe surfaces. Server-only modules must be imported directly:
+
+```ts
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin }           from "@/lib/supabase/admin";
+import { getSupabaseUser }            from "@/lib/supabase/auth-helpers";
+```
+
+### Removed
+
+- `apps/web/src/lib/library/mock-reports.ts` — superseded by migration `0005`. The 6-hotel dataset is now SQL-seeded; the mock helpers (`MOCK_LIBRARY_REPORTS`, `getDefaultSelectedReport`, `getMockReportById`) had no consumers post-wire.
+
+### Files
+
+- `apps/web/src/lib/library/queries/{keys,use-library-reports,use-favorite-valuation-ids,use-toggle-favorite,index}.ts` — new
+- `apps/web/src/lib/library/adapters/valuation-to-report.ts` — new
+- `apps/web/src/components/library/hotel-map.tsx` — consumes hook, loading/error/empty states
+- `apps/web/src/components/library/favorites-table.tsx` — consumes hook, optimistic ⭐ toggle, loading/error/empty states
+- `apps/web/src/lib/supabase/index.ts` — barrel split (browser-only)
+- `apps/web/src/app/dev/supabase-test/page.tsx` — direct import from `./auth-helpers`
+- `docs/database/migrations/0005_seed_library_demo_data.sql` — new
+- `docs/features/library.md` — production data-flow + states + future realtime hooks
+- `ENTRYPOINTS.md` — query hooks + adapter + seed entries; mock-reports row removed
+
+### Production-backed surfaces (this commit)
+
+| Surface | Backed by |
+|---|---|
+| `/library/favorites-map` | `public.valuations` + `top_promote_reports` (anonymous: public-read RLS) |
+| `/library/favorites-list` | same dataset, same TanStack cache |
+| `/library/top-map` | same dataset |
+| `/library/top-list` | same dataset |
+| ⭐ favourite toggle | `public.favorite_reports` (RLS-scoped, optimistic) |
+
+### Still mock
+
+- Identity / tier inference — Zustand mock at `lib/auth/store.ts` (`hv-auth-v1` localStorage). Supabase Auth swap deferred to Phase 3.
+- Static grayscale map background — Stitch CDN image (Mapbox swap planned in Phase 4).
+- "View full valuation" CTA — toast only.
+- CRM / investment requirements / valuation preferences — tables exist, no UI yet.
+
+---
+
 ## 2026-05-11 — Supabase Storage buckets + typed helpers + regenerated TS types
 
 Closed the entire post-schema gap on the Supabase side: types regenerated from the live database, the five canonical Storage buckets provisioned via migration with per-bucket RLS, and typed frontend helpers wired through the existing `lib/supabase/*` barrel.

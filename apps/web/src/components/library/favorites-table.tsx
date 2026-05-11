@@ -1,10 +1,14 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { FileText, Star } from "lucide-react";
+import { FileText, Loader2, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useLibraryStore } from "@/lib/library/store";
-import { MOCK_LIBRARY_REPORTS } from "@/lib/library/mock-reports";
+import {
+  useFavoriteValuationIds,
+  useLibraryReports,
+  useToggleFavorite,
+} from "@/lib/library/queries";
 import type { LibraryReport, ReportCategory } from "@/types/library";
 import { cn } from "@/lib/utils";
 import { AmenityIconCell } from "./amenity-icon-cell";
@@ -120,6 +124,7 @@ function SubTh({
 interface RowProps {
   report: LibraryReport;
   onSelect: (id: string) => void;
+  onToggleFavorite: (id: string, favorited: boolean) => void;
   showReferenceColumn: boolean;
 }
 
@@ -147,6 +152,7 @@ const Td = ({
 const FavoritesRow = memo(function FavoritesRow({
   report,
   onSelect,
+  onToggleFavorite,
   showReferenceColumn,
 }: RowProps) {
   const f = report.financials;
@@ -318,17 +324,27 @@ const FavoritesRow = memo(function FavoritesRow({
         <ContactCell report={report} />
       </Td>
 
-      {/* Star (favorited) */}
+      {/* Star (favorited) — clickable, optimistic */}
       <Td className="text-center">
-        <Star
-          size={16}
-          aria-hidden
-          className={
-            report.favorited
-              ? "fill-amber-400 stroke-amber-400"
-              : "stroke-slate-300"
-          }
-        />
+        <button
+          type="button"
+          aria-label={report.favorited ? "Remove from favourites" : "Add to favourites"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFavorite(report.id, report.favorited);
+          }}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors hover:bg-amber-50"
+        >
+          <Star
+            size={16}
+            aria-hidden
+            className={
+              report.favorited
+                ? "fill-amber-400 stroke-amber-400"
+                : "stroke-slate-300"
+            }
+          />
+        </button>
       </Td>
 
       {/* PDF */}
@@ -358,9 +374,15 @@ export function FavoritesTable({
   const search = useLibraryStore((s) => s.searchQuery);
   const setSelected = useLibraryStore((s) => s.setSelectedReportId);
 
+  // Live data — same TanStack Query call the map uses, so navigating
+  // between map ↔ list never re-fetches.
+  const { reports, isLoading, isError, error, refetch } = useLibraryReports();
+  const { isAnonymous } = useFavoriteValuationIds();
+  const toggleFavorite = useToggleFavorite();
+
   const visible = useMemo<LibraryReport[]>(() => {
     const q = search.trim().toLowerCase();
-    return MOCK_LIBRARY_REPORTS.filter((r) => {
+    return reports.filter((r) => {
       if (!legend[CATEGORY_LEGEND_KEY[r.category]]) return false;
       if (
         q &&
@@ -372,13 +394,31 @@ export function FavoritesTable({
       }
       return true;
     });
-  }, [legend, search]);
+  }, [legend, search, reports]);
 
   const handleRowSelect = (id: string) => {
     setSelected(id);
     toast.message("Report detail view coming soon", {
       description: "Will open the underwriting report for this asset.",
     });
+  };
+
+  const handleToggleFavorite = (id: string, favorited: boolean) => {
+    if (isAnonymous) {
+      toast.message("Sign in to save favourites", {
+        description: "Saved reports persist to your library once authenticated.",
+      });
+      return;
+    }
+    toggleFavorite.mutate(
+      { valuationId: id, isFavorited: favorited },
+      {
+        onError: (err) =>
+          toast.error("Could not update favourite", {
+            description: err instanceof Error ? err.message : String(err),
+          }),
+      },
+    );
   };
 
   return (
@@ -471,12 +511,41 @@ export function FavoritesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {visible.length > 0 ? (
+            {isLoading && reports.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={showReferenceColumn ? 37 : 36}
+                  className="px-4 py-10 text-center text-[13px] text-slate-500"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" aria-hidden />
+                    Loading library…
+                  </span>
+                </td>
+              </tr>
+            ) : isError ? (
+              <tr>
+                <td
+                  colSpan={showReferenceColumn ? 37 : 36}
+                  className="px-4 py-10 text-center text-[13px] text-rose-700"
+                >
+                  Library unavailable — {error instanceof Error ? error.message : "unknown error"}.
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="ml-3 rounded bg-rose-50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-rose-700 hover:bg-rose-100"
+                  >
+                    Retry
+                  </button>
+                </td>
+              </tr>
+            ) : visible.length > 0 ? (
               visible.map((r) => (
                 <FavoritesRow
                   key={r.id}
                   report={r}
                   onSelect={handleRowSelect}
+                  onToggleFavorite={handleToggleFavorite}
                   showReferenceColumn={showReferenceColumn}
                 />
               ))
@@ -486,7 +555,9 @@ export function FavoritesTable({
                   colSpan={showReferenceColumn ? 37 : 36}
                   className="px-4 py-10 text-center text-[13px] text-slate-500"
                 >
-                  No reports match the current filters.
+                  {reports.length === 0
+                    ? "No public reports in the library yet."
+                    : "No reports match the current filters."}
                 </td>
               </tr>
             )}
@@ -495,7 +566,7 @@ export function FavoritesTable({
       </div>
       <footer className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-3">
         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-          Showing {visible.length} of {MOCK_LIBRARY_REPORTS.length} hotels
+          Showing {visible.length} of {reports.length} hotels
         </span>
       </footer>
     </div>

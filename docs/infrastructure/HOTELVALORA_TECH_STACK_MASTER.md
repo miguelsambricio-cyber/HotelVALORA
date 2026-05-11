@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (evening — Supabase Storage buckets provisioned, TS types regenerated from live schema, typed storage helpers wired).
+**Last refreshed:** 2026-05-11 (late evening — Library surfaces wired to Supabase via TanStack Query; demo seed live; `mock-reports.ts` retired).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -56,8 +56,10 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Supabase project | Postgres + Storage | 🟢 | Project `twebgqutuqgonabvhzjk` provisioned, schema applied (32 tables · RLS · 4 migrations registered), env wired Vercel | Migrations `0001`–`0004` applied via MCP; only intentional advisory left (`payment_events` service-role only) | Wire app reads against live `valuations` / `favorite_reports` / `top_promote_reports` |
-| Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers + CLI-generated `Database` type | — |
+| Supabase project | Postgres + Storage | 🟢 | Project `twebgqutuqgonabvhzjk` provisioned, schema applied (32 tables · RLS · 5 migrations registered · Library demo seeded), env wired Vercel | Migrations `0001`–`0005` applied via MCP; only intentional advisory left (`payment_events` service-role only) | Realtime subscriptions on `valuations` to invalidate `libraryKeys.all` |
+| Supabase clients (`lib/supabase/*`) | SDK layer | 🟢 | Local + Vercel | Browser + server + middleware + admin + auth-helpers + CLI-generated `Database` type. Barrel `index.ts` is browser-only by design; server-only modules import-direct from `./server`/`./admin`/`./auth-helpers` | — |
+| TanStack Query (Library hooks) | Data layer | 🟢 | Local + Vercel | `useLibraryReports` / `useFavoriteValuationIds` / `useToggleFavorite` (5-min staleTime · optimistic mutations · queryKeys ready for realtime invalidation) | — |
+| Library production data | Domain | 🟢 | DB seeded via migration `0005` | Six institutional showcases (visibility=public) + 2 active top_promote rows + demo user with favourites | Replace anonymous fallback with real Supabase Auth |
 | Supabase Auth | Identity | 🔴 | Project provisioned, no providers configured | Future home of OAuth + magic links | Defer to Phase 3 (Auth.js owns OAuth today) |
 | Supabase Storage | Object storage | 🟢 | 5 buckets provisioned via migration `0003` (`reports`/`pdfs`/`excel-uploads`/`renders`/`avatars`) with 19 own-namespace RLS policies on `storage.objects` | Path convention `{bucket}/{auth.uid}/…`; private buckets served via signed URLs minted server-side; avatars on public CDN | Wire upload UI to `lib/supabase/storage.ts` when Settings → Avatar / Reports → Attachments / Imports → Excel surfaces ship |
 | Supabase Storage helpers | Frontend | 🟢 | `apps/web/src/lib/supabase/storage.ts` (browser) + `storage-server.ts` (signed URLs, admin moves/deletes) | Typed against generated `Database` shape; `BUCKETS` catalog mirrors migration 0003 | — |

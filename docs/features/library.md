@@ -14,7 +14,7 @@ The Library is the central institutional surface — every saved + community + T
 All four share:
 - `LibraryShell` (AppHeader sticky + `h-screen` body row + slim institutional footer)
 - `LibrarySidebar` (props: `title` / `subtitle` / `searchPlaceholder`)
-- The same `MOCK_LIBRARY_REPORTS` dataset (6 hotels)
+- The same live dataset from Supabase via `useLibraryReports()` — TanStack Query dedupes across map ↔ list navigation
 - The same in-memory Zustand store (legend, layers, search, selectedReportId)
 
 ## Navigation
@@ -71,6 +71,56 @@ When `report.indicators.topPromote === true` AND `report.contactInfo !== null`:
 
 See `apps/web/src/components/library/contact-cell.tsx`.
 
+## Data flow (production)
+
+```
+Supabase
+  public.valuations             ← public-read RLS (visibility ∈ 'public','top-promote')
+    JSONB: financials · amenities · indicators · contact_info
+  public.top_promote_reports    ← left-joined inline
+  public.favorite_reports       ← read separately, RLS scoped to auth.uid()
+        │
+        ▼  createBrowserSupabaseClient (anon key)
+apps/web/src/lib/library/queries/
+  useLibraryReports()            ← TanStack Query, 5-min staleTime
+  useFavoriteValuationIds()      ← per-user favourites
+  useToggleFavorite()            ← optimistic mutation + invalidate
+apps/web/src/lib/library/adapters/valuation-to-report.ts
+        │
+        ▼  LibraryReport[]
+components/library/{HotelMap,FavoritesTable,...}
+```
+
+Both map and list call `useLibraryReports()` directly — TanStack Query dedupes, so navigating /favorites-map → /favorites-list reuses the cache.
+
+### Query keys
+
+```ts
+libraryKeys.all                   // ["library"]
+libraryKeys.reports()             // ["library","reports"]
+libraryKeys.reportsList(filter)   // ["library","reports","list", filter]
+libraryKeys.favoriteIds(userId)   // ["library","favorites", userId|"anon"]
+```
+
+Future realtime subscribers fire `queryClient.invalidateQueries({ queryKey: libraryKeys.all })` on any `postgres_changes` event in `valuations` / `top_promote_reports` / `favorite_reports`.
+
+### State handling
+
+| State | Map | List |
+|---|---|---|
+| Loading | Pill "Loading library…" (background stays) | Single row with spinner |
+| Error | Rose pill + Retry button | Rose row + Retry button |
+| Empty | "No public reports in the library yet." | Same message in tbody |
+| Filtered-empty | "No reports match the current filters." | Same message in tbody |
+
+### Anonymous fallback
+
+Unauthenticated visitors (the demo state today) see the same six valuations but with every row rendered as starred (`treatAllAsFavorited` in the adapter). Once Supabase Auth wires, the favourites surface becomes truthful per user.
+
+### Optimistic favourite toggle
+
+`useToggleFavorite()` updates `libraryKeys.favoriteIds(userId)` immediately, rolls back on error, and runs an authoritative re-read `onSettled`. Caller surfaces "sign in to save" toast when anonymous; the mutation itself rejects so RLS stays honest.
+
 ## Files
 
 | Concern | File |
@@ -79,8 +129,10 @@ See `apps/web/src/components/library/contact-cell.tsx`.
 | Map | `components/library/{hotel-map,hotel-map-marker,institutional-map-controls,floating-hotel-card}.tsx` |
 | List | `components/library/{favorites-list-content,top-reports-list-content,favorites-table}.tsx` |
 | Table sub-cells | `components/library/{amenity-icon-cell,report-type-chip,locked-cell,contact-cell}.tsx` |
-| Store | `lib/library/store.ts` |
-| Mock data | `lib/library/mock-reports.ts` |
+| Query hooks | `lib/library/queries/{keys,use-library-reports,use-favorite-valuation-ids,use-toggle-favorite,index}.ts` |
+| Adapter | `lib/library/adapters/valuation-to-report.ts` |
+| UI store (legend / layers / search / selection) | `lib/library/store.ts` |
+| Seed (live in DB) | `docs/database/migrations/0005_seed_library_demo_data.sql` |
 | Types | `types/library.ts` |
 | Pages | `app/library/{favorites-map,favorites-list,top-map,top-list}/page.tsx` + `app/library/{layout,page}.tsx` |
 

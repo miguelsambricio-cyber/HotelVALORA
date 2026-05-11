@@ -3,7 +3,7 @@
 Single source of truth for the HotelVALORA Postgres schema, hosted on Supabase project `twebgqutuqgonabvhzjk` (EU-Central — Frankfurt, Postgres 17).
 
 **Last refreshed:** 2026-05-11
-**Schema status:** ✅ applied — 32 public tables (all with RLS) + 5 Storage buckets with per-bucket RLS. Migrations registered: `initial_schema` · `harden_security_definer_functions` · `storage_buckets_and_policies` · `restrict_avatar_listing`.
+**Schema status:** ✅ applied — 32 public tables (all with RLS) + 5 Storage buckets with per-bucket RLS + Library demo seed live. Migrations registered: `initial_schema` · `harden_security_definer_functions` · `storage_buckets_and_policies` · `restrict_avatar_listing` · `seed_library_demo_data`.
 
 ## Layout
 
@@ -20,6 +20,10 @@ docs/database/
                                                      (applied)
     0004_restrict_avatar_listing.sql              ← scopes avatar listing to
                                                      own namespace (applied)
+    0005_seed_library_demo_data.sql               ← 1 demo user + 6 institutional
+                                                     valuations + 2 active
+                                                     top_promote rows + favourites
+                                                     (applied — idempotent)
 ```
 
 Every future schema change ships as a numbered migration file under `migrations/` — never edit `0001_initial_schema.sql` after it has been applied.

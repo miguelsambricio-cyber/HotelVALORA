@@ -89,7 +89,9 @@ Maps tasks to exact files. Start here before scanning.
 | Supabase migrations (initial schema · hardening · storage buckets) | `docs/database/migrations/` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
-| Library mock dataset (6 hotels) | `apps/web/src/lib/library/mock-reports.ts` |
+| Library seed (6 institutional showcases — live in DB) | `docs/database/migrations/0005_seed_library_demo_data.sql` |
+| Library query hooks (TanStack Query — `useLibraryReports`, `useFavoriteValuationIds`, `useToggleFavorite`) | `apps/web/src/lib/library/queries/` |
+| Library adapter (`valuation` DB row → `LibraryReport`) | `apps/web/src/lib/library/adapters/valuation-to-report.ts` |
 | Library Zustand UI store (legend / layers / filter / search / selection) | `apps/web/src/lib/library/store.ts` |
 | Library components surface (barrel) | `apps/web/src/components/library/index.ts` |
 | Library shell (AppHeader + body + slim footer) | `apps/web/src/components/library/library-shell.tsx` |

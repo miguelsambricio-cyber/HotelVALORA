@@ -23,7 +23,8 @@
 | **Supabase initial schema applied to production project** — 32 tables, all RLS, advisor warnings closed (`harden_security_definer_functions`) | `f7e40b4` | ✅ |
 | **Supabase TS types regenerated** from the live schema — replaced the hand-rolled `types.ts` shim with the CLI-generated `Database` surface (1750 lines, all enums + FKs accurate) | *(this commit)* | ✅ |
 | **Supabase Storage buckets provisioned** via migration — 5 buckets (`reports`/`pdfs`/`excel-uploads`/`renders`/`avatars`) with 19 own-namespace RLS policies + size + MIME caps. Advisor warning on broad-public-read fixed by `0004` | *(this commit)* | ✅ |
-| **Typed Storage helpers** — `lib/supabase/storage.ts` (browser: `BUCKETS`, `uploadOwnFile`, `validateForBucket`, `getPublicUrl`) + `lib/supabase/storage-server.ts` (signed URLs, admin move/delete) | *(this commit)* | ✅ |
+| **Typed Storage helpers** — `lib/supabase/storage.ts` (browser: `BUCKETS`, `uploadOwnFile`, `validateForBucket`, `getPublicUrl`) + `lib/supabase/storage-server.ts` (signed URLs, admin move/delete) | `2d891c2` | ✅ |
+| **Library surfaces wired to Supabase** — all four `/library/*` routes read `valuations` + `top_promote_reports` + `favorite_reports` via TanStack Query (`lib/library/queries/*` + `lib/library/adapters/valuation-to-report.ts`). Optimistic ⭐ toggle, loading/error/empty states, `mock-reports.ts` deleted. Bundle architecture fix: `@/lib/supabase` barrel split into browser-only re-exports | *(this commit)* | ✅ |
 
 ## In flight
 
@@ -31,11 +32,11 @@
 
 ## Up next (rough order of pull)
 
-1. Wire Library reads to Supabase — first the public-visibility valuations list (replace `lib/library/mock-reports.ts` consumers with a TanStack Query hook backed by `supabase.from('valuations').select(...).in('visibility', ['public','top-promote'])`).
-2. Wire favourites to `public.favorite_reports` (toggling the ⭐ column inserts/deletes the join row under RLS).
-3. Wire Top Promote slot rendering to `public.top_promote_reports` join, including the `promoted_until > now()` filter (callers derive activeness inline since the column is no longer generated).
-4. Replace the mock Zustand auth store with Supabase Auth (or keep Auth.js v5 + `@auth/supabase-adapter`) — keep the `useAuth()` surface unchanged.
-5. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
+1. Replace the mock Zustand auth store with Supabase Auth (or keep Auth.js v5 + `@auth/supabase-adapter`) — keep the `useAuth()` surface unchanged. Once signed in, the demo user (UUID `…010001`) sees real favourites; the optimistic toggle becomes truthful.
+2. Realtime Library subscription — one `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`. Keys already designed for this.
+3. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route reading `valuations` by id.
+4. Wire the Library legend toggles + search to the table view too (currently only the map honours them).
+5. Swap the static grayscale map background to Mapbox (Phase 4) — every `LibraryReport` already carries real `coordinates`.
 6. Marketplace placeholder — "Activate Top Promote" CTA inside the report shell (mock checkout).
 7. Verify a domain in Resend; create the Google OAuth client; generate `AUTH_SECRET`.
 

@@ -3,11 +3,9 @@
 import Image from "next/image";
 import { useMemo } from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import { useLibraryStore } from "@/lib/library/store";
-import {
-  MOCK_LIBRARY_REPORTS,
-  getDefaultSelectedReport,
-} from "@/lib/library/mock-reports";
+import { useLibraryReports } from "@/lib/library/queries";
 import type { LibraryReport, ReportCategory } from "@/types/library";
 import { FloatingHotelCard } from "./floating-hotel-card";
 import { HotelMapMarker } from "./hotel-map-marker";
@@ -110,19 +108,22 @@ export function HotelMap({ listViewHref }: HotelMapProps = {}) {
   const selectedId = useLibraryStore((s) => s.selectedReportId);
   const setSelected = useLibraryStore((s) => s.setSelectedReportId);
 
+  // Live data — TanStack Query against public.valuations (+ joined
+  // top_promote_reports). The legend / search filters still apply
+  // client-side so toggling them stays instantaneous.
+  const { reports, isLoading, isError, error, refetch } = useLibraryReports();
+
   const visible = useMemo<LibraryReport[]>(() => {
     const q = searchQuery.trim().toLowerCase();
-    return MOCK_LIBRARY_REPORTS.filter((r) => {
+    return reports.filter((r) => {
       if (!legend[CATEGORY_LEGEND_KEY[r.category]]) return false;
       if (q && !r.hotelName.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [legend, searchQuery]);
+  }, [legend, searchQuery, reports]);
 
-  const previewReport: LibraryReport =
-    visible.find((r) => r.id === selectedId) ??
-    visible[0] ??
-    getDefaultSelectedReport();
+  const previewReport: LibraryReport | null =
+    visible.find((r) => r.id === selectedId) ?? visible[0] ?? null;
 
   return (
     <div className="relative flex-1 overflow-hidden bg-slate-200">
@@ -187,6 +188,31 @@ export function HotelMap({ listViewHref }: HotelMapProps = {}) {
         listViewHref={listViewHref}
       />
 
+      {/* Loading / error / empty — overlaid; the map background still
+          renders behind so the route shell never collapses. */}
+      {isLoading && reports.length === 0 && <MapStatusBadge tone="info">
+        <Loader2 size={12} className="animate-spin" aria-hidden /> Loading library…
+      </MapStatusBadge>}
+      {isError && (
+        <MapStatusBadge tone="error">
+          <span>Library unavailable — {error instanceof Error ? error.message : "unknown error"}.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="ml-2 rounded bg-white/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 hover:bg-white"
+          >
+            Retry
+          </button>
+        </MapStatusBadge>
+      )}
+      {!isLoading && !isError && visible.length === 0 && (
+        <MapStatusBadge tone="info">
+          {reports.length === 0
+            ? "No public reports in the library yet."
+            : "No reports match the current filters."}
+        </MapStatusBadge>
+      )}
+
       {previewReport && (
         <FloatingHotelCard
           report={previewReport}
@@ -197,6 +223,27 @@ export function HotelMap({ listViewHref }: HotelMapProps = {}) {
           }
         />
       )}
+    </div>
+  );
+}
+
+function MapStatusBadge({
+  tone,
+  children,
+}: {
+  tone: "info" | "error";
+  children: React.ReactNode;
+}) {
+  const palette =
+    tone === "error"
+      ? "bg-rose-50/90 border-rose-200 text-rose-700"
+      : "bg-white/90 border-slate-200 text-slate-700";
+  return (
+    <div
+      role="status"
+      className={`absolute left-1/2 top-6 z-30 flex max-w-md -translate-x-1/2 items-center gap-2 rounded-full border px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest shadow-[0_8px_24px_rgba(0,51,30,0.08)] ${palette}`}
+    >
+      {children}
     </div>
   );
 }

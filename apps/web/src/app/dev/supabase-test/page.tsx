@@ -4,7 +4,7 @@ import {
   getSupabaseUser,
   isSupabaseAdminConfigured,
   isSupabaseConfigured,
-} from "@/lib/supabase";
+} from "@/lib/supabase/auth-helpers";
 
 export const metadata: Metadata = {
   title: "Supabase · Dev",

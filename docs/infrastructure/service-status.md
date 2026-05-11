@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (17)
+## 🟢 Working (19)
 
 | Service | Production URL / scope |
 |---|---|
@@ -13,16 +13,18 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Next.js 14 + React 18 + TS | apps/web |
 | Tailwind CSS | apps/web |
 | Zustand (auth · investment · library stores) | apps/web/src/lib/* |
-| TanStack Query + Table | /review surface |
+| TanStack Query — /review + /library (4 surfaces) | hooks in `lib/api/*` + `lib/library/queries/*` |
 | Mapbox GL | /compset + /report/competitive-set + /report/market-overview |
 | Mapbox token | Vercel encrypted env |
 | Resend SDK | server actions in apps/web/src/lib/email/* |
 | Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted |
 | Mock Zustand auth store | apps/web/src/lib/auth/store.ts |
-| Supabase clients (lib/supabase/*) | code in place + env wired |
-| Supabase schema applied — 32 tables, all with RLS | project `twebgqutuqgonabvhzjk` (eu-central, PG 17) — migrations `0001`–`0004` |
+| Supabase clients (lib/supabase/*) | barrel split (browser-only); server-only direct-imports |
+| Supabase schema applied — 32 tables, all with RLS | project `twebgqutuqgonabvhzjk` (eu-central, PG 17) — migrations `0001`–`0005` |
 | Supabase Storage — 5 buckets with RLS | `reports`/`pdfs`/`excel-uploads`/`renders`/`avatars` provisioned via migration `0003` + scoped listing fix in `0004` |
 | Supabase TS types (generated) | `apps/web/src/lib/supabase/types.ts` mirrors the live schema 1:1 |
+| Library data (production) | 4 routes read live `valuations` + `top_promote_reports` + `favorite_reports`; optimistic ⭐ toggle |
+| Library seed (production) | 6 institutional valuations + 2 active promotions + demo user (migration `0005`) |
 | Postgres (local Docker) | apps/api dev only |
 | FastAPI `/review` surface | apps/api/app/api/v1/review |
 
@@ -66,14 +68,14 @@ None.
 
 ## Health score
 
-**17 🟢 · 4 🟡 · 4 🔴 · 0 ⚫ across 25 active services**
+**19 🟢 · 4 🟡 · 4 🔴 · 0 ⚫ across 27 active services**
 
-Weighted score: (17 × 1.0 + 4 × 0.5 + 4 × 0.0) / 25 = **76%** (up from 73% — Storage flipped to 🟢 and types regen retired one row from 🟡).
+Weighted score: (19 × 1.0 + 4 × 0.5 + 4 × 0.0) / 27 = **78%** (up from 76% — Library data + Library production reads flipped to 🟢).
 
 ## Next 5 actions (prioritised)
 
-1. **Wire Library reads to Supabase** — replace `lib/library/mock-reports.ts` consumers with a TanStack Query hook against `valuations` / `favorite_reports` / `top_promote_reports`.
-2. **Replace mock Zustand auth** — either swap to Supabase Auth or keep Auth.js v5 + `@auth/supabase-adapter`. Keep the `useAuth()` surface.
+1. **Replace mock Zustand auth** — either swap to Supabase Auth or keep Auth.js v5 + `@auth/supabase-adapter`. Keep the `useAuth()` surface. Once signed in, the demo user (UUID `…010001`) sees real favourites; the optimistic toggle becomes truthful.
+2. **Realtime subscription on `valuations`** — wire a `supabase.channel("public:valuations").on("postgres_changes", …)` listener that calls `queryClient.invalidateQueries({ queryKey: libraryKeys.all })`.
 3. **Verify a domain in Resend** — leave sandbox; deliver to arbitrary recipients.
 4. **Create Google OAuth client** — fastest of the three providers; unblocks Auth.js production wire.
 5. **Generate `AUTH_SECRET`** (`openssl rand -base64 32`) + flip `AUTH_ENABLED=true` once OAuth credentials are in place.
