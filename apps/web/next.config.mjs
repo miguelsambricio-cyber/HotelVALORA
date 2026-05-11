@@ -26,6 +26,26 @@ const nextConfig = {
       },
     ];
   },
+  /**
+   * Admin URL canonicalisation — HTTP-level redirects.
+   *
+   * The Administrator surface lives at /user/admin. Three "natural" URLs
+   * operators tend to type / bookmark / share get permanently routed
+   * here. We use next.config redirects() (vs the App Router page-level
+   * `redirect()` helper) because they emit a real HTTP Location header,
+   * which browsers + crawlers + curl all follow correctly. App Router
+   * `redirect()` only encodes the redirect inside the RSC payload, which
+   * does not work for cold browser navigations or external links.
+   */
+  async redirects() {
+    return [
+      { source: "/admin", destination: "/user/admin", permanent: true },
+      { source: "/admin/:path*", destination: "/user/admin/:path*", permanent: true },
+      { source: "/settings/admin", destination: "/user/admin", permanent: true },
+      { source: "/settings/admin/:path*", destination: "/user/admin/:path*", permanent: true },
+      { source: "/user", destination: "/user/admin", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
