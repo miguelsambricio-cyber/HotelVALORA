@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (21)
+## 🟢 Working (22)
 
 | Service | Production URL / scope |
 |---|---|
@@ -22,6 +22,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | **Supabase Auth (production runtime)** | Google OAuth dance · `/auth/callback` handler · HttpOnly cookies · `handle_new_user` trigger. Public Beta Mode: `PROTECTED_PREFIXES=[]` — anonymous browsing allowed everywhere |
 | **Google OAuth provider** | Configured in Supabase Dashboard + Google Cloud Console with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`. `/auth/v1/settings` reports `"google": true` |
 | Auth middleware (Supabase session refresh) | `apps/web/src/middleware.ts` — refreshes cookie unconditionally; route-protection branch dormant via empty `PROTECTED_PREFIXES` |
+| Vercel-GitHub auto-deploy | `vercel git connect` on `prj_Kaujd1oQHrnWD1Oi790f1TmgCscQ`; push to `main` → production, branches → preview |
 | OAuth callback handler | `apps/web/src/app/auth/callback/route.ts` |
 | Supabase clients (lib/supabase/*) | barrel split (browser-only); server-only direct-imports |
 | Supabase schema applied — 32 tables, all with RLS | project `twebgqutuqgonabvhzjk` (eu-central, PG 17) — migrations `0001`–`0005` |
@@ -47,7 +48,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 |---|---|
 | LinkedIn OAuth provider | Create app at linkedin.com/developers/apps + enable LinkedIn in Supabase Dashboard |
 | Apple OAuth provider | Apple Developer Account ($99/yr) + Service ID + .p8 + enable Apple in Supabase Dashboard |
-| GitHub Actions CI | Phase 5 — add typecheck + lint workflow |
+| GitHub Actions CI | Phase 5+ — Vercel-GitHub auto-deploy now runs `pnpm build` on every push, which is sufficient. Actions only useful as a separate typecheck/lint check if needed |
 
 ## ⚫ Blocked (0)
 
@@ -70,9 +71,9 @@ None.
 
 ## Health score
 
-**21 🟢 · 4 🟡 · 3 🔴 · 0 ⚫ across 28 active services**
+**22 🟢 · 4 🟡 · 3 🔴 · 0 ⚫ across 29 active services**
 
-Weighted score: (21 × 1.0 + 4 × 0.5 + 3 × 0.0) / 28 = **82%**. Supabase Auth + Google OAuth flipped to 🟢 end-to-end. Platform is in **Public Beta / Showcase Mode**: auth wired and operational but `PROTECTED_PREFIXES = []` in middleware → no anonymous traffic redirected anywhere while the financial engine + underwriting + reports + Library are validated.
+Weighted score: (22 × 1.0 + 4 × 0.5 + 3 × 0.0) / 29 = **83%**. Vercel-GitHub auto-deploy joins as 🟢. Platform is in **Public Beta / Showcase Mode**: auth wired and operational but `PROTECTED_PREFIXES = []` in middleware → no anonymous traffic redirected anywhere while the financial engine + underwriting + reports + Library are validated. Every push to `main` now auto-deploys to production; branches auto-deploy to preview.
 
 ## Next 5 actions (prioritised)
 

@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (overnight — Supabase Auth + Google OAuth activated end-to-end. Platform set to **Public Beta / Showcase Mode**: auth wired and operational but `PROTECTED_PREFIXES=[]` in middleware so anonymous browsing is unrestricted during financial-engine + underwriting validation).
+**Last refreshed:** 2026-05-11 (overnight — Supabase Auth + Google OAuth activated end-to-end · Platform set to **Public Beta / Showcase Mode** · GitHub → Vercel auto-deploy enabled (push to `main` → production, branches → preview)).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -123,8 +123,9 @@
 |---|---|---|---|---|---|
 | Vercel | Hosting | 🟢 | Production active | Project `hotelvalora`, root `apps/web`, scope `miguel-sambricio-s-projects` | — |
 | Vercel custom domain | DNS | 🟢 | `hotelvalora.com` + `www.hotelvalora.com` aliased | — | — |
-| GitHub (origin) | VCS | 🟢 | `main` branch | All commits pushed; no auto-deploy → CLI `vercel deploy --prod --yes` | Consider GitHub auto-deploy if team grows |
-| GitHub Actions | CI | 🔴 | Not configured | Local `pnpm typecheck` + `pnpm build` is the only gate today | Phase 5 — add typecheck + lint workflow |
+| GitHub (origin) | VCS | 🟢 | `main` branch | Connected to Vercel via `vercel git connect`. Auto-deploy: push to `main` → production; push to any other ref → preview. CLI `vercel deploy --prod --yes` still works as escape hatch | — |
+| Vercel-GitHub auto-deploy | CI/CD | 🟢 | All branches | Vercel runs `pnpm build` on every push; failed builds block the deploy and post a failed commit status. Preview URLs aliased per commit SHA | — |
+| GitHub Actions | CI | 🔵 | Not configured | Vercel build is the only gate today — sufficient. GitHub Actions only useful if separating typecheck/lint as required checks distinct from build | Phase 5 if needed |
 
 ### Document I/O
 

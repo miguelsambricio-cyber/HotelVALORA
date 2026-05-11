@@ -20,7 +20,7 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Backend connected? | N/A (FastAPI is dev-only) |
 | Env vars added? | Yes (Mapbox + Resend + Supabase) |
 | Vercel configured? | Yes — project `hotelvalora`, scope `miguel-sambricio-s-projects` |
-| GitHub safe? | Yes — no auto-deploy; CLI-triggered |
+| GitHub safe? | Yes — connected via `vercel git connect`; auto-deploy on push (`main` → production, branches → preview). Commit status checks post back on every PR/commit |
 | Documentation complete? | Yes (`docs/deployment.md`, `docs/architecture/system-overview.md`) |
 | Local tested? | Yes (`pnpm build`) |
 | Production tested? | Yes (`hotelvalora.com` live) |
@@ -254,5 +254,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 82%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 21×1 + 4×0.5 + 2×0.0 = 23 of 28 active services = 82%. Supabase Auth + Google OAuth flipped to 🟢 after end-to-end activation in Public Beta / Showcase Mode — middleware route protection disabled platform-wide until private surfaces land.)
+**Infrastructure health score: 83%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 22×1 + 4×0.5 + 2×0.0 = 24 of 29 active services = 83%. Vercel-GitHub auto-deploy joined the inventory as 🟢 — push to `main` → production, branches → preview, commit status checks live.)
