@@ -42,14 +42,31 @@ State: 🔴 → 🟢
 ## ☐ Resend domain verification (leave sandbox)
 
 State: 🟡 → 🟢
+Audited: 2026-05-11
+
+### Pre-flight — what's already in place (audit findings)
+
+The integration is **fully wired in code and Vercel env**. Only DNS / domain verification is missing:
+
+- ✅ `resend ^6.12.3` installed in `apps/web/package.json`
+- ✅ `RESEND_API_KEY` + `RESEND_FROM_EMAIL` encrypted on Vercel production (set 2026-05-11)
+- ✅ Server-only client singleton (`apps/web/src/lib/email/client.ts`) — `import "server-only"` guard, lazy throw on missing key
+- ✅ Typed server action `sendTourRequestAction` (`apps/web/src/lib/email/actions.ts`) — Zod-validated payload, structured error return
+- ✅ Multipart HTML+text template (`apps/web/src/lib/email/templates/tour-request.ts`) — XSS-escaped
+- ✅ UI surface: `components/library/contact-cell.tsx` calls the server action from the TOP PROMOTE "Schedule a Tour" CTA
+- ✅ Reply-to logic + Resend analytics tags (`kind=tour-request`, `reference=<HV-…>`)
+- ✅ Comprehensive docs (`docs/integrations/resend.md`)
+- 🟡 Sender resolves to the Resend sandbox (`onboarding@resend.dev`) → only the Resend account owner's inbox receives messages
+
+### Steps to leave sandbox
 
 1. ☐ Open `https://resend.com/domains`
 2. ☐ Add `hotelvalora.com`
 3. ☐ Copy the DKIM + SPF records and add them to the DNS at the domain registrar
 4. ☐ Wait for verification (usually < 10 min)
-5. ☐ Update Vercel env: `vercel env rm RESEND_FROM_EMAIL production` → `vercel env add RESEND_FROM_EMAIL production` with `HotelVALORA <noreply@hotelvalora.com>`
-6. ☐ Redeploy: `vercel deploy --prod --yes`
-7. ☐ Test by sending a tour request — should land in any inbox
+5. ☐ Update Vercel env: `vercel env rm RESEND_FROM_EMAIL production --yes` → `echo "HotelVALORA <noreply@hotelvalora.com>" | vercel env add RESEND_FROM_EMAIL production`
+6. ☐ Redeploy: GitHub auto-deploy on the next push to `main`, or `vercel deploy --prod --yes` for an immediate trigger
+7. ☐ Verify: send a tour request from the Library — should land in any inbox the account manager owns
 
 ## ☐ Auth.js production wire (Google first)
 

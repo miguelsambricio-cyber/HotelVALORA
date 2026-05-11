@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (22)
+## 🟢 Working (23)
 
 | Service | Production URL / scope |
 |---|---|
@@ -16,8 +16,9 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | TanStack Query — /review + /library (4 surfaces) | hooks in `lib/api/*` + `lib/library/queries/*` |
 | Mapbox GL | /compset + /report/competitive-set + /report/market-overview |
 | Mapbox token | Vercel encrypted env |
-| Resend SDK | server actions in apps/web/src/lib/email/* |
-| Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted |
+| Resend SDK 6.12.3 | server actions in `apps/web/src/lib/email/{client,actions}.ts` + template at `templates/tour-request.ts` |
+| Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted — both set, both required for server-action sends |
+| Resend integration (Library "Schedule a Tour" CTA) | wired to `ContactCell` on top-promoted reports — compiles + executes in production, send acknowledged by Resend |
 | `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase Auth active in production |
 | **Supabase Auth (production runtime)** | Google OAuth dance · `/auth/callback` handler · HttpOnly cookies · `handle_new_user` trigger. Public Beta Mode: `PROTECTED_PREFIXES=[]` — anonymous browsing allowed everywhere |
 | **Google OAuth provider** | Configured in Supabase Dashboard + Google Cloud Console with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`. `/auth/v1/settings` reports `"google": true` |
@@ -39,7 +40,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 |---|---|
 | Library institutional map | Static grayscale image — swap to Mapbox in Phase 4 |
 | FastAPI backend | Built endpoints (valuations/imports/auth) NOT consumed by frontend |
-| Resend sandbox sender | Only delivers to Resend account owner |
+| Resend sandbox sender | Audited 2026-05-11: `RESEND_FROM_EMAIL` resolves to the sandbox (`onboarding@resend.dev`). Only the Resend account owner's inbox receives messages; all other recipients silently bounce. Code path is production-safe — only DNS / domain verification is missing. See `docs/integrations/resend.md` and `integration-checklist.md` § "Resend domain verification" |
 | PDF exports | `window.print()` wrapper; server-side renderer planned |
 
 ## 🔴 Not configured (3)
@@ -71,9 +72,9 @@ None.
 
 ## Health score
 
-**22 🟢 · 4 🟡 · 3 🔴 · 0 ⚫ across 29 active services**
+**23 🟢 · 4 🟡 · 3 🔴 · 0 ⚫ across 30 active services**
 
-Weighted score: (22 × 1.0 + 4 × 0.5 + 3 × 0.0) / 29 = **83%**. Vercel-GitHub auto-deploy joins as 🟢. Platform is in **Public Beta / Showcase Mode**: auth wired and operational but `PROTECTED_PREFIXES = []` in middleware → no anonymous traffic redirected anywhere while the financial engine + underwriting + reports + Library are validated. Every push to `main` now auto-deploys to production; branches auto-deploy to preview.
+Weighted score: (23 × 1.0 + 4 × 0.5 + 3 × 0.0) / 30 = **83%**. Resend integration row split out from the env row after 2026-05-11 audit (production-wired, sandbox-bound). Platform is in **Public Beta / Showcase Mode**; every push to `main` auto-deploys to production, branches auto-deploy to preview.
 
 ## Next 5 actions (prioritised)
 

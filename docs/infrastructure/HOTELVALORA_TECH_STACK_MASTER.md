@@ -92,8 +92,8 @@
 
 | Service | Category | Status | Environment | Notes | Next action |
 |---|---|---|---|---|---|
-| Resend SDK 6.12.3 | Transactional email | 🟢 | `RESEND_API_KEY` + `RESEND_FROM_EMAIL` set on Vercel | Library "Schedule a Tour" CTA fires real sends | Verify a custom domain to leave the sandbox |
-| Resend sandbox sender (`onboarding@resend.dev`) | Sender | 🟡 | Vercel prod | Only delivers to the Resend account owner's inbox | Verify `hotelvalora.com` domain at https://resend.com/domains |
+| Resend SDK 6.12.3 | Transactional email | 🟢 | `RESEND_API_KEY` + `RESEND_FROM_EMAIL` set on Vercel | Singleton `getResend()` (`import "server-only"`) + Zod-validated server action `sendTourRequestAction` + typed HTML/text template. Library "Schedule a Tour" CTA fires real sends in production. Audited 2026-05-11 | Verify a custom domain to leave the sandbox |
+| Resend sandbox sender (`onboarding@resend.dev`) | Sender | 🟡 | Vercel prod | Sandbox: only the Resend account owner's inbox receives messages; all other recipients silently bounce. Code surface is production-safe — only DNS / domain verification is missing | Follow `integration-checklist.md` § "Resend domain verification" — Add `hotelvalora.com` at https://resend.com/domains, paste DKIM/SPF in DNS, update `RESEND_FROM_EMAIL` |
 
 ### Analytics
 
