@@ -4,6 +4,72 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Supabase architecture initialized
+
+Production-grade scaffold for the Supabase layer: Postgres + Storage + (future) Auth.js adapter. Architecture lands today; project provisioning + credential paste-in lands on the user's next action.
+
+### SDKs
+- `@supabase/supabase-js@2.105.4`
+- `@supabase/ssr@0.10.3`
+
+### Files (`apps/web/src/lib/supabase/*`)
+- `client.ts` · `createBrowserSupabaseClient()` — for `"use client"` components
+- `server.ts` · `createServerSupabaseClient()` — RSC / actions / route handlers (Next 14 sync cookies)
+- `middleware.ts` · `updateSupabaseSession()` — Edge middleware session refresh; no-op when env missing
+- `admin.ts` · `getSupabaseAdmin()` — service-role, `import "server-only"` guard
+- `auth-helpers.ts` · `getSupabaseUser`, `requireSupabaseUser`, `isSupabaseConfigured`, `isSupabaseAdminConfigured`
+- `types.ts` · `Database` stub (regenerated after migrations)
+- `index.ts` · barrel
+
+### Middleware composition
+`apps/web/src/middleware.ts` now composes `updateSupabaseSession(request)` → `auth()` (Auth.js). Both gated by their own env; the file is a pure pass-through until credentials are provisioned.
+
+### Schema proposal
+`docs/database/schema.sql` — NOT yet applied. Contains:
+- 7 tables: `user_profiles`, `valuations`, `valuation_reports`, `favorites`, `top_promote`, `subscriptions` (six populated, ready for one more domain)
+- 7 enums: `user_tier`, `user_role`, `report_visibility`, `report_type_badge`, `report_status`, `report_role`, `report_objective`
+- Two triggers: `handle_new_user()` (auto-profile on auth signup), `set_updated_at()`
+- Row Level Security policies on every table (own-read / public-read / owner-write)
+- Documented storage buckets (`reports`, `pdfs`, `excel-uploads`, `renders`, `avatars`) — configured via dashboard, not SQL
+
+### Connection probe
+`/dev/supabase-test` — server-rendered checklist:
+- Env vars present?
+- Server client constructable?
+- Service-role admin configured?
+- Current session (anonymous expected today)
+- "Where to find credentials" panel when env is empty
+
+### Env placeholders (apps/web/.env.example)
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+### Build
+- 34 routes (33 static + `/dev/supabase-test` dynamic + Auth.js handler).
+- Middleware bundle 79.4 kB → **134 kB** (+55 kB for `@supabase/ssr` on Edge).
+- First Load JS on protected routes: 138 kB (+1 kB).
+- Typecheck + production build clean.
+
+### Activation steps (next action — user)
+1. Provision Supabase project — `https://supabase.com/dashboard` (Region: EU-West Ireland recommended)
+2. Settings → API → copy `Project URL`, `anon key`, `service_role key`
+3. Paste into `apps/web/.env.local` + `vercel env add … production` for each
+4. Run `docs/database/schema.sql` via Supabase SQL editor
+5. Configure storage buckets per the dossier
+6. Regenerate types: `pnpm dlx supabase gen types typescript --project-id <REF> > apps/web/src/lib/supabase/types.ts`
+7. Visit `/dev/supabase-test` — every row should turn green
+
+### Out of scope (deferred)
+- No `@auth/supabase-adapter` wire-up (Phase 3)
+- No Stripe integration (Phase 5)
+- No OAuth provider configuration on Supabase side (Auth.js handles OAuth today)
+- No migration applied / no real DB queries from the app surface yet
+
+---
+
 ## 2026-05-11 — Resend wired for tour-request CTA
 
 The Library "Schedule a Tour" button on top-promoted contact-card popovers now sends a real institutional email via Resend.

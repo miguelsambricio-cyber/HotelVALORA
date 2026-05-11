@@ -57,12 +57,22 @@ Every model inherits `app.models.base.BaseModel` (UUID PK + timezone-aware times
 
 `audit_log` is append-only. `AuditService(db).log(...)` is called in the same transaction as the triggering mutation. Reversible events store `before_state` / `after_state` JSONB; `POST /audit/{id}/rollback` restores them. Actor threading uses `get_optional_actor_id(request)` from `core/security.py`.
 
+## Supabase scaffold (parallel backend lane)
+
+As of 2026-05-11, the `apps/web/src/lib/supabase/*` layer is in place — browser + server + middleware + admin clients, plus the auth-helpers surface. The full SQL schema proposal lives in `docs/database/schema.sql` (7 tables + RLS). Migrations are not yet applied — see `docs/integrations/supabase.md` for activation.
+
+When Supabase activates, the Phase 3 decision is binary:
+1. Keep FastAPI for the heavy lifting (DCF / underwriting / aliases / dedup / imports) and use Supabase for auth + library reads + storage, OR
+2. Migrate the FastAPI surfaces into Supabase Edge Functions and retire `apps/api` entirely.
+
+Today neither is decided — the dual scaffold lets us pick later without rework.
+
 ## What's planned (Phase 3)
 
-- Wire `/report/*` pages to `/api/v1/valuations/*` + a new `/api/v1/reports/*` resource.
-- Wire `/library/*` to `/api/v1/library/*` (new resource) — replace `mock-reports.ts`.
-- Stand up `/api/v1/promotions/*` for the Top Promote marketplace flow (payment + expiry + impressions).
-- Replace mock auth store with NextAuth — keep the existing token endpoints, lose the in-memory tier inference.
+- Wire `/report/*` pages to `/api/v1/valuations/*` + a new `/api/v1/reports/*` resource — OR equivalent Supabase Edge Functions.
+- Wire `/library/*` to the `public.valuations` table (Supabase) — replace `mock-reports.ts`.
+- Stand up `/api/v1/promotions/*` for the Top Promote marketplace flow (payment + expiry + impressions) — OR the `public.top_promote` table directly.
+- Replace mock auth store with NextAuth + `@auth/supabase-adapter` — keep `useAuth()` surface identical.
 
 See `docs/roadmap/master-roadmap.md`.
 

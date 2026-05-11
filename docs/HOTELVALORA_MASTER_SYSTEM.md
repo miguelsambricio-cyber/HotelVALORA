@@ -62,6 +62,8 @@ Today's runtime reality:
 - The FastAPI backend exists with auth + review + dedup + valuations + imports endpoints but isn't yet driving the report / library / dashboard surfaces.
 - Mock data lives in `apps/web/src/lib/{report,library,…}/*-data.ts` and `apps/web/src/lib/library/mock-reports.ts`.
 - **Auth.js v5 is wired** (Google + LinkedIn + Apple providers, JWT sessions, gated middleware) but currently inert — `AUTH_ENABLED=false` until OAuth credentials are minted. The mock Zustand auth store coexists for demos.
+- **Supabase architecture is scaffolded** (browser + server + middleware + admin clients, SQL schema proposal at `docs/database/schema.sql`, probe page at `/dev/supabase-test`) but inert — waiting on the user to paste `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` + `SUPABASE_SERVICE_ROLE_KEY`. Middleware is a pure pass-through until env lands.
+- **Resend transactional email is live** in production (`RESEND_API_KEY` + sandbox sender). The Library "Schedule a Tour" CTA on top-promoted reports sends real emails.
 
 ---
 

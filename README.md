@@ -14,9 +14,11 @@ Live: **[hotelvalora.com](https://hotelvalora.com)**
 | State | Zustand (persisted slices for auth + investment criteria) |
 | UI | Tailwind CSS, lucide-react, Mapbox GL |
 | API | FastAPI + Uvicorn (Python 3.12) |
-| Database | PostgreSQL 16 + Alembic |
+| Database | PostgreSQL 16 + Alembic · Supabase Postgres (scaffolded, awaiting provisioning) |
 | Cache / Queue | Redis 7 + Celery |
-| Storage | S3 / MinIO |
+| Storage | S3 / MinIO · Supabase Storage (scaffolded — `reports` / `pdfs` / `excel-uploads` / `renders` / `avatars`) |
+| Auth | Auth.js v5 (Google · LinkedIn · Apple OAuth) — env-gated |
+| Transactional email | Resend (sandbox today) |
 | Financial Engine | Python, NumPy, SciPy |
 | Infra | Docker Compose (dev), Vercel (web prod) |
 

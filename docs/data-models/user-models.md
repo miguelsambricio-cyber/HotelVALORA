@@ -101,6 +101,22 @@ Middleware enforcement is opt-in via `AUTH_ENABLED=true`. Without it the `author
 
 Session strategy: JWT (no DB adapter today). Cookie name in production: `__Secure-hotelvalora.session-token` (httpOnly + secure + sameSite=lax). Max age: 30 days.
 
+## Supabase scaffold (parallel)
+
+`apps/web/src/lib/supabase/*` is in place but inert until the user provisions the project and pastes credentials.
+
+| Client | Where to use |
+|---|---|
+| `createBrowserSupabaseClient()` | client components |
+| `createServerSupabaseClient()` | RSC / actions / route handlers |
+| `updateSupabaseSession()` | already invoked from `middleware.ts` |
+| `getSupabaseAdmin()` | service-role server-only (Stripe webhooks, cron) |
+| `getSupabaseUser()` | server-side user reader — returns `null` gracefully when env missing |
+
+The proposed `public.user_profiles` table (`docs/database/schema.sql`) is 1:1 with `auth.users` and carries `tier` + `role` + `organization` + `stripe_customer_id`. When Phase 3 wires `@auth/supabase-adapter`, the Auth.js `jwt` + `session` callbacks read tier from this row instead of inferring from the email handle.
+
+Connection probe: `/dev/supabase-test`.
+
 ## Backend (FastAPI) — what exists
 
 | Endpoint | Status |

@@ -1,23 +1,41 @@
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
+import { updateSupabaseSession } from "./lib/supabase/middleware";
 
 /**
- * Edge middleware — protects `/settings`, `/library`, `/report`,
- * `/dashboard` once `AUTH_ENABLED=true` is set in the environment.
+ * Edge middleware — composes two responsibilities:
  *
- * Today (no OAuth credentials configured), the `authorized()` callback
- * in `auth.config.ts` returns `true` unconditionally, so this middleware
- * is a no-op. The shape is in place: flip the env var the moment a real
- * provider is wired and route protection activates with zero code change.
+ * 1. Supabase session refresh
+ *    `updateSupabaseSession()` reads the request cookies, refreshes the
+ *    Supabase JWT if it's close to expiring, and writes any new cookies
+ *    onto the response. No-op when NEXT_PUBLIC_SUPABASE_URL is unset.
  *
- * The auth-config import path stays edge-safe — see comment in
- * `auth.config.ts` for what NEVER to import there.
+ * 2. Auth.js route protection
+ *    NextAuth's `auth()` wrapper invokes the `authorized()` callback in
+ *    `auth.config.ts` to decide whether to redirect unauthenticated
+ *    users away from /settings, /library, /report, /dashboard. The
+ *    callback returns `true` (allow) when `AUTH_ENABLED !== "true"`.
+ *
+ * Both halves are gated by their own env so this middleware is a pure
+ * pass-through until credentials are provisioned — the product keeps
+ * working through the entire scaffolding phase.
  */
-export const { auth: middleware } = NextAuth(authConfig);
+
+const { auth } = NextAuth(authConfig);
+
+export default auth(async (request) => {
+  // 1. Refresh Supabase session — safe no-op when env is absent.
+  await updateSupabaseSession(request);
+
+  // 2. Falling through to undefined lets Auth.js's authorized() decision
+  //    drive the response (redirect or allow). When Supabase ever needs
+  //    to short-circuit the response (e.g., to write fresh cookies),
+  //    return the response from updateSupabaseSession instead.
+});
 
 export const config = {
-  // Run on everything EXCEPT static assets, Next internals and the auth
-  // API routes themselves (those need to be reachable unauthenticated).
+  // Run on everything EXCEPT static assets, Next internals, and the auth
+  // API routes themselves (those need to stay reachable unauthenticated).
   matcher: [
     "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|webp|ico)$).*)",
   ],
