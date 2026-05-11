@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "//": "This file lives at the REPO ROOT only as a safety net. The Vercel Project's Root Directory is set to `apps/web` in the Dashboard — every build cd's there before reading framework + build commands. If a teammate ever re-runs `vercel git connect` and Root Directory resets, the project settings page is the source of truth: https://vercel.com/miguel-sambricio-s-projects/hotelvalora/settings"
+}

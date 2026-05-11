@@ -12,6 +12,7 @@
 | Project ref | `prj_Kaujd1oQHrnWD1Oi790f1TmgCscQ` |
 | Org id | `team_3fQvljCh2epRJzAs9qOv6bWi` |
 | Linked dir | `apps/web/` |
+| **Root Directory** (project setting) | `apps/web` — **REQUIRED** for GitHub-triggered builds. If unset, Vercel clones the repo and runs the build from `/`, where `package.json` doesn't have Next.js (Next.js lives in `apps/web/package.json`). Set via Project Settings → General → Root Directory in the Dashboard. CLI-triggered builds bypass this because they upload only the linked dir |
 | Custom domains | `hotelvalora.com` · `www.hotelvalora.com` (aliased on every prod deploy) |
 | Build command | `next build` (auto-detected from `apps/web/package.json`) |
 | Output | Next.js — 34 routes (33 static + `/dev/supabase-test` dynamic + Auth.js handler) |
