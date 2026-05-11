@@ -242,6 +242,26 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Status | 🔵 |
 | Notes | All listed in `HOTELVALORA_TECH_STACK_MASTER.md` Future Data Sources table — no integration today; CoStar + Excel ingestion has a parser in `services/data_pipeline` |
 
+## Hospitality Intelligence Engine
+
+| Field | Value |
+|---|---|
+| Category | Core data layer · daily news + transactions + projects corpus |
+| Status | 🟢 (Phase 1 — foundation) · 🔵 (Phase 2+ — pipeline not yet implemented) |
+| Configured? | Yes — schema applied (migration `0006`, 9 tables, 5 enums), 10 sources seeded in `public.sources`, RLS public-read posture matches showcase mode |
+| Working? | Foundation tables queryable; ingestion code lands in Phase 2 |
+| Production ready? | Foundation yes; pipeline pending Phase 2 implementation |
+| Frontend connected? | Not yet — Phase 5 ships `/intelligence/...` surfaces |
+| Backend connected? | Schema lives in Supabase production project `twebgqutuqgonabvhzjk` |
+| Env vars added? | None yet — `CRON_SECRET` is auto-populated by Vercel when Phase 2 cron lands |
+| Vercel configured? | Cron registration pending Phase 2 (`apps/web/vercel.json` will gain a crons entry) |
+| GitHub safe? | Yes — no secrets in code; service-role key already in Vercel env |
+| Documentation complete? | Yes — strategic + technical docs at `docs/intelligence/` (6 files) |
+| Local tested? | Schema migration applied successfully; counts confirmed (10 sources, 0 news) |
+| Production tested? | Not until Phase 2 cron fires |
+| Blockers | None code-side. Phase 2 work is greenfield implementation |
+| Notes | Strategic doc explains why this is a CORE layer not a side feature. Schema designed for future AI enrichment via `enriched_meta` jsonb (no migration needed when LLM lands). Source reliability scores 0.70–0.95 enable tier gating later |
+
 ---
 
 ## Health summary (snapshot)
@@ -254,5 +274,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 85%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 24×1 + 3×0.5 + 3×0.0 = 25.5 of 30 active services = 85%. Resend left the sandbox after `hotelvalora.com` domain verification at 2026-05-11 evening — sender switched to `noreply@hotelvalora.com`, full production delivery surface open.)
+**Infrastructure health score: 84%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 25×1 + 3×0.5 + 3×0.0 = 26.5 of 31 active services = 85%. Hospitality Intelligence Engine joined the inventory: Phase 1 foundation tables 🟢, future pipeline / surfaces 🔵 (not counted as active until shipped). Resend left the sandbox earlier — sender on verified domain, full production delivery surface open.)

@@ -4,6 +4,62 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Hospitality Intelligence Engine — Phase 1 (foundation)
+
+Initialises HotelVALORA's hospitality intelligence layer — the daily institutional news + transactions + projects corpus that will power Library cross-links, market dashboards, underwriting comps, future investor/operator dossiers, future alerts, and future monetised B2B data feeds. This is **NOT a side feature**: it's the dataset advantage that compounds every other capability.
+
+Phase 1 ships the foundation only. **No ingestion code, no AI, no scrapers.** Pipeline implementation lands in Phase 2.
+
+### What ships in Phase 1
+
+- **Migration `0006_hospitality_intelligence_schema.sql`** applied to Supabase production.
+  - 9 new tables: `sources`, `investors`, `operators`, `market_news`, `hotel_transactions`, `hotel_projects`, `news_entities`, `news_tags`, `news_ingestion_runs`
+  - 5 new enums: `news_category`, `hotel_segment`, `entity_role`, `ingestion_source_kind`, `ingestion_status`
+  - RLS public-read on all corpus tables (anonymous showcase); service-role-only writes
+  - `url_hash` unique constraint on `market_news` for atomic deduplication
+  - `enriched_meta` jsonb on `market_news` for future AI enrichment (no migration needed when LLM lands)
+- **10 sources seeded** with reliability scores: hosteltur, alimarket, expansion (ES) · hospitalitynet, hotelnewsnow, costar-news, thp-news, hvs, skift-hospitality, reuters-hospitality (EU + GLOBAL)
+- **6 documentation files** in `docs/intelligence/`:
+  - `HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` — strategic master doc explaining why this is core, not a side feature, written for future engineers + AI agents
+  - `intelligence-architecture.md` — system architecture, component responsibilities, integration points
+  - `news-data-schema.md` — full schema reference + dedup hash design
+  - `ingestion-pipeline.md` — fetch / parse / normalise / categorise / dedupe pipeline design
+  - `scheduler-strategy.md` — Vercel Cron vs Supabase pg_cron decision (chose Vercel Cron at `48 7 * * *` UTC = 08:48 Europe/Madrid in winter, 09:48 in summer)
+  - `hospitality-intelligence-roadmap.md` — phases 1–6 with deliverables + exit criteria
+- **Tracker updates**:
+  - `HOTELVALORA_TECH_STACK_MASTER.md` — new "Hospitality Intelligence Engine" section
+  - `INFRASTRUCTURE_MASTER_TRACKER.md` — new entry; health score recomputed (84%)
+  - `service-status.md` — 24→25 🟢; planned phases listed in 🔵
+  - `HOTELVALORA_MASTER_SYSTEM.md` — paragraph updated mentioning the new module
+  - `docs/database/README.md` — migration 0006 entry
+  - `ENTRYPOINTS.md` — 6 new rows for the intelligence docs + the migration
+  - `CLAUDE.md` — `docs/intelligence/` registered in the documentation map + mandatory-maintenance table
+
+### Phase 2 — what's next
+
+| Deliverable | File |
+|---|---|
+| Cron route handler | `apps/web/src/app/api/cron/hospitality-intel/route.ts` |
+| Vercel cron config | `apps/web/vercel.json` |
+| Fetchers (rss/scrape/api) | `apps/web/src/lib/intelligence/fetchers.ts` |
+| Normaliser + canonicaliser | `apps/web/src/lib/intelligence/normalise.ts` |
+| Regex categoriser | `apps/web/src/lib/intelligence/categorise.ts` |
+| Ingest orchestrator | `apps/web/src/lib/intelligence/ingest.ts` |
+| Unit + integration tests | `apps/web/src/lib/intelligence/__tests__/` |
+
+Exit criterion for Phase 2: 7 consecutive days of all-source `status=success` ingestion runs.
+
+### Strategic context (why this matters)
+
+The master doc covers this in depth, but the 3-line version:
+- Underwriting is only as good as the comparables it can pull — building a self-hosted transaction corpus = decoupling from CoStar/STR seat licences (€30k–150k/year saved per seat).
+- Deal sourcing happens before broker books open — daily ingestion of operator interviews, planning permissions, JV announcements = a deal radar.
+- Institutional clients expect a Bloomberg-of-hospitality — the intelligence layer is what turns the calculator into a decision surface.
+
+The schema is intentionally future-proof (jsonb columns for AI enrichment, polymorphic entity links, source reliability scores, public-read RLS). Phase 2+ doesn't migrate the schema — it just writes code that reads the existing tables.
+
+---
+
 ## 2026-05-11 — Resend leaves the sandbox (verified domain · production delivery)
 
 `hotelvalora.com` verified at https://resend.com/domains (DKIM + SPF added in Namecheap DNS). `RESEND_FROM_EMAIL` on Vercel switched from the sandbox sender (`onboarding@resend.dev`) to `HotelVALORA <noreply@hotelvalora.com>`. The full email path now delivers to any recipient — no more "only to miguel.sambricio@metcub.com" sandbox restriction.

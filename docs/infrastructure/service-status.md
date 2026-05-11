@@ -4,7 +4,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 **Last refreshed:** 2026-05-11
 
-## 🟢 Working (24)
+## 🟢 Working (25)
 
 | Service | Production URL / scope |
 |---|---|
@@ -20,6 +20,7 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 | Resend prod env (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`) | Vercel encrypted — both set, both required for server-action sends |
 | Resend integration (Library "Schedule a Tour" CTA) | wired to `ContactCell` on top-promoted reports — compiles + executes in production, send acknowledged by Resend |
 | Resend production sender (`noreply@hotelvalora.com`) | `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS) since 2026-05-11; delivers to any recipient inbox |
+| **Hospitality Intelligence Engine — Phase 1 foundation** | Migration `0006` applied: 9 tables (`market_news`, `hotel_transactions`, `hotel_projects`, `investors`, `operators`, `sources`, `news_entities`, `news_tags`, `news_ingestion_runs`) · 10 sources seeded · RLS public-read · ingestion code lands in Phase 2. See `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` |
 | `useAuth()` unified hook | `apps/web/src/lib/auth/use-auth.ts` — Supabase Auth active in production |
 | **Supabase Auth (production runtime)** | Google OAuth dance · `/auth/callback` handler · HttpOnly cookies · `handle_new_user` trigger. Public Beta Mode: `PROTECTED_PREFIXES=[]` — anonymous browsing allowed everywhere |
 | **Google OAuth provider** | Configured in Supabase Dashboard + Google Cloud Console with redirect URI `https://twebgqutuqgonabvhzjk.supabase.co/auth/v1/callback`. `/auth/v1/settings` reports `"google": true` |
@@ -55,16 +56,18 @@ Quick-scan view. The authoritative table lives in `HOTELVALORA_TECH_STACK_MASTER
 
 None.
 
-## 🔵 Planned (10)
+## 🔵 Planned (13)
 
 | Service | Phase |
 |---|---|
+| Hospitality Intelligence — Phase 2 (ingestion pipeline + cron) | Phase 2 — next sprint candidate |
+| Hospitality Intelligence — Phase 3 (entity extraction + tagging) | Phase 3 |
+| Hospitality Intelligence — Phase 4–6 (AI summaries · surfaces · alerts) | Phase 4–6 |
 | Stripe | Phase 5 |
 | PostHog | Phase 5 |
 | Sentry (frontend) | Phase 4 |
-| OpenAI / Anthropic / Vercel AI Gateway | Phase 5 |
+| OpenAI / Anthropic / Vercel AI Gateway | Phase 4 (Intelligence summaries) + Phase 5 (UI) |
 | Vercel Analytics | Quick win — enable via dashboard |
-| Supabase Auth + `@auth/supabase-adapter` | Phase 3 |
 | Server-side PDF rendering (Puppeteer or react-pdf) | Phase 4 |
 | CoStar (live API) / STR / Booking / Catastro / CBRE / MSCI | Phase 5–6 |
 | Microsoft / Azure AD OAuth | Future enterprise SSO |
@@ -72,9 +75,9 @@ None.
 
 ## Health score
 
-**24 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 30 active services**
+**25 🟢 · 3 🟡 · 3 🔴 · 0 ⚫ across 31 active services**
 
-Weighted score: (24 × 1.0 + 3 × 0.5 + 3 × 0.0) / 30 = **85%**. Resend left the sandbox — `hotelvalora.com` verified, sender switched to `noreply@hotelvalora.com`, production delivery to any recipient. Platform is in **Public Beta / Showcase Mode**; every push to `main` auto-deploys to production, branches auto-deploy to preview.
+Weighted score: (25 × 1.0 + 3 × 0.5 + 3 × 0.0) / 31 = **85%**. Hospitality Intelligence Engine Phase 1 (foundation: schema + 10 seeded sources + strategic + technical docs) joined the inventory as 🟢. Phase 2+ (pipeline, AI, surfaces) lives in 🔵 Planned. Platform remains in **Public Beta / Showcase Mode**.
 
 ## Next 5 actions (prioritised)
 

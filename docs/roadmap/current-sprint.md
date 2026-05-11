@@ -28,7 +28,10 @@
 | **Production authentication — Supabase Auth (Google OAuth-ready)** — `useAuth()` rewritten as a dual-source picker (Supabase Auth when `NEXT_PUBLIC_AUTH_ENABLED=true`, Zustand mock otherwise). `/auth/callback` route handler exchanges OAuth codes for HttpOnly session cookies. Middleware enforces protected routes when `AUTH_ENABLED=true`. RLS resolves naturally via `auth.uid()`; no schema changes. Auth.js v5 scaffold stays parked. | `5c3ef91` | ✅ |
 | **Google OAuth activated end-to-end** — Google Cloud OAuth client created, Supabase Dashboard provider enabled, URL allowlist configured, Vercel env vars set, production deployed. Verified: `/auth/v1/settings` reports `"google": true`; `/auth/callback` exchanges codes correctly. | manual + `dpl_GcD2jM47icS8KzWDRNdYcyZY6iZF` | ✅ |
 | **Public Beta / Showcase Mode** — `PROTECTED_PREFIXES = []` in `apps/web/src/middleware.ts`. Auth remains wired and operational (Google sign-in works, sessions persist) but no route redirects anonymous traffic. Documented in `docs/auth.md` § "Public Beta / Showcase Mode". | `722efb7` · `dpl_CVVn7…cLui` | ✅ |
-| **GitHub → Vercel auto-deploy enabled** — `vercel git connect` on `prj_Kaujd1oQHrnWD1Oi790f1TmgCscQ`. Push to `main` → production; branches → preview URLs. CLI `vercel deploy` remains as escape hatch. This commit is the verification — the push itself triggers the first auto-deploy. | *(this commit)* | ✅ |
+| **GitHub → Vercel auto-deploy enabled** — `vercel git connect` on `prj_Kaujd1oQHrnWD1Oi790f1TmgCscQ`. Push to `main` → production; branches → preview URLs. CLI `vercel deploy` remains as escape hatch. | `4243cce` · `9c73722` · `1e263f4` | ✅ |
+| **Resend leaves the sandbox** — `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS); `RESEND_FROM_EMAIL` switched to `HotelVALORA <noreply@hotelvalora.com>`. Production delivery to any recipient. | `8d6f078` | ✅ |
+| **Auth log noise eliminated** — `<SessionProvider>` removed from `providers.tsx` (legacy Auth.js scaffold polling `/api/auth/session` with no `AUTH_SECRET` produced 500s on every page load). | `32b1cd2` | ✅ |
+| **Hospitality Intelligence Engine — Phase 1 foundation** — migration `0006` applied (9 tables · 5 enums · RLS public-read · 10 seeded sources). 6 strategic + technical docs in `docs/intelligence/`. Trackers updated. NO ingestion code yet — Phase 2 lands the pipeline. | *(this commit)* | ✅ |
 
 ## In flight
 
@@ -36,14 +39,14 @@
 
 ## Up next (rough order of pull)
 
-1. Sign-up flow — today the only way to create an account is Google OAuth. Add a `supabase.auth.signUp` surface (email/password) and `supabase.auth.resetPasswordForEmail` (forgot password).
-2. Realtime Library subscription — one `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
-3. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route.
-4. Workspace switcher — read `public.user_roles` joined with `public.organizations`; surface in the AppHeader.
-5. Linked-accounts unlink — server action that deletes the `oauth_accounts` row and revokes the provider token.
-6. Library legend toggles + search wired to the table view too.
-7. Swap static grayscale map background to Mapbox (Phase 4).
-8. Verify a domain in Resend.
+1. **Hospitality Intelligence — Phase 2** (ingestion pipeline + Vercel Cron). 7-day clean-run exit criterion. See `docs/intelligence/hospitality-intelligence-roadmap.md` § Phase 2.
+2. Sign-up flow — today the only way to create an account is Google OAuth. Add `supabase.auth.signUp` (email/password) and `supabase.auth.resetPasswordForEmail`.
+3. Realtime Library subscription — `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
+4. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route.
+5. Workspace switcher — read `public.user_roles` joined with `public.organizations`; surface in the AppHeader.
+6. Linked-accounts unlink — server action that deletes the `oauth_accounts` row and revokes the provider token.
+7. Library legend toggles + search wired to the table view too.
+8. Swap static grayscale map background to Mapbox (Phase 4).
 
 ## Decisions made this sprint
 

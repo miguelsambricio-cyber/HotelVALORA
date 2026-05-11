@@ -31,6 +31,8 @@ Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md
 | `docs/data-models/*.md` | When a typed shape changes (user / report / library models) |
 | `docs/business-rules/*.md` | When tier / visibility / promotion rules change |
 | `docs/integrations/*.md` | When CoStar / STR / Excel-ingestion / Resend / Supabase wiring changes |
+| `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` | When the strategic role of the intelligence engine evolves (rare — load-bearing doc) |
+| `docs/intelligence/*.md` (architecture · schema · pipeline · scheduler · roadmap) | After any change to ingestion sources, schema, scheduler, or phase status |
 | `docs/infrastructure/HOTELVALORA_TECH_STACK_MASTER.md` | After EVERY infra change — add/remove a service, status flip, new env var |
 | `docs/infrastructure/INFRASTRUCTURE_MASTER_TRACKER.md` | When a service's per-field detail changes |
 | `docs/infrastructure/service-status.md` | Move row between status buckets when a service flips state |
@@ -86,7 +88,10 @@ docs/
   design-system/      ui-principles · components · colors-typography
   data-models/        user-models · report-models · library-models
   business-rules/     tier-system · report-visibility · promoted-reports
-  integrations/       costar · str · excel-ingestion
+  integrations/       costar · str · excel-ingestion · resend · supabase
+  intelligence/       HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM · architecture
+                      · news-data-schema · ingestion-pipeline · scheduler-strategy
+                      · roadmap (CORE strategic intelligence layer — not a side feature)
   features/           library · settings · financials
   architecture.md     system topology, services, runtime infra, ports, app flow
   routing.md          all routes, layout shells, navigation wiring

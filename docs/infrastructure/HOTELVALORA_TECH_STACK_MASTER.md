@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (overnight — Supabase Auth + Google OAuth activated end-to-end · Platform set to **Public Beta / Showcase Mode** · GitHub → Vercel auto-deploy enabled (push to `main` → production, branches → preview)).
+**Last refreshed:** 2026-05-11 (Hospitality Intelligence Engine foundation — schema + 10 seeded sources + strategic + technical docs; Phase 2 ingestion pipeline pending).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -116,6 +116,18 @@
 | OpenAI | LLM | 🔵 | Not installed | Planned for AI renders + investment match scoring + chatbot | Phase 5 — wire via Vercel AI SDK |
 | Anthropic / Claude | LLM | 🔵 | Not installed | Backup provider | — |
 | Vercel AI Gateway | Provider routing | 🔵 | Not installed | Recommended when multi-provider lands | Use `@vercel/ai` |
+
+### Hospitality Intelligence Engine
+
+| Service | Category | Status | Environment | Notes | Next action |
+|---|---|---|---|---|---|
+| Intelligence schema (9 tables) | Database | 🟢 | Applied via migration `0006` on 2026-05-11 | `market_news`, `hotel_transactions`, `hotel_projects`, `investors`, `operators`, `sources`, `news_entities`, `news_tags`, `news_ingestion_runs`. RLS public-read; service-role writes only | — |
+| Sources registry (10 seeded) | Data | 🟢 | Live in `public.sources` | Hosteltur, Alimarket, Expansión, HospitalityNet, Hotel News Now, CoStar News, THP, HVS, Skift, Reuters — with reliability scores | Expand to ~50 in Phase 3 |
+| Daily ingestion cron | Pipeline | 🔵 | Not yet wired | Phase 2 — Vercel Cron at `48 7 * * *` UTC = 08:48 Europe/Madrid (CET) / 09:48 (CEST). Route handler at `apps/web/src/app/api/cron/hospitality-intel/route.ts` pending | Phase 2 implementation |
+| RSS / scrape / API fetchers | Pipeline | 🔵 | Not yet wired | Architecture designed in `docs/intelligence/ingestion-pipeline.md` | Phase 2 |
+| AI summaries + embeddings | Enrichment | 🔵 | Not yet wired | Phase 4 — LLM via Vercel AI Gateway, embeddings in `pgvector` | Phase 4 |
+| Investor/operator dossier surfaces | UI | 🔵 | Not yet built | Phase 5 — `/intelligence/...` routes consume the corpus | Phase 5 |
+| Alerts engine | UX | 🔵 | Not yet built | Phase 6 — Supabase Realtime broadcast + Resend dispatch | Phase 6 |
 
 ### Deployment + CI/CD
 

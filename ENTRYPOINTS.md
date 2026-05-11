@@ -89,7 +89,14 @@ Maps tasks to exact files. Start here before scanning.
 | Supabase generated TypeScript types (from live schema) | `apps/web/src/lib/supabase/types.ts` |
 | Supabase Storage — browser helpers (`BUCKETS`, `uploadOwnFile`, `getPublicUrl`, …) | `apps/web/src/lib/supabase/storage.ts` |
 | Supabase Storage — server helpers (`createStorageSignedUrl`, `moveStorageObject`, …) | `apps/web/src/lib/supabase/storage-server.ts` |
-| Supabase migrations (initial schema · hardening · storage buckets) | `docs/database/migrations/` |
+| Supabase migrations (initial schema · hardening · storage buckets · intelligence) | `docs/database/migrations/` |
+| Hospitality Intelligence — strategic master document | `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` |
+| Hospitality Intelligence — technical architecture | `docs/intelligence/intelligence-architecture.md` |
+| Hospitality Intelligence — schema reference | `docs/intelligence/news-data-schema.md` |
+| Hospitality Intelligence — ingestion pipeline design | `docs/intelligence/ingestion-pipeline.md` |
+| Hospitality Intelligence — scheduler decision (Vercel Cron vs pg_cron) | `docs/intelligence/scheduler-strategy.md` |
+| Hospitality Intelligence — phased roadmap | `docs/intelligence/hospitality-intelligence-roadmap.md` |
+| Hospitality Intelligence — schema migration (9 tables, 5 enums, 10 sources) | `docs/database/migrations/0006_hospitality_intelligence_schema.sql` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library seed (6 institutional showcases — live in DB) | `docs/database/migrations/0005_seed_library_demo_data.sql` |
