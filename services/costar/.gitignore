@@ -22,10 +22,10 @@ SUBMERCADO/INPUT/*
 SUBMERCADO/old.submercado/*
 !SUBMERCADO/old.submercado/.gitkeep
 
-COMPSET/INPUT/*
-!COMPSET/INPUT/.gitkeep
-COMPSET/old.compset/*
-!COMPSET/old.compset/.gitkeep
+CLASS/INPUT/*
+!CLASS/INPUT/.gitkeep
+CLASS/old.class/*
+!CLASS/old.class/.gitkeep
 
 # Staging — failed parses, manual-review queue, temp normalisation files
 staging/failed/*

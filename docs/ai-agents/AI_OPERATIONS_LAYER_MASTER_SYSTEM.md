@@ -5,16 +5,38 @@
 > Read this once. The AI Operations Layer is the institutional muscle that turns the platform from "calculator with UI" into an autonomous, auditable, hospitality investment operating system. Future engineers and AI agents reading this should treat the architecture commitments as load-bearing — violating them turns the platform back into a script collection.
 
 **Last refreshed:** 2026-05-11
-**Phase status:** 🟢 Phase 1 foundation live · 🟡 Phase 2 Tier 1 agents shipped (Market Intelligence + Data Ingestion + QA / Monitoring). Runtime in `apps/web/src/lib/ai-agents/core/` is the deterministic shell every future agent inherits. CEO Agent intentionally still `planned` — activates in Phase 3.
+**Phase status:** 🟢 Phase 1 foundation live · 🟡 Phase 2 Tier 1 agents shipped (Market Intelligence + Data Ingestion + QA / Monitoring) · 🟡 Two new specialised agents formally registered in this commit (CoStar Market Data Agent + CompSet Underwriting Agent). Runtime in `apps/web/src/lib/ai-agents/core/` is the deterministic shell every future agent inherits. CEO Agent intentionally still `planned` — activates in Phase 3.
 
-## Data Ingestion Agent — institutional masters workspaces
+## Agent roster (12 registered · 3 active beta · 9 planned)
 
-The Data Ingestion Agent owns the operational ingestion of TWO institutional XLSX workspaces:
+| # | Agent | Tier | Status | Workspace owned | See |
+|---|---|---|---|---|---|
+| 0 | CEO / Orchestration Agent | 0 | planned | none (supervisory) | `docs/agents/ceo-agent-supervision-layer.md` |
+| 1 | Market Intelligence Agent | 1 | **beta** | reads `public.market_news` | `docs/ai-agents/ai-agent-roadmap.md` |
+| 2 | **CoStar Market Data Agent** | 1 | planned | `services/costar/` (warehouse) | `docs/agents/costar-market-data-agent.md` |
+| 3 | **CompSet Underwriting Agent** | 2 | planned | `services/compset/` (operational) | `docs/agents/compset-underwriting-agent.md` |
+| 4 | Data Ingestion Agent | 1 | **beta** | `services/transactions/` | `apps/web/src/lib/ai-agents/agents/data-ingestion.ts` |
+| 5 | QA / Monitoring Agent | 1 | **beta** | read-only across platform | `apps/web/src/lib/ai-agents/agents/qa-monitoring.ts` |
+| 6 | CFO Agent | 3 | planned | Stripe / Holded / banking | `docs/ai-agents/ai-agent-roadmap.md` § Phase 6 |
+| 7 | CMO Agent | 3 | planned | LinkedIn / X / content | same |
+| 8 | Customer Success Agent | 3 | planned | WhatsApp / Intercom | same |
+| 9 | CRM / Dealflow Agent | 2 | planned | `public.contacts` etc. | `docs/ai-agents/ai-agent-roadmap.md` § Phase 5 |
+| 10 | Report Generation Agent (legacy) | 2 | planned | absorbed by Underwriting Engine; left in registry for backward-compat |  |
+| 11 | Underwriting Agent (legacy) | 2 | planned | superseded by CompSet Underwriting + Underwriting Engine split |  |
 
-1. **`services/transactions/`** — hotel transactions + projects (2 masters, 2 pipelines)
-2. **`services/costar/`** — CoStar hospitality market intelligence (4 masters, 4 pipelines: country / market / submarket / compset)
+**Active operational ecosystem today:** 3 Tier-1 agents in beta (Market Intelligence, Data Ingestion, QA / Monitoring) running on the deterministic runtime. The two newly registered specialised agents (CoStar Market Data + CompSet Underwriting) activate when their respective Phase 2.3.d.1 / Phase 2.4 implementations land.
 
-Both workspaces share the same architectural primitives (14-column ingestion-meta block, append-only discipline, audit-chain unification via `/api/agents/data-ingestion-summary`, .gitignore that tracks contract not data). Phase 2.3.b shipped the transactions CLI; Phase 2.3.d wires the costar CLI on top of the same primitives.
+## Three operational ingestion agents (formal separation)
+
+Following the architectural decision in `docs/architecture/market-vs-underwriting-separation.md`, the operational ingestion surface is now split across THREE distinct agents:
+
+| Agent | Owns | Cadence | Status |
+|---|---|---|---|
+| **Data Ingestion Agent** | `services/transactions/` (transactions + projects) | manual / weekly | beta (Phase 2.3.b) |
+| **CoStar Market Data Agent** | `services/costar/` (warehouse — country / market / submarket / class) | monthly batch | planned (Phase 2.3.d.1) |
+| **CompSet Underwriting Agent** | `services/compset/` (operational — per-hotel compset + positioning) | on-demand + quarterly | planned (Phase 2.4) |
+
+All three share the same architectural primitives (14-column ingestion-meta block, append-only discipline, audit-chain unification via `/api/agents/data-ingestion-summary`, .gitignore that tracks contract not data) so Phase 5 migrates them to Supabase together. They differ on operational rhythm, risk profile, and what they read vs write — see `docs/architecture/market-vs-underwriting-separation.md` for the rationale.
 
 Its supervision contract (applies to both workspaces):
 

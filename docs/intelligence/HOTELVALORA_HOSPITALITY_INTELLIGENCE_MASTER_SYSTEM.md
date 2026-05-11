@@ -9,13 +9,14 @@
 
 ## Operational ingestion workspace
 
-The corpus is fed by THREE complementary streams:
+The corpus is fed by FOUR complementary streams, each owned by a different agent:
 
-1. **Automated news ingestion** — daily cron reads RSS / scrape / API sources into `public.market_news`. Implementation in `apps/web/src/lib/intelligence/`.
-2. **Operator-curated transactions + projects masters** — institutional XLSX workbooks under `services/transactions/MASTER/` capturing deals + pipeline events with full ingestion-meta. Reference docs in `docs/intelligence/{transaction-ingestion-workflow,master-dataset-architecture,data-normalization-rules,transaction-schema,project-schema}.md`.
-3. **Operator-curated CoStar hospitality market warehouse** — four institutional XLSX masters under `services/costar/MASTER/` (country, market, submarket, compset) covering hospitality KPIs + indices (RevPAR / ADR / Occupancy / MPI / ARI / RGI). Reference docs in `docs/intelligence/{costar-ingestion-workflow,costar-master-dataset-architecture,costar-normalization-rules,costar-country-schema,costar-market-schema,costar-submarket-schema,costar-compset-schema}.md`.
+1. **Automated news ingestion** — daily cron reads RSS / scrape / API sources into `public.market_news`. Implementation in `apps/web/src/lib/intelligence/`. Owned by Market Intelligence Agent.
+2. **Operator-curated transactions + projects masters** — institutional XLSX workbooks under `services/transactions/MASTER/` capturing deals + pipeline events. Owned by Data Ingestion Agent. Reference docs in `docs/intelligence/{transaction-ingestion-workflow,master-dataset-architecture,data-normalization-rules,transaction-schema,project-schema}.md`.
+3. **CoStar hospitality MARKET WAREHOUSE** — four institutional XLSX masters under `services/costar/MASTER/` (country / market / submarket / class) covering hospitality KPIs (RevPAR / ADR / Occupancy / supply / demand). Owned by CoStar Market Data Agent (`docs/agents/costar-market-data-agent.md`). Reference docs in `docs/intelligence/{costar-ingestion-workflow,costar-master-dataset-architecture,costar-normalization-rules,costar-country-schema,costar-market-schema,costar-submarket-schema,costar-class-schema}.md`.
+4. **Underwriting COMPSET operations** — two operational XLSX masters under `services/compset/MASTER/` (COMPSET_MASTER + HOTEL_POSITIONING_MASTER) producing per-hotel benchmark + positioning snapshots with MPI / ARI / RGI + forward assumptions. Owned by CompSet Underwriting Agent (`docs/agents/compset-underwriting-agent.md`). Reference docs in `docs/intelligence/{compset-schema,hotel-positioning-schema}.md`.
 
-All three flow into the same downstream consumers (Library, Underwriting, Maps, CRM, Report Generation). The Data Ingestion Agent supervises both XLSX workspaces (transactions + costar) end-to-end with the same primitives + the same audit-chain unification pattern.
+The split between (3) the market warehouse and (4) the underwriting compset operations is load-bearing — see `docs/architecture/market-vs-underwriting-separation.md`. Four streams flow into the same downstream consumers (Library, Underwriting, Maps, CRM, Report Generation). All four share the same primitives (14-column ingestion-meta block, append-only discipline, audit-chain unification via `/api/agents/data-ingestion-summary`) so Phase 5 migrates them all to Supabase together.
 
 ---
 

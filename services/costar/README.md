@@ -1,19 +1,22 @@
-# services/costar — institutional hospitality market intelligence warehouse
+# services/costar — institutional hospitality market WAREHOUSE
 
-The operational substrate for HOTELVALORA's institutional hospitality market intelligence. **Not a document repository.** This is the normalized hospitality intelligence warehouse + benchmark database layer + underwriting market intelligence substrate.
+The operational substrate for HOTELVALORA's institutional hospitality market intelligence. **Not a document repository.** This is the **macro-level normalized hospitality intelligence warehouse + benchmark database layer**.
 
-**Phase 1** — directory + schemas + workflow design. **No automation yet** — that lands in Phase 2.3.d of the Data Ingestion Agent, building on the same infrastructure that supervises `services/transactions/`.
+**Owned by the CoStar Market Data Agent** (per `docs/agents/costar-market-data-agent.md`). Hotel-specific compsets and underwriting outputs live in the OPERATIONAL workspace at `services/compset/` — owned by the CompSet Underwriting Agent. The two workspaces are deliberately separate per `docs/architecture/market-vs-underwriting-separation.md`.
+
+**Status** — Phase 1 directory + schemas + workflow live. Phase 2.3.d.1 wires the CLI ingestion pipeline. No autonomous ingestion yet.
 
 ---
 
 ## Strategic role
 
-The corpora that land here feed four downstream consumers in the platform:
+The macro corpora here feed three downstream consumers:
 
-- **Underwriting Engine** — country/market/submarket KPIs become the macro substrate behind every valuation
-- **Compset Benchmarking** — MPI / ARI / RGI per target hotel underpin institutional reporting and Library positioning
-- **Market Observatory** — submarket time-series fuels the Market Overview report section
-- **AI-assisted Underwriting (Phase 4+)** — Market Intelligence Agent reads these masters to enrich each deal context
+- **Underwriting Engine** — country/market/submarket/class KPIs become the macro substrate the CompSet Underwriting Agent reads when building per-hotel valuation context
+- **Market Observatory** — submarket + class time-series fuel the Market Overview report section
+- **AI-assisted Underwriting (Phase 4+)** — Market Intelligence Agent cross-references the warehouse with `public.market_news` for narrative positioning
+
+CompSet outputs (MPI / ARI / RGI per target hotel) live in `services/compset/` — a different workspace because compset workflows are operational (per-deal, on-demand, dynamic), not warehouse-style (monthly batch, standardized, slow-changing).
 
 ## Directory map
 
@@ -23,7 +26,7 @@ services/costar/
 │   ├── COSTAR_MASTER_PAIS.xlsx              ← country-level (39c · COUNTRY sheet)
 │   ├── COSTAR_MASTER_MERCADOS.xlsx          ← market-level (40c · MARKET sheet)
 │   ├── COSTAR_MASTER_SUBMERCADOS.xlsx       ← submarket-level (41c · SUBMARKET sheet)
-│   └── COSTAR_MASTER_COMPSETS.xlsx          ← compset benchmarks (48c · COMPSET sheet)
+│   └── COSTAR_MASTER_CLASS.xlsx             ← chain-scale aggregates (41c · CLASS sheet)
 │
 ├── PAIS/
 │   ├── INPUT/                               ← operator drops raw country files here
@@ -37,9 +40,9 @@ services/costar/
 │   ├── INPUT/                               ← operator drops raw submarket files here
 │   └── old.submercado/                      ← processed archive
 │
-├── COMPSET/
-│   ├── INPUT/                               ← operator drops raw compset files here
-│   └── old.compset/                         ← processed archive
+├── CLASS/
+│   ├── INPUT/                               ← operator drops chain-scale aggregates here
+│   └── old.class/                           ← processed archive
 │
 ├── staging/
 │   ├── failed/                              ← unparseable / corrupted imports
@@ -58,16 +61,18 @@ services/costar/
 
 ## Strict separation across four granularities
 
-Country, market, submarket and compset flow through **four strictly separated parallel pipelines** that share infrastructure (ingestion-meta block, SOURCES_REGISTRY) but never share a DATA sheet:
+Country, market, submarket and class flow through **four strictly separated parallel pipelines** that share infrastructure (ingestion-meta block, SOURCES_REGISTRY) but never share a DATA sheet:
 
 | Granularity | Primary entity | Time series | Underwriting role |
 |---|---|---|---|
 | **Country** (`PAIS`) | ISO-3166-1 alpha-2 | yes | Macro context |
 | **Market** (`MERCADO`) | (country, market_name) | yes | Asset-level positioning anchor |
-| **Submarket** (`SUBMERCADO`) | (country, market, submarket, chain_scale) | yes | Comp neighborhood reference |
-| **Compset** (`COMPSET`) | (compset_uid, target_hotel) | yes | MPI / ARI / RGI per asset |
+| **Submarket** (`SUBMERCADO`) | (country, market, submarket) | yes | Comp neighborhood reference |
+| **Class** (`CLASS`) | (country [+ market], chain_scale) | yes | Sub-segment positioning context |
 
 They never share a master because their schemas, granularity, KPIs, aggregation logic, and underwriting relevance all differ. See `docs/intelligence/costar-master-dataset-architecture.md` for the detailed rationale.
+
+Compset outputs (MPI / ARI / RGI per target hotel) live in `services/compset/` — a different workspace owned by a different agent.
 
 ## What lives in git vs not
 
@@ -77,8 +82,8 @@ They never share a master because their schemas, granularity, KPIs, aggregation 
 | `MASTER/*.xlsx` | ✅ | The canonical institutional datasets |
 | `templates/*.csv` | ✅ | The contract operators meet |
 | `scripts/build_masters.py` | ✅ | Reproducible schema |
-| `INPUT/*` files | ❌ | Operator-supplied CoStar exports — sensitive, large, transient |
-| `old.*/` archives | ❌ | Processed imports — auditable locally |
+| `<GRANULARITY>/INPUT/*` files | ❌ | Operator-supplied CoStar exports — sensitive, large, transient |
+| `<GRANULARITY>/old.*/` archives | ❌ | Processed imports — auditable locally |
 | `staging/**` | ❌ | Operational artefacts |
 | `logs/**` | ❌ | Run logs |
 
@@ -109,7 +114,9 @@ Architectural docs live in `docs/intelligence/`:
 - `costar-country-schema.md` — full column reference for COSTAR_MASTER_PAIS
 - `costar-market-schema.md` — full column reference for COSTAR_MASTER_MERCADOS
 - `costar-submarket-schema.md` — full column reference for COSTAR_MASTER_SUBMERCADOS
-- `costar-compset-schema.md` — full column reference for COSTAR_MASTER_COMPSETS
+- `costar-class-schema.md` — full column reference for COSTAR_MASTER_CLASS
+
+Compset workspace docs live in `docs/intelligence/compset-schema.md` + `docs/intelligence/hotel-positioning-schema.md`; agent ownership docs in `docs/agents/{costar-market-data-agent, compset-underwriting-agent, ceo-agent-supervision-layer}.md`.
 
 ## Regenerating the masters
 

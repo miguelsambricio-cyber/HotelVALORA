@@ -4,6 +4,100 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Market warehouse vs underwriting operations: formal separation
+
+Architectural decision that splits the previously-monolithic CoStar workspace into two distinct operational layers owned by two distinct agents. The split is load-bearing for scalability, auditability, operational clarity, and cost containment — see `docs/architecture/market-vs-underwriting-separation.md` for the full rationale.
+
+### Workspace restructuring
+
+**`services/costar/`** (market warehouse, owned by CoStar Market Data Agent):
+- `COMPSET/` directory + `COSTAR_MASTER_COMPSETS.xlsx` removed
+- `CLASS/{INPUT,old.class}/` added — chain-scale aggregates at country OR market level
+- `COSTAR_MASTER_CLASS.xlsx` generated (41 cols: 27 domain + 14 ingestion-meta)
+- `costar_class_import_template.csv` added
+- `scripts/build_masters.py` bumped to normalisation **v1.1**
+- `.gitignore` + templates README + workspace README updated to reflect new granularities
+
+**`services/compset/`** (operational underwriting workspace, NEW — owned by CompSet Underwriting Agent):
+- Full scaffold: `MASTER/`, `INPUT/`, `old/`, `staging/{failed,review,temp}/`, `templates/`, `logs/`, `docs/`, `scripts/`
+- Two canonical XLSX masters:
+  - `COMPSET_MASTER.xlsx` (48 cols: 34 domain + 14 meta) — subject + compset KPIs + MPI/ARI/RGI time series. Schema unchanged from the previous costar location.
+  - `HOTEL_POSITIONING_MASTER.xlsx` (55 cols: 41 domain + 14 meta) — NEW — per-hotel underwriting positioning snapshots with forward assumptions (ADR / occupancy / RevPAR / valuation anchor / cap rate / confidence / risks).
+- `.gitignore`, `.gitkeep` markers, `scripts/build_masters.py`, 2 csv operator templates, workspace README, templates README
+
+### DB migrations applied
+
+- `market_vs_underwriting_split_enum_extend` — adds `costar_market_data` + `compset_underwriting` to the `ai_agent_id` enum
+- `market_vs_underwriting_split_seed_agents` — seeds 2 registry rows in `public.ai_agents` with full charters (responsibilities, workflows, KPIs, escalation rules, config including tier + cost caps + workspace + escalation channel) in jsonb. Both ship as `status='planned' / enabled=false` — they activate when their Phase 2.x deliverables land.
+
+Agent registry is now 12 rows. Active operational ecosystem stays at 3 Tier-1 agents in beta (Market Intelligence + Data Ingestion + QA / Monitoring).
+
+### New documentation
+
+- `docs/architecture/market-vs-underwriting-separation.md` — the load-bearing architectural decision
+- `docs/agents/costar-market-data-agent.md` — agent charter (Tier 1, owns `services/costar/`)
+- `docs/agents/compset-underwriting-agent.md` — agent charter (Tier 2, owns `services/compset/`)
+- `docs/agents/ceo-agent-supervision-layer.md` — expanded CEO charter for the two-workspace supervision model
+- `docs/intelligence/costar-class-schema.md` — full column reference for COSTAR_MASTER_CLASS
+- `docs/intelligence/hotel-positioning-schema.md` — full column reference for HOTEL_POSITIONING_MASTER
+- `docs/intelligence/compset-schema.md` — renamed from `costar-compset-schema.md`, content updated for new workspace home
+
+### CEO Agent charter expansion
+
+The CEO / Orchestration Agent (still `planned`) gains explicit supervisory responsibilities for both new agents per `docs/agents/ceo-agent-supervision-layer.md`:
+- Hourly health probes on both `services/*/MASTER/INGESTION_LOG` sheets
+- Cascading refresh coordination (Q1 market refresh → triggers downstream positioning refreshes)
+- Market freshness escalations (CoStar warehouse > 60d stale → warning)
+- Positioning freshness escalations (active hotel snapshot > 120d → warning)
+- Circuit-breaker pattern (Phase 4) — temporarily pause misbehaving agents via `ai_agents.enabled=false`
+
+### Updates to existing docs
+
+- `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` — now lists FOUR ingestion branches with explicit agent ownership
+- `docs/intelligence/ingestion-pipeline.md` — four-branch header (A: news / B: transactions / C: costar warehouse / D: compset operational)
+- `docs/intelligence/costar-master-dataset-architecture.md` — four-workbook decision rewritten with CLASS replacing COMPSET
+- `docs/intelligence/costar-ingestion-workflow.md` — four pipelines updated, CoStar Market Data Agent named as owner
+- `docs/intelligence/costar-normalization-rules.md` — bumped to v1.1, compset section moved out, class section added
+- `docs/ai-agents/AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` — 12-agent roster table added; supervision split between 3 operational ingestion agents
+- `docs/ai-agents/ai-agent-architecture.md` — supervision layering section added (runtime + CEO are separate concerns)
+- `docs/ai-agents/ai-agent-roadmap.md` — Phase 2.3.d.0 marked done, Phase 2.3.d.1 + 2.4.0 + 2.4.1 added
+
+### Scaling implications
+
+Per `docs/architecture/market-vs-underwriting-separation.md` §7: the separation supports geographic expansion (Spain → Europe → US → LatAm → MEA → APAC) without redesigning the agent roster. New countries add ROWS to the warehouse; new hotels add ROWS to compset. Neither expansion adds new agents or new workspaces.
+
+### Build/lint
+
+No application code touched. `pnpm typecheck` clean. Two new directory trees live entirely outside `apps/web` — Next.js build unaffected.
+
+### Files added (~38 files + ~2400 LOC of architectural docs)
+
+- `services/costar/CLASS/{INPUT,old.class}/.gitkeep` (×2)
+- `services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx`
+- `services/costar/templates/costar_class_import_template.csv`
+- `services/compset/` workspace tree (2 MASTER xlsx + 6 .gitkeep + .gitignore + scripts/build_masters.py + 2 csv templates + 2 READMEs)
+- `docs/agents/{costar-market-data-agent,compset-underwriting-agent,ceo-agent-supervision-layer}.md`
+- `docs/architecture/market-vs-underwriting-separation.md`
+- `docs/intelligence/{costar-class-schema,hotel-positioning-schema}.md`
+
+### Files renamed
+- `docs/intelligence/costar-compset-schema.md` → `docs/intelligence/compset-schema.md`
+
+### Files deleted
+- `services/costar/COMPSET/INPUT/.gitkeep` + `services/costar/COMPSET/old.compset/.gitkeep`
+- `services/costar/MASTER/COSTAR_MASTER_COMPSETS.xlsx`
+- `services/costar/templates/costar_compset_import_template.csv`
+
+### Files updated
+- `services/costar/{.gitignore, README.md, scripts/build_masters.py, templates/README.md, MASTER/*.xlsx}`
+- `docs/intelligence/{HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM, ingestion-pipeline, costar-master-dataset-architecture, costar-ingestion-workflow, costar-normalization-rules, compset-schema}.md`
+- `docs/ai-agents/{AI_OPERATIONS_LAYER_MASTER_SYSTEM, ai-agent-architecture, ai-agent-roadmap}.md`
+- `docs/roadmap/current-sprint.md`
+- `docs/infrastructure/service-status.md`
+- `ENTRYPOINTS.md`
+
+---
+
 ## 2026-05-11 — Institutional CoStar hospitality market intelligence workspace (Phase 2.3.d.0)
 
 Scaffolded the second institutional ingestion workspace at `services/costar/`. This is **not a document repository** — it is the normalized hospitality intelligence warehouse + benchmark database layer + underwriting market intelligence substrate. Parallel to `services/transactions/`, sharing the same primitives (ingestion-meta block, append-only discipline, .gitignore posture).

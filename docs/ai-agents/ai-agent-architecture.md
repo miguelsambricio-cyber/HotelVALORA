@@ -1,9 +1,15 @@
 # AI Agent Architecture
 
-Technical architecture for the HotelVALORA AI Operations Layer.
+Technical architecture for the HotelVALORA AI Operations Layer — the deterministic-shell + audit + permissions + memory + escalation runtime every agent inherits.
 
 **Last refreshed:** 2026-05-11
-**Status:** Phase 1 (foundation) — schema applied, no agent runtime yet.
+**Status:** Phase 2 Tier 1 live — 3 agents in beta (Market Intelligence + Data Ingestion + QA / Monitoring) running on the runtime at `apps/web/src/lib/ai-agents/core/`. Two new specialised agents (CoStar Market Data + CompSet Underwriting) registered in this commit and will inherit the same runtime when their implementations land.
+
+## Supervision layering (Phase 3)
+
+The CEO / Orchestration Agent supervises the operational ecosystem ABOVE the runtime — it reads `ai_agent_runs`, `ai_events`, `ai_human_review`, and the per-workspace `INGESTION_LOG` sheets across `services/transactions/` + `services/costar/` + `services/compset/`. It coordinates cascading refreshes (e.g. a quarterly CoStar warehouse refresh implies downstream CompSet positioning refreshes), pauses agents that misbehave, and escalates via Resend. The full charter lives at `docs/agents/ceo-agent-supervision-layer.md`.
+
+The runtime + the supervision layer are deliberately separate concerns: the runtime is the deterministic execution shell (audit, permissions, budget, escalation, memory); the CEO Agent is the cross-agent operations layer that watches the runtime's outputs. Adding new agents (like the two specialised agents registered in this commit) means adding new runtime invocations, not new supervision infrastructure.
 
 ---
 

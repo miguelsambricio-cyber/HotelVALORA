@@ -1,11 +1,13 @@
-# CoStar Compset Schema
+# Compset Schema
 
-Full column reference for `services/costar/MASTER/COSTAR_MASTER_COMPSETS.xlsx` — the institutional benchmarking core.
+Full column reference for `services/compset/MASTER/COMPSET_MASTER.xlsx` — the institutional benchmarking core, owned by the **CompSet Underwriting Agent**.
 
 **Last refreshed:** 2026-05-11
-**Normalization version:** v1.0
+**Normalization version:** v1.0 (compset workspace)
 
-The DICTIONARY sheet of the workbook mirrors this document 1:1. When this document changes, regenerate the workbook (`python services/costar/scripts/build_masters.py`) and commit both.
+The DICTIONARY sheet of the workbook mirrors this document 1:1. When this document changes, regenerate the workbook (`python services/compset/scripts/build_masters.py`) and commit both.
+
+This dataset previously lived in `services/costar/MASTER/COSTAR_MASTER_COMPSETS.xlsx` (Phase 2.3.d.0). It moved to its own operational workspace — `services/compset/` — as part of the formal market-vs-underwriting separation. The schema itself is unchanged. See `docs/architecture/market-vs-underwriting-separation.md` for the rationale.
 
 ---
 

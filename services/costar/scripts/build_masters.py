@@ -7,7 +7,11 @@ Produces:
     services/costar/MASTER/COSTAR_MASTER_PAIS.xlsx
     services/costar/MASTER/COSTAR_MASTER_MERCADOS.xlsx
     services/costar/MASTER/COSTAR_MASTER_SUBMERCADOS.xlsx
-    services/costar/MASTER/COSTAR_MASTER_COMPSETS.xlsx
+    services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx
+
+CompSet datasets moved to services/compset/ in v1.1 — that workspace is
+operationally distinct (hotel-specific underwriting workflows, not warehouse
+ingestion). See docs/architecture/market-vs-underwriting-separation.md.
 
 Each workbook contains five sheets:
     1. DATA              — the canonical row table (one per granularity)
@@ -22,11 +26,13 @@ bumps on every breaking schema change.
 
 Why four masters, not one
 =========================
-country / market / submarket / compset have different schemas, different
+country / market / submarket / class have different schemas, different
 granularity, different KPIs, different aggregation logic, and different
 underwriting relevance. Mixing them once would force endless filters on every
 analyst query. They share infrastructure (workspace + ingestion-meta block +
-SOURCES_REGISTRY) but never share a DATA sheet.
+SOURCES_REGISTRY) but never share a DATA sheet. CompSet datasets live in
+services/compset/ (operational workspace, not warehouse) since they are
+hotel-specific underwriting outputs rather than market aggregates.
 """
 
 from __future__ import annotations
@@ -38,7 +44,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-NORMALIZATION_VERSION = "v1.0"
+NORMALIZATION_VERSION = "v1.1"
 BUILT_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 HERE = Path(__file__).resolve().parent
@@ -168,46 +174,42 @@ SUBMARKET_COLUMNS: list[tuple[str, str, bool, str]] = [
 
 
 # ---------------------------------------------------------------------------
-# Compset-level schema (COSTAR_MASTER_COMPSETS) — the institutional core
+# Class-level schema (COSTAR_MASTER_CLASS) — chain-scale time series
 # ---------------------------------------------------------------------------
-COMPSET_COLUMNS: list[tuple[str, str, bool, str]] = [
-    ("compset_name", "text", True, "Operator-readable label — 'Madrid 5* Luxury Center'."),
-    ("compset_uid", "uuid", False, "Resolved canonical compset id."),
-    ("costar_compset_code", "text", False, "CoStar code for the comp set."),
-    ("target_hotel_name", "text", True, "The hotel being benchmarked."),
-    ("target_hotel_uid", "uuid", False, "Resolved canonical hotel id (FK to public.valuations or future entity table)."),
-    ("compset_hotel_names", "text", False, "Comma-separated list of peers in the set (display only — provenance)."),
-    ("compset_size", "int", True, "Number of hotels in the compset (subject inclusive or exclusive — note in source meta)."),
-    ("country", "text", True, "ISO-3166-1 alpha-2."),
-    ("market_name", "text", False, "Parent market."),
-    ("submarket_name", "text", False, "Parent submarket when applicable."),
-    ("chain_scale", "enum", False, "Subject's chain scale at reporting time."),
+# Class (chain_scale) is its own granularity because:
+#  - operators report KPIs by class within country AND within market
+#  - aggregate by-class series are critical for sub-segment positioning
+#  - operationally simpler than carrying chain_scale on every submarket row
+# A class row either anchors at country level (market_name=null) OR at market
+# level (market_name='Madrid'). Both legitimate; dedup_key distinguishes.
+CLASS_COLUMNS: list[tuple[str, str, bool, str]] = [
+    ("country", "text", True, "ISO-3166-1 alpha-2 uppercase."),
+    ("market_name", "text", False, "Parent market — null = country-level class aggregate."),
+    ("submarket_name", "text", False, "Parent submarket — typically null at this granularity."),
+    ("chain_scale", "enum", True, "luxury | upper_upscale | upscale | upper_midscale | midscale | economy | independent | all_classes (aggregate)"),
+    ("class_label_display", "text", False, "Operator-facing label — 'Luxury', 'Upper Upscale', 'Independent'."),
+    ("segment_type", "enum", False, "transient | group | contract | combined — KPI breakdown by guest segment when reported."),
     ("period_kind", "enum", True, "daily | weekly | monthly | quarterly | ytd | ltm | annual"),
     ("period_start", "date", True, "ISO-8601 start."),
     ("period_end", "date", True, "ISO-8601 end (inclusive)."),
-    ("currency", "text", True, "ISO-4217."),
-    # Subject hotel KPIs
-    ("subject_occupancy_pct", "numeric", False, "Subject occupancy %."),
-    ("subject_adr", "numeric", False, "Subject ADR in the row's currency."),
-    ("subject_revpar", "numeric", False, "Subject RevPAR in the row's currency."),
-    ("subject_rooms_available", "numeric", False, "Subject room-nights available."),
-    ("subject_rooms_sold", "numeric", False, "Subject room-nights sold."),
-    ("subject_revenue", "numeric", False, "Subject accommodation revenue."),
-    # Compset (peer set) KPIs
-    ("compset_occupancy_pct", "numeric", False, "Compset (peer set) average occupancy %."),
-    ("compset_adr", "numeric", False, "Compset average ADR."),
-    ("compset_revpar", "numeric", False, "Compset average RevPAR."),
-    ("compset_rooms_available", "numeric", False, "Compset total room-nights available."),
-    ("compset_rooms_sold", "numeric", False, "Compset total room-nights sold."),
-    # Performance indices — CoStar signature outputs
-    ("mpi", "numeric", False, "Market Penetration Index = (subject_occ / compset_occ) × 100. 100 = on par."),
-    ("ari", "numeric", False, "Average Rate Index = (subject_adr / compset_adr) × 100. 100 = on par."),
-    ("rgi", "numeric", False, "RevPAR Generation Index = (subject_revpar / compset_revpar) × 100. 100 = on par."),
-    ("mpi_yoy_pp", "numeric", False, "YoY change in MPI (percentage points of index — e.g. 102.4 → 105.1 = +2.7 pp)."),
-    ("ari_yoy_pp", "numeric", False, "YoY change in ARI."),
-    ("rgi_yoy_pp", "numeric", False, "YoY change in RGI."),
-    ("fair_share_pct", "numeric", False, "Subject's fair share of compset demand by room count."),
-    ("revpar_premium_eur", "numeric", False, "Subject RevPAR − compset RevPAR in the row's currency."),
+    ("currency", "text", True, "ISO-4217 — row's monetary denomination."),
+    ("occupancy_pct", "numeric", False, "Class occupancy %. Range [0, 100]."),
+    ("adr", "numeric", False, "ADR in row's currency. Range [10, 5000]."),
+    ("revpar", "numeric", False, "RevPAR in row's currency. Range [5, 5000]."),
+    ("supply_rooms", "numeric", False, "Room-nights available for this class within scope."),
+    ("demand_rooms", "numeric", False, "Room-nights sold."),
+    ("revenue", "numeric", False, "Period accommodation revenue."),
+    ("supply_yoy_pct", "numeric", False, "YoY % change in supply."),
+    ("demand_yoy_pct", "numeric", False, "YoY % change in demand."),
+    ("occupancy_yoy_pp", "numeric", False, "YoY change in occupancy in percentage points."),
+    ("adr_yoy_pct", "numeric", False, "YoY % change in ADR."),
+    ("revpar_yoy_pct", "numeric", False, "YoY % change in RevPAR."),
+    ("revpar_index_vs_country", "numeric", False, "When market_name=null: ignored. When market_name set: this class's RevPAR vs national class RevPAR."),
+    ("revpar_index_vs_market", "numeric", False, "Class RevPAR as % of parent market overall RevPAR (`market_name` row in COSTAR_MASTER_MERCADOS)."),
+    ("hotel_count", "int", False, "Hotels in this class within scope."),
+    ("room_count_total", "int", False, "Snapshot room count at period start."),
+    ("pipeline_rooms", "int", False, "Pipeline rooms for this class."),
+    ("pipeline_hotels", "int", False, "Pipeline hotels for this class."),
 ]
 
 
@@ -304,10 +306,13 @@ def build_readme_sheet(wb, dataset_label: str, domain_label: str, schema_doc: st
         f"Built {BUILT_AT}. Normalization version: {NORMALIZATION_VERSION}.",
         "",
         "Sister workbooks (services/costar/MASTER/):",
-        "  • COSTAR_MASTER_PAIS.xlsx       — country aggregates",
-        "  • COSTAR_MASTER_MERCADOS.xlsx   — market aggregates",
+        "  • COSTAR_MASTER_PAIS.xlsx        — country aggregates",
+        "  • COSTAR_MASTER_MERCADOS.xlsx    — market aggregates",
         "  • COSTAR_MASTER_SUBMERCADOS.xlsx — submarket aggregates",
-        "  • COSTAR_MASTER_COMPSETS.xlsx   — compset (peer-set) benchmarks per target hotel",
+        "  • COSTAR_MASTER_CLASS.xlsx       — chain-scale time series (country or market level)",
+        "",
+        "  CompSet workbooks now live in the OPERATIONAL workspace at services/compset/",
+        "  (different purpose — hotel-specific underwriting outputs, not warehouse ingestion).",
         "",
         "Operating contract:",
         "  1. The Data Ingestion Agent appends new rows. It NEVER edits in place.",
@@ -374,11 +379,11 @@ def main():
         output_path=MASTER_DIR / "COSTAR_MASTER_SUBMERCADOS.xlsx",
     )
     build_workbook(
-        dataset_label="COSTAR_MASTER_COMPSETS",
-        domain_columns=COMPSET_COLUMNS,
-        data_sheet_title="COMPSET",
-        schema_doc="docs/intelligence/costar-compset-schema.md",
-        output_path=MASTER_DIR / "COSTAR_MASTER_COMPSETS.xlsx",
+        dataset_label="COSTAR_MASTER_CLASS",
+        domain_columns=CLASS_COLUMNS,
+        data_sheet_title="CLASS",
+        schema_doc="docs/intelligence/costar-class-schema.md",
+        output_path=MASTER_DIR / "COSTAR_MASTER_CLASS.xlsx",
     )
 
 

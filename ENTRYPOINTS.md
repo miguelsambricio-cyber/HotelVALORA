@@ -141,16 +141,27 @@ Maps tasks to exact files. Start here before scanning.
 | CoStar MASTER — country (39c) | `services/costar/MASTER/COSTAR_MASTER_PAIS.xlsx` |
 | CoStar MASTER — market (40c) | `services/costar/MASTER/COSTAR_MASTER_MERCADOS.xlsx` |
 | CoStar MASTER — submarket (41c) | `services/costar/MASTER/COSTAR_MASTER_SUBMERCADOS.xlsx` |
-| CoStar MASTER — compset (48c, MPI/ARI/RGI) | `services/costar/MASTER/COSTAR_MASTER_COMPSETS.xlsx` |
-| CoStar reproducible MASTER generator | `services/costar/scripts/build_masters.py` |
-| CoStar operator CSV templates × 4 | `services/costar/templates/costar_{pais,mercado,submercado,compset}_import_template.csv` |
+| CoStar MASTER — class / chain scale (41c) | `services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx` |
+| CoStar reproducible MASTER generator (v1.1) | `services/costar/scripts/build_masters.py` |
+| CoStar operator CSV templates × 4 | `services/costar/templates/costar_{pais,mercado,submercado,class}_import_template.csv` |
 | CoStar ingestion workflow doc | `docs/intelligence/costar-ingestion-workflow.md` |
 | CoStar master dataset architecture | `docs/intelligence/costar-master-dataset-architecture.md` |
 | CoStar normalization rules | `docs/intelligence/costar-normalization-rules.md` |
 | CoStar country schema (full reference) | `docs/intelligence/costar-country-schema.md` |
 | CoStar market schema (full reference) | `docs/intelligence/costar-market-schema.md` |
 | CoStar submarket schema (full reference) | `docs/intelligence/costar-submarket-schema.md` |
-| CoStar compset schema (MPI/ARI/RGI contract) | `docs/intelligence/costar-compset-schema.md` |
+| CoStar class schema (chain-scale aggregates) | `docs/intelligence/costar-class-schema.md` |
+| **Operational CompSet workspace** | `services/compset/` |
+| CompSet MASTER (48c · subject+compset KPIs + MPI/ARI/RGI) | `services/compset/MASTER/COMPSET_MASTER.xlsx` |
+| Hotel Positioning MASTER (55c · per-hotel underwriting snapshots) | `services/compset/MASTER/HOTEL_POSITIONING_MASTER.xlsx` |
+| CompSet reproducible MASTER generator | `services/compset/scripts/build_masters.py` |
+| CompSet operator CSV templates × 2 | `services/compset/templates/{compset,hotel_positioning}_import_template.csv` |
+| CompSet schema (full reference) | `docs/intelligence/compset-schema.md` |
+| Hotel Positioning schema (full reference) | `docs/intelligence/hotel-positioning-schema.md` |
+| **Market-vs-Underwriting separation architectural decision** | `docs/architecture/market-vs-underwriting-separation.md` |
+| **CoStar Market Data Agent charter** | `docs/agents/costar-market-data-agent.md` |
+| **CompSet Underwriting Agent charter** | `docs/agents/compset-underwriting-agent.md` |
+| **CEO / Orchestration Agent supervision charter** | `docs/agents/ceo-agent-supervision-layer.md` |
 | Operator import templates (CSV) | `services/transactions/templates/{transaction,project}_import_template.csv` |
 | Transactions ingestion workflow doc | `docs/intelligence/transaction-ingestion-workflow.md` |
 | Master dataset architecture | `docs/intelligence/master-dataset-architecture.md` |

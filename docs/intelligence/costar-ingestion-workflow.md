@@ -9,31 +9,33 @@ End-to-end pipeline for landing CoStar / STR / curated hospitality market datase
 
 ## 1. The four parallel pipelines
 
-Country / market / submarket / compset flow through four strictly separated parallel pipelines. They share infrastructure (ingestion-meta block, SOURCES_REGISTRY, audit-chain unification) but never share a DATA sheet.
+Country / market / submarket / class flow through four strictly separated parallel pipelines. They share infrastructure (ingestion-meta block, SOURCES_REGISTRY, audit-chain unification) but never share a DATA sheet.
 
 ```
-operator drop →  PAIS/INPUT/         MERCADO/INPUT/        SUBMERCADO/INPUT/      COMPSET/INPUT/
+operator drop →  PAIS/INPUT/         MERCADO/INPUT/        SUBMERCADO/INPUT/      CLASS/INPUT/
                        │                    │                     │                     │
-                  Data Ingestion Agent reads, parses, validates, normalises
+                  CoStar Market Data Agent reads, parses, validates, normalises
                        │                    │                     │                     │
         staging/temp/<id>        staging/temp/<id>      staging/temp/<id>      staging/temp/<id>
                        │                    │                     │                     │
                        ▼                    ▼                     ▼                     ▼
-       COSTAR_MASTER_PAIS    COSTAR_MASTER_MERCADOS   COSTAR_MASTER_SUBMERCADOS    COSTAR_MASTER_COMPSETS
+       COSTAR_MASTER_PAIS    COSTAR_MASTER_MERCADOS   COSTAR_MASTER_SUBMERCADOS    COSTAR_MASTER_CLASS
                        │                    │                     │                     │
-                       └─ source file → old.pais/ · old.mercado/ · old.submercado/ · old.compset/
+                       └─ source file → old.pais/ · old.mercado/ · old.submercado/ · old.class/
                        └─ INGESTION_LOG row in each workbook
                        └─ jsonl in logs/<YYYY-MM>/<id>.jsonl
                        └─ event emitted (kind=custom, payload.kind=costar_ingestion_staged)
                        └─ POST to /api/agents/data-ingestion-summary (audit-chain unification)
 ```
 
+Compset workflows live in `services/compset/` and are owned by the CompSet Underwriting Agent — different agent, different operational rhythm. See `docs/architecture/market-vs-underwriting-separation.md`.
+
 Why four pipelines, not one merged pipeline:
 
-- Different schemas (country has macro context columns, compset has MPI/ARI/RGI, submarket has chain_scale, market has revpar_index_vs_country)
+- Different schemas (country has macro context columns, class has explicit chain_scale, market has revpar_index_vs_country, submarket has its own indices)
 - Different dedup keys (period × granularity)
-- Different aggregation logic (a submarket aggregates upward to the market; a compset is a peer-set construction unique to one target hotel)
-- Different operator workflows (national reports come quarterly; compset reports come monthly per asset)
+- Different aggregation logic (a submarket aggregates upward to the market; a class is an explicit chain-scale aggregate)
+- Different operator cadences (country quarterly, class monthly)
 
 ## 2. Lifecycle of a single import file
 

@@ -3,8 +3,10 @@
 The canonicalisation contract every row meets before it lands in a CoStar MASTER workbook.
 
 **Last refreshed:** 2026-05-11
-**Applies to:** COSTAR_MASTER_PAIS · COSTAR_MASTER_MERCADOS · COSTAR_MASTER_SUBMERCADOS · COSTAR_MASTER_COMPSETS
-**Normalization version:** v1.0 (bump in `services/costar/scripts/build_masters.py`)
+**Applies to:** COSTAR_MASTER_PAIS · COSTAR_MASTER_MERCADOS · COSTAR_MASTER_SUBMERCADOS · COSTAR_MASTER_CLASS
+**Normalization version:** v1.1 (bump in `services/costar/scripts/build_masters.py`)
+
+CompSet normalization rules now live in `docs/intelligence/compset-normalization-rules.md` (forthcoming with Phase 2.4) since compset workflows moved to the operational workspace at `services/compset/`. See `docs/architecture/market-vs-underwriting-separation.md`.
 
 ---
 
@@ -95,15 +97,15 @@ Spanish synonyms folded:
 
 Unknown values → null + `review_required=true / review_reason='enum_unknown:<col>'`. Phase 4 LLM-categoriser resolves ambiguous cases.
 
-### 2.7 · Compset-specific (`compset_size` · `target_hotel_name` · `subject_*` · `compset_*`)
+### 2.7 · Class-specific (`chain_scale` · `class_label_display` · `market_name` optional)
 
 | Field | Rule |
 |---|---|
-| `compset_size` | Positive integer. Range [3, 20] — outside likely a data error. |
-| `target_hotel_name` | Display preserved. Diacritic-stripped + lowercased for dedup. |
-| `compset_hotel_names` | Comma-separated list. Order preserved (CoStar lists in their fixed order). Whitespace trimmed around delimiters. |
-| `mpi` / `ari` / `rgi` derivation | When the source provides only subject_* and compset_* (no indices), the agent computes `mpi = subject_occ / compset_occ × 100` etc. Computation is recorded in `notes` with `auto_computed_indices=true`. |
-| `fair_share_pct` | Subject rooms / compset total rooms × 100. Range [1, 95]. |
+| `chain_scale` | Required. Folded against `{luxury, upper_upscale, upscale, upper_midscale, midscale, economy, independent, all_classes}`. Spanish synonyms (`lujo` → `luxury`, etc.) accepted. |
+| `class_label_display` | Optional. Operator-facing label preserved verbatim. |
+| `market_name` | Optional. `null` → country-level class aggregate; non-null → market-level. Both legitimate; dedup_key distinguishes via `market_name || ''`. |
+| `revpar_index_vs_country` | Numeric. Ignored when `market_name=null` (country-level row IS the national class average). Validated [10, 500] otherwise. |
+| `revpar_index_vs_market` | Numeric. Range [10, 500]. The market-overall RevPAR baseline lives on the parent MERCADOS row at the same `(country, market_name, period_start)`. |
 
 ## 3. Required-column gates
 
@@ -118,8 +120,8 @@ A row landing in MASTER MUST have non-null values for:
 ### Submarket (SUBMERCADOS)
 - `country`, `market_name`, `submarket_name`, `period_kind`, `period_start`, `period_end`, `currency`
 
-### Compset (COMPSETS)
-- `compset_name`, `target_hotel_name`, `compset_size`, `country`, `period_kind`, `period_start`, `period_end`, `currency`
+### Class (CLASS)
+- `country`, `chain_scale`, `period_kind`, `period_start`, `period_end`, `currency` (note: `market_name` optional)
 
 KPI columns (occupancy / adr / revpar) are intentionally NOT required — a CoStar export may legitimately ship a row with only supply + demand + revenue, expecting the consumer to derive the rest.
 
@@ -132,8 +134,8 @@ Per `costar-master-dataset-architecture.md` §7:
 ```
 country:    sha256( country | iso_date(period_start) | period_kind )
 market:     sha256( country | norm(market_name) | iso_date(period_start) | period_kind )
-submarket:  sha256( country | norm(market_name) | norm(submarket_name) | norm(chain_scale|'all') | iso_date(period_start) | period_kind )
-compset:    sha256( norm(compset_name) | norm(target_hotel_name) | iso_date(period_start) | period_kind )
+submarket:  sha256( country | norm(market_name) | norm(submarket_name) | iso_date(period_start) | period_kind )
+class:      sha256( country | norm(market_name || '') | norm(chain_scale) | iso_date(period_start) | period_kind )
 
 norm(s) = lower(strip_diacritics(trim(s)))
 ```
@@ -147,6 +149,10 @@ norm(s) = lower(strip_diacritics(trim(s)))
 | Match + different `content_hash` | Route to `staging/review/` with both rows side-by-side |
 
 `content_hash` is sha256 of the concatenated domain columns (skipping nulls). For CoStar, the most common cause of different content_hash on a matched dedup_key is a **STR / CoStar monthly restatement** — operators expect this and the review workflow surfaces it explicitly with `review_reason='restatement_candidate'`.
+
+## 5b · Compset normalization rules
+
+Now live in the compset workspace. See `services/compset/MASTER/COMPSET_MASTER.xlsx` and the forthcoming `docs/intelligence/compset-normalization-rules.md` (Phase 2.4). The compset dedup key and field rules are unchanged from this document's previous v1.0 — only the home has moved.
 
 ## 5. Source-tier precedence
 

@@ -9,7 +9,9 @@ Reference contracts for what the Data Ingestion Agent will accept when Phase 2 l
 | `costar_pais_import_template.csv` | Minimal column set for a single-shot country drop into `PAIS/INPUT/` |
 | `costar_mercado_import_template.csv` | Same for `MERCADO/INPUT/` |
 | `costar_submercado_import_template.csv` | Same for `SUBMERCADO/INPUT/` |
-| `costar_compset_import_template.csv` | Same for `COMPSET/INPUT/` |
+| `costar_class_import_template.csv` | Same for `CLASS/INPUT/` — chain-scale time series at country OR market level |
+
+CompSet templates now live in `services/compset/templates/` (operational workspace, not warehouse).
 
 ## Contract
 
@@ -21,9 +23,9 @@ The full required-column list lives in:
 - `docs/intelligence/costar-country-schema.md`
 - `docs/intelligence/costar-market-schema.md`
 - `docs/intelligence/costar-submarket-schema.md`
-- `docs/intelligence/costar-compset-schema.md`
+- `docs/intelligence/costar-class-schema.md`
 
-Each schema doc matches the `DICTIONARY` sheet of its master workbook 1:1.
+Each schema doc matches the `DICTIONARY` sheet of its master workbook 1:1. Compset schemas live in `docs/intelligence/{compset-schema, hotel-positioning-schema}.md`.
 
 ## Operator usage
 
@@ -33,7 +35,7 @@ Each schema doc matches the `DICTIONARY` sheet of its master workbook 1:1.
    - `PAIS/INPUT/` for country-level
    - `MERCADO/INPUT/` for market-level
    - `SUBMERCADO/INPUT/` for submarket-level
-   - `COMPSET/INPUT/` for compset-level
+   - `CLASS/INPUT/` for chain-scale aggregates (country or market level)
 4. The Data Ingestion Agent picks it up on the next manual trigger or scheduled run (Phase 2 wires the trigger; Phase 1 is design only).
 
 ## Why CSV, not XLSX

@@ -11,11 +11,12 @@ The Intelligence Engine has THREE parallel ingestion paths feeding the same down
 
 | Branch | Source | Destination | Driver |
 |---|---|---|---|
-| **A. Automated news** | RSS / scrape / API (10 catalogued sources) | `public.market_news` + `news_tags` + `news_ingestion_runs` | Daily cron `48 7 * * *` UTC at `/api/cron/hospitality-intel` |
+| **A. Automated news** | RSS / scrape / API (10 catalogued sources) | `public.market_news` + `news_tags` + `news_ingestion_runs` | Market Intelligence Agent — daily cron `48 7 * * *` UTC at `/api/cron/hospitality-intel` |
 | **B. Transactions + projects masters** | Manual XLSX/CSV drops in `services/transactions/INPUT_*/` | `MASTER/HOTEL_TRANSACCIONES_MASTER.xlsx` + `MASTER/HOTEL_PROYECTOS_MASTER.xlsx` | Data Ingestion Agent — CLI live (Phase 2.3.b) |
-| **C. CoStar hospitality market warehouse** | Manual XLSX/CSV drops in `services/costar/{PAIS,MERCADO,SUBMERCADO,COMPSET}/INPUT/` | `MASTER/COSTAR_MASTER_{PAIS,MERCADOS,SUBMERCADOS,COMPSETS}.xlsx` | Data Ingestion Agent — CLI lands in Phase 2.3.d (substrate live now) |
+| **C. CoStar hospitality market WAREHOUSE** | Manual XLSX/CSV drops in `services/costar/{PAIS,MERCADO,SUBMERCADO,CLASS}/INPUT/` | `MASTER/COSTAR_MASTER_{PAIS,MERCADOS,SUBMERCADOS,CLASS}.xlsx` | CoStar Market Data Agent — CLI lands in Phase 2.3.d.1 (substrate live now) |
+| **D. Underwriting COMPSET operations** | Operator triggers + drops into `services/compset/INPUT/` | `MASTER/COMPSET_MASTER.xlsx` + `MASTER/HOTEL_POSITIONING_MASTER.xlsx` | CompSet Underwriting Agent — implementation lands in Phase 2.4 (substrate live now) |
 
-All three share architectural primitives (ingestion-meta block, audit-chain unification via `/api/agents/data-ingestion-summary`, append-only discipline). Sections 1–9 below describe Branch A. Branch B contract lives in `transaction-ingestion-workflow.md` + `data-normalization-rules.md`. Branch C contract lives in `costar-ingestion-workflow.md` + `costar-normalization-rules.md` + the four per-granularity schema docs.
+All four share architectural primitives (ingestion-meta block, audit-chain unification via `/api/agents/data-ingestion-summary`, append-only discipline) but are owned by DIFFERENT agents with different operational rhythms — see `docs/architecture/market-vs-underwriting-separation.md` for the C-vs-D split rationale. Sections 1–9 below describe Branch A. Branch B contract lives in `transaction-ingestion-workflow.md`. Branch C contract lives in `costar-ingestion-workflow.md` + the four per-granularity schema docs. Branch D contract lives in `compset-schema.md` + `hotel-positioning-schema.md` + `docs/agents/compset-underwriting-agent.md`.
 
 ---
 

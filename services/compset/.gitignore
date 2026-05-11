@@ -1,0 +1,36 @@
+# services/compset — operational underwriting compset workspace
+#
+# Same posture as services/transactions/ and services/costar/: git tracks the
+# CONTRACT (directory structure + canonical masters + templates + schemas +
+# scripts), NOT the operator-supplied data or run artefacts.
+
+# Inbound raw imports (operator drops these — never commit)
+INPUT/*
+!INPUT/.gitkeep
+
+old/*
+!old/.gitkeep
+
+# Staging — failed parses, manual-review queue, temp normalisation files
+staging/failed/*
+!staging/failed/.gitkeep
+
+staging/review/*
+!staging/review/.gitkeep
+
+staging/temp/*
+!staging/temp/.gitkeep
+
+# Operational run logs
+logs/*
+!logs/.gitkeep
+
+# Local-only working copies of the masters
+MASTER/*.bak
+MASTER/*~
+MASTER/.~lock.*
+
+# Python pipeline runtime artefacts
+scripts/__pycache__/
+scripts/*.pyc
+scripts/.pytest_cache/
