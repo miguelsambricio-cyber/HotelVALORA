@@ -62,6 +62,7 @@ Three buckets: **Future ideas** · **Blocked** · **Technical debt**. Anything e
 | `pdf-export.ts` is a `window.print()` wrapper | Medium | Replace with server-side render before institutional rollout |
 | Auth store is mock-only, tier inferred from email | High | Replace with NextAuth + DB tier in Phase 3 |
 | No CI yet — typecheck only via local `pnpm typecheck` | Medium | Add GitHub Actions before opening contributions |
+| `ENTRYPOINTS.md` over 200-line cap (357 lines as of 2026-05-12) | Low | Surfaced by `scripts/docs-audit.mjs`. Compress entries that are derivable from `docs/HOTELVALORA_MASTER_SYSTEM.md`; rule is in `CLAUDE.md` |
 
 ---
 

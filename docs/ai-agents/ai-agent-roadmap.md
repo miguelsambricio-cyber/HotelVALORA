@@ -1,9 +1,10 @@
 # AI Agent Roadmap
 
-Phased rollout of the 9 operational AI systems.
+Phased rollout of the AI Operations Layer.
 
-**Last refreshed:** 2026-05-11
-**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — runtime + 3 agents shipped, awaiting first cron firing**
+**Last refreshed:** 2026-05-12
+**Registry size:** 12 agents (Tier 0 CEO · 9 operational in the institutional orbital roster · `crm_dealflow` hidden from orbit until Phase 5 · legacy `report_generation` retained for DB enum backward compat)
+**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial** — runtime + 3 agents in beta (Market Intel · Data Ingestion · QA) · 2 agents registered awaiting Phase 2.3.d.1 / Phase 2.4.1 implementation (COSTAR Admin · CompSet Builder) · CEO still planned for Phase 3
 
 ---
 

@@ -76,3 +76,4 @@ secrets/
 uploads/
 exports/
 tmp/
+.vercel

@@ -133,12 +133,12 @@ All inputs persist to localStorage via Zustand (`hv-investment-v1`, schema v3). 
 | [AI_CONTEXT.md](AI_CONTEXT.md) | Compressed AI mental model |
 | [RULES.md](RULES.md) | Coding conventions for AI agents |
 | [ENTRYPOINTS.md](ENTRYPOINTS.md) | Task → file map |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture summary (full: `docs/architecture.md`) |
-| [COMPONENTS.md](COMPONENTS.md) | Canonical component catalog |
-| [ROADMAP.md](ROADMAP.md) | Roadmap summary (full: `docs/roadmap.md`) |
-| [CHANGELOG.md](CHANGELOG.md) | Recent changes (full: `docs/changelog.md`) |
-| [TODO.md](TODO.md) | Concrete pending items |
-| [docs/](docs/) | All canonical domain docs |
+| [CLAUDE.md](CLAUDE.md) | Project-level instructions for Claude Code |
+| [docs/](docs/) | All canonical domain docs (architecture · routing · changelog · roadmap · …) |
+| [docs/HOTELVALORA_MASTER_SYSTEM.md](docs/HOTELVALORA_MASTER_SYSTEM.md) | Executive entry point — vision, modules, runtime state |
+| [docs/changelog.md](docs/changelog.md) | Feature history — one entry per shipped task |
+| [docs/roadmap/](docs/roadmap/) | Master roadmap · current sprint · backlog |
+| [docs/legacy/](docs/legacy/) | Archived top-level docs (frozen 2026-05-12) |
 
 ---
 

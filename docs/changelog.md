@@ -4,6 +4,160 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Documentation stabilization wave (debt cleanup · admin surface · enforcement · legacy archive)
+
+Four-phase synchronization pass after the documentation audit revealed that the discipline relied on human memory and fell behind the platform work shipped on 2026-05-11. No new doc surface added — only catch-up, admin coverage, automation, and structural cleanup.
+
+**Phase 1 — Debt cleanup**
+Caught up `docs/changelog.md` (+3 entries for the production redirect fix, the Hobby cron unblock, and the institutional Admin UI bundle), repaired `docs/roadmap/current-sprint.md` (duplicate entries removed, "Up Next" sequentialised, "Just Shipped" backfilled), refreshed `docs/HOTELVALORA_MASTER_SYSTEM.md` (modules · runtime reality · next priorities), updated `docs/ai-agents/ai-agent-roadmap.md` registry counts (Tier 0 CEO + 9 operational + 1 hidden + 1 legacy = 12), documented the AI-Ops env var surface in `docs/infrastructure/environment-variables.md` (`CRON_SECRET` · `INGESTION_AUDIT_TOKEN` · `INTERNAL_ALERT_RECIPIENTS` with activation recipes).
+
+**Phase 2 — Admin UI documentation**
+Added `docs/features/admin.md` (11-section feature dossier — routes · navigation · 5-section Executive Control Room · AI Ops Center · component tree · mock data · status mapping) and `docs/architecture/admin-ui-architecture.md` (11-section technical architecture — goals · route+layout · mock data swap-target · component architecture · interaction state · light vs dark canvas · Phase 3 realtime path · build characteristics · edge cases · anti-patterns rejected · file map). Extended `docs/routing.md` with the three `/user/admin/*` routes plus the HTTP redirect table, and `docs/design-system/components.md` with the **Admin / Operations Center** primitive family + `signal-tints` contract + Bloomberg-terminal patterns + updated selection guide.
+
+**Phase 3 — Documentation enforcement (`scripts/docs-audit.mjs`)**
+Standalone Node script (no deps) that detects synchronization drift on every run. Four checks: (1) changelog drift — every commit on main since the last entry must appear in `docs/changelog.md`; (2) size caps — `ENTRYPOINTS.md` ≤ 200 lines · `AI_CONTEXT.md` / `RULES.md` ≤ 300 lines; (3) master docs freshness — `Last refreshed: YYYY-MM-DD` ≤ 1 day behind the latest commit on main; (4) sprint freshness — `current-sprint.md` `Updated YYYY-MM-DD` ≤ 1 day behind. Modes: human report (default), `--json`, `--strict` (CI). Critical failures exit 1. Uses `execFileSync` with arg arrays to survive Windows cmd.exe `%ad` interpretation.
+
+**Phase 3.5 — Surfaced debt cleared**
+First green-light run after Phase 3 surfaced three pre-existing items: catch-up consolidation for the 13 pre-stabilization commits (this entry), missing "Last refreshed" stamp on `docs/infrastructure/INFRASTRUCTURE_MASTER_TRACKER.md`, and `ENTRYPOINTS.md` size bloat (357 lines vs 200 cap — filed as a backlog item, not in scope for this wave).
+
+**Phase 4 — Legacy root docs archive**
+Moved 10 superseded top-level `.md` files into `docs/legacy/` (frozen archive): `ARCHITECTURE.md` · `ARCHITECTURE_SCORECARD.md` · `CHANGELOG.md` · `COMPONENTS.md` · `NEXT_PHASE_PLAN.md` · `REPORT_PAGES.md` · `ROADMAP.md` · `TECH_AUDIT.md` · `TODO.md` · `UI_COMPONENTS.md`. Each maps cleanly to a current source-of-truth (mapping table in `docs/legacy/README.md`). Root surface now consolidates to five active AI-facing files: `AI_CONTEXT.md` · `CLAUDE.md` · `ENTRYPOINTS.md` · `README.md` · `RULES.md`. Updated `README.md` and `ENTRYPOINTS.md` to drop legacy references.
+
+Operating principle locked in by this wave: **the documentation surface is already strong enough — the problem is synchronization and enforcement, not coverage**. Future PRs should not expand the surface; they should keep it green.
+
+### Pre-stabilization platform commits formally referenced
+
+This wave consolidates documentation for the platform work shipped on 2026-05-11 that was not previously cross-referenced in the changelog header. Audit closure (each SHA is the canonical reference; full feature commentary lives in the dedicated entries further down this file):
+
+- `9001c84` — feat(ai-ops): separate market warehouse ingestion from underwriting compset operations
+- `fe00f6a` — feat(costar): initialize institutional hospitality market intelligence workspace
+- `fdda651` — feat(audit): unify Data Ingestion audit chain (CLI <-> cloud)
+- `f705c70` — feat(data): build Data Ingestion Agent for workspace (Phase 2.3.b)
+- `6529cfe` — feat(data): initialize institutional transactions ingestion workspace
+- `ecd70ad` — feat(ai-ops+intel): Phase 2 · Tier 1 agent runtime + Intelligence ingestion pipeline
+- `e490e98` — feat(analytics): wire Vercel Analytics in the root layout
+- `e6ec45c` — docs(ai): add CEO / Orchestration Agent (Tier 0) to AI Operations Layer
+- `7b841c5` — docs(ai): initialize HOTELVALORA intelligence + AI operations layer architecture
+- `3158615` — feat(intelligence): initialize HOTELVALORA hospitality intelligence engine architecture
+- `8d6f078` — feat(email): Resend leaves sandbox · verified domain delivery
+- `32b1cd2` — fix(auth): silence /api/auth/session 500s · remove dead SessionProvider
+- `23139bd` — docs(infra): record Resend audit findings (2026-05-11)
+
+---
+
+## 2026-05-12 — Production redirect fix for /admin · /settings/admin · /user
+
+App Router page-level `redirect()` from `next/navigation` packs the redirect into an RSC error digest (`NEXT_REDIRECT;replace;<target>;307`). Works for client-side router navigation; **fails cold browser GETs and external links** because it does NOT emit an HTTP Location header. Verified in production: `/settings/admin` returned 307 with no Location, browsers showed a blank `__next_error__` page.
+
+Migrated the three defensive redirects to `next.config.mjs` `redirects()` rules — proper HTTP-level 308/307 with Location headers, universally followable by browsers / curl / crawlers / bookmarks.
+
+| Source | Target | HTTP |
+|---|---|---|
+| `/admin` + `/admin/<path>` | `/user/admin[/path]` | **308 Permanent** |
+| `/settings/admin` + `/settings/admin/<path>` | `/user/admin[/path]` | **308 Permanent** |
+| `/user` | `/user/admin` | **307 Temporary** |
+
+Deleted the three page-level stubs that were producing the broken RSC redirect:
+- `apps/web/src/app/admin/page.tsx`
+- `apps/web/src/app/settings/admin/page.tsx`
+- `apps/web/src/app/user/page.tsx`
+
+Verified in production via curl: 308 status + `Location: /user/admin` + chain follow lands at HTTP 200. (Commit `ebe5504`.)
+
+---
+
+## 2026-05-12 — Hobby plan cron limitation unblocked production deploys
+
+Diagnosed a 3-hour deploy stall: **no commit since `df23107` (Speed Insights) had reached production**. All Admin UI work, the costar workspace, the compset workspace, and the market-vs-underwriting split sat unpublished.
+
+Root cause: `vercel.json` added a `0 * * * *` (hourly) cron for the QA Monitoring agent. Vercel's Hobby plan only permits **daily** crons, so every subsequent build silently failed at the deploy step with `Hobby accounts are limited to daily cron jobs`.
+
+Fix: changed the QA cron to `30 9 * * *` (daily 09:30 UTC, no collision with the existing two crons). Trade-off: QA probes drop from hourly to daily until the project moves to Pro — agent code unchanged, only the schedule. (Commit `e93b573`.)
+
+---
+
+## 2026-05-12 — Institutional Administrator section + AI Operations Center UI
+
+The visual layer for the AI Operations Layer plus a defensive entry-point lattice. Four commits land this end-to-end.
+
+### Routes shipped (Next.js App Router, SSG where possible)
+
+```
+/user/admin                          Executive Control Room (5-section dashboard)
+/user/admin/agents                   AI Operations Center (orbital + directory)
+/user/admin/agents/[agentId]         Per-agent dashboard (11 paths SSG · CRM kept hidden)
+```
+
+Plus three defensive redirects to absorb the natural URLs operators type:
+`/admin`, `/settings/admin`, `/user` — all route to `/user/admin`.
+
+### Executive Control Room (`/user/admin`)
+
+Five institutional sections, Bloomberg-terminal aesthetic on a dark forest-900 / slate-950 canvas with lime-300 accents and tracked-out micro-labels:
+
+| # | Section | Contents |
+|---|---|---|
+| 01 | Executive Overview | 10 KPI tiles (Platform Status · Agents Active · Last Deploy · Last Cron · Data Freshness · New Tx · New Projects · UW Jobs · Error Alerts · Infra Health) |
+| 02 | AI Operations Center | Featured card · mini orbital glyph · CTA into /user/admin/agents |
+| 03 | Data Pipeline Center | 6 cards (CoStar · Transactions · Projects · Market Intel · CompSet · Reports) |
+| 04 | Infrastructure Monitoring | 6 services (Vercel · Supabase · Resend · Cron · Storage · API) with subtle operational pulse |
+| 05 | Recent Operational Activity | Timeline with channel labels (AGENT / INGEST / CRON / DEPLOY / AUDIT / INFRA) |
+
+### AI Operations Center (`/user/admin/agents`)
+
+Orbital architecture: CEO Agent at the centre (Tier 0 · supervisory · never an executor); 9 operational agents in orbit (Market Intelligence · Data Ingestion · COSTAR Admin · CompSet Builder · QA Monitoring · CFO · CMO · Customer Support · Underwriting); supervisory threads back to the CEO with stroke colour mirroring agent status; 4-light readout per node (**ACTIVE · IDLE · WARNING · ERROR**); click → right-side `AgentDetailPanel` slides in (640px · ESC closes · scroll-lock) with mission / operational state / responsibilities / linked systems / operational metrics / latest events / current blockers / future integrations / references.
+
+COSTAR Admin + CompSet Builder render as **WARNING** with `statusLabel: "Configured · Manual"` and explicit currentMode text per user specification — "Configured but not operational yet".
+
+### Component tree
+
+```
+apps/web/src/components/admin/
+├── admin-sidebar.tsx                Brand block · primary nav · planned nav · sign-out
+├── agents/
+│   ├── agent-orbit.tsx              Radial SVG layout · 9 positions · supervisory threads
+│   ├── agent-node.tsx               Round chip · 4-light readout · onSelect OR Link
+│   ├── agent-detail-panel.tsx       Right-side slide-out · sectioned content
+│   ├── agent-dashboard.tsx          Per-agent full page composition
+│   ├── agent-status-badge.tsx       Pill with light-canvas tints
+│   ├── agent-health-ring.tsx        SVG ring · stroke-dasharray progress
+│   ├── agent-logs-panel.tsx         Bloomberg log feed (monospace)
+│   └── agent-metrics-panel.tsx      KPI grid 2/4-col responsive
+└── dashboard/
+    ├── signal-tints.ts              OK / WARN / ERROR / NEUTRAL contract
+    ├── kpi-card.tsx                 Dark-canvas KPI tile + side rail
+    ├── ai-ops-feature-card.tsx      Featured CTA + mini orbital glyph
+    ├── pipeline-card.tsx            Pipeline status card
+    ├── infra-indicator.tsx          Operational pulse indicator
+    └── activity-timeline.tsx        Channel-labelled timeline
+```
+
+### Mock data layer
+
+```
+apps/web/src/lib/admin/
+├── agents/                          11-agent registry (CEO + orbital + hidden CRM)
+└── dashboard/                       10 KPIs + 6 pipelines + 6 infra + 8 activity
+```
+
+### Navigation integration
+
+- AppHeader gains an `ADMIN` pill (lime accent when active) next to BIBLIOTECA + USUARIO
+- Settings sidebar gains a featured `Administrator · Operations Center` CTA card at the bottom — visible on every `/settings/*` page
+- All entry points route to real Next.js URLs (no hash navigation)
+
+### Build/lint
+
+`pnpm typecheck` clean · `pnpm build` clean — 50 routes generated · `/user/admin` 117 KB First Load · `/user/admin/agents/[agentId]` SSG with 11 pre-rendered paths.
+
+### Future realtime strategy (Phase 3)
+
+Mock data layer is a swap-target. Agent statuses become a Supabase Realtime subscription on `ai_agents` + `ai_agent_runs`. Executive KPIs become aggregations over `ai_agent_runs` + per-workspace `INGESTION_LOG`. Recent activity becomes an `ai_events` stream. Components do not change.
+
+Commits in this entry: `80b8462` (initialize) · `3e326eb` (real routing fix) · `037bd4c` (institutional ops center) · `f9d385a` (featured CTA + redirects).
+
+---
+
 ## 2026-05-11 — Market warehouse vs underwriting operations: formal separation
 
 Architectural decision that splits the previously-monolithic CoStar workspace into two distinct operational layers owned by two distinct agents. The split is load-bearing for scalability, auditability, operational clarity, and cost containment — see `docs/architecture/market-vs-underwriting-separation.md` for the full rationale.

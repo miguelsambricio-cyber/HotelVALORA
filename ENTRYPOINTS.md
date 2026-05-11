@@ -333,8 +333,6 @@ Maps tasks to exact files. Start here before scanning.
 | `docs/maps.md` | Mapbox CompSet map + stylised pin map (Market Overview) |
 | `docs/design-system.md` | Color tokens, typography, spacing, Tailwind conventions |
 | `docs/component-library.md` | Canonical primitives catalog (preferred for new pages) |
-| `REPORT_PAGES.md` | Per-page composition trees, web↔print contracts (root-level) |
-| `UI_COMPONENTS.md` | All component families grouped by import surface (root-level) |
 | `docs/business-rules.md` | Premium tiers, locked gates, workflow constraints |
 | `docs/financial.md` | Valuation metrics, formatters, display rules |
 | `docs/workflows.md` | User flows, CTA wiring, navigation state |

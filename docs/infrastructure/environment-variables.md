@@ -58,6 +58,78 @@ When these services land, append to `.env.example` AND this table:
 | `ANTHROPIC_API_KEY` | Anthropic | Phase 5 |
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway | Phase 5 |
 
+## AI Operations Layer (Phase 2+)
+
+The Tier 1 agents + audit-chain unification depend on three additional secrets. All ship as encrypted Vercel env vars; the cron routes refuse to run without them in production.
+
+### `CRON_SECRET` — Vercel Cron Bearer token
+
+| Where it's read | What it guards |
+|---|---|
+| `apps/web/src/lib/cron-auth.ts` → `assertCron()` | `/api/cron/hospitality-intel`, `/api/cron/market-intelligence`, `/api/cron/qa-monitoring` |
+
+The cron route handler enforces `Authorization: Bearer $CRON_SECRET`. Vercel Cron injects this header automatically when the env var is set on the project. Manual operator retriggers must pass the same header explicitly.
+
+**Posture per environment**
+
+| Env | Without secret | Behaviour |
+|---|---|---|
+| Production | `assertCron()` returns 401 | Hard gate — cron routes deny all requests |
+| Preview / dev | `assertCron()` logs a warning + allows | Soft posture so local + preview can exercise the cron path |
+
+**Generate**: `openssl rand -hex 32` (or any 32+ char random string). Mirror to `apps/web/.env.local` for local dev runs.
+
+```bash
+TOKEN="$(openssl rand -hex 32)"
+echo "$TOKEN" | vercel env add CRON_SECRET production
+echo "$TOKEN" | vercel env add CRON_SECRET preview
+echo "CRON_SECRET=$TOKEN" >> apps/web/.env.local
+```
+
+### `INGESTION_AUDIT_TOKEN` — Operator-CLI ↔ cloud bridge
+
+| Where it's read | What it guards |
+|---|---|
+| `apps/web/src/app/api/agents/data-ingestion-summary/route.ts` → `assertAuth()` | The audit-sync endpoint that records `ai_agent_runs` rows from the Python CLI |
+| `services/transactions/scripts/audit_sync.py` | Operator CLI POSTs Bearer header with this value |
+
+**Without the secret on Vercel** every CLI run still completes locally (MASTER + INGESTION_LOG + per-run jsonl remain authoritative) but the `audit_sync.sync_outcomes()` call fails. The CLI prints a soft-fail message + a recovery hint; it never rolls back the local commit.
+
+```bash
+TOKEN="$(openssl rand -hex 32)"
+echo "$TOKEN" | vercel env add INGESTION_AUDIT_TOKEN production
+export INGESTION_AUDIT_TOKEN="$TOKEN"    # add to ~/.bashrc or ~/.zshrc
+```
+
+Optional companion: `INGESTION_AUDIT_URL` (defaults to `https://hotelvalora.com/api/agents/data-ingestion-summary`). Useful when testing against a preview deployment.
+
+### `INTERNAL_ALERT_RECIPIENTS` — QA / Monitoring escalation list
+
+| Where it's read | What it powers |
+|---|---|
+| `apps/web/src/lib/ai-agents/core/escalation.ts` → `parseRecipients()` | The recipient list for Resend internal alerts |
+
+Comma-separated email list. The QA / Monitoring Agent sends escalations to this list with a 15-minute cooldown per `dedup_key`. When unset, falls back to a hard-coded `miguel.sambricio@metcub.com`.
+
+```bash
+echo "miguel.sambricio@metcub.com,ops@metcub.com" | vercel env add INTERNAL_ALERT_RECIPIENTS production
+```
+
+Used together with the `monitoring.escalate.email` tool (registered in `public.ai_tools`, integration=`resend`, `requires_human_approval=false` — escalations go to the closed env-pinned list, no per-send approval).
+
+### Activation summary
+
+| Var | Required for | Generate |
+|---|---|---|
+| `CRON_SECRET` | Cron routes in production | `openssl rand -hex 32` |
+| `INGESTION_AUDIT_TOKEN` | Audit-sync from Python CLI | `openssl rand -hex 32` |
+| `INTERNAL_ALERT_RECIPIENTS` | QA Resend escalations to operators | Comma-separated emails |
+
+All three are **pending** activation on Vercel as of 2026-05-12. The system soft-fails until they land:
+- Cron routes deny in production (defence in depth)
+- CLI audit-sync prints a recovery hint
+- QA escalations land at the hardcoded fallback inbox
+
 ## Verification
 
 - `apps/web/.env.local` exists locally and contains every active variable above (6 today, +2 auth flags when AUTH_ENABLED is on).

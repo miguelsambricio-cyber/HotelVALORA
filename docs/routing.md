@@ -33,6 +33,21 @@
 | `/library/top-map` | `app/library/top-map/page.tsx` | `LibraryShell` | Library — Top Reports map (sibling of favorites-map; route-driven FAVORITOS/TOP segmented nav) |
 | `/library/favorites-list` | `app/library/favorites-list/page.tsx` | `LibraryShell` | Library — Favorites institutional list (Bloomberg-grade table: 8 amenities + financials + indicators + locked-cell pattern, sticky thead + sticky first column, h-scroll) |
 | `/library/top-list` | `app/library/top-list/page.tsx` | `LibraryShell` | Library — Top Reports institutional list (same table, REF column added, "TOP REPORTS" header copy) |
+| `/user/admin` | `app/user/admin/page.tsx` | `AdminLayout` | Executive Control Room — 5-section institutional dashboard (Executive Overview · AI Operations · Data Pipeline Center · Infrastructure · Recent Activity) |
+| `/user/admin/agents` | `app/user/admin/agents/page.tsx` | `AdminLayout` | AI Operations Center — orbital layout (CEO centre · 9 operational agents) + agent directory grouped by Tier |
+| `/user/admin/agents/[agentId]` | `app/user/admin/agents/[agentId]/page.tsx` | `AdminLayout` | Per-agent dashboard · SSG with 11 pre-rendered paths (10 visible agents + hidden `crm_dealflow`) |
+
+### HTTP redirects (`next.config.mjs`)
+
+These three URLs absorb the natural paths operators type / bookmark. Real HTTP 308/307 with `Location` header — universally followable by browsers, curl, crawlers.
+
+| Source | Destination | HTTP |
+|---|---|---|
+| `/admin` + `/admin/<path>` | `/user/admin[/<path>]` | 308 Permanent |
+| `/settings/admin` + `/settings/admin/<path>` | `/user/admin[/<path>]` | 308 Permanent |
+| `/user` | `/user/admin` | 307 Temporary |
+
+Note: page-level `redirect()` from `next/navigation` only works inside Next.js client routing (RSC payload). For cold browser GETs / external links, **always** use `next.config.mjs` `redirects()`.
 
 ---
 

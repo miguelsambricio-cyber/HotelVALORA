@@ -4,7 +4,7 @@
 > Cross-references every other doc in `/docs/*` and the four AI-context files at
 > repo root (`AI_CONTEXT.md`, `RULES.md`, `ENTRYPOINTS.md`, `README.md`).
 
-**Last refreshed:** 2026-05-11 — keep this date current after structural updates.
+**Last refreshed:** 2026-05-12 — keep this date current after structural updates.
 
 ---
 
@@ -28,13 +28,16 @@ The product feel target: **Bloomberg Terminal × CoStar × MSCI Real Assets × l
 
 ```
 landing       /                                       public marketing
-auth          /login                                  mock today, NextAuth-shaped store
+auth          /login + /auth/callback                 Supabase Auth (Google OAuth)
 dashboard     /(dashboard)/{assets,valuations,…}      KPI + portfolio map (mock)
 compset       /compset                                Mapbox CompSet selection (real)
 report        /report/{6 sections}                    PDF-ready institutional report
-settings      /settings/{profile,credentials,…}       4 sub-tabs incl. Investment criteria
+settings      /settings/{profile,credentials,…}       3 user-settings sub-tabs
 library       /library/{favorites,top}/{map,list}     map + table views, contact card
 review        /(dashboard)/review                     data-quality queues (real API)
+admin         /user/admin + /user/admin/agents[/id]   Institutional Operations Center
+              ↑ Executive Control Room + AI Operations Center (orbital · CEO + 9 agents)
+              ↑ See `docs/features/admin.md` + `docs/architecture/admin-ui-architecture.md`
 ```
 
 See **`docs/routing.md`** for the full route map and active-state rules.
@@ -70,7 +73,10 @@ Today's runtime reality:
 - Mock data lives in `apps/web/src/lib/{report,library,…}/*-data.ts` and `apps/web/src/lib/library/mock-reports.ts`.
 - **Auth.js v5 is wired** (Google + LinkedIn + Apple providers, JWT sessions, gated middleware) but currently inert — `AUTH_ENABLED=false` until OAuth credentials are minted. The mock Zustand auth store coexists for demos.
 - **Supabase is live in production** — project `twebgqutuqgonabvhzjk` (eu-central · Postgres 17). 48-table schema + 5 Storage buckets + Library seed + Intelligence Engine + AI Operations Layer foundations applied (migrations `0001`–`0007`); every table and `storage.objects` namespace has RLS; env wired on Vercel. **Library surfaces are production-backed**. **Supabase Auth wired**. **Public Beta / Showcase Mode** (no route protection during validation). **GitHub → Vercel auto-deploy enabled**. **Hospitality Intelligence Engine foundation in place** — `docs/intelligence/`. **AI Operations Layer foundation in place** — 7 tables, **10 operational AI systems declared** organised in 4 tiers (Tier 0: CEO / Orchestration · Tier 1: Market Intelligence + Data Ingestion + QA/Monitoring · Tier 2: Underwriting + Report Generation · Tier 3: CRM/Dealflow + Customer Success + CMO + CFO), 30 tools catalogued. **These are NOT chatbots and NOT a side feature — they are a future core operating layer.** The CEO / Orchestration Agent is the supervisor that sits above the other nine — operations command center, AI chief-of-staff, escalation router — landing in Phase 3 once Tier 1 agents produce enough audit data to supervise. Phase 2 next-sprint candidate: Tier 1 agents + agent runtime core.
-- **Resend transactional email is live** in production (`RESEND_API_KEY` + sandbox sender). The Library "Schedule a Tour" CTA on top-promoted reports sends real emails.
+- **Resend transactional email is live** in production (`RESEND_API_KEY` + verified `hotelvalora.com` sender). The Library "Schedule a Tour" CTA on top-promoted reports sends real emails.
+- **AI Operations Layer registry is at 12 agents** (CEO + 9 in the institutional orbital roster + `crm_dealflow` hidden + legacy `report_generation` retained for backward compat). Per-agent charters live under `docs/agents/*` (CEO · CoStar Market Data · CompSet Underwriting). The market-vs-underwriting separation is the load-bearing architectural decision — see `docs/architecture/market-vs-underwriting-separation.md`.
+- **Three institutional ingestion workspaces** live under `services/`: `transactions/` (deals + projects, CLI live), `costar/` (country / market / submarket / class warehouse, scaffold + masters live, CLI Phase 2.3.d.1), `compset/` (per-hotel COMPSET + HOTEL_POSITIONING, scaffold + masters live, agent Phase 2.4.1).
+- **Administrator surface is live** at `/user/admin` (Executive Control Room) and `/user/admin/agents` (AI Operations Center — orbital layout with `AgentDetailPanel` slide-out). Bloomberg-terminal aesthetic, mock data today; Phase 3 swaps in realtime reads from `ai_agent_runs` + `INGESTION_LOG` sheets.
 
 ---
 
@@ -103,11 +109,11 @@ Full per-feature dossier: **`docs/features/library.md`**.
 
 ## 6 · Next priorities (snapshot)
 
-1. **Wire real backend** behind the report + library surfaces (replace mock files with TanStack Query hooks against `apps/api`).
-2. **Mapbox swap** for the institutional map (the abstraction is in place — `types/library.ts MapProviderHandles`).
-3. **Top Promote marketplace gating**: payment flow, `promotedUntil` expiration, impression / click telemetry.
-4. **Auth real-world replacement**: NextAuth or Supabase swap for the in-memory mock store.
-5. **Print / PDF**: server-side render via Puppeteer for institutional-grade exports (currently `window.print()`).
+1. **Activate 3 env vars on Vercel** — `CRON_SECRET`, `INGESTION_AUDIT_TOKEN`, `INTERNAL_ALERT_RECIPIENTS`. See `docs/infrastructure/environment-variables.md`.
+2. **Phase 2.3.d.1 — CoStar Market Data Agent CLI** — mirror the transactions ingest pipeline across the 4 CoStar granularities. Flips `costar_market_data` → `beta`.
+3. **Phase 2.4.1 — CompSet Underwriting Agent implementation** — TS agent + cloud route + operator CLI. Flips `compset_underwriting` → `beta`.
+4. **Phase 3 prep** — pgvector enable + reactive orchestrator + CEO Agent runtime activation.
+5. **Mapbox swap** for the static grayscale library map.
 
 Open backlog: see `docs/roadmap/backlog.md`.
 

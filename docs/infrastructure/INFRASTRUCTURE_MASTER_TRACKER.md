@@ -1,5 +1,7 @@
 # Infrastructure Master Tracker
 
+Last refreshed: 2026-05-12
+
 Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corresponding section here with the full 15-field detail.
 
 **Status legend:** 🟢 working · 🟡 partial · 🔴 not configured · ⚫ blocked · 🔵 planned
