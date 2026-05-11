@@ -293,5 +293,5 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | ⚫ Blocked | 0 |
 | 🔵 Planned | 11 |
 
-**Infrastructure health score: 86%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 27×1 + 3×0.5 + 3×0.0 = 28.5 of 33 active services = 86%. Vercel Analytics now installed + mounted — page-view + custom-event tracking on production deploys, GDPR-friendly, no env vars. Quick-win observability shipped.)
+**Infrastructure health score: 87%**
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 28×1 + 3×0.5 + 3×0.0 = 29.5 of 34 active services = 87%. Vercel Speed Insights joins Vercel Analytics — full RUM stack live (page views + events + Core Web Vitals). Same GDPR-friendly cookie-free posture.)

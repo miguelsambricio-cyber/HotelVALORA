@@ -4,6 +4,18 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — Vercel Speed Insights enabled
+
+Installed `@vercel/speed-insights` 2.0.0 in `apps/web` and mounted `<SpeedInsights />` next to `<Analytics />` in the root layout. Adds Real User Monitoring of Core Web Vitals (LCP, FID, CLS, INP, TTFB) per page to the existing page-view + custom-event tracking. Same cookie-free, GDPR-compliant posture. Same auto-enable on Vercel production — no env vars.
+
+### Bundle delta
+Library route First Load JS stayed at 214 kB (the Speed Insights script is also <1 KB gzip and lives in the shared chunk). Middleware unchanged at 81.8 kB.
+
+### Where to see it
+After this auto-deploy lands, Core Web Vitals appear at `https://vercel.com/miguel-sambricio-s-projects/hotelvalora/speed-insights` with the same ~30s ingest delay as Analytics. The dashboard breaks down by page, device, and geography.
+
+---
+
 ## 2026-05-11 — Vercel Analytics enabled
 
 Installed `@vercel/analytics` 2.0.1 in `apps/web` and mounted `<Analytics />` in the root layout. Cookie-free, GDPR-compliant page-view + custom-event tracking. Auto-enabled on production deploys via the Vercel platform — no env vars to configure.

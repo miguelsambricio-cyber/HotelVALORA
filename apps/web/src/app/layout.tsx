@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Manrope } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -24,6 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Vercel Analytics — cookie-free, GDPR-compliant page-view + event
             tracking. No-op outside production deploys on Vercel. */}
         <Analytics />
+        {/* Vercel Speed Insights — Real User Monitoring of Core Web Vitals
+            (LCP, FID, CLS, INP, TTFB). Same no-op behaviour outside Vercel
+            production deploys. */}
+        <SpeedInsights />
       </body>
     </html>
   );
