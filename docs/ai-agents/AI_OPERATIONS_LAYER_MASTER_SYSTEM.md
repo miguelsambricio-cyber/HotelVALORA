@@ -1,0 +1,242 @@
+# HOTELVALORA · AI Operations Layer — Master System
+
+> **NOT chatbots. NOT a side feature. This is a future CORE operating layer of HOTELVALORA.**
+>
+> Read this once. The AI Operations Layer is the institutional muscle that turns the platform from "calculator with UI" into an autonomous, auditable, hospitality investment operating system. Future engineers and AI agents reading this should treat the architecture commitments as load-bearing — violating them turns the platform back into a script collection.
+
+**Last refreshed:** 2026-05-11
+**Phase status:** 🟢 Phase 1 (foundation) live — schema applied (migration `0007`), 9 agents registered, 20 tools catalogued, RLS posture in place. **Zero agent implementation yet** — that lands phase by phase per `ai-agent-roadmap.md`.
+
+---
+
+## 1. Definition
+
+An **Operational AI System** ("agent" in shorthand) in HotelVALORA is a software actor that owns a job. Each agent has:
+
+| Pillar | What it means |
+|---|---|
+| **Responsibilities** | The jobs the agent owns end-to-end (not a list of tasks — actual outcomes) |
+| **Workflows** | Deterministic sequences the agent executes; deterministic shell wraps non-deterministic LLM calls |
+| **Permissions** | Scoped access to tables, tools, external APIs — never blanket |
+| **Memory** | Long-term + working memory in `ai_memory` (pgvector once enabled) |
+| **Integrations** | External services the agent reaches via tools registered in `ai_tools` |
+| **Auditability** | Every invocation is a row in `ai_agent_runs` with steps, tokens, cost |
+| **Event triggers** | Cron · reactive (via `ai_events`) · manual · webhook · agent-to-agent |
+| **KPIs** | Quantified success metrics declared in `ai_agents.kpis` |
+| **Escalation** | Rules for handing decisions to humans via `ai_human_review` |
+| **Orchestration** | How the agent composes with others — agent-to-agent calls are first-class |
+
+An agent is NOT a chat surface. The chat surfaces (if any) are thin clients that submit work to agents. The agents themselves are background workers.
+
+## 2. The nine planned agents
+
+| # | Agent | Strategic role | Phase |
+|---|---|---|---|
+| 1 | **Market Intelligence** | Owns the daily news + transactions + projects corpus. The Hospitality Intelligence Engine (migration `0006`) is its data substrate | 2 — next |
+| 2 | **Data Ingestion** | Parses Excel / CoStar / external feeds; validates; normalises columns; surfaces ingestion errors | 2 — next |
+| 3 | **QA / Monitoring** | Watches deploys, Supabase advisors, Vercel cron failures, Resend delivery, uptime — pages humans on detected failures | 2 — next |
+| 4 | **Underwriting** | **Strategic moat.** DCF, sensitivity, risk scoring, operator fit, highest-and-best-use, investment memo generation. Requires the underwriting UX shell first | 4 |
+| 5 | **Report Generation** | Renders institutional PDFs from underwriting + intelligence inputs. Tier-aware formatting | 4 |
+| 6 | **CRM / Dealflow** | Maintains investor + operator dossiers, contacts, leads, tours, follow-ups, deal pipeline | 5 |
+| 7 | **Customer Success** | WhatsApp / chat support, onboarding, FAQs, demo coordination | 6 |
+| 8 | **CMO** | LinkedIn + X publishing, newsletters, market reports, campaign automation. Every outbound piece flows through `ai_human_review` | 6 |
+| 9 | **CFO** | Reconciliation, cloud cost monitoring, burn rate, runway, invoice + tax prep. Every financial side-effect requires human approval | 6+ |
+
+The order is the **build order**. We start where the platform already has data + low-risk surfaces (Intelligence, Data Ingestion, Monitoring) and work outward to surfaces that need product-market fit (CS, CMO, CFO).
+
+## 3. Strategic importance
+
+Three reasons the AI Operations Layer is a CORE moat, not a feature:
+
+### 3.1 · It compounds every dataset advantage
+
+The Hospitality Intelligence Engine (`docs/intelligence/`) gives us a corpus. The Underwriting Agent applies that corpus to a deal in 30 seconds — a human analyst takes 8 hours. The Report Generation Agent then emits a printable institutional memo. The CRM Agent surfaces it to the right partner. The entire flow runs while the analyst sleeps. The competitive gap is not "we have AI" — it's **"every action that compounds across surfaces compounds 24/7".**
+
+### 3.2 · It separates HotelVALORA from the SaaS template
+
+The default trajectory for a hospitality SaaS is: form fields → database → reports. Add AI later as a chatbot widget. That trajectory plateaus at €20-50k ACV per seat. HotelVALORA's bet is: **the AI Operations Layer is the product**. The frontend is the cockpit; the agents are the engines. That changes the ACV ceiling because what you sell stops being seats and starts being decisions.
+
+### 3.3 · It builds an institutional trust surface
+
+Institutional clients won't trust black-box AI. They trust **deterministic shells wrapped around non-deterministic intelligence**. Every action is a row in `ai_agent_runs`. Every destructive action passes `ai_human_review`. Every KPI is measured. Auditability is the difference between "AI we use" and "AI we let near the books".
+
+## 4. Position in the platform
+
+```
+                ┌─────────────────────────────────────────────────────────────────────────┐
+                │                  HotelVALORA Frontend (Vercel · Next.js)                │
+                │                                                                          │
+                │   Library · Reports · Maps · Underwriting · CRM (future) · Alerts       │
+                └─────────────────────────────────────────────────────────────────────────┘
+                       ▲                                                          ▲
+                       │ reads canonical data                                     │ subscribes via Realtime
+                       │ (TanStack Query · anon Supabase client · RLS)            │ to ai_events
+                       ▼                                                          │
+                ┌─────────────────────────────────────────────────────────────────────────┐
+                │                       Supabase Postgres — shared substrate              │
+                │                                                                          │
+                │   APPLICATION DATA            INTELLIGENCE DATA           AI OPS DATA   │
+                │   ───────────────            ──────────────────           ────────────  │
+                │   valuations                  market_news                  ai_agents     │
+                │   profiles                    hotel_transactions           ai_agent_runs │
+                │   organizations               hotel_projects               ai_events     │
+                │   favorite_reports            investors                    ai_memory     │
+                │   top_promote_reports         operators                    ai_tools      │
+                │   ...                         sources / entities / tags    ai_human_review│
+                │                                                                          │
+                │   RLS: public-read for showcase data · service-role for ops data        │
+                └─────────────────────────────────────────────────────────────────────────┘
+                       ▲                                ▲                                ▲
+                       │ writes (validated)             │ writes                         │ writes (audited)
+                       │                                │                                │
+                ┌──────┴────────┐               ┌───────┴────────┐              ┌────────┴─────────┐
+                │   App APIs    │               │  Intelligence  │              │   AI Agents      │
+                │   server      │               │  Ingestion     │              │   (background)   │
+                │   actions     │               │  Cron          │              │                  │
+                └───────────────┘               └────────────────┘              └──────────────────┘
+                                                                                         ▲
+                                                                                         │ triggered by
+                                                                                         │
+                                                                          ┌──────────────┴───────────────┐
+                                                                          │  Cron · ai_events · webhooks │
+                                                                          │  manual · agent-to-agent     │
+                                                                          └──────────────────────────────┘
+```
+
+## 5. Operating philosophy
+
+### 5.1 · Deterministic shell, non-deterministic core
+
+Every agent run is a **finite state machine**. The states are deterministic (load context → call tool → validate output → write audit step → next state). The "core" — the LLM call or model invocation — is non-deterministic, but it is one step of a wider deterministic loop. We never let an LLM control orchestration. That's a strict rule.
+
+### 5.2 · Audit everything, retain nothing else
+
+Every `ai_agent_runs` row has the full `input`, `output`, `steps`, `tokens_in/out`, `cost_usd`. Retention is forever. Aggregate metrics roll up daily. **Nothing else** about an agent's internal state persists beyond `ai_memory`. There is no hidden state.
+
+### 5.3 · Permissions are declarative
+
+An agent cannot call `stripe.refunds.create` unless there is a row in `ai_agent_permissions` granting it. Even the service-role client respects this — the application code consults `ai_agent_permissions` before issuing the tool call. RLS enforces table-level. The permissions matrix is the **trust surface**.
+
+### 5.4 · Destructive actions queue for humans
+
+Every tool with `is_destructive=true` OR `requires_human_approval=true` does not execute when the agent calls it. Instead, the agent inserts into `ai_human_review` with the `proposed_action` and pauses the run (`status='awaiting_approval'`). A human approves or rejects. On approval, the run resumes; the same `ai_agent_runs.id` records the resumption. **The agent never has unilateral destructive power.**
+
+### 5.5 · Memory is scoped, expiring, and importance-weighted
+
+`ai_memory` rows have a scope (`agent_global` / `agent_org` / `agent_user` / `agent_session` / `shared`) and an `expires_at`. The orchestrator garbage-collects expired memory daily. Each row has `importance_score` (0..1) which the LLM context-builder uses to rank what to include. We never inflate the LLM context with raw history; we curate it.
+
+### 5.6 · The orchestrator is a queue + a router, not an LLM
+
+In Phase 2-3, the "orchestrator" is a Postgres-backed queue + a Vercel cron + a router function that maps `ai_event_kind` → `ai_agent_id`. There is NO LLM-controlled router. When an event fires, the router consults a static rules table (eg. `news_ingested → market_intelligence`) and enqueues a run. We may eventually let an LLM propose orchestration changes, but those land via `ai_human_review` first.
+
+### 5.7 · Cost ceilings are non-negotiable
+
+Every agent has a daily cost cap declared in `ai_agents.config.daily_cost_usd_cap`. When the cap is hit, runs queue but don't execute until the next day. The orchestrator enforces this. We will refuse to ship an agent without a declared cap.
+
+## 6. Connection points to the rest of the platform
+
+### 6.1 · With the Hospitality Intelligence Engine
+The Market Intelligence Agent IS the consumer of the engine. The corpus tables (`market_news`, `hotel_transactions`, …) are read-only inputs to the agent; the agent writes derived rows (categorisation, entity extraction, dossier rollups). The intelligence engine has a daily cron at 08:48 Madrid; the agent runs after each ingestion completes, triggered via `news_ingested` event.
+
+### 6.2 · With Underwriting
+The Underwriting Agent reads:
+- The user's underwriting form input (live, via the UX shell)
+- The corpus comps from Intelligence
+- The asset's existing data from `valuations`
+- The user's investment criteria from `investment_requirements`, `valuation_preferences`
+
+It writes:
+- A draft underwriting record back to `valuations`
+- A draft investment memo as a `saved_reports` row
+- A `news_entities` link if the memo references news rows
+
+Every Underwriting Agent run is gated by user-initiated input — it does NOT run autonomously today. Phase 5+ may add proactive memo refresh.
+
+### 6.3 · With the CRM (future)
+The CRM Agent watches:
+- `ai_events.kind = 'tour_requested'` → enriches `contacts` + drops a follow-up reminder
+- New `market_news` entries that mention an investor in CRM → appends to dossier
+- Stripe payment events → upgrades contact tier
+
+It writes:
+- `contacts`, `leads`, `notes`, `activity_log` rows
+- `ai_human_review` for any contact merge proposals
+
+### 6.4 · With the Alerts system (future)
+The Alerts engine is a thin event-listener: subscriptions matched against `hotel_transactions` insert events → Resend dispatch via the existing email integration. It is NOT a standalone agent — it's a workflow inside the Market Intelligence Agent's surface.
+
+### 6.5 · With external integrations
+Each external integration is declared as a tool in `ai_tools`. Adding a new integration = new row. No agent can call an undeclared tool. The integration surface for each agent:
+
+| Agent | Likely integrations |
+|---|---|
+| Market Intelligence | RSS feeds · scrape targets · CoStar API (Phase 5) · OpenAI / Anthropic (summaries) |
+| Data Ingestion | Local Excel parsers · CoStar exports · Catastro · MSCI |
+| QA / Monitoring | Vercel API · Supabase advisors · PagerDuty / Slack webhooks · UptimeRobot |
+| Underwriting | OpenAI / Anthropic · internal financial-engine service · Mapbox |
+| Report Generation | Puppeteer (PDF) · Mapbox (static maps) · OpenAI (summaries) |
+| CRM / Dealflow | Supabase tables · Resend (reminders) · LinkedIn (enrichment) |
+| Customer Success | WhatsApp Business API · Intercom · Crisp |
+| CMO | LinkedIn API · X API · Resend · Buffer · Notion |
+| CFO | Stripe · Holded · Xero · QuickBooks · bank APIs (Plaid/Truelayer) |
+
+## 7. AI governance principles
+
+Six principles. Non-negotiable.
+
+1. **Explainability over magic.** Every agent decision must trace to specific inputs the user can re-inspect.
+2. **Tier-aware capability.** Free users get summarised outputs; paying users get full agent capability. No agent ignores tier.
+3. **Human-in-the-loop on side-effects.** Anything that moves money, sends a message to an external party, or modifies an external integration → `ai_human_review`.
+4. **Permission denial fails loud.** A blocked tool call is logged as a step with `status='failed'` + error reason. We don't silently degrade.
+5. **No agent runs another's destructive tools.** Agent-to-agent calls can only invoke read tools. The CMO can't ask the CFO to issue a refund through it.
+6. **Operator override is always available.** Any human with `users.role IN ('admin','owner')` can pause an agent (`ai_agents.enabled = false`), cancel a run, or reject pending reviews — via SQL or future admin UI.
+
+## 8. Future monetisation possibilities
+
+Pre-product-market-fit thesis. Not committed to.
+
+- **Agent-tier subscriptions**: free (Market Intelligence read-only) / pro (Underwriting + Report Generation per-deal credits) / premium (Underwriting unlimited + CRM + alerts) / enterprise (all agents + dedicated config)
+- **Per-memo pricing**: €50–500 per institutional-grade underwriting memo, billed against a credit balance
+- **CRM Agent as a B2B add-on**: family offices pay €X k/month for dossier maintenance
+- **Co-branded alerts** for partner funds: Resend-dispatched daily briefs under their brand
+- **API access**: institutional clients consume `intelligence.dossier.refresh` + `reports.pdf.generate` via authenticated API keys
+
+## 9. Long-term product vision
+
+| Phase | Quarter (rough) | Outcome |
+|---|---|---|
+| 1 — Foundation | Q2 2026 (done) | Schema + docs + master strategy |
+| 2 — Intelligence + Ingestion + Monitoring agents (Tier 1) | Q3 2026 | Daily news in production · CoStar parsing live · uptime + advisor monitoring active |
+| 3 — Memory + orchestrator + permissions enforcement | Q3 2026 | pgvector enabled · `ai_memory` populated · permissions enforced at every tool call |
+| 4 — Underwriting + Report Generation agents | Q4 2026 | Strategic moat live · institutional memos generated on-demand · tier gating |
+| 5 — CRM / Dealflow agent + alerts engine | Q1 2027 | Investor + operator dossiers live · per-user alert subscriptions |
+| 6 — CS + CMO + CFO agents | Q2-Q3 2027 | Full operating layer · all internal ops AI-assisted · human-in-the-loop everywhere |
+| 7+ — Open API + co-branded products | 2027+ | Monetised partner-facing surfaces |
+
+## 10. Why this document exists
+
+Every future engineer or AI agent reading the repo should be able to internalise the strategy from this single document and the seven companion technical docs. The companion docs are:
+
+| Doc | What it covers |
+|---|---|
+| [`ai-agent-architecture.md`](./ai-agent-architecture.md) | System architecture · components · data flow |
+| [`ai-agent-orchestration.md`](./ai-agent-orchestration.md) | Triggers · dispatch · agent-to-agent calls · queue model |
+| [`ai-memory-strategy.md`](./ai-memory-strategy.md) | Scope · embeddings · expiration · importance weighting |
+| [`ai-agent-permissions.md`](./ai-agent-permissions.md) | RBAC matrix · tool gates · destructive-action policy |
+| [`ai-event-system.md`](./ai-event-system.md) | `ai_events` schema · routing rules · realtime fan-out |
+| [`ai-agent-kpis.md`](./ai-agent-kpis.md) | Measurement framework · cost caps · quality scoring |
+| [`ai-agent-roadmap.md`](./ai-agent-roadmap.md) | Phases · deliverables · exit criteria · anti-goals |
+
+Source-of-truth schema: [`docs/database/migrations/0007_ai_operations_layer_schema.sql`](../database/migrations/0007_ai_operations_layer_schema.sql).
+
+---
+
+**Cross-references:**
+
+| Topic | Doc |
+|---|---|
+| Hospitality Intelligence Engine — data substrate for Market Intelligence Agent | [`docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md`](../intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md) |
+| Platform overview | [`docs/HOTELVALORA_MASTER_SYSTEM.md`](../HOTELVALORA_MASTER_SYSTEM.md) |
+| Database schema (full) | [`docs/database/README.md`](../database/README.md) |
+| Tech stack inventory | [`docs/infrastructure/HOTELVALORA_TECH_STACK_MASTER.md`](../infrastructure/HOTELVALORA_TECH_STACK_MASTER.md) |
+| Auth runtime | [`docs/auth.md`](../auth.md) |

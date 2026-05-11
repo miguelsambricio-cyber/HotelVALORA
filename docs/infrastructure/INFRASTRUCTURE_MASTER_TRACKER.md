@@ -242,6 +242,25 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | Status | 🔵 |
 | Notes | All listed in `HOTELVALORA_TECH_STACK_MASTER.md` Future Data Sources table — no integration today; CoStar + Excel ingestion has a parser in `services/data_pipeline` |
 
+## AI Operations Layer
+
+| Field | Value |
+|---|---|
+| Category | Future core operating layer — 9 operational AI systems · NOT chatbots · NOT side feature |
+| Status | 🟢 (Phase 1 — foundation) · 🔵 (Phase 2+ — agent runtimes not yet implemented) |
+| Configured? | Yes — schema applied (migration `0007`, 7 tables, 6 enums), 9 agents registered, 20 tools catalogued, RLS posture in place |
+| Working? | Foundation tables queryable; no agent code yet |
+| Production ready? | Foundation yes; runtime + agents pending Phase 2 |
+| Frontend connected? | Not yet — Phase 3+ ships `/admin/ai-ops` dashboard |
+| Backend connected? | Schema lives in Supabase production project `twebgqutuqgonabvhzjk` |
+| Env vars added? | None yet — LLM provider keys add in Phase 2 |
+| GitHub safe? | Yes |
+| Documentation complete? | Yes — 8 docs at `docs/ai-agents/` (master + architecture + orchestration + memory + permissions + events + kpis + roadmap) |
+| Local tested? | Schema migration applied; counts confirmed (9 agents, 20 tools) |
+| Production tested? | Not until Phase 2 |
+| Blockers | None code-side. Phase 2 is greenfield agent runtime + Market Intelligence + Data Ingestion + QA agents |
+| Notes | Master doc establishes this as CORE operating layer not a side feature. Memory + permissions + escalation models declared upfront so Phase 2+ agents inherit governance from day one |
+
 ## Hospitality Intelligence Engine
 
 | Field | Value |
@@ -275,4 +294,4 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 | 🔵 Planned | 11 |
 
 **Infrastructure health score: 84%**
-(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 25×1 + 3×0.5 + 3×0.0 = 26.5 of 31 active services = 85%. Hospitality Intelligence Engine joined the inventory: Phase 1 foundation tables 🟢, future pipeline / surfaces 🔵 (not counted as active until shipped). Resend left the sandbox earlier — sender on verified domain, full production delivery surface open.)
+(weighted: 🟢=1.0, 🟡=0.5, 🔴=0.0, planned excluded · 26×1 + 3×0.5 + 3×0.0 = 27.5 of 32 active services = 86%. AI Operations Layer Phase 1 foundation joins inventory as 🟢. Phase 2+ agent runtimes live in 🔵 Planned and don't count toward active until shipped.)

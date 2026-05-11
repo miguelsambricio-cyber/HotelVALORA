@@ -3,7 +3,7 @@
 Single source of truth for the HotelVALORA Postgres schema, hosted on Supabase project `twebgqutuqgonabvhzjk` (EU-Central — Frankfurt, Postgres 17).
 
 **Last refreshed:** 2026-05-11
-**Schema status:** ✅ applied — 41 public tables (all with RLS) + 5 Storage buckets with per-bucket RLS + Library demo seed live + Hospitality Intelligence Engine foundation. Migrations registered: `initial_schema` · `harden_security_definer_functions` · `storage_buckets_and_policies` · `restrict_avatar_listing` · `seed_library_demo_data` · `hospitality_intelligence_schema`.
+**Schema status:** ✅ applied — 48 public tables (all with RLS) + 5 Storage buckets + Library demo seed + Hospitality Intelligence Engine foundation + AI Operations Layer foundation. Migrations registered: `initial_schema` · `harden_security_definer_functions` · `storage_buckets_and_policies` · `restrict_avatar_listing` · `seed_library_demo_data` · `hospitality_intelligence_schema` · `ai_operations_layer_schema`.
 
 ## Layout
 
@@ -27,6 +27,13 @@ docs/database/
     0006_hospitality_intelligence_schema.sql      ← 9 tables (market_news,
                                                      hotel_transactions, etc.)
                                                      + 5 enums + 10 seeded sources
+                                                     (applied — Phase 1 foundation)
+    0007_ai_operations_layer_schema.sql           ← 7 tables (ai_agents,
+                                                     ai_agent_runs, ai_events,
+                                                     ai_agent_permissions,
+                                                     ai_memory, ai_tools,
+                                                     ai_human_review) + 6 enums
+                                                     + 9 seeded agents + 20 tools
                                                      (applied — Phase 1 foundation)
 ```
 

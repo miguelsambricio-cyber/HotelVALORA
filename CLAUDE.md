@@ -33,6 +33,8 @@ Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md
 | `docs/integrations/*.md` | When CoStar / STR / Excel-ingestion / Resend / Supabase wiring changes |
 | `docs/intelligence/HOTELVALORA_HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM.md` | When the strategic role of the intelligence engine evolves (rare — load-bearing doc) |
 | `docs/intelligence/*.md` (architecture · schema · pipeline · scheduler · roadmap) | After any change to ingestion sources, schema, scheduler, or phase status |
+| `docs/ai-agents/AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` | When the strategic role / agent roster of the AI Operations Layer evolves (rare — load-bearing doc) |
+| `docs/ai-agents/*.md` (architecture · orchestration · memory · permissions · events · kpis · roadmap) | After any change to agent code, permissions, memory model, event taxonomy, KPIs, or phase status |
 | `docs/infrastructure/HOTELVALORA_TECH_STACK_MASTER.md` | After EVERY infra change — add/remove a service, status flip, new env var |
 | `docs/infrastructure/INFRASTRUCTURE_MASTER_TRACKER.md` | When a service's per-field detail changes |
 | `docs/infrastructure/service-status.md` | Move row between status buckets when a service flips state |
@@ -92,6 +94,11 @@ docs/
   intelligence/       HOSPITALITY_INTELLIGENCE_MASTER_SYSTEM · architecture
                       · news-data-schema · ingestion-pipeline · scheduler-strategy
                       · roadmap (CORE strategic intelligence layer — not a side feature)
+  ai-agents/          AI_OPERATIONS_LAYER_MASTER_SYSTEM · agent-architecture
+                      · orchestration · memory-strategy · permissions · event-system
+                      · kpis · roadmap (FUTURE CORE operating layer — 9 operational
+                      AI systems with permissions / memory / audit / escalation —
+                      NOT chatbots, NOT side feature)
   features/           library · settings · financials
   architecture.md     system topology, services, runtime infra, ports, app flow
   routing.md          all routes, layout shells, navigation wiring

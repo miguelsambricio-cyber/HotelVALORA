@@ -4,6 +4,87 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — AI Operations Layer — Phase 1 (foundation)
+
+Initialises HotelVALORA's AI Operations Layer — 9 future operational AI systems with permissions, memory, audit trails, and human escalation paths. **NOT chatbots. NOT a side feature.** This is a future CORE operating layer of the platform — the institutional muscle that turns HotelVALORA from "calculator with UI" into an autonomous, auditable, hospitality investment operating system.
+
+Phase 1 ships the foundation only. **No agent runtime, no LLM calls, no autonomy.** Phase 2+ implements agents tier by tier per `docs/ai-agents/ai-agent-roadmap.md`.
+
+### Schema (migration `0007` applied to Supabase production)
+
+- 7 new tables: `ai_agents`, `ai_agent_runs`, `ai_events`, `ai_agent_permissions`, `ai_memory`, `ai_tools`, `ai_human_review`
+- 6 new enums: `ai_agent_id`, `ai_agent_status`, `ai_agent_run_status`, `ai_event_kind`, `ai_permission_action`, `ai_memory_scope`
+- RLS: public-read on `ai_agents` + `ai_tools` (transparency); service-role only on operational tables
+- `ai_human_review` queue gates every destructive action
+
+### Agents declared (9 — all `status='planned'`, `enabled=false`)
+
+| Tier | Agent | Phase | Strategic role |
+|---|---|---|---|
+| 1 | Market Intelligence | 2 — next | Consumer of the Hospitality Intelligence Engine corpus |
+| 1 | Data Ingestion | 2 — next | Excel + CoStar parsing, normalisation, validation |
+| 1 | QA / Monitoring | 2 — next | Deploys, advisors, uptime, health checks |
+| 2 | Underwriting | 4 | **Strategic moat** — DCF, sensitivity, memo generation |
+| 2 | Report Generation | 4 | Institutional PDFs from underwriting + intelligence |
+| 3 | CRM / Dealflow | 5 | Investor + operator dossiers, pipeline |
+| 3 | Customer Success | 6 | WhatsApp / chat, onboarding |
+| 3 | CMO | 6 | LinkedIn / X / newsletters (all human-reviewed) |
+| 3 | CFO | 6+ | Reconciliation, cost monitoring, runway (all destructive actions human-approved) |
+
+### Tools catalogued (20)
+
+Supabase queries · Resend send · LinkedIn / X / WhatsApp publish · Stripe charges/refunds · Vercel deployments / rollback · CoStar parse · PDF render · CRM upsert · monitoring escalate · arbitrary SQL.
+
+Every tool declares `is_destructive` + `requires_human_approval` flags. Destructive tools cannot be invoked without an `ai_human_review` approval. There is no override.
+
+### Documentation (8 docs in `docs/ai-agents/`)
+
+| Doc | Purpose |
+|---|---|
+| `AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` | Strategic master doc — why this is core, the 9 agents, operating philosophy, governance principles, monetisation, long-term vision |
+| `ai-agent-architecture.md` | Runtime model, components, where LLMs live, failure modes, cost model, security posture |
+| `ai-agent-orchestration.md` | Queue + router (NOT an LLM), triggers, agent-to-agent calls, concurrency, cost cap enforcement |
+| `ai-memory-strategy.md` | Working vs long-term memory, scope dimensions, importance scoring, pgvector Phase 3 plan, hygiene rules |
+| `ai-agent-permissions.md` | RBAC matrix, default-deny, destructive-action policy, RLS interaction, operator workflows |
+| `ai-event-system.md` | `ai_events` taxonomy + routing rules, polling vs realtime, idempotency, full traces |
+| `ai-agent-kpis.md` | Universal + per-agent KPIs, daily cost caps, quality scoring, anti-patterns, reporting cadence |
+| `ai-agent-roadmap.md` | Phases 1–7+ with deliverables, exit criteria, anti-goals, dependency graph |
+
+### Governance commitments encoded in code + docs
+
+1. **Deterministic shell, non-deterministic core** — LLM calls are one step of a deterministic state machine. LLMs never control orchestration.
+2. **Audit everything** — every invocation is a row in `ai_agent_runs` with steps, tokens, cost.
+3. **Permissions are declarative** — agents have no blanket access. Default-deny.
+4. **Destructive actions queue for humans** — every `is_destructive` or `requires_human_approval` tool goes through `ai_human_review` before execution.
+5. **Memory is scoped, expiring, importance-weighted** — never raw history dumps into LLM context.
+6. **The orchestrator is a queue + a router** — Phase 2-3 use Postgres + cron + static rules. No LLM-controlled router.
+7. **Cost ceilings are non-negotiable** — every agent has a daily cap declared in `ai_agents.config.daily_cost_usd_cap`.
+
+### Tracker updates
+
+- `HOTELVALORA_MASTER_SYSTEM.md` — paragraph on the new layer
+- `HOTELVALORA_TECH_STACK_MASTER.md` — new "AI Operations Layer" section (12 rows)
+- `INFRASTRUCTURE_MASTER_TRACKER.md` — new entry; health score 84% (foundation 🟢 + planned agents 🔵)
+- `service-status.md` — 25→26 🟢; Tier 1 agents in `🔵 Planned`
+- `docs/database/README.md` — migration 0007 entry
+- `ENTRYPOINTS.md` — 9 new rows for the ai-agents docs + migration
+- `CLAUDE.md` — `docs/ai-agents/` registered in docs map + mandatory maintenance table
+- `current-sprint.md` — Phase 2 (combined Intelligence + AI Ops Tier 1) added as #1 in "Up next"
+
+### What's next (Phase 2)
+
+Combined Phase 2 for both the Intelligence Engine and the AI Operations Layer:
+- Agent runtime core (`apps/web/src/lib/ai-agents/core/`)
+- Market Intelligence Agent (consumes the Intelligence Engine cron output)
+- Data Ingestion Agent (Excel + CoStar parsing)
+- QA / Monitoring Agent (deploys, advisors, uptime)
+- LLM client wrapper (Vercel AI SDK + OpenAI/Anthropic)
+- First Phase 2 permissions migration per agent
+
+Exit criteria: 14 consecutive days of all 3 Tier 1 agents with success rate ≥ 95%.
+
+---
+
 ## 2026-05-11 — Hospitality Intelligence Engine — Phase 1 (foundation)
 
 Initialises HotelVALORA's hospitality intelligence layer — the daily institutional news + transactions + projects corpus that will power Library cross-links, market dashboards, underwriting comps, future investor/operator dossiers, future alerts, and future monetised B2B data feeds. This is **NOT a side feature**: it's the dataset advantage that compounds every other capability.

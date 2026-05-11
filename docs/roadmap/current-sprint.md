@@ -31,7 +31,8 @@
 | **GitHub → Vercel auto-deploy enabled** — `vercel git connect` on `prj_Kaujd1oQHrnWD1Oi790f1TmgCscQ`. Push to `main` → production; branches → preview URLs. CLI `vercel deploy` remains as escape hatch. | `4243cce` · `9c73722` · `1e263f4` | ✅ |
 | **Resend leaves the sandbox** — `hotelvalora.com` verified in Resend (DKIM + SPF in Namecheap DNS); `RESEND_FROM_EMAIL` switched to `HotelVALORA <noreply@hotelvalora.com>`. Production delivery to any recipient. | `8d6f078` | ✅ |
 | **Auth log noise eliminated** — `<SessionProvider>` removed from `providers.tsx` (legacy Auth.js scaffold polling `/api/auth/session` with no `AUTH_SECRET` produced 500s on every page load). | `32b1cd2` | ✅ |
-| **Hospitality Intelligence Engine — Phase 1 foundation** — migration `0006` applied (9 tables · 5 enums · RLS public-read · 10 seeded sources). 6 strategic + technical docs in `docs/intelligence/`. Trackers updated. NO ingestion code yet — Phase 2 lands the pipeline. | *(this commit)* | ✅ |
+| **Hospitality Intelligence Engine — Phase 1 foundation** — migration `0006` applied (9 tables · 5 enums · RLS public-read · 10 seeded sources). 6 strategic + technical docs in `docs/intelligence/`. Trackers updated. NO ingestion code yet — Phase 2 lands the pipeline. | `3158615` | ✅ |
+| **AI Operations Layer — Phase 1 foundation** — migration `0007` applied (7 tables · 6 enums · 9 agents seeded · 20 tools catalogued). 8 strategic + technical docs in `docs/ai-agents/`. Establishes deterministic-shell + audit + permissions + memory + escalation philosophy for 9 future operational AI systems (NOT chatbots). NO agent runtime yet — Tier 1 (Market Intelligence + Data Ingestion + QA/Monitoring) lands in Phase 2. | *(this commit)* | ✅ |
 
 ## In flight
 
@@ -39,7 +40,7 @@
 
 ## Up next (rough order of pull)
 
-1. **Hospitality Intelligence — Phase 2** (ingestion pipeline + Vercel Cron). 7-day clean-run exit criterion. See `docs/intelligence/hospitality-intelligence-roadmap.md` § Phase 2.
+1. **AI Ops + Intelligence Engine Phase 2 together** — agent runtime core (`apps/web/src/lib/ai-agents/core/`) + Market Intelligence Agent (consumes the Intelligence Engine's daily ingestion) + Data Ingestion Agent + QA/Monitoring Agent. Combined because the Market Intelligence Agent IS the consumer of the Intelligence Engine's pipeline; building them together avoids two separate Phase 2s. See `docs/ai-agents/ai-agent-roadmap.md` § Phase 2 + `docs/intelligence/hospitality-intelligence-roadmap.md` § Phase 2.
 2. Sign-up flow — today the only way to create an account is Google OAuth. Add `supabase.auth.signUp` (email/password) and `supabase.auth.resetPasswordForEmail`.
 3. Realtime Library subscription — `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
 4. Wire "View full valuation" CTA from `FloatingHotelCard` to a future `/report/[id]` route.

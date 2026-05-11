@@ -97,6 +97,15 @@ Maps tasks to exact files. Start here before scanning.
 | Hospitality Intelligence — scheduler decision (Vercel Cron vs pg_cron) | `docs/intelligence/scheduler-strategy.md` |
 | Hospitality Intelligence — phased roadmap | `docs/intelligence/hospitality-intelligence-roadmap.md` |
 | Hospitality Intelligence — schema migration (9 tables, 5 enums, 10 sources) | `docs/database/migrations/0006_hospitality_intelligence_schema.sql` |
+| AI Operations Layer — strategic master document | `docs/ai-agents/AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` |
+| AI Operations Layer — agent runtime architecture | `docs/ai-agents/ai-agent-architecture.md` |
+| AI Operations Layer — orchestration / queue / router | `docs/ai-agents/ai-agent-orchestration.md` |
+| AI Operations Layer — memory strategy (scopes · embeddings · expiration) | `docs/ai-agents/ai-memory-strategy.md` |
+| AI Operations Layer — permissions matrix / destructive policy | `docs/ai-agents/ai-agent-permissions.md` |
+| AI Operations Layer — event bus + reactive triggers | `docs/ai-agents/ai-event-system.md` |
+| AI Operations Layer — KPI framework + cost caps | `docs/ai-agents/ai-agent-kpis.md` |
+| AI Operations Layer — phased rollout roadmap (Phases 1–7+) | `docs/ai-agents/ai-agent-roadmap.md` |
+| AI Operations Layer — schema migration (7 tables, 6 enums, 9 agents, 20 tools) | `docs/database/migrations/0007_ai_operations_layer_schema.sql` |
 | Library route layout (LibraryShell wrapper) | `apps/web/src/app/library/layout.tsx` |
 | Library types | `apps/web/src/types/library.ts` |
 | Library seed (6 institutional showcases — live in DB) | `docs/database/migrations/0005_seed_library_demo_data.sql` |

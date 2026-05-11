@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (Hospitality Intelligence Engine foundation — schema + 10 seeded sources + strategic + technical docs; Phase 2 ingestion pipeline pending).
+**Last refreshed:** 2026-05-11 (AI Operations Layer foundation — schema + 9 agents declared + 20 tools catalogued + 8 strategic + technical docs; Phase 2 agent runtime pending).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -128,6 +128,22 @@
 | AI summaries + embeddings | Enrichment | 🔵 | Not yet wired | Phase 4 — LLM via Vercel AI Gateway, embeddings in `pgvector` | Phase 4 |
 | Investor/operator dossier surfaces | UI | 🔵 | Not yet built | Phase 5 — `/intelligence/...` routes consume the corpus | Phase 5 |
 | Alerts engine | UX | 🔵 | Not yet built | Phase 6 — Supabase Realtime broadcast + Resend dispatch | Phase 6 |
+
+### AI Operations Layer
+
+| Service | Category | Status | Environment | Notes | Next action |
+|---|---|---|---|---|---|
+| AI Ops schema (7 tables) | Database | 🟢 | Applied via migration `0007` on 2026-05-11 | `ai_agents`, `ai_agent_runs`, `ai_events`, `ai_agent_permissions`, `ai_memory`, `ai_tools`, `ai_human_review`. RLS: public-read on catalogue tables; service-role only on operational ones | — |
+| 9 agents declared (registry) | Agent registry | 🟢 | Seeded in `public.ai_agents` | market_intelligence · data_ingestion · qa_monitoring · underwriting · report_generation · crm_dealflow · customer_success · cmo · cfo (all `status='planned'`, `enabled=false`) | Implement Tier 1 agents in Phase 2 |
+| 20 tools catalogue | Tool catalogue | 🟢 | Seeded in `public.ai_tools` | Supabase / Resend / Stripe / Vercel / LinkedIn / X / WhatsApp / Puppeteer / PagerDuty surfaces; destructive flags + human-approval flags pre-declared | — |
+| Agent runtime (`invoke()`) | Runtime | 🔵 | Not yet implemented | Phase 2 — `apps/web/src/lib/ai-agents/core/runtime.ts` per `ai-agent-architecture.md` | Phase 2 implementation |
+| Tier 1 agents (Market Intelligence · Data Ingestion · QA / Monitoring) | Agents | 🔵 | Not yet implemented | Phase 2 next-sprint candidates — lowest risk, highest leverage | Phase 2 |
+| Tier 2 agents (Underwriting · Report Generation) | Agents | 🔵 | Not yet implemented | Phase 4 — requires underwriting UX shell + Mapbox swap first | Phase 4 |
+| Tier 3 agents (CRM/Dealflow · CS · CMO · CFO) | Agents | 🔵 | Not yet implemented | Phases 5–6 — only after PMF signals + revenue volume | Phase 5+ |
+| pgvector memory | Memory | 🔵 | Not yet enabled | Phase 3 — separate migration enables extension + adds `ai_memory.embedding vector(1536)` | Phase 3 |
+| Realtime event bus | Orchestration | 🔵 | Not yet wired | Phase 3 — Supabase Realtime subscriptions on `ai_events` for sub-second fan-out | Phase 3 |
+| Admin dashboard `/admin/ai-ops` | UI | 🔵 | Not yet built | Phase 3+ — surfaces runs, events, memory, KPIs, human-review queue | Phase 3 |
+| LLM provider (OpenAI / Anthropic via Vercel AI Gateway) | LLM | 🔵 | Not yet installed | Phase 2 — wire via `@ai-sdk/openai` for first agent (Market Intelligence) summaries | Phase 2 |
 
 ### Deployment + CI/CD
 
