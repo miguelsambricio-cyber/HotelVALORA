@@ -4,6 +4,54 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-11 — CEO / Orchestration Agent — Tier 0 added to the AI Operations Layer
+
+Adds the **10th and supervisory agent** — the CEO / Orchestration Agent — to the AI Operations Layer. The CEO Agent sits ABOVE the 9 operational agents in a new **Tier 0** position. It is **NOT a chatbot. NOT customer-facing.** It is the operations command center, AI chief-of-staff, and escalation router for the entire platform.
+
+### Schema changes (migration `0008` applied)
+
+- `alter type ai_agent_id add value 'ceo'` — extends the agent enum
+- `alter type ai_event_kind add value 'strategic_review_completed'` — daily strategic summary event
+- `alter type ai_event_kind add value 'agent_anomaly_detected'` — CEO Agent anomaly signal
+- `alter type ai_event_kind add value 'cost_cap_warning'` — pre-breach cost signal
+- Insert CEO Agent row into `public.ai_agents` (`status='planned'`)
+- Insert 10 supervisory tools into `public.ai_tools`: `ai_ops.health_check`, `ai_ops.runs.select`, `ai_ops.events.select`, `ai_ops.human_review.select`, `ai_ops.cost.aggregate`, `ai_ops.invoke_agent`, `supabase.advisors.check`, `supabase.audit_logs.select`, `github.commits.list`, `intelligence.runs.summary`. All read-only.
+
+### What the CEO Agent does
+
+| Cycle | Cadence | Purpose |
+|---|---|---|
+| Hourly health review | `0 * * * *` UTC | Aggregate last-hour runs · probe Vercel + Supabase + GitHub · emit anomaly events |
+| Daily strategic review | `0 6 * * *` UTC (~07:00–08:00 Madrid) | 24h KPI aggregation · cost cap audit · recommend agent status flips via `ai_human_review` |
+| Reactive supervision | event-driven | Subscribe to `human_approval_needed`, `health_check_failed` · re-probe + escalate |
+
+### What the CEO Agent must NEVER do
+
+- ❌ Execute destructive tools (no permission, by design)
+- ❌ Disable other agents directly — only propose via `ai_human_review`
+- ❌ Grant itself or another agent permissions
+- ❌ Modify any application data — read-only
+- ❌ Decide strategic priorities autonomously — only surfaces options
+
+### Documentation updates
+
+| Doc | Change |
+|---|---|
+| `AI_OPERATIONS_LAYER_MASTER_SYSTEM.md` | Reorganised agents into 4 tiers (Tier 0 CEO + Tiers 1–3); added detailed § 2.1 covering CEO core responsibilities + must-never-do + supervision model + hourly + daily workflow cycles |
+| `ai-agent-orchestration.md` | Added § 1 "Two layers of orchestration" (mechanical + supervisory); added § 10 "CEO / Orchestration Agent — supervisory loops" with detailed hourly + daily + reactive workflows |
+| `ai-event-system.md` | Added 3 new event kinds to the taxonomy table + payload conventions |
+| `ai-agent-roadmap.md` | Phase 3 rewritten with 4 sub-phases — CEO Agent (Tier 0) lands in Phase 3.3. Dependency graph updated to show CEO supervising Tiers 2+3 going forward |
+| `ai-agent-kpis.md` | Added CEO Agent KPI row (MTTD platform · escalation precision · agent coverage · review quality) + €0.50/day cost cap rationale |
+| Trackers (`HOTELVALORA_TECH_STACK_MASTER`, `INFRASTRUCTURE_MASTER_TRACKER`, `service-status`, `HOTELVALORA_MASTER_SYSTEM`, `database/README`) | Counts updated 9→10 agents, 20→30 tools; CEO agent + tier structure highlighted |
+| `current-sprint.md` | New entry in Just Shipped |
+| Memory `project_ai_operations_layer.md` | Updated to reflect Tier 0 + 10 agents |
+
+### Strategic significance
+
+The CEO / Orchestration Agent is the future operational orchestration layer of the entire HotelVALORA platform. When the platform has 9 operational agents producing thousands of run rows per day, the CEO Agent is the single pane of glass that turns that signal into actionable intelligence — health snapshots, strategic recommendations, anomaly detection, escalation routing. Phase 3 ships it; Phase 2 prepares the data substrate it will read.
+
+---
+
 ## 2026-05-11 — AI Operations Layer — Phase 1 (foundation)
 
 Initialises HotelVALORA's AI Operations Layer — 9 future operational AI systems with permissions, memory, audit trails, and human escalation paths. **NOT chatbots. NOT a side feature.** This is a future CORE operating layer of the platform — the institutional muscle that turns HotelVALORA from "calculator with UI" into an autonomous, auditable, hospitality investment operating system.

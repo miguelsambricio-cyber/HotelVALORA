@@ -35,6 +35,13 @@ docs/database/
                                                      ai_human_review) + 6 enums
                                                      + 9 seeded agents + 20 tools
                                                      (applied — Phase 1 foundation)
+    0008_ceo_orchestration_agent.sql              ← adds 10th agent (CEO / Tier 0
+                                                     supervisor) + 3 new event
+                                                     kinds (strategic_review_completed,
+                                                     agent_anomaly_detected,
+                                                     cost_cap_warning) + 10 CEO
+                                                     supervisory tools (applied —
+                                                     Phase 1 foundation extended)
 ```
 
 Every future schema change ships as a numbered migration file under `migrations/` — never edit `0001_initial_schema.sql` after it has been applied.

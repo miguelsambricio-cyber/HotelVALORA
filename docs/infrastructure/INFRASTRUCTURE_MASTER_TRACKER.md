@@ -248,7 +248,7 @@ Per-service tracking. Every row in `HOTELVALORA_TECH_STACK_MASTER.md` has a corr
 |---|---|
 | Category | Future core operating layer — 9 operational AI systems · NOT chatbots · NOT side feature |
 | Status | 🟢 (Phase 1 — foundation) · 🔵 (Phase 2+ — agent runtimes not yet implemented) |
-| Configured? | Yes — schema applied (migration `0007`, 7 tables, 6 enums), 9 agents registered, 20 tools catalogued, RLS posture in place |
+| Configured? | Yes — schema applied (migrations `0007` + `0008`, 7 tables, 6 enums), **10 agents registered** (Tier 0 CEO + 9 operational), 30 tools catalogued (incl. 10 CEO supervisory tools), RLS posture in place |
 | Working? | Foundation tables queryable; no agent code yet |
 | Production ready? | Foundation yes; runtime + agents pending Phase 2 |
 | Frontend connected? | Not yet — Phase 3+ ships `/admin/ai-ops` dashboard |

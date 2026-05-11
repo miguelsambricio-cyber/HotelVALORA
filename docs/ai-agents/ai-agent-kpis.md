@@ -30,6 +30,7 @@ Five universal KPIs apply to every agent. Each agent adds 2–4 domain-specific 
 
 | Agent | Domain KPIs |
 |---|---|
+| **CEO / Orchestration (Tier 0)** | MTTD platform (mean time to detect any platform anomaly — target <5min) · Escalation precision (% of escalations that humans confirm as actionable — target ≥90%) · Agent coverage (% of agents reviewed per hourly cycle — target 100%) · Strategic review quality (manual rating of daily review usefulness — target ≥80% after 30d) · Hourly run completion (target ≥99%) · False-positive alert rate (target <2%) |
 | **Market Intelligence** | Coverage (sources/day) · Dedup rate · Freshness (publish → corpus latency) · Categorisation accuracy (manual audit sample) |
 | **Data Ingestion** | Parse success rate · Manual review rate · Schema drift detection rate · Column-mapping confidence |
 | **QA / Monitoring** | MTTD (mean time to detect) · False positive rate · Coverage (% of services probed) · Alert acknowledgement latency |
@@ -79,6 +80,7 @@ Default caps (proposed; tune in Phase 2-3):
 
 | Agent | Daily cap (€) |
 |---|---|
+| **CEO / Orchestration** | **0.50** (mostly read-only; LLM only for daily strategic-review summary generation) |
 | Market Intelligence | 2.00 |
 | Data Ingestion | 0.50 |
 | QA / Monitoring | 0.20 (mostly read-only) |
@@ -89,7 +91,7 @@ Default caps (proposed; tune in Phase 2-3):
 | CMO | 2.00 |
 | CFO | 0.50 |
 
-At a typical "pre-PMF" tenant load: total platform-wide cost <€20/day = <€600/month.
+At a typical "pre-PMF" tenant load: total platform-wide cost <€20/day = <€600/month. The CEO Agent adds only ~€0.50/day because its work is overwhelmingly read-only — the only LLM-bound step is the daily strategic-review prose summary.
 
 ## 5. Quality scoring — for AI-output agents
 
@@ -108,6 +110,7 @@ Quality scoring lands in Phase 4 — Phase 2-3 agents are mostly objective (pars
 
 Different agents trade differently:
 
+- **CEO / Orchestration**: precision over recall. False positives erode operator trust faster than missed anomalies. Use a deterministic-rule first pass; only consult LLM for the daily strategic-review prose.
 - **Market Intelligence**: minimise cost while maintaining coverage. Use cheap LLM for first-pass categorisation, fall back to GPT-4 only for ambiguous cases.
 - **Underwriting**: maximise quality regardless of cost. Each memo is high-stakes; €1–€5 cost per memo is invisible vs revenue.
 - **Customer Success**: optimise first-response time even at cost. A €0.50 instant answer beats a €0.05 5-minute delay.

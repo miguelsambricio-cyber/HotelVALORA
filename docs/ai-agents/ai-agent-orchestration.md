@@ -1,19 +1,36 @@
 # AI Agent Orchestration
 
-How agents compose, fire, queue, and call each other.
+How agents compose, fire, queue, and call each other — and how the **CEO / Orchestration Agent (Tier 0)** supervises everything from above.
 
 **Last refreshed:** 2026-05-11
 
 ---
 
-## 1. The orchestrator is a queue + a router
+## 1. Two layers of orchestration
 
-Not an LLM. Not an autonomous controller. The orchestrator is two pieces:
+There are **two distinct orchestration layers** in HotelVALORA. Don't conflate them.
+
+### Layer 1 — Mechanical orchestration (Phase 2+)
+
+The Postgres-backed queue + a static router. Not an LLM. Not an autonomous controller. The mechanical orchestrator is two pieces:
 
 - **Queue**: rows in `ai_agent_runs` with `status='queued'`
 - **Router**: a static rules table that maps `(trigger_kind, payload signature) → ai_agent_id` plus optional priority + cost guard
 
 This is the boring, deterministic answer. It scales to dozens of agents without becoming unpredictable.
+
+### Layer 2 — Supervisory orchestration (Phase 3+ — CEO Agent)
+
+The CEO / Orchestration Agent sits ABOVE the mechanical orchestrator. It does NOT replace the router — the router still maps events to agents. The CEO Agent OBSERVES the mechanical orchestrator and:
+
+- Detects when the queue is backing up
+- Detects when an agent is failing consistently
+- Detects when human reviews sit stale
+- Detects when cost caps are about to breach
+- Detects when scheduled jobs missed firing
+- Recommends interventions (which humans approve via `ai_human_review`)
+
+**The mechanical orchestrator runs the show. The CEO Agent watches the show.** That separation keeps Phase 2's simplicity while adding Phase 3's supervisory intelligence.
 
 ## 2. Trigger sources → run rows
 
@@ -161,7 +178,88 @@ If Market Intelligence Agent fails on news_id=42, news_id=43 onwards still proce
 
 The exception: agent-to-agent calls. If Underwriting Agent calls Report Generation Agent and the latter fails, the calling Underwriting run also marks as `partial` (not `failed`) — it completed the underwriting analysis but not the report. The user sees the analysis; the report retry queues separately.
 
-## 10. Manual operator controls
+## 10. CEO / Orchestration Agent — supervisory loops
+
+Once Phase 3 ships, the CEO Agent runs two scheduled supervisory cycles plus reactive checks.
+
+### 10.1 · Hourly health review
+
+Cron `0 * * * *` (every hour, on the hour, UTC). Workflow:
+
+```
+1. Aggregate last hour:
+   - count(ai_agent_runs.*) by agent x status
+   - sum(cost_usd) by agent
+   - count(ai_events.* where consumed_by='{}') by kind
+   - count(ai_human_review.* where status='pending' and created_at < now() - interval '4 hours')
+
+2. Probe external infra:
+   - vercel.deployments.list (last 5)
+   - supabase.advisors.check
+   - github.commits.list (last 10 on main)
+
+3. Compute health snapshot:
+   - overall_status: 'healthy' | 'degraded' | 'critical'
+   - per_agent_status: {agent_id: 'ok' | 'warning' | 'failing'}
+   - signals: [{ source, signal, severity, detail }]
+
+4. Persist:
+   - INSERT ai_memory (agent_id='ceo', scope='agent_global', content=<snapshot JSON>, importance=0.6, expires_at=now()+24h)
+
+5. Decide:
+   - If overall_status='critical' → emit system_alert event + optionally call monitoring.escalate
+   - If agent showing anomaly → emit agent_anomaly_detected event
+   - If cost cap >80% utilised → emit cost_cap_warning event
+```
+
+### 10.2 · Daily strategic review
+
+Cron `48 7 * * *` UTC (= 08:48 Madrid in winter) — **same firing minute as the Intelligence Engine ingestion, but 60 minutes earlier when called at 07:48**. Decision: run at `0 6 * * *` UTC = 07:00 / 08:00 Madrid (DST-shifted), 1h before the Intelligence ingestion so the daily summary reflects yesterday's complete picture.
+
+Workflow:
+
+```
+1. Aggregate trailing 24h:
+   - per-agent: runs, success rate, total cost, escalations, p50 + p95 latency
+   - platform: total cost, total events, total human reviews
+
+2. Aggregate trailing 7d:
+   - identify chronic failures (≥3 consecutive failed days for any agent)
+   - identify cap-breaching agents (cost > 80% cap 3+ days)
+   - identify high-escalation agents (escalation_rate > 25%)
+
+3. Identify recommendations:
+   - "Disable agent X — failure rate 60% over 7d"
+   - "Raise daily cap on agent Y from €2 to €5 — consistently capped"
+   - "Investigate event kind Z — 50% never consumed"
+
+4. Persist:
+   - INSERT ai_memory (scope='agent_global', content=<strategic summary>, importance=0.9)
+   - For each recommendation requiring action → INSERT ai_human_review (proposed_action JSON)
+
+5. Emit strategic_review_completed event (Phase 5+: send Resend daily brief to operator)
+```
+
+### 10.3 · Reactive supervision
+
+Subscribes to `ai_events` of kind:
+- `human_approval_needed` — if not approved within 4h, emit `system_alert`
+- `health_check_failed` — re-runs the targeted probe to confirm; if still failing, escalate
+- `cron_fired` for any agent — verifies that agent's run actually started within 60s; if not, alert
+
+### 10.4 · What the CEO Agent CANNOT do automatically
+
+| Action | Path |
+|---|---|
+| Disable a failing agent | Insert `ai_human_review` proposing `update ai_agents set status='disabled'`. Human approves; system applies |
+| Raise a cost cap | Same — human approves |
+| Rollback a Vercel deploy | Same — `vercel.deployments.rollback` is destructive, requires approval |
+| Cancel queued runs | Read-only proposes; humans cancel |
+| Modify any application data | Forbidden — no permission row exists for application-data writes |
+
+The CEO Agent has visibility, not authority. Authority always passes through `ai_human_review`.
+
+## 11. Manual operator controls
 
 | Action | How |
 |---|---|

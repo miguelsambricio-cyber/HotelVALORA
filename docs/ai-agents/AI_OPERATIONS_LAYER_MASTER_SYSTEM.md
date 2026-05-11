@@ -5,7 +5,7 @@
 > Read this once. The AI Operations Layer is the institutional muscle that turns the platform from "calculator with UI" into an autonomous, auditable, hospitality investment operating system. Future engineers and AI agents reading this should treat the architecture commitments as load-bearing — violating them turns the platform back into a script collection.
 
 **Last refreshed:** 2026-05-11
-**Phase status:** 🟢 Phase 1 (foundation) live — schema applied (migration `0007`), 9 agents registered, 20 tools catalogued, RLS posture in place. **Zero agent implementation yet** — that lands phase by phase per `ai-agent-roadmap.md`.
+**Phase status:** 🟢 Phase 1 (foundation) live — schema applied (migrations `0007` + `0008`), **10 agents registered (CEO Agent added as Tier 0)**, 30 tools catalogued, RLS posture in place. **Zero agent implementation yet** — that lands phase by phase per `ai-agent-roadmap.md`.
 
 ---
 
@@ -28,21 +28,111 @@ An **Operational AI System** ("agent" in shorthand) in HotelVALORA is a software
 
 An agent is NOT a chat surface. The chat surfaces (if any) are thin clients that submit work to agents. The agents themselves are background workers.
 
-## 2. The nine planned agents
+## 2. The ten planned agents — organised by tier
+
+The agents are organised into four tiers. **Tier 0 (Orchestration)** is the supervisor that sits ABOVE everyone else. The other three tiers contain the operational agents the CEO Agent watches over.
+
+### Tier 0 — Orchestration (the supervisor)
+
+| # | Agent | Strategic role | Phase |
+|---|---|---|---|
+| 0 | **CEO / Orchestration** | **NOT a chatbot. NOT customer-facing.** Operations command center. AI chief-of-staff. Reviews platform health hourly, runs strategic review daily, supervises every other agent, routes critical anomalies to humans. Never executes destructive tools — coordinates and escalates | 3 |
+
+### Tier 1 — Operational core
 
 | # | Agent | Strategic role | Phase |
 |---|---|---|---|
 | 1 | **Market Intelligence** | Owns the daily news + transactions + projects corpus. The Hospitality Intelligence Engine (migration `0006`) is its data substrate | 2 — next |
 | 2 | **Data Ingestion** | Parses Excel / CoStar / external feeds; validates; normalises columns; surfaces ingestion errors | 2 — next |
-| 3 | **QA / Monitoring** | Watches deploys, Supabase advisors, Vercel cron failures, Resend delivery, uptime — pages humans on detected failures | 2 — next |
+| 3 | **QA / Monitoring** | Watches deploys, Supabase advisors, Vercel cron failures, Resend delivery, uptime — pages humans on detected failures. Reports up to the CEO Agent once it ships | 2 — next |
+
+### Tier 2 — Strategic moat
+
+| # | Agent | Strategic role | Phase |
+|---|---|---|---|
 | 4 | **Underwriting** | **Strategic moat.** DCF, sensitivity, risk scoring, operator fit, highest-and-best-use, investment memo generation. Requires the underwriting UX shell first | 4 |
 | 5 | **Report Generation** | Renders institutional PDFs from underwriting + intelligence inputs. Tier-aware formatting | 4 |
+
+### Tier 3 — Customer / financial surface
+
+| # | Agent | Strategic role | Phase |
+|---|---|---|---|
 | 6 | **CRM / Dealflow** | Maintains investor + operator dossiers, contacts, leads, tours, follow-ups, deal pipeline | 5 |
 | 7 | **Customer Success** | WhatsApp / chat support, onboarding, FAQs, demo coordination | 6 |
 | 8 | **CMO** | LinkedIn + X publishing, newsletters, market reports, campaign automation. Every outbound piece flows through `ai_human_review` | 6 |
 | 9 | **CFO** | Reconciliation, cloud cost monitoring, burn rate, runway, invoice + tax prep. Every financial side-effect requires human approval | 6+ |
 
-The order is the **build order**. We start where the platform already has data + low-risk surfaces (Intelligence, Data Ingestion, Monitoring) and work outward to surfaces that need product-market fit (CS, CMO, CFO).
+The order is the **build order**. We start where the platform already has data + low-risk surfaces (Intelligence, Data Ingestion, Monitoring) and work outward. The **CEO Agent lands in Phase 3** — after Tier 1 agents have produced enough audit data to supervise, but before Tier 2 strategic-moat agents go live. The CEO Agent needs at least the Tier 1 floor to be useful, but Tier 2+ should never run unsupervised.
+
+## 2.1 · Tier 0 in detail — the CEO / Orchestration Agent
+
+The CEO Agent is the one piece in the whole platform that is genuinely different in character. Treat it as:
+
+- **An operations command center** — a single pane showing the state of every running agent, every queued event, every pending human review
+- **An AI chief-of-staff** — the strategic layer that decides which problems are worth a human's time vs which the platform can absorb
+- **An orchestration layer** — when two agents need to coordinate (e.g., the Underwriting Agent needs the Market Intelligence Agent's latest comp data), the CEO Agent is the mediator
+- **An infrastructure supervisor** — Vercel deploys, Supabase advisors, GitHub commits, Stripe events, Resend bounces — all of it under one watchful eye
+
+### Core responsibilities
+
+1. **Hourly platform health review** — read last hour's `ai_agent_runs`, `ai_events`, `news_ingestion_runs`, Vercel deploys, Supabase advisors. Emit `system_alert` events for anomalies.
+2. **Daily strategic review** (08:00 Madrid, before the Intelligence cron) — aggregate 24h KPIs, identify cost-cap breaches, flag chronically-failing agents, recommend status flips (which require human approval).
+3. **Cross-agent coordination** — when Agent A needs Agent B's verification work, the CEO Agent receives the request and dispatches.
+4. **Escalation routing** — every `ai_human_review` row stale > 4h triggers a CEO Agent visibility check.
+5. **AI governance supervision** — verify every agent's permissions still match its declared responsibilities. Flag scope creep.
+6. **Operational continuity** — when a tier-1 agent is `disabled`, the CEO Agent emits the `system_alert` so the operator knows.
+
+### What the CEO Agent must NEVER do
+
+- ❌ Execute destructive tools (no permission, by design)
+- ❌ Disable other agents directly — only propose via `ai_human_review`
+- ❌ Grant itself or another agent additional permissions — only humans grant
+- ❌ Modify any application data (`valuations`, `market_news`, `contacts`, etc.) — read-only
+- ❌ Decide which strategic priorities the platform pursues — only surfaces options; humans decide
+
+### How the CEO Agent supervises the other 9
+
+```
+                        ┌─────────────────────────────────┐
+                        │   CEO / Orchestration Agent     │
+                        │   (Tier 0 — supervisor)         │
+                        └─────────────────────────────────┘
+                          │      ▲       ▲       ▲       ▲
+            invokes (read)│      │ run   │ event │ event │ alert
+            verifies      ▼      │ data  │       │       │
+       ┌────────────┐  ┌─────────┴─────────┴───────┴───────┴────┐
+       │  Tier 1    │  │  Tier 2          │  Tier 3            │
+       │            │  │                  │                    │
+       │  Market    │  │  Underwriting    │  CRM / Dealflow    │
+       │  Intel     │  │  Report Gen      │  Customer Success  │
+       │  Data Ing  │  │                  │  CMO  ·  CFO       │
+       │  QA / Mon  │  │                  │                    │
+       └────────────┘  └──────────────────┴────────────────────┘
+```
+
+The CEO Agent never INTERVENES in another agent's run — it OBSERVES. If it sees something wrong, it emits an event or inserts a human-review row. Humans decide whether to disable, restart, or reconfigure.
+
+### Hourly + daily workflow cycles
+
+```
+Every hour (cron tick — Phase 3+):
+   1. Read ai_agent_runs WHERE run_started_at > now() - interval '1 hour'
+   2. Aggregate: count by status, sum cost_usd, list awaiting_approval > 4h
+   3. Read ai_events WHERE occurred_at > now() - interval '1 hour' AND consumed_by = '{}'
+   4. Call supabase.advisors.check — any new lints?
+   5. Call vercel.deployments.list — any failed deploys?
+   6. Call github.commits.list — recent main-branch activity?
+   7. Compute health snapshot — write to ai_memory (scope='agent_global')
+   8. If any signal CRITICAL → emit system_alert + (optionally) call monitoring.escalate
+
+Every day at 08:00 Madrid (cron tick — Phase 3+):
+   1. Aggregate 24h KPIs across all agents (joins ai_agent_runs by date)
+   2. Identify breached daily_cost_usd_caps
+   3. Identify agents with success_rate < 95% over trailing 7d → recommend disable
+   4. Write strategic summary to ai_memory (scope='agent_global', importance_score=0.9)
+   5. Emit strategic_review_completed event with summary payload
+   6. (Phase 5+) Send a daily ops brief via Resend to operator email
+```
 
 ## 3. Strategic importance
 

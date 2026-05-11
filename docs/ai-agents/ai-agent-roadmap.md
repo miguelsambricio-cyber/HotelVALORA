@@ -75,23 +75,56 @@ Phased rollout of the 9 operational AI systems.
 - Daily cost cap respected
 - Operator dashboard shows live KPIs
 
-## Phase 3 — Memory + orchestrator + event-reactive infrastructure
+## Phase 3 — Memory + orchestrator + **CEO Agent (Tier 0)** + event-reactive infrastructure
 
-**Goal:** make agents react to events in addition to crons; enable `pgvector`; build the orchestrator router.
+**Goal:** add the supervisory tier on top of Tier 1, enable embedding-based memory, wire reactive event fan-out, and ship the admin dashboard.
+
+The **CEO / Orchestration Agent** lands here because: (a) it needs Tier 1 agent run data to be useful, (b) it's the natural completion of the orchestration story started by the mechanical router, (c) it should be live BEFORE Tier 2 strategic-moat agents ship so they never run unsupervised.
+
+### Phase 3.1 — Memory + embeddings
 
 | Deliverable |
 |---|
-| Migration `0011_pgvector_enable.sql` — `create extension vector; alter table ai_memory add column embedding vector(1536);` |
+| Migration `0009_pgvector_enable.sql` — `create extension vector; alter table ai_memory add column embedding vector(1536);` |
 | Embedding backfill cron for existing `ai_memory` rows |
-| Realtime fan-out: Supabase Edge Function subscribes to `ai_events` inserts |
-| Static orchestrator router (rules table) at `apps/web/src/lib/ai-agents/core/router.ts` |
-| Permission enforcement at the runtime layer (audit row added for every check, denial or pass) |
-| Phase 3 admin dashboard MVP at `/admin/ai-ops` showing runs, events, memory, KPIs |
+| Embedding-similarity ranking in `core/memory.ts` |
 
-**Exit criteria:**
-- Tier 1 agents reactive on events (e.g., Market Intelligence reacts within 60s of `news_ingested` insertion)
+### Phase 3.2 — Event-reactive infrastructure
+
+| Deliverable |
+|---|
+| Static orchestrator router (rules table + dispatcher) at `apps/web/src/lib/ai-agents/core/router.ts` |
+| Realtime fan-out: Supabase Edge Function subscribes to `ai_events` inserts |
+| Permission enforcement at the runtime layer (audit row added for every check, denial or pass) |
+
+### Phase 3.3 — CEO / Orchestration Agent (Tier 0)
+
+| Deliverable |
+|---|
+| Permissions migration `0010_ceo_agent_permissions.sql` — grants read-only access to ai_agent_runs, ai_events, ai_memory, ai_human_review, news_ingestion_runs, audit_logs, sources, market_news (counts only), Supabase advisor API, Vercel deployments API, GitHub commits API. Grants execute on all `ai_ops.*` tools. **No write permissions to any application table.** |
+| CEO Agent implementation at `apps/web/src/lib/ai-agents/agents/ceo.ts` |
+| Hourly cron `apps/web/src/app/api/cron/ceo-hourly/route.ts` (cron: `0 * * * *` UTC) |
+| Daily cron `apps/web/src/app/api/cron/ceo-daily/route.ts` (cron: `0 6 * * *` UTC ≈ 07:00 / 08:00 Madrid before the Intelligence cron) |
+| Health-snapshot writer (writes hourly snapshots to `ai_memory` scope='agent_global') |
+| Strategic-review writer (writes daily summary + recommendations to `ai_memory`) |
+| Reactive subscription on `human_approval_needed` events — escalates stale ones |
+| Reactive subscription on `health_check_failed` events — confirms + escalates |
+| Tools wired: `ai_ops.health_check`, `ai_ops.runs.select`, `ai_ops.events.select`, `ai_ops.human_review.select`, `ai_ops.cost.aggregate`, `ai_ops.invoke_agent`, `supabase.advisors.check`, `supabase.audit_logs.select`, `github.commits.list`, `intelligence.runs.summary` (all read-only) |
+| Unit + integration tests with fixture data |
+
+### Phase 3.4 — Admin dashboard
+
+| Deliverable |
+|---|
+| Phase 3 admin dashboard MVP at `/admin/ai-ops` showing: runs (per-agent + cross-agent timeline), events (live feed), memory (top-N per agent), KPIs (per the kpis doc), CEO Agent's last hourly snapshot + last daily review, pending `ai_human_review` rows with approve/reject UI |
+
+**Exit criteria for Phase 3:**
+- Tier 1 agents reactive on events (Market Intelligence reacts within 60s of `news_ingested`)
 - Memory queries use embedding similarity ranking
+- CEO Agent hourly snapshots populating `ai_memory` for 7 consecutive days
+- CEO Agent daily strategic reviews producing at least 1 actionable recommendation per week on average
 - Admin dashboard live for operator use
+- Zero false-positive escalations from the CEO Agent over a 30-day window (precision ≥90%)
 
 ## Phase 4 — Tier 2 agents: Underwriting + Report Generation (strategic moat)
 
@@ -165,16 +198,17 @@ Phase 1 — foundation (this commit)
 Phase 2 — Market Intelligence + Data Ingestion + QA / Monitoring
       │  (these unlock data flow into ai_memory + ai_events)
       ▼
-Phase 3 — pgvector + reactive orchestrator + admin dashboard
-      │  (this is where the system stops being batch-only)
+Phase 3 — pgvector + reactive orchestrator + CEO AGENT (TIER 0) + admin dashboard
+      │  (CEO Agent lands HERE — supervises Tier 1 going forward,
+      │   and supervises Tiers 2+3 as they come online)
       ▼
-Phase 4 — Underwriting + Report Generation (the moat)
-      │  (requires Phase 2 corpus + Phase 3 memory)
+Phase 4 — Underwriting + Report Generation (the moat) — supervised by CEO
+      │  (requires Phase 2 corpus + Phase 3 memory + CEO Agent eyes)
       ▼
-Phase 5 — CRM + Alerts
+Phase 5 — CRM + Alerts — supervised by CEO
       │  (uses corpus + reactive events + tier gating)
       ▼
-Phase 6 — Customer Success + CMO + CFO
+Phase 6 — Customer Success + CMO + CFO — supervised by CEO
       │  (requires real users, real money flowing)
       ▼
 Phase 7+ — open API + monetisation

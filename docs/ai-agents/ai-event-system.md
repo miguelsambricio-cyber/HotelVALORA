@@ -51,9 +51,12 @@ created_at      timestamptz
 | `human_approved` | A human approved a paused action | Admin | Originating agent |
 | `human_rejected` | A human rejected | Admin | Originating agent |
 | `cron_fired` | A cron tick fired | Vercel | Specific agent named in payload |
+| `strategic_review_completed` | Daily strategic review finished | CEO / Orchestration Agent | Operator dashboard · email brief (Phase 5+) · CMO (for internal posts) |
+| `agent_anomaly_detected` | An agent is failing / behaving unusually | CEO Agent | Operator dashboard · `ai_human_review` queue |
+| `cost_cap_warning` | An agent at >80% of its daily cap | CEO Agent | Operator · agent itself (may throttle proactively) |
 | `custom` | Catch-all for one-off integrations | Anyone | Per integration |
 
-Adding a new kind requires a migration (alter enum). Custom is the escape hatch for short-lived prototypes.
+Adding a new kind requires a migration (alter enum). Custom is the escape hatch for short-lived prototypes. The three CEO Agent kinds (`strategic_review_completed`, `agent_anomaly_detected`, `cost_cap_warning`) shipped in migration `0008`.
 
 ## 4. Payload conventions
 
@@ -86,6 +89,30 @@ Every payload is jsonb, but typed conventions per kind:
 
 // cron_fired
 { cron_path: "/api/cron/...", target_agent_id: "...", fired_at: "..." }
+
+// strategic_review_completed (CEO Agent — daily)
+{
+  review_id: "<uuid>",
+  trailing_24h: { runs: 142, success_rate: 0.97, cost_eur: 4.20, escalations: 3 },
+  trailing_7d_summary: { ... },
+  recommendations: [
+    { action: "disable_agent", agent_id: "cmo", reason: "5d failure rate >50%" },
+    { action: "raise_cost_cap", agent_id: "underwriting", from: 5.00, to: 8.00, reason: "consistently capped" }
+  ],
+  human_review_ids: ["<uuid>", "<uuid>"]
+}
+
+// agent_anomaly_detected (CEO Agent — hourly + reactive)
+{
+  agent_id: "data_ingestion",
+  anomaly_kind: "failure_streak" | "latency_spike" | "permission_denial_spike" | "cost_anomaly",
+  detail: "5 consecutive failed runs in last 2 hours",
+  severity: "warning" | "critical",
+  signals: [{ run_id, status, error_message }, ...]
+}
+
+// cost_cap_warning (CEO Agent — hourly)
+{ agent_id: "underwriting", utilised_eur: 4.20, cap_eur: 5.00, percent: 84, time_remaining: "6h 12m" }
 ```
 
 JSON schema for each kind is stored in `ai_tools.schema_in` for the corresponding `events.emit` tool (Phase 3). Validation rejects payloads that don't match.
