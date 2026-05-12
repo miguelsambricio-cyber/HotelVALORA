@@ -4,9 +4,85 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Admin UX consolidation · institutional operations console
+
+Five-priority consolidation on `/admin/integrations` and `/admin/ai-operations` per operator directive. Infra expansion paused · no new scrapers · no new agents · no Phase 3 modules · no browser-runtime orchestration. Goal: the admin should feel like a real operations console.
+
+### 1 · Coherent operational state (T1 + T2 + T3 narrative)
+**New** `components/admin/integrations/operational-health-hero.tsx` — three-lane hero at the top of every integration detail page. Each lane (T1 Credentials / T2 Session / T3 Ingestion) carries its own severity + headline + detail. Merged verdict block at the bottom answers the operator's first question: "is this source healthy, and if not, what do I do?" Public sources collapse to two lanes (T1/T2 become "Not required · public source"). Worst-lane-wins severity escalation · CLI command shown inline when any lane is degraded.
+
+### 2 · Interactive article counters · richer rows
+`RecentArticle` (and its query `getRecentArticlesForSource`) extended to ship:
+- `bodyPreview` · first ~280 chars of `market_news.body` (Phase 2.6 authed body fetch lands here)
+- `fetchedAuthed` · boolean derived from `enriched_meta.authed` (cron stamped)
+- `premiumSource` · boolean from the source registry (`requiresAuth`)
+
+`ArticleDrawer` row now shows:
+- Category chip (existing)
+- **Premium / Public chip** · violet for premium, slate for public
+- **Authed Fetch / Anon Body chip** (premium sources only · indicates whether THIS row was pulled with cookies)
+- Country chip + pubdate + external-link icon (existing)
+- Title (existing)
+- Summary (existing)
+- **Body preview** · 3-line clamp · only renders when body differs from summary · subtle left border so it visually reads as "deeper context"
+
+### 3 · Real session-health visibility
+Already shipped in commit `6a5d073` · this pass leaves the panel intact and only polishes the CLI affordance.
+
+### 4 · Operator CLI banner · always available
+**New** `components/admin/integrations/cli-copy-button.tsx` — minimal client island with one-click copy + 2-second checkmark confirmation. Used in two places:
+- The re-auth banner (≤24h to expiry · prominent amber)
+- The permanent "Refresh runbook" footer on the session panel · ALWAYS visible · independent of session state
+
+Re-formatted the runbook footer into its own bordered card so the operator can copy the command from any source's detail page without first inducing a degraded state.
+
+### 5 · AI Operations · live operational dashboard
+**New** `lib/admin/ai-ops/live.ts` — single aggregator `loadAiOpsLive()` that pulls:
+- Last 40 ingestion runs (joined with sources for slug + display name)
+- 7d success / failed / partial counts
+- 7d throughput buckets (articles inserted per UTC day, 7-day rolling window)
+- Degraded sources (refresh_failed T2 OR ≥2 consecutive failures with no successes)
+- Alerts feed (auth_failure audit rows from last 7d + failed ingestion runs · merged + sorted)
+
+**New** `components/admin/ai-ops/operational-dashboard.tsx` — 5-panel layout at the top of `/user/admin/agents`:
+- **Totals strip** · runs / success rate / successful / partial / failed / articles inserted (7d)
+- **Ingestion Throughput sparkline** · pure SVG bars · 7 days · no chart library
+- **Degraded Sources** · cards linking to per-source detail · "All sources nominal" green state when empty
+- **Recent Ingestion Runs table** · last 20 with status pill, items, body-fetch ratio, auth state, duration, started-at
+- **Alerts Feed** · last 8 audit-driven failures with timestamps
+
+Zero mock data · everything reads from `news_ingestion_runs` + `market_news` + `intelligence_credentials_audit` + `intelligence_source_sessions` per request. The page is `dynamic = "force-dynamic"` so every visit shows last-cron-run reality.
+
+### Smoke test (2026-05-12 dev mode)
+- `/user/admin/integrations/hosteltur` · all 6 markers render (Operational Health · Real T2 · Real Playwright · Verdict · Premium-access verification · Operator CLI)
+- `/user/admin/agents` · all 5 dashboard panels render with live data · recent runs include Hosteltur (4), Alimarket (4), Skift, Reuters, HospitalityNet, HVS
+- Both pages return HTTP 200 · clean Next.js compile after `.next` purge
+
+### Files added
+- `lib/admin/ai-ops/live.ts`
+- `components/admin/integrations/operational-health-hero.tsx`
+- `components/admin/integrations/cli-copy-button.tsx`
+- `components/admin/ai-ops/operational-dashboard.tsx`
+
+### Files modified
+- `lib/admin/integrations/live.ts` · RecentArticle schema (bodyPreview, fetchedAuthed, premiumSource) + body SELECT + extractPreview
+- `components/admin/integrations/article-drawer.tsx` · Premium/Public + Authed/Anon chips + body preview block
+- `components/admin/integrations/integration-detail.tsx` · OperationalHealthHero at top
+- `components/admin/integrations/session-status-panel.tsx` · permanent CLI runbook card + copy button on re-auth banner
+- `app/user/admin/agents/page.tsx` · live dashboard above orbital diagram · async server component now
+
+### What was NOT done (intentional)
+- No browser-runtime orchestration · CLI remains canonical
+- No new ingestion scrapers · Alimarket scrape stub still pending Phase 2.7
+- No new agents · directory still mock (the LIVE state lives in the dashboard above)
+- No Phase 3 modules opened
+- No LLM enrichment
+
+---
+
 ## 2026-05-12 — Phase 2.6 · Authenticated cron ingestion + session-health gate + auto-degrade
 
-The daily cron at `/api/cron/hospitality-intel` now hydrates the real T2 cookie jars per run · validates session health against a canonical per-source target · fetches the full authenticated article body · persists `body` + `enriched_meta` on `market_news` · auto-degrades to anon-only when validation collapses. Refresh execution stays CLI-driven per the operator decision.
+Shipped as commit `0da193b`. The daily cron at `/api/cron/hospitality-intel` now hydrates the real T2 cookie jars per run · validates session health against a canonical per-source target · fetches the full authenticated article body · persists `body` + `enriched_meta` on `market_news` · auto-degrades to anon-only when validation collapses. Refresh execution stays CLI-driven per the operator decision.
 
 ### New modules
 - **`lib/intelligence/source-recipes.ts`** · per-source operational config (canonical health-check target URL, paywall/authed marker patterns, body extraction selectors). Cron-side mirror of the playwright-refresh script recipes · keeps the cron path independent of operator scripts.

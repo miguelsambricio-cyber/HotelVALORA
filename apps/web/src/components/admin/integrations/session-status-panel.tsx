@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { SIGNAL_VISUAL } from "@/components/admin/dashboard/signal-tints";
 import type { IntegrationDescriptor, SessionValidationTarget } from "@/lib/admin/integrations";
 import { AUTH_STATUS_VISUAL } from "@/lib/admin/integrations";
+import { CliCopyButton } from "./cli-copy-button";
 
 /**
  * Session-status panel for the integration detail page.
@@ -87,12 +88,16 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
             <p className="font-headline text-[12px] font-extrabold uppercase tracking-[0.18em] text-amber-200">
               Re-auth required — session expires in {session.hoursToExpiry}h
             </p>
-            <p className="mt-1 text-[11.5px] leading-relaxed text-amber-100/80">
+            <p className="mt-1 flex flex-wrap items-center text-[11.5px] leading-relaxed text-amber-100/80">
               Run{" "}
-              <code className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[10.5px] text-amber-200">
+              <code className="ml-1 rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[10.5px] text-amber-200">
                 node apps/web/scripts/playwright-refresh.mjs --slug={integration.id}
-              </code>{" "}
-              before expiry to avoid placeholder fallback in the next cron run.
+              </code>
+              <CliCopyButton
+                value={`node apps/web/scripts/playwright-refresh.mjs --slug=${integration.id}`}
+                label="Copy refresh command"
+              />
+              <span className="ml-2 text-amber-100/60">before expiry.</span>
             </p>
           </div>
         </div>
@@ -226,15 +231,22 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
         )}
       </div>
 
-      {/* Action affordances — runbook hints only, not wired yet */}
-      <div className="mt-5 flex items-center gap-2 border-t border-slate-800/60 pt-4">
-        <KeyRound size={14} className="text-slate-500" aria-hidden />
-        <p className="text-[11.5px] leading-relaxed text-slate-400">
-          Refresh runbook:{" "}
-          <code className="rounded bg-slate-800/60 px-1.5 py-0.5 font-mono text-[11px] text-lime-300">
+      {/* Operator CLI · always available · independent of session state */}
+      <div className="mt-5 border-t border-slate-800/60 pt-4">
+        <p className="mb-2 flex items-center gap-1.5 font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-500">
+          <KeyRound size={11} aria-hidden /> Operator CLI · Refresh runbook
+        </p>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800/60 bg-slate-900/60 px-3 py-2">
+          <code className="font-mono text-[11.5px] text-lime-300">
             node apps/web/scripts/playwright-refresh.mjs --slug={integration.id}
-          </code>{" "}
-          (operator CLI · Phase 2.5b). Browser-driven refresh deferred until runtime decision.
+          </code>
+          <CliCopyButton
+            value={`node apps/web/scripts/playwright-refresh.mjs --slug=${integration.id}`}
+            label="Copy refresh command"
+          />
+        </div>
+        <p className="mt-2 text-[10.5px] leading-relaxed text-slate-500">
+          Captures a fresh real Playwright session · runs entirely client-side · single-attempt · validation-gated. Browser-runtime orchestration deferred until operational layer stabilizes.
         </p>
       </div>
     </section>

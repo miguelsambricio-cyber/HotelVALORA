@@ -409,6 +409,13 @@ export interface RecentArticle {
   id: string;
   title: string;
   summary: string | null;
+  /**
+   * Truncated body preview (first ~280 chars) — populated for rows whose
+   * `market_news.body` is non-empty. Null when the body fetcher returned
+   * nothing (anon-only sources whose extractor missed). The full body
+   * lives in DB; we ship a preview to keep page payload tight.
+   */
+  bodyPreview: string | null;
   url: string;
   canonical_url: string;
   /** news_category enum value */
@@ -425,6 +432,15 @@ export interface RecentArticle {
   /** Source slug + display name · denormalised for the drawer header. */
   source_slug: string;
   source_name: string;
+  /**
+   * Whether the row originated from an authenticated body fetch (cookie
+   * jar from a real T2). True when enriched_meta.authed=true. False for
+   * anon fetches; null when enriched_meta is absent (legacy rows or
+   * fetch failed).
+   */
+  fetchedAuthed: boolean | null;
+  /** Whether the SOURCE this article belongs to is subscriber-gated. */
+  premiumSource: boolean;
 }
 
 /**
@@ -443,6 +459,7 @@ export async function getRecentArticlesForSource(
 ): Promise<RecentArticle[]> {
   try {
     const sb = getSupabaseAdmin();
+    const base = getIntegrationById(slug);
     const sourceRow = await sb
       .from("sources")
       .select("id, name, slug")
@@ -453,7 +470,7 @@ export async function getRecentArticlesForSource(
     const since = new Date(Date.now() - daysBack * 86400_000).toISOString();
     const res = await sb
       .from("market_news")
-      .select("id, title, summary, url, canonical_url, category, country, published_at, first_seen_at")
+      .select("id, title, summary, body, url, canonical_url, category, country, published_at, first_seen_at, enriched_meta")
       .eq("source_id", src.id)
       .gte("first_seen_at", since)
       .order("published_at", { ascending: false, nullsFirst: false })
@@ -463,27 +480,52 @@ export async function getRecentArticlesForSource(
       id: string;
       title: string;
       summary: string | null;
+      body: string | null;
       url: string;
       canonical_url: string;
       category: RecentArticle["category"];
       country: string | null;
       published_at: string | null;
       first_seen_at: string;
+      enriched_meta: Record<string, unknown> | null;
     }> | null) ?? [];
-    return rows.map((r) => ({
-      id: r.id,
-      title: r.title,
-      summary: r.summary,
-      url: r.url,
-      canonical_url: r.canonical_url,
-      category: r.category,
-      country: r.country,
-      published_at: r.published_at ?? r.first_seen_at,
-      first_seen_at: r.first_seen_at,
-      source_slug: src.slug,
-      source_name: src.name,
-    }));
+    const premiumSource = base?.requiresAuth ?? false;
+    return rows.map((r) => {
+      const enriched = r.enriched_meta ?? null;
+      const authedFlag =
+        enriched && typeof enriched.authed === "boolean" ? enriched.authed : null;
+      return {
+        id: r.id,
+        title: r.title,
+        summary: r.summary,
+        bodyPreview: extractPreview(r.body),
+        url: r.url,
+        canonical_url: r.canonical_url,
+        category: r.category,
+        country: r.country,
+        published_at: r.published_at ?? r.first_seen_at,
+        first_seen_at: r.first_seen_at,
+        source_slug: src.slug,
+        source_name: src.name,
+        fetchedAuthed: authedFlag,
+        premiumSource,
+      };
+    });
   } catch {
     return [];
   }
+}
+
+/**
+ * Pull a clean preview from a body column. Truncates to ~280 chars at a
+ * word boundary so the drawer row stays compact but readable.
+ */
+function extractPreview(body: string | null): string | null {
+  if (!body || typeof body !== "string") return null;
+  const trimmed = body.trim();
+  if (trimmed.length === 0) return null;
+  if (trimmed.length <= 280) return trimmed;
+  const slice = trimmed.slice(0, 280);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${slice.slice(0, lastSpace > 200 ? lastSpace : 280)}…`;
 }

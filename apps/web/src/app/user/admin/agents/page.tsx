@@ -4,6 +4,10 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentOrbit } from "@/components/admin";
 import { ALL_AGENTS, groupForStatus, type AgentStatusGroup } from "@/lib/admin/agents";
+import { loadAiOpsLive } from "@/lib/admin/ai-ops/live";
+import { OperationalDashboard } from "@/components/admin/ai-ops/operational-dashboard";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Light-canvas variant of the status group visual contract.
@@ -35,9 +39,10 @@ export const metadata: Metadata = {
  * IDLE / WARNING / ERROR readout per agent. Each row deep-links to the
  * dedicated per-agent dashboard at /user/admin/agents/<id>.
  */
-export default function AgentsPage() {
+export default async function AgentsPage() {
   const byTier: Record<number, typeof ALL_AGENTS> = { 0: [], 1: [], 2: [], 3: [] };
   ALL_AGENTS.forEach((a) => byTier[a.tier].push(a));
+  const aiOps = await loadAiOpsLive();
 
   return (
     <div className="space-y-6">
@@ -63,12 +68,15 @@ export default function AgentsPage() {
           Orchestration Dashboard
         </h1>
         <p className="max-w-3xl text-[13.5px] leading-relaxed text-slate-600">
-          CEO Agent at the centre — supervisory, read-only, never an executor.
-          Nine operational agents orbit around it: ingestion · warehouse ·
-          benchmarking · underwriting · monitoring · finance · brand · support.
-          Click any node to open its operational detail panel.
+          Institutional operations console — live signals from the daily
+          ingestion cron + authenticated session validators. The
+          orchestration roster sits below; the dashboard above shows what
+          actually ran last night.
         </p>
       </header>
+
+      {/* LIVE operational dashboard · zero mock data · reads from DB per request */}
+      <OperationalDashboard data={aiOps} />
 
       {/* Orbital layout */}
       <AgentOrbit />

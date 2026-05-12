@@ -146,6 +146,10 @@ export function ArticleDrawer({
 function ArticleRow({ article }: { article: RecentArticle }) {
   const visual = CATEGORY_VISUAL[article.category as NewsCategory];
   const sig = SIGNAL_VISUAL[visual?.signal ?? "neutral"];
+  // Authenticated body fetch is a green-flag · means the cookie jar
+  // actually pulled the premium body for this row. The chip is suppressed
+  // for public sources because it would be redundant noise.
+  const authedChipVisible = article.premiumSource;
   return (
     <li>
       <a
@@ -154,7 +158,7 @@ function ArticleRow({ article }: { article: RecentArticle }) {
         rel="noopener noreferrer"
         className="block px-5 py-4 transition-colors hover:bg-slate-900/60"
       >
-        {/* Top row · category chip + pubdate + external-link icon */}
+        {/* Top row · category chip + pubdate + premium/authed chips + external-link icon */}
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={cn(
@@ -165,6 +169,26 @@ function ArticleRow({ article }: { article: RecentArticle }) {
             <span aria-hidden className={sig.text}>{sig.dot}</span>
             {visual?.label ?? article.category}
           </span>
+          <span
+            className={cn(
+              "inline-flex items-center rounded px-2 py-0.5 font-headline text-[10px] font-bold uppercase tracking-[0.18em] ring-1",
+              article.premiumSource
+                ? "bg-violet-500/15 text-violet-200 ring-violet-500/40"
+                : "bg-slate-800/60 text-slate-300 ring-slate-700/60",
+            )}
+          >
+            {article.premiumSource ? "Premium" : "Public"}
+          </span>
+          {authedChipVisible && article.fetchedAuthed === true && (
+            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-2 py-0.5 font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200 ring-1 ring-emerald-500/40">
+              <span aria-hidden>●</span> Authed Fetch
+            </span>
+          )}
+          {authedChipVisible && article.fetchedAuthed === false && (
+            <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200 ring-1 ring-amber-500/40">
+              <span aria-hidden>●</span> Anon Body
+            </span>
+          )}
           {article.country && (
             <span className="inline-flex items-center rounded bg-slate-800/60 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-slate-300 ring-1 ring-slate-700/60">
               {article.country}
@@ -183,10 +207,17 @@ function ArticleRow({ article }: { article: RecentArticle }) {
           {article.title}
         </h3>
 
-        {/* Summary */}
+        {/* Summary (RSS) */}
         {article.summary && (
           <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-slate-300/90">
             {article.summary}
+          </p>
+        )}
+
+        {/* Body preview (Phase 2.6 authed/anon body fetch · richer than summary) */}
+        {article.bodyPreview && article.bodyPreview !== article.summary && (
+          <p className="mt-2 line-clamp-3 border-l-2 border-slate-700/60 pl-3 text-[11.5px] leading-relaxed text-slate-400">
+            {article.bodyPreview}
           </p>
         )}
 

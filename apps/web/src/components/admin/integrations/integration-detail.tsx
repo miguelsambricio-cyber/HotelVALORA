@@ -13,6 +13,7 @@ import {
   AuthStatusBadge,
   ConnectionStatusBadge,
 } from "./integration-status-badge";
+import { OperationalHealthHero } from "./operational-health-hero";
 
 /**
  * Per-integration detail page. Composes:
@@ -43,6 +44,12 @@ export function IntegrationDetail({
       >
         <ArrowLeft size={12} /> Integrations Directory
       </Link>
+
+      {/* Operational Health Hero · institutional single-glance verdict */}
+      <OperationalHealthHero
+        integration={integration}
+        credentialsStatus={credentialsStatus}
+      />
 
       {/* Header card · dark canvas (Bloomberg-terminal) */}
       <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-6 shadow-sm sm:p-8">
