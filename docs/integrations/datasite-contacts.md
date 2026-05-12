@@ -1,7 +1,7 @@
 # Integrations · Datasite Contacts (institutional relationship intelligence)
 
 **Last refreshed:** 2026-05-12
-**Status:** 🟢 Phase 1 live · 4,547 institutional contacts ingested · canonical Master shipped · re-classification flag functional
+**Status:** 🟢 Phase 1 live · 4,547 institutional contacts ingested · canonical Master shipped · re-classification flag functional · Google Contacts enrichment pipeline shipped (read-only join, no auto-merge)
 
 Datasite Outreach is the operator's deal-distribution platform. Its
 Companies & Contacts and Buyer Tracking modules together hold the
@@ -232,9 +232,113 @@ each row came from.
 
 ---
 
-## 7 · Cross-references
+## 7 · Google Contacts enrichment pipeline (Phase 2.A · shipped)
 
-- `CONTACTOS DATASITE/README.md` — operator-facing workflow guide
-- `scripts/contactos/ingest.py` — ingester source (`MASTER_SCHEMA` is the canonical column order)
+Operator's personal/professional Google address book is the second
+relationship signal layer. The Google ingester cross-references it
+against the Master and emits a 5-sheet workbook + 4 per-batch CSV
+reports + a markdown analysis. **It does NOT mutate the Master** —
+explicit operator approval is required to promote suggestions.
+
+### Architecture (parallel to Datasite ingester)
+
+```
+incoming/google-contacts/<file.csv>
+            │
+            ▼ python scripts/contactos/ingest_google.py
+            │
+   ┌────────┴────────────────────────────────────────────┐
+   │  parse Google CSV (multi-value columns tolerant)    │
+   │  → GoogleContacts_Raw  (verbatim · UTF-8 BOM clean) │
+   │  → GoogleContacts_Normalized (canonical shape)      │
+   │  → classify (9-bucket Google taxonomy)              │
+   │  → within-google duplicate detection                │
+   │  → identity-resolve vs Master                       │
+   │  → recommend action per row                         │
+   └────────┬────────────────────────────────────────────┘
+            ▼
+   google-contacts/
+     raw/google_raw_<batch>.csv
+     normalized/google_normalized_<batch>.csv
+     enriched/google_enriched_<batch>.xlsx   ← 5 sheets
+     relationship-enrichment-report.md       ← single canonical analysis
+
+   reports/
+     google-ingestion-log.jsonl              (append-only)
+     google-identity-resolution_<batch>.csv
+     google-overlap-analysis_<batch>.csv
+     google-within-duplicates_<batch>.csv
+     google-suggested-joins_<batch>.csv
+
+   old/google-contacts/<file.csv>            ← source archived
+```
+
+### Google classification taxonomy
+
+Distinct from the Master's investor-type taxonomy because Google contacts
+carry less structure. Nine high-level buckets:
+
+| Bucket | Signal |
+|---|---|
+| investor | REIT/SOCIMI · Family Office · Fund · PE · VC · Asset Management · Capital Partners |
+| lender | Bank · Banco · Financiador · Debt fund · Mortgage |
+| broker | Colliers · JLL · Cushman · CBRE · Savills · Knight Frank · broker · intermediario |
+| operator | Operador · Gestor hotelero · Management company · Cadena hotelera |
+| brand | Brand · Marca · Franchisor · Franchise |
+| consultant | Consultor · Consultancy · Consulting |
+| advisor | Advisor · Advisory · Asesoría |
+| personal | Personal email domain (Gmail · Hotmail · Yahoo · iCloud · etc.) without institutional company signal |
+| unknown | No company AND no email AND no classification signal |
+
+Matched contacts ALSO carry the canonical Master `investor_type` so the
+operator can reason in either vocabulary.
+
+### Identity resolution
+
+Same priority order as the Master ingester:
+
+1. exact email (primary + secondaries against `master.email`)
+2. exact phone (digits-only, +-prefix-aware)
+3. exact LinkedIn URL (protocol/www-stripped)
+4. exact name + normalised company (legal-suffix stripped)
+5. fuzzy fallback · Levenshtein ≥ 0.88 within same company_key
+
+### Recommended actions (4-valued)
+
+| Action | Condition | Operator response |
+|---|---|---|
+| MERGE | exact match found · safe field-level enrichment | review email/phone/LinkedIn deltas · approve specific fields |
+| INSERT | institutional classification · no Master match | candidate for outreach + Master row creation |
+| REVIEW | fuzzy match OR unclassified-with-company | 5-minute manual triage each |
+| NO_OP | personal · no company · no institutional signal | skip |
+
+### Privacy posture
+
+The whole `CONTACTOS DATASITE/google-contacts/` subtree is `.gitignore`'d
+in addition to the existing Datasite rules. Both `*.csv` and `*.xlsx`
+patterns are excluded. The README is the only safe artifact under that
+folder.
+
+### Phase 2.A.2 · apply-tool (deferred)
+
+When the operator has reviewed `google-suggested-joins_<batch>.csv` and
+wants to promote some/all rows to the Master, the next planned tool is
+a `scripts/contactos/apply_google_joins.py` that:
+
+1. reads an operator-edited CSV (with a `decision` column · APPROVE/SKIP)
+2. for each APPROVE row, calls the Master ingester's `upsertItem` /
+   `merge_existing` logic directly
+3. writes a new `google-applied_<batch>.jsonl` audit line
+4. regenerates the Master + Summary
+
+Until then, the operator cherry-picks manually.
+
+---
+
+## 8 · Cross-references
+
+- `CONTACTOS DATASITE/README.md` — operator-facing workflow guide (Datasite + Google sections)
+- `scripts/contactos/ingest.py` — Datasite ingester (`MASTER_SCHEMA` = canonical column order)
+- `scripts/contactos/ingest_google.py` — Google Contacts enrichment ingester (read-only, no Master mutation)
 - `.gitignore` — privacy rules (search "CONTACTOS DATASITE")
-- `docs/changelog.md` — Phase 2.10 entry for this delivery
+- `docs/changelog.md` — Phase 2.10 + Phase 2.A entries

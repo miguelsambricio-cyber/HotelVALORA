@@ -19,21 +19,34 @@ against `master_id` (synthetic stable id) or `email` (primary natural key).
 
 ```
 CONTACTOS DATASITE/
-├── README.md              ← this file (safe to commit)
-├── incoming/              ← drop NEW Datasite Outreach exports here
-├── old/                   ← processed exports archived here (with batch_id suffix on collision)
-├── master/                ← canonical institutional output
+├── README.md                       ← this file (safe to commit)
+├── incoming/                       ← drop NEW Datasite Outreach exports here
+│   └── google-contacts/            ← drop Google Contacts CSV exports here
+├── old/                            ← processed exports archived (with batch_id suffix)
+│   └── google-contacts/
+├── master/                         ← canonical institutional output
 │   └── metcub-contacts-master.xlsx
-└── reports/               ← per-batch audit artifacts
-    ├── ingestion-log.jsonl                   (append-only)
-    ├── duplicate-resolution_<batch_id>.csv   (per-row dedup decisions)
-    ├── schema-mapping_<batch_id>.csv         (column → canonical mapping)
-    └── invalid-missing_<batch_id>.csv        (rows skipped + why)
+├── google-contacts/                ← Google enrichment workspace (read-only join layer)
+│   ├── raw/                        ← GoogleContacts_Raw (verbatim CSV)
+│   ├── normalized/                 ← GoogleContacts_Normalized (canonical-shape)
+│   ├── enriched/                   ← Relationship_Enriched workbook per batch
+│   └── relationship-enrichment-report.md
+└── reports/                        ← audit artifacts
+    ├── ingestion-log.jsonl                          (Datasite · append-only)
+    ├── duplicate-resolution_<batch_id>.csv          (Datasite · per-batch)
+    ├── schema-mapping_<batch_id>.csv                (Datasite · per-batch)
+    ├── invalid-missing_<batch_id>.csv               (Datasite · per-batch)
+    ├── google-ingestion-log.jsonl                   (Google · append-only)
+    ├── google-identity-resolution_<batch_id>.csv    (Google · per-batch)
+    ├── google-overlap-analysis_<batch_id>.csv       (Google · per-batch)
+    ├── google-within-duplicates_<batch_id>.csv      (Google · per-batch)
+    └── google-suggested-joins_<batch_id>.csv        (Google · per-batch)
 ```
 
-Everything except this README is `.gitignore`'d. Datasite exports contain
-emails, phone numbers, LinkedIn URLs, internal notes, bid history, and
-declined-buyer comments — none of it is committed to git.
+Everything except this README is `.gitignore`'d. Both Datasite and Google
+exports contain emails, phone numbers, LinkedIn URLs, internal notes,
+bid history, and declined-buyer comments — none of it is committed to
+git.
 
 ---
 
@@ -98,6 +111,111 @@ Five sheets:
 | **Companies** | per-entity | canonical company table with `investor_type_canonical` |
 | **Activities** | per-company timeline | deal stage timestamps · NDA/IOI/LOI/bids/declined |
 | **Summary** | dashboard | totals · pipeline distribution · investor breakdown · seniority · top active investors |
+
+---
+
+## Google Contacts enrichment (Phase 2.A)
+
+The Master is the canonical institutional layer. To cross-reference it
+with your personal/professional Google address book — identifying which
+of your direct contacts already sit inside the institutional deal-flow
+graph, and which are new institutional names worth onboarding — run the
+separate Google ingester. **It does NOT mutate the Master.**
+
+### Step 1 · Export from Google
+
+1. Open `contacts.google.com`
+2. Select all contacts (or a label-filtered subset)
+3. Export → choose **"Google CSV"** (NOT vCard)
+4. Save the `.csv` to:
+   ```
+   CONTACTOS DATASITE/incoming/google-contacts/
+   ```
+
+### Step 2 · Run
+
+```bash
+python scripts/contactos/ingest_google.py
+```
+
+The script:
+
+1. Parses the Google CSV (tolerant of multi-value columns: `Email 1 - Value` · `Phone 1 - Value` · etc.)
+2. Builds **GoogleContacts_Raw** — verbatim copy, encoding-normalised
+3. Builds **GoogleContacts_Normalized** — canonical-shape rows · single primary email/phone + secondaries · LinkedIn extracted from websites · all metadata preserved (labels · birthday · notes · address)
+4. Classifies each contact into the 9-bucket Google taxonomy: `investor · lender · broker · operator · brand · consultant · advisor · personal · unknown`
+5. Detects within-Google duplicates (same email · same LinkedIn · same name+company)
+6. Loads the Datasite Master (read-only)
+7. Runs identity resolution with the same priority used by the Master ingester:
+   - exact email (primary + secondaries)
+   - exact phone
+   - exact LinkedIn URL
+   - exact name + company
+   - fuzzy fallback (Levenshtein ≥ 0.88 within same company)
+8. Recommends an action per Google row:
+   - **MERGE** — exact match · safe to enrich the Master row's email/phone/LinkedIn/notes
+   - **INSERT** — institutional contact NOT in Master · candidate for new Master row
+   - **REVIEW** — fuzzy match OR unclassified institutional · operator decides
+   - **NO_OP** — personal contact without company · skip
+9. Writes a 5-sheet workbook + 4 per-batch CSV reports + the markdown report
+10. Moves the source CSV → `old/google-contacts/`
+
+### Step 3 · Read the report
+
+The single most important output:
+
+```
+CONTACTOS DATASITE/google-contacts/relationship-enrichment-report.md
+```
+
+11-section institutional analysis:
+1. **Totals** · processed / matched / unmatched / within-Google duplicates
+2. **Recommended actions** · counts per MERGE / INSERT / REVIEW / NO_OP
+3. **Match strategies used** · email_exact · phone_exact · linkedin_exact · etc.
+4. **High-level classification** · the 9-bucket distribution
+5. **Hotel focus density** · Yes / Likely / No / Unknown
+6. **Email domain kind** · institutional vs personal email split
+7. **Overlap with Datasite Master** · top 20 companies where Google contacts matched Master rows
+8. **New unique institutional contacts in Google** · top 20 companies with Google contacts NOT in Master (INSERT candidates)
+9. **Relationship density** · top 25 companies by Google contact count
+10. **Inferred network clusters** · companies with multiple Google contacts where at least one matches Master (your live institutional relationships)
+11. **Missing metadata** · % without company / email / phone / LinkedIn
+
+The Excel companion:
+
+```
+CONTACTOS DATASITE/google-contacts/enriched/google_enriched_<batch_id>.xlsx
+```
+
+Five sheets:
+- **GoogleContacts_Normalized** — every parsed contact with canonical fields + classification
+- **Relationship_Enriched** — per-Google-row resolution outcome (matched / strategy / score / master_id / recommended action)
+- **Suggested-Joins** — filtered to MERGE / INSERT / REVIEW rows (the cherry-picking surface)
+- **New-Unique-Contacts** — Google rows with NO Master match (full normalised fields)
+- **Within-Google-Duplicates** — duplicates inside your Google export itself
+
+### What's preserved per contact
+
+- All emails (primary + secondaries semicolon-joined)
+- All phones (same pattern)
+- LinkedIn URL (auto-extracted from websites column)
+- All websites (semicolon-joined)
+- Title · Department
+- Google labels / categories (semicolon-joined)
+- Notes (full)
+- Birthday · Address (combined)
+- Source filename · batch_id · ingested_at (provenance)
+
+### Why no automatic merge
+
+By design. The Master is institutional canonical truth. Surfacing
+"INSERT these 47 contacts" or "MERGE LinkedIn into these 312 Master
+rows" automatically would erode that canonical discipline. Phase 2.A's
+next step (when greenlit) will be an explicit **apply-tool** that reads
+`google-suggested-joins_<batch_id>.csv`, lets the operator approve
+specific row-level decisions, and then writes them back to the Master
+via the existing dedup engine. Until then, you cherry-pick from the
+enriched workbook and feed approved rows back via the Master script.
 
 ---
 

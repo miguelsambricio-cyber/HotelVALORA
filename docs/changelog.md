@@ -4,6 +4,95 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.A · Google Contacts enrichment pipeline (read-only join with Datasite Master)
+
+Second relationship-intelligence ingestion lane · cross-references the operator's Google Contacts (personal/professional address book) against the canonical Datasite Master. **By design, does NOT mutate the Master** — every output lands in a separate workspace and the operator approves what to promote.
+
+### Folder additions (`CONTACTOS DATASITE/`)
+```
+incoming/google-contacts/          ← drop Google CSV exports here
+old/google-contacts/               ← processed CSVs archived (with batch_id suffix)
+google-contacts/
+├── raw/                           ← GoogleContacts_Raw · verbatim CSV per batch
+├── normalized/                    ← GoogleContacts_Normalized · canonical shape per batch
+├── enriched/                      ← Relationship_Enriched · 5-sheet xlsx per batch
+└── relationship-enrichment-report.md   ← single canonical analysis (latest only)
+```
+
+All four subtrees gitignored. README.md is still the only thing committable under `CONTACTOS DATASITE/`.
+
+### Ingester · `scripts/contactos/ingest_google.py`
+Separate from `ingest.py` (different concerns, different write surface). ~700 LOC · stdlib + openpyxl. Per-file lifecycle:
+
+1. **Parse Google CSV** · tolerant of multi-value columns (`E-mail 1 - Value` / `Phone 1 - Value` / `Website 1 - Value` patterns) AND newer single-column variants (`E-mail` / `Phones` semicolon-joined). UTF-8 BOM handled via `utf-8-sig`.
+2. **Build GoogleContacts_Raw** · verbatim CSV row preserved with provenance fields `__source_file__` + `__batch_id__` prepended.
+3. **Build GoogleContacts_Normalized** · canonical-shape rows:
+   - `primary_email` + `secondary_emails` (semicolon-joined) + `all_emails`
+   - `primary_phone` + `secondary_phones` (digits-only, +-prefix-aware, 00-prefix folded to +) + `all_phones`
+   - `linkedin` extracted from any Websites column whose value contains "linkedin"
+   - `websites` (full list semicolon-joined)
+   - `company` · `title` · `department` · `labels` · `notes` · `birthday` · `address` (combined Street/City/Region/Postal/Country) · `nickname`
+   - `classification` · 9-bucket Google taxonomy
+   - `email_domain_kind` · `institutional` / `personal` / `unknown`
+   - `hotel_focus` · Yes/Likely/No/Unknown by keyword density
+   - `has_company` flag · `email_count` · `phone_count`
+   - Provenance: `source_file` · `batch_id` · `ingested_at`
+4. **Detect within-Google duplicates** · same email · same LinkedIn · same name+company → 3-strategy CSV report
+5. **Load Datasite Master** (read-only · `master/metcub-contacts-master.xlsx`)
+6. **Build Master indices** · O(1) lookup by email · phone · LinkedIn · name+company
+7. **Identity resolution** with the same priority used by the Master ingester:
+   - exact email (primary + secondaries)
+   - exact phone
+   - exact LinkedIn
+   - exact name + company
+   - fuzzy fallback · Levenshtein ≥ 0.88 within same company_key
+8. **Recommend per-row action**:
+   - **MERGE** · exact match found · safe field-level enrichment
+   - **INSERT** · institutional classification · no Master match → candidate for new Master row
+   - **REVIEW** · fuzzy match OR unclassified-with-company → manual triage
+   - **NO_OP** · personal-domain · no company · no institutional signal → skip
+9. **Write 5-sheet workbook** · `enriched/google_enriched_<batch_id>.xlsx`:
+   - `GoogleContacts_Normalized` (every parsed contact with all fields)
+   - `Relationship_Enriched` (per-row resolution outcome + master_id when matched + recommendation)
+   - `Suggested-Joins` (filtered to MERGE / INSERT / REVIEW · the cherry-picking surface)
+   - `New-Unique-Contacts` (Google rows with NO Master match · full normalised fields)
+   - `Within-Google-Duplicates` (3 detection strategies)
+10. **Write 4 per-batch CSV reports** to `reports/` (parallel to Datasite report layout):
+    - `google-ingestion-log.jsonl` (append-only, JSONL)
+    - `google-identity-resolution_<batch_id>.csv` (per-row outcome)
+    - `google-overlap-analysis_<batch_id>.csv` (matched rows only · Master ↔ Google fields side-by-side)
+    - `google-within-duplicates_<batch_id>.csv` (3 detection strategies)
+    - `google-suggested-joins_<batch_id>.csv` (filtered to actionable recommendations)
+11. **Write the markdown analysis** · `google-contacts/relationship-enrichment-report.md` · 11 sections (Totals · Recommended Actions · Match strategies · 9-bucket classification · Hotel focus · Email domain kind · Overlap with Master · New unique companies · Relationship density · Inferred network clusters · Missing metadata)
+12. **Move source** · `incoming/google-contacts/` → `old/google-contacts/` (batch_id suffix on collision)
+
+### Classification taxonomy (9 buckets · distinct from Master's 21)
+`investor · lender · broker · operator · brand · consultant · advisor · personal · unknown`
+
+Matched contacts ALSO carry the canonical Master `investor_type` (21-bucket) so the operator can reason in either vocabulary.
+
+Specific institutional firm-name shortcuts: Colliers / JLL / Cushman / CBRE / Savills / Knight Frank → broker. Banco / Bank / Financiador / Debt → lender. Cadena hotelera / Operador → operator. PE / VC / Family Office / Capital Partners / Asset Management → investor.
+
+### Hospitality focus heuristic
+Same `HOSPITALITY_HINT` pattern as the Master ingester (hotel/hospitality/resort/RevPAR/ADR/llaves/etc.) · per-Google-row Yes/Likely/No/Unknown.
+
+### Privacy
+The entire `CONTACTOS DATASITE/` tree is gitignored except `README.md`. New `.gitignore` rules added for `google-contacts/` subtree + `*.vcf` + `*.md` under that folder (with explicit `!CONTACTOS DATASITE/README.md` exception).
+
+### Why no auto-merge into Master
+The Master is institutional canonical truth. Surfacing "INSERT these 47 contacts" or "MERGE LinkedIn into these 312 Master rows" automatically would erode that canonical discipline. Phase 2.A.2's next step (when greenlit) will be an `apply_google_joins.py` tool that reads an operator-edited CSV with an explicit `decision` column.
+
+### Files added (committed · NO data)
+- `scripts/contactos/ingest_google.py` · the Google enrichment ingester
+- `CONTACTOS DATASITE/README.md` · extended with the Google workflow section + new folder layout
+- `docs/integrations/datasite-contacts.md` · extended with Section 7 (Google pipeline · architecture · classification · identity resolution · privacy) + Phase 2.A.2 roadmap
+- `.gitignore` · new rules covering `google-contacts/` and `*.vcf`
+
+### Operational status
+Pipeline ready · empty-state run passes · awaiting first Google CSV drop into `incoming/google-contacts/`.
+
+---
+
 ## 2026-05-12 — Phase 2.10 · CONTACTOS DATASITE · institutional relationship intelligence pipeline
 
 Datasite Outreach's CRM (Companies & Contacts + Buyer Tracking) is the operator's institutional relationship graph for METCUB's sell-side outreach. The Claude Datasite MCP doesn't expose those endpoints (verified end-to-end · the connector covers Projects · Folders · Members · Q&A · Documents but NOT the Outreach CRM module). So we built an **export-driven ingestion architecture** instead, modelled on the same disciplines used for transactions + CoStar + intelligence: drop-zone workflow · provenance + lineage · audit-grade reports · re-classifiability · append-only audit log · PII never in git.
