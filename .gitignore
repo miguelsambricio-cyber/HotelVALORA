@@ -77,3 +77,15 @@ uploads/
 exports/
 tmp/
 .vercel
+
+# ─── CONTACTOS DATASITE (institutional relationship intelligence · PII) ──────
+# Datasite Outreach exports contain emails, phones, LinkedIn URLs, internal
+# notes, and bid history. Never commit any of it to git. The README at
+# CONTACTOS DATASITE/README.md is the only thing that's safe to track.
+CONTACTOS DATASITE/incoming/
+CONTACTOS DATASITE/old/
+CONTACTOS DATASITE/master/
+CONTACTOS DATASITE/reports/
+CONTACTOS DATASITE/*.xlsx
+CONTACTOS DATASITE/*.xlsm
+CONTACTOS DATASITE/*.csv

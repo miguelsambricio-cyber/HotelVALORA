@@ -4,9 +4,90 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.10 · CONTACTOS DATASITE · institutional relationship intelligence pipeline
+
+Datasite Outreach's CRM (Companies & Contacts + Buyer Tracking) is the operator's institutional relationship graph for METCUB's sell-side outreach. The Claude Datasite MCP doesn't expose those endpoints (verified end-to-end · the connector covers Projects · Folders · Members · Q&A · Documents but NOT the Outreach CRM module). So we built an **export-driven ingestion architecture** instead, modelled on the same disciplines used for transactions + CoStar + intelligence: drop-zone workflow · provenance + lineage · audit-grade reports · re-classifiability · append-only audit log · PII never in git.
+
+### Folder layout (`CONTACTOS DATASITE/`)
+```
+incoming/   ← drop new Datasite Full Report .xlsm here
+old/        ← processed exports archived (with batch_id suffix on collision)
+master/     ← canonical institutional output (metcub-contacts-master.xlsx)
+reports/    ← per-batch audit artifacts
+README.md   ← operator-facing workflow guide (only thing committed)
+```
+
+Everything except `README.md` is `.gitignore`'d. Datasite exports contain emails, phones, LinkedIn URLs, internal notes, bid history, declined-buyer comments — zero of that lands in git.
+
+### Ingester · `scripts/contactos/ingest.py`
+~1,300 lines · stdlib + openpyxl only · no Node.js dependency. Per-file lifecycle:
+
+1. **Parse** the .xlsm (Contacts · Companies · Activities sheets)
+2. **Clean + normalise** · encoding (NFC unicode) · whitespace · email lowercase · phone digits-only · LinkedIn strip protocol/www
+3. **Map columns** to a canonical schema via three explicit mappings (`CONTACT_COL_MAP` / `COMPANY_COL_MAP` / `ACTIVITY_COL_MAP`)
+4. **Enrich** · LEFT JOIN Contacts ⨝ Companies ⨝ Activities on `company` normalised key · each person row gets investor type · continent · fund size · latest deal stage · pipeline state · bid values
+5. **Classify** · canonical investor type · hotel focus heuristic (Yes/Likely/No/Unknown by hospitality keyword density) · seniority (C-Suite / Partner / Director / Senior / Associate / Other)
+6. **Deduplicate** with priority: exact email → LinkedIn → name+company → fuzzy (Levenshtein ≥ 0.88 within same company)
+7. **Merge** existing rows: latest non-empty value wins for state, notes concatenated, `first_seen_batch_id` preserved
+8. **Report** · `ingestion-log.jsonl` (append-only) · `duplicate-resolution_<batch_id>.csv` · `schema-mapping_<batch_id>.csv` · `invalid-missing_<batch_id>.csv`
+9. **Move** · source `.xlsm` shifts `incoming/` → `old/` (with batch_id suffix on collision)
+
+### Re-classification flag · `--reclassify`
+Updates derived fields (investor_type · hotel_focus · seniority) against the existing Master from the raw values preserved in the Companies sheet. No source re-ingestion needed. Used when the canonical taxonomy rules change.
+
+### Canonical institutional taxonomy
+Maps Datasite's free-text Spanish + English values to a stable bucket set:
+REIT/SOCIMI · Family Office · Sovereign Wealth · Pension Fund · Insurance · Fund · **Lender** · **Hotel Chain** · Operator · Brand · **Owner** · Broker · **Advisor** · Developer · **Architect** · **Service Provider** · **F&B Operator** · **Media** · Corporate · Institutional Investor · Investor. Distinct buckets are deliberate (Hotel Chain ≠ Operator; Owner ≠ Investor). Raw value preserved in `investor_type_raw`.
+
+### Master sheet schema (47 fields · per-person enriched)
+Identity · Company + investor frame · Geography · Deal state (latest stage · pipeline state · IOI/LOI/Revised bid low/high) · Relationship · Provenance + lineage (`source_file` · `first_seen_batch_id` · `last_seen_batch_id` · `last_updated_at`). See `MASTER_SCHEMA` in the ingester for the canonical column order.
+
+### Production baseline (METCUB · 2026-05-12)
+First ingest · single Full Report (4,828 source contact rows · 3,000 company rows · 3,000 activity rows · 2.3MB):
+
+| Output | Count |
+|---|---|
+| Master contacts (after dedup) | **4,547** |
+| Unique companies (Master) | 2,819 |
+| Company records | 2,990 |
+| Activity timelines | 2,990 |
+| Email coverage | 99.6% |
+| Phone coverage | 15% |
+| LinkedIn coverage | 0% (Datasite export didn't populate) |
+
+**Pipeline distribution:** Teaser 2,301 · Outreach 1,176 · NDA 729 · Investment Meetings 267 · Warehouse 52 · Bids 22
+
+**Top canonical investor types post-reclassify:** Investor 1,836 · Broker 905 · Hotel Chain 669 · Developer 521 · Lender 334 · Service Provider 112 · Family Office 59 · Operator 40 · Owner 17 · Media 11
+
+**Top active institutional investors by Master contact count:** Colliers (13) · BBVA (12) · Eastdil Secured (12) · Allianz Real Estate (11) · Morgan Stanley (11) · Credit Suisse (11) · AXA (10) · Banca March (10) · Goldman Sachs (10) · Savills (10) · Deutsche Bank (9) · Wyndham (9) · Bankinter (8) · Carlyle (8)
+
+### Why export-driven (not API)
+Verified end-to-end across the Datasite MCP catalog: no endpoint exposes Companies & Contacts or Buyer Tracking. Two reauth attempts (build3rent → metcub identity) confirmed: `getMembers` is project access control (different surface), `getProjectOverview` returns "Unable to retrieve" for MEMBERS/ROLES, and `searchDocuments` returns "Blueflame AI not available for this product type" on OUTREACH projects. The Outreach CRM is a UI-only module from the Claude MCP's perspective. Export workflow is the realistic path.
+
+### Files added (committed)
+- `scripts/contactos/ingest.py` · the ingester
+- `CONTACTOS DATASITE/README.md` · operator workflow guide
+- `docs/integrations/datasite-contacts.md` · architecture doc + roadmap to Phase 2.A/B/C/D (Supabase table · cross-system joins · UI · multi-project ingest)
+- `.gitignore` · CONTACTOS DATASITE/* exclusion rules
+
+### NOT committed (PII never enters git)
+- `CONTACTOS DATASITE/incoming/` (drop zone)
+- `CONTACTOS DATASITE/old/` (source archive)
+- `CONTACTOS DATASITE/master/` (canonical output)
+- `CONTACTOS DATASITE/reports/` (audit artifacts)
+- Any `*.xlsx` / `*.xlsm` / `*.csv` under that path
+
+### Forward roadmap (deferred)
+- **Phase 2.A** · promote Master to Supabase `relationship_contacts` table
+- **Phase 2.B** · cross-system joins (transactions buyer/seller · CompSet competing assets · Intelligence Engine news mentions)
+- **Phase 2.C** · Admin UI at `/user/admin/contacts` matching Intelligence + Integrations panel language
+- **Phase 2.D** · multi-project incremental ingest (other Datasite projects beyond METCUB)
+
+---
+
 ## 2026-05-12 — Admin · Operational Summary footer (hierarchy rebalance)
 
-Per operator: the institutional summary was visually dominating and competing with the integration hero. Re-positioned + redesigned as a compact footer.
+Shipped as commit `2b707f6`. Per operator: the institutional summary was visually dominating and competing with the integration hero. Re-positioned + redesigned as a compact footer.
 
 ### Hierarchy change
 - **Before**: Operational Health hero block at the very top of every integration detail page (sat above the hero card)
