@@ -161,8 +161,14 @@ export async function loadAiOpsLive(): Promise<AiOpsLive> {
         metadata: Record<string, unknown> | null;
       }> | null) ?? [];
 
-    const recentRuns: RecentRunRow[] = rawRuns.map((r) => {
+    // Skip runs for sources that aren't in the editorial registry. The
+    // historic DB rows for removed sources (Skift, Expansion, THP, Hotel
+    // News Now) remain for audit · they just don't pollute the
+    // operator-facing dashboard. Keeps the table aligned with the
+    // directory page · clicks always resolve to a real integration detail.
+    const recentRuns: RecentRunRow[] = rawRuns.flatMap((r) => {
       const src = sourceById.get(r.source_id);
+      if (!src || !slugToRegistry.has(src.slug)) return [];
       const meta = r.metadata ?? {};
       const startedMs = new Date(r.run_started_at).getTime();
       const completedMs = r.run_completed_at ? new Date(r.run_completed_at).getTime() : null;
@@ -174,11 +180,11 @@ export async function loadAiOpsLive(): Promise<AiOpsLive> {
         sessionHealthRaw === "no_auth_required"
           ? sessionHealthRaw
           : null;
-      return {
+      return [{
         id: r.id,
         source_id: r.source_id,
-        source_slug: src?.slug ?? "(unknown)",
-        source_name: src?.name ?? slugToRegistry.get(src?.slug ?? "")?.name ?? "Unknown source",
+        source_slug: src.slug,
+        source_name: src.name,
         status: r.status,
         run_started_at: r.run_started_at,
         run_completed_at: r.run_completed_at,
@@ -192,7 +198,7 @@ export async function loadAiOpsLive(): Promise<AiOpsLive> {
           typeof meta.body_fetch_successes === "number" ? meta.body_fetch_successes : null,
         body_fetch_failures:
           typeof meta.body_fetch_failures === "number" ? meta.body_fetch_failures : null,
-      };
+      }];
     });
 
     // ── per-source 7d counts ───────────────────────────────────────────────
