@@ -4,6 +4,50 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Camino A · Supabase Auth route protection activated for /user/admin + /settings
+
+The operator UI gate that returns `unauthorised` when nobody is signed in is now activatable in production via a single Vercel env-var flip. Closes the loop on Option B: the credential-provisioning admin form requires a real signed-in operator (not a mock Zustand session).
+
+### Why this was broken before
+
+The Supabase Auth wiring (sessions · OAuth · password sign-in · `useAuth()` adapter · middleware session refresh) shipped months ago and worked end-to-end. The route-protection lattice was wired but **`PROTECTED_PREFIXES = []`** — an empty list meant no path triggered redirect-to-login. Visiting `/user/admin/integrations/hosteltur` rendered the page, the user clicked "Provision Credentials", and the server action's `assertAdminContext()` rejected the call because `supabase.auth.getUser()` returned no user. The error surfaced in the UI as `unauthorised` — accurate but unhelpful without a path forward.
+
+### What changed
+
+- `apps/web/src/middleware.ts` — `PROTECTED_PREFIXES` populated with `/user/admin` and `/settings`. When `AUTH_ENABLED=true`, anonymous requests to these prefixes redirect to `/login?next=<original-path>`. Public surfaces (`/`, `/library`, `/report`) remain anonymous.
+- `apps/web/src/app/user/admin/integrations/[integrationId]/actions.ts` — `assertAdminContext()` now throws **self-diagnostic** errors:
+  - `Supabase Auth is not activated (AUTH_ENABLED=false)…` when the flag is off
+  - `Sign in required. Visit /login?next=…` when the flag is on but no session
+  - `Your account (X) is not in ADMIN_OPERATOR_EMAILS…` when allow-list mismatch
+  - `intelligence: encryption key unavailable` when KEK env missing/malformed
+  Each message is a copy-pasteable signpost to the fix step in `docs/auth.md`.
+
+### Activation runbook (one-time bootstrap)
+
+Full version: `docs/auth.md` § Activation runbook — Administrator section.
+
+```
+1. Supabase Studio → Authentication → Users → Add user (email + strong password · Auto Confirm ✅)
+2. Vercel env (Production · Sensitive):
+     AUTH_ENABLED=true · NEXT_PUBLIC_AUTH_ENABLED=true
+     ADMIN_OPERATOR_EMAILS=miguel.sambricio@metcub.com
+     INTELLIGENCE_SESSION_ENC_KEY=$(openssl rand -base64 32)
+     INTELLIGENCE_SESSION_ENC_KEY_ID=v1
+3. /login → sign in
+4. /user/admin/integrations/hosteltur → Provision Credentials → encrypted store
+5. Verify badge transitions Not Provisioned → Active · Encrypted
+```
+
+### Rollback
+
+`AUTH_ENABLED=false` on Vercel → redeploy → middleware reverts to no-redirects, session refresh continues (harmless), `/user/admin` becomes anonymous again. Stored credentials untouched.
+
+### Build characteristics
+
+`pnpm typecheck` clean · `pnpm build` clean. No new routes; only middleware scope + error-message clarity.
+
+---
+
 ## 2026-05-12 — Option B credential model · admin-provisioned, encrypted-at-rest T1 + T2
 
 Pivoted the institutional intelligence architecture from "credentials in Vercel env vars" (Option A) to "credentials encrypted-at-rest in Supabase, managed via admin UI" (Option B). HotelVALORA becomes the operational console — no more terminal-only credential workflows.

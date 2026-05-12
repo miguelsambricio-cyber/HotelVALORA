@@ -2,8 +2,8 @@
 
 HotelVALORA's production authentication runs on **Supabase Auth** (OAuth + sessions + cookie management). The Auth.js v5 scaffold is still in the repo but inert — kept for future non-OAuth flows.
 
-**Last refreshed:** 2026-05-11
-**Platform mode:** 🟢 Public Beta / Institutional Showcase — auth is **wired and operational** (Google OAuth · Supabase sessions · HttpOnly cookies) but route protection is **disabled platform-wide** while the financial engine, underwriting, report rendering and Library are validated. Anonymous visitors can navigate every surface. See § "Public Beta / Showcase Mode" below.
+**Last refreshed:** 2026-05-12
+**Platform mode:** 🟢 Public Beta / Institutional Showcase — public surfaces stay anonymous-readable. **Two paths are auth-gated as of 2026-05-12:** `/user/admin/*` (operator console · credentials · agents · integrations) and `/settings/*` (user preferences). Activation requires `AUTH_ENABLED=true` on Vercel — without it the middleware refreshes sessions but never redirects. Public surfaces (`/`, `/library`, `/report`) remain anonymous.
 
 ---
 
@@ -15,12 +15,76 @@ HotelVALORA's production authentication runs on **Supabase Auth** (OAuth + sessi
 | Provider credentials | Supabase Dashboard → Authentication → Providers (NOT Vercel env) |
 | Cookie strategy | HttpOnly, `__Secure-` prefixed in prod, `sameSite: lax` (handled by `@supabase/ssr`) |
 | Session refresh | Middleware (`apps/web/src/middleware.ts`) calls `supabase.auth.getUser()` to rotate the JWT on every request |
-| Protected routes | **None during Public Beta** — `PROTECTED_PREFIXES` is intentionally empty. Future entries listed in middleware.ts comment block |
+| Protected routes | `/user/admin` + `/settings` (when `AUTH_ENABLED=true`). Public Beta keeps everything else anonymous. List lives in `middleware.ts` `PROTECTED_PREFIXES` |
 | User provisioning | `handle_new_user` trigger on `auth.users` → auto-inserts `public.users` + `public.profiles` |
 | RBAC | `public.users.role` enum (`user` / `admin` / `owner`); RLS uses `auth.uid()` |
 | Org membership | `public.user_roles (user_id, organization_id, role)` join |
 | Client surface | `useAuth()` — engine-agnostic, picks Supabase or Zustand mock at build time |
 | Migration safety | `AUTH_ENABLED` flag controls Supabase Auth runtime; `PROTECTED_PREFIXES` array (separate concern) controls which routes redirect anonymous traffic |
+
+---
+
+## Activation runbook — Administrator section (Camino A · 2026-05-12)
+
+Activates Supabase Auth route protection on `/user/admin/*` so credential provisioning + agent operations require a real signed-in operator. **One-time bootstrap per environment.**
+
+### Step 1 — Create your Supabase Auth user
+
+Supabase Dashboard → Authentication → **Users** → **Add user**:
+
+- **Email:** your operator email (e.g., `miguel.sambricio@metcub.com`)
+- **Password:** a strong password you generate locally (NOT one you've shared anywhere · ≥ 16 chars · password manager)
+- **Auto Confirm User:** ✅ (otherwise you'd need a verification email round-trip)
+
+Note the user's UUID for the audit trail. The `handle_new_user` trigger auto-inserts the matching `public.users` + `public.profiles` rows.
+
+### Step 2 — Set Vercel env vars (Production scope · Sensitive flag for keys)
+
+```bash
+# Auth activation — both required, both must match
+AUTH_ENABLED=true                          # server-side middleware enforcement
+NEXT_PUBLIC_AUTH_ENABLED=true              # client-side `useAuth()` engine pick
+
+# Operator allow-list — comma-separated, lower-case
+ADMIN_OPERATOR_EMAILS=miguel.sambricio@metcub.com
+
+# Credential-store encryption KEK (generate ONCE per environment)
+INTELLIGENCE_SESSION_ENC_KEY=$(openssl rand -base64 32)
+INTELLIGENCE_SESSION_ENC_KEY_ID=v1
+```
+
+Set via Vercel dashboard → Project → Environment Variables → **Production**, mark the two key values as **Sensitive**. Trigger a redeploy (Vercel will do this automatically on env-var change).
+
+### Step 3 — Sign in
+
+Navigate to `https://www.hotelvalora.com/login` → enter your operator email + the password from Step 1. The `AuthCard` posts to `supabase.auth.signInWithPassword` and the cookie lands.
+
+### Step 4 — Provision credentials
+
+Now `/user/admin/integrations/hosteltur` → **Provision Credentials** → enter the **rotated** Hosteltur email + password (rotated since the previous chat leak) → **Encrypt & Store**.
+
+Same flow for Alimarket. The server action runs `assertAdminContext()` → finds your Supabase session + your email in `ADMIN_OPERATOR_EMAILS` → passes → encrypts → upserts → audit row written with `actor_user_id` set to your UUID.
+
+### Step 5 — Verify
+
+- `/user/admin/integrations/hosteltur` should now show the credentials panel badge as `Active · Encrypted` instead of `Not Provisioned`.
+- `/user/admin/agents/market_intelligence` → **Authenticated Sources** panel should reflect the same change.
+- Supabase Studio → `public.intelligence_credentials_audit` → see the `provisioned` row.
+
+### Diagnostic surface
+
+Server action `provisionCredentialsAction` returns explicit messages so you can self-diagnose:
+
+| Error message | Root cause | Fix |
+|---|---|---|
+| `Supabase Auth is not activated (AUTH_ENABLED=false)…` | Vercel env still has the flag off | Step 2 |
+| `Sign in required. Visit /login?next=…` | Auth on but no active session | Step 3 |
+| `Your account (X) is not in ADMIN_OPERATOR_EMAILS…` | Email mismatch | Step 2 — add to allow-list |
+| `intelligence: encryption key unavailable` | KEK env missing/malformed | Step 2 — verify `INTELLIGENCE_SESSION_ENC_KEY` is 32-byte base64 |
+
+### Rollback
+
+If something breaks during activation, set `AUTH_ENABLED=false` in Vercel and redeploy. Middleware reverts to no-redirects (session refresh stays — harmless), and `/user/admin` becomes anonymous again. Credentials already stored are untouched.
 
 ---
 

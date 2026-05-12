@@ -55,11 +55,20 @@ async function assertAdminContext(): Promise<{ userId: string | null; email: str
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {
-    throw new Error("unauthorised");
+    // Self-diagnostic: distinguish "auth not yet activated" from "you need
+    // to sign in" so the operator UI can show the right CTA.
+    if (process.env.AUTH_ENABLED !== "true") {
+      throw new Error(
+        "Supabase Auth is not activated (AUTH_ENABLED=false). See docs/auth.md for the activation runbook.",
+      );
+    }
+    throw new Error(
+      "Sign in required. Visit /login?next=/user/admin/integrations and authenticate before retrying.",
+    );
   }
   const email = data.user.email?.toLowerCase();
   if (!email) {
-    throw new Error("unauthorised");
+    throw new Error("Signed-in user has no email on record — cannot evaluate operator allow-list.");
   }
   const allow = (process.env.ADMIN_OPERATOR_EMAILS ?? "")
     .split(",")
@@ -73,7 +82,9 @@ async function assertAdminContext(): Promise<{ userId: string | null; email: str
     .filter(Boolean);
   const allowed = allow.length > 0 ? allow : fallback;
   if (allowed.length > 0 && !allowed.includes(email)) {
-    throw new Error("forbidden");
+    throw new Error(
+      `Your account (${email}) is not in ADMIN_OPERATOR_EMAILS. Ask an operator to add you, or set the env var on Vercel.`,
+    );
   }
   return { userId: data.user.id, email };
 }

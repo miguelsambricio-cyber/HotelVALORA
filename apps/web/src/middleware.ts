@@ -11,29 +11,29 @@ import { createServerClient } from "@supabase/ssr";
  *      absent. Runs unconditionally so that, when a user DOES sign
  *      in via Google (or password), their session sticks around.
  *
- *   2. Route protection — gated on `AUTH_ENABLED=true` AND a non-empty
- *      `PROTECTED_PREFIXES` list. Today the list is intentionally
- *      empty: HotelVALORA is in "Public Beta / Institutional Showcase
- *      Mode" — every surface is anonymous-readable while the financial
- *      engine, underwriting, report rendering and Library are being
- *      validated by partners and prospects. Auth still exists for
- *      session testing + future-ready account architecture, but it
- *      MUST NOT block access anywhere yet.
+ *   2. Route protection — gated on `AUTH_ENABLED=true` AND the matched
+ *      pathname appearing in `PROTECTED_PREFIXES`. Visiting a protected
+ *      path without a session redirects to `/login?next=<original-path>`.
  *
- *      When private surfaces land (saved reports, CRM, collaboration,
- *      payments, admin), add their prefixes to PROTECTED_PREFIXES.
- *      Likely future entries:
+ * Activation contract
+ *   The Administrator section requires `AUTH_ENABLED=true` to take
+ *   effect — without it, the middleware refreshes sessions but never
+ *   redirects. The list below is the source of truth for what is
+ *   institutional-private. Public surfaces (landing · library
+ *   showcase · public reports) are intentionally excluded so the
+ *   institutional showcase still works anonymously.
  *
- *        "/settings",  // user-owned preferences
- *        "/dashboard", // institutional portfolio view
- *        "/admin",     // operator surface
- *        "/billing",   // Stripe-connected billing surface
- *
- *      The route-protection path is fully wired — the only thing
- *      stopping it firing today is this empty list.
+ *   See docs/auth.md for the full activation runbook.
  */
 
-const PROTECTED_PREFIXES: readonly string[] = [];
+const PROTECTED_PREFIXES: readonly string[] = [
+  // Operator console — credentials provisioning, agent ops, integrations.
+  // This is the load-bearing entry; everything else is forward-looking.
+  "/user/admin",
+  // User-owned preferences + investment criteria. Anonymous browsing
+  // would expose org-level configuration once it lands.
+  "/settings",
+];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
