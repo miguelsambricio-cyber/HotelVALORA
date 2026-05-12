@@ -62,10 +62,7 @@ export default async function IntegrationsPage() {
               Hospitality Intelligence Sources
             </h1>
             <p className="mt-2 max-w-3xl text-[13.5px] leading-relaxed text-slate-300/90">
-              The institutional source roster powering the Market Intelligence Agent. Each integration
-              surfaces its connection state, authentication posture, ingestion health, and article volume.
-              Authenticated sources (Hosteltur · Alimarket) implement the three-tier credential model —
-              raw secrets never reach the database.
+              The institutional source roster powering the Market Intelligence Agent.
             </p>
           </div>
           <SummaryStrip live={live} />
