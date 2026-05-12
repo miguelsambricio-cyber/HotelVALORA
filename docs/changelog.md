@@ -4,9 +4,93 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.B.1 · Gmail signal expansion + institutional relationship graph report
+
+Expansion of the Gmail signal layer to 4 institutional labels · 235 unique remote emails aggregated · 138 matched to Datasite Master (was 68 in v0) · 97 reviewable unmatched candidates surfaced. **Master not auto-mutated** · all 97 candidates land in a reviewable CSV with rich enrichment per operator directive.
+
+### New script · `scripts/contactos/build_relationship_report.py`
+Reads:
+- the canonical Master (xlsx)
+- ALL Gmail signal JSONL files under `incoming/gmail-signals/` AND `old/gmail-signals/`
+
+Produces:
+1. **`CONTACTOS DATASITE/reports/unmatched-candidates_<batch_id>.csv`** · per-email row with 16 institutional enrichment fields:
+   - `confidence_score` (0–100 deterministic · volume + directionality + label specificity + recency + domain kind)
+   - `inferred_company` (from email domain · title-cased)
+   - `inferred_investor_type` (canonical · Lender / Investor / Hotel Chain / Developer / Broker / Owner / F&B Operator / Branded Residences / Partner / Active LOI Counterparty / Unknown)
+   - `source_labels` · all Gmail labels touching this email · semicolon-joined
+   - `thread_count` · `first_email_date` · `last_email_date`
+   - `inbound_count` · `outbound_count` · `directionality` · `inbound_outbound_ratio`
+   - `email_domain` · `domain_kind` (institutional/personal)
+   - **Provenance:** `pipeline_creator` · `snapshot_batch_id` (timestamp of the run)
+2. **`CONTACTOS DATASITE/google-contacts/relationship-graph-summary.md`** · 10-section institutional analysis:
+   - Totals (canonical Master + enriched + unenriched + matched/unmatched + match rate)
+   - Strongest relationship clusters (companies with multi-person coverage in both layers)
+   - Top institutional counterparties (Master rows by relationship_strength)
+   - Most active Gmail labels
+   - Investor type distribution (matched vs unmatched per type)
+   - Warm network density (institutional vs personal emails, bidirectional share)
+   - Top companies by Gmail signal volume
+   - Potential hidden duplicates (same domain + same surname in Master)
+   - Contacts with no Datasite overlap (top 25 unmatched by confidence)
+   - Operator next steps
+
+### Gmail labels covered in this run (4 of ~25)
+- `INVERSOR-INTERESADO` · 50 threads · 277 signal touches
+- `FINANCIADORES-INTERESADOS` · 50 threads · 279 signal touches
+- `FINANCIADORES-SEGUIMIENTO` · 50 threads · 82 signal touches
+- `CADENA-HOTEL-INTERESADA` · 50 threads · 260 signal touches
+
+Total · 200 threads parsed · 898 raw signal touches · 235 unique remote emails after dedupe.
+
+### Production baseline (Master snapshot after Phase 2.B.1 merge)
+- Master: 4,547 contacts (unchanged · no auto-merge)
+- Enriched with Gmail signal: **138** (up from 68 · +103% with 2× more labels)
+- Master with no Gmail signal: 4,409 (the cold-storage opportunity)
+- Match rate (Gmail signals → Master): **58.7%**
+
+### Top relationship clusters surfaced (companies with multi-person coverage)
+| Company | Gmail contacts | In Master |
+|---|---|---|
+| Bankinter | 9 | 7 |
+| Bancsabadell | 8 | 3 |
+| Lonestareurope | 5 | 5 |
+| Fernandezmolina | 5 | 2 |
+| Bancamarch | 4 | 4 |
+| Caixabank | 3 | 3 |
+| Edmarquitectura | 3 | 3 |
+| Reigcapital | 3 | 3 |
+| Waltonst | 3 | 2 |
+| Meninhospitality | 3 | 2 |
+
+These are the live institutional relationships where the operator has multi-person network coverage AND active Gmail engagement · highest-leverage outreach targets.
+
+### Why no auto-merge of the 97 candidates
+Per operator directive: "NO insertar automáticamente unmatched en Master. Quiero reviewable candidates primero." Every unmatched email lands in `unmatched-candidates_<batch_id>.csv` with full enrichment for manual decision. Phase 2.B.2's `apply_gmail_unmatched.py` will later let the operator approve specific rows.
+
+### Provenance preserved end-to-end
+- Each Gmail signal record carries `snapshot_source` (which JSONL it came from)
+- Each Master row enriched via Gmail carries `gmail_signal_source`
+- Each unmatched candidate carries `pipeline_creator` + `snapshot_batch_id` + `email_domain`
+- All raw MCP exports remain in `google-contacts/gmail-raw/<LABEL>.json` for replay
+- JSONL signals archive to `old/gmail-signals/<structured-name>.jsonl` after processing
+
+### Files added (committed · NO data)
+- `scripts/contactos/build_relationship_report.py` (~480 LOC · stdlib only · reads Master + all Gmail JSONL · produces CSV + Markdown)
+
+### Files modified (none functional · this run is data + report only)
+
+### Operator next priorities (per directive · deferred)
+- Expand Gmail extraction to remaining ~21 institutional labels (RONDA INVERSORES · Q&A INVERSORES · PROMOTOR/CONSTRUCTOR · INTERMEDIARIO · PROPIETARIO · CADENA HOTEL SEGUIENTO · F&B · BRANDED RESIDENCES · LOI-* · MoU-* · etc.) — Master is currently ~38% covered by Gmail
+- Phase 2.B.2 · `apply_gmail_unmatched.py` · operator-side review + selective INSERT of high-confidence candidates
+- Re-engage the 4,409 Master contacts with no Gmail signal · cold-storage outreach opportunity
+- Stabilize the institutional graph before opening Phase 2.C (Supabase / UI)
+
+---
+
 ## 2026-05-12 — Phase 2.B · Institutional relationship graph · 3 ingestion lanes + Gmail signal intelligence
 
-The CONTACTOS pipeline becomes the canonical institutional relationship graph for HotelVALORA. Three lanes feed ONE Master:
+Shipped as commit `25ccfb3`. The CONTACTOS pipeline becomes the canonical institutional relationship graph for HotelVALORA. Three lanes feed ONE Master:
 
 1. **Datasite Outreach** · Full Report .xlsm → canonical Master rows
 2. **Google Contacts** · CSV → auto-merge into Master (was read-only · now writes via the same dedup engine with strict Datasite-authoritative gap-fill)
