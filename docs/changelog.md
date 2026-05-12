@@ -4,6 +4,55 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Phase 2.D.7b · Product catalogue is the source of truth · bulk ops pivot off `subscription_products`
+
+The user_tier enum stops being a hardcoded picker — every bulk subscription flow now reads from `subscription_products`. Campaigns become monetization cohorts via a new FK. Product cards gain inline visibility toggle and a swipeable mobile carousel.
+
+### Database — migration `0022_campaigns_subscription_product_link`
+- `campaigns.subscription_product_id` FK → `subscription_products(id) ON DELETE SET NULL` — each campaign now references the product it grants.
+- Index `campaigns_product_idx` on the FK.
+- Backfill: any campaign with `kind='top_promote_rollout'` auto-links to the seeded `top_promote` product. Operator can override per-row.
+
+### Server actions · `lib/admin/subscriptions/bulk.ts`
+Refactored `bulkAssignSubscriptionAction` to accept **`product_id`** as the primary input (backward-compat: a raw `tier` value still works). New helper `resolveTierAndProduct()` looks up the product to derive `tier_enum` for the legacy `subscriptions.tier` column, then sets `subscriptions.product_id`.
+
+Two new actions land alongside:
+- **`bulkReplaceProductAction`** — in-place UPDATE on each user's latest active subscription · sets new product_id + tier · skips Stripe-backed. Use for clean upgrade/downgrade without stacking historical rows.
+- **`bulkRevokeSubscriptionAction`** — flips latest non-Stripe sub to `status='canceled'` + `cancel_at_period_end=true` · appends a per-row note (`revoked <date>: <reason>`) · audit row captures reason. Stripe-backed skipped.
+
+The Comp shortcut (`bulkCompSubscriptionAction`) now resolves the seeded `comped` product first; falls back to legacy `tier='comped'` only if the comped product was archived.
+
+### Server-side helpers · `lib/admin/subscriptions/products/live.ts`
+- `loadProductsForPicker()` — visible-only catalogue (slug · name · tier_enum · monthly_price · currency · badge) for toolbar/form dropdowns
+- `loadProductForAssignment(productId)` — used by the bulk action to derive `tier_enum`
+- `loadCompedProduct()` — used by the Comp shortcut
+
+### Bulk toolbars · product picker replaces tier enum
+- **Users toolbar** (`/user/admin/users`): old `<Select>` of 7 enum values → product picker rendering each catalogue item as `Name · €X/mo · Badge`. New action buttons added: **Replace** (`bulkReplaceProductAction`) and **Revoke** (`bulkRevokeSubscriptionAction` with optional reason).
+- **Contacts toolbar** (`/user/admin/contacts`): Subscribe action's tier `<select>` swapped for the same product picker. Default selection prefers the `pro` slug, then any product with `tier_enum='pro'`, falling back to the first available.
+- Both surfaces load products via `loadProductsForPicker()` and pass through the toolbar prop graph.
+
+### Campaign form gets product picker + card surfaces it
+- `lib/admin/campaigns/live.ts` joins `subscription_products` on the `subscription_product_id` FK and exposes `subscription_product_name + subscription_product_slug` on every `CampaignRow` / `CampaignDetail`.
+- `lib/admin/campaigns/mutations.ts` accepts `subscription_product_id` in create + update schemas. Empty string and the sentinel `"none"` normalise to NULL.
+- `CampaignFormDrawer` adds a "Grants subscription product (monetization cohort)" `<Select>` after the conversion-target row.
+- `CampaignCard` shows a lime `Grants · <product name>` chip in the footer chip strip when a product is linked.
+
+### Mobile-first polish
+- **Swipeable card carousel** on `/user/admin/subscriptions`: below `sm`, the catalogue renders as a horizontal `overflow-x-auto snap-x snap-mandatory` flex strip with 85% cell width. From `sm` upward it switches back to the standard responsive grid (2-col → 4-col). Touch flicks land naturally on each card.
+- **Inline visibility toggle** on every product card: the card is now a `<div>` with an absolute-positioned `<Link>` overlay covering the body, and a small EyeOff/Eye toggle button (`setProductVisibilityAction`) in the top-right corner with its own `pointer-events: auto`. Operator can flip Hidden ↔ Visible without opening the drawer. Archived state remains a non-interactive label (irreversible-ish).
+
+### Intentional non-features (carried forward per directive)
+No Stripe billing automation · no self-serve checkout · no automated lifecycle emails · no AI campaign orchestration · no referral systems · no enterprise CRM complexity.
+
+### Smoke
+- `/user/admin/subscriptions` → 200 · 115 KB · "Catalogue" header · Premium card · `snap-x` mobile class · `aria-label="Edit"` (overlay) + `aria-label="Hide"` (inline toggle) both present
+- `/user/admin/campaigns?selected=new` → 200 · 70 KB · product picker labelled "Grants subscription product (monetization cohort)"
+- `/user/admin/users` → 200 · 70 KB · selection controls + bulk toolbar actions in JS bundle
+- Typecheck clean across server actions + UI
+
+---
+
 ## 2026-05-13 — Phase 2.D.7 · Subscriptions + Campaigns become visual operational frontends
 
 Strategic redirect from the operator: Campaigns + Subscriptions are NOT admin CRUD tables — they must be visual operational frontends for institutional growth and monetization. Subscription tiers stop being enum-locked code; the catalogue is now data, operator-managed from the admin console, mobile-first.

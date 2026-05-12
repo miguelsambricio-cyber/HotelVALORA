@@ -146,6 +146,72 @@ export async function loadProductsWithMetrics(opts: { includeArchived?: boolean 
   });
 }
 
+/**
+ * Lightweight picker payload — visible products only, sorted by
+ * display_order, fields the toolbar needs to render the dropdown.
+ */
+export interface ProductPickerItem {
+  id: string;
+  slug: string;
+  name: string;
+  tier_enum: string | null;
+  monthly_price: number | null;
+  currency: string;
+  badge: string | null;
+}
+
+export async function loadProductsForPicker(): Promise<ProductPickerItem[]> {
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("subscription_products")
+    .select("id, slug, name, tier_enum, monthly_price, currency, badge")
+    .neq("visibility", "archived")
+    .order("display_order", { ascending: true });
+  return ((data ?? []) as Array<{
+    id: string; slug: string; name: string; tier_enum: string | null;
+    monthly_price: string | number | null; currency: string; badge: string | null;
+  }>).map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+    tier_enum: r.tier_enum,
+    monthly_price: r.monthly_price === null ? null : Number(r.monthly_price),
+    currency: r.currency,
+    badge: r.badge,
+  }));
+}
+
+/**
+ * Look up a single product by id · used by the bulk actions to resolve
+ * `tier_enum` for the legacy `subscriptions.tier` column.
+ */
+export async function loadProductForAssignment(productId: string): Promise<{
+  id: string; slug: string; tier_enum: string | null;
+} | null> {
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("subscription_products")
+    .select("id, slug, tier_enum")
+    .eq("id", productId)
+    .maybeSingle();
+  return data as { id: string; slug: string; tier_enum: string | null } | null;
+}
+
+/**
+ * Lookup helper used by the Comp shortcut — returns the seeded 'comped'
+ * product if it exists, otherwise NULL (caller falls back to legacy
+ * tier='comped' behaviour).
+ */
+export async function loadCompedProduct(): Promise<{ id: string; tier_enum: string | null } | null> {
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("subscription_products")
+    .select("id, tier_enum")
+    .eq("slug", "comped")
+    .maybeSingle();
+  return data as { id: string; tier_enum: string | null } | null;
+}
+
 export async function loadProductById(productId: string): Promise<SubscriptionProduct | null> {
   const sb = getSupabaseAdmin();
   const { data, error } = await sb

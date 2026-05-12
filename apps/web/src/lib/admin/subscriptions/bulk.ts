@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireOperator } from "@/lib/security/operator-guard";
 import { redactError } from "@/lib/security/redact";
+import { loadProductForAssignment, loadCompedProduct } from "@/lib/admin/subscriptions/products/live";
 
 /**
  * Phase 2.D.6 · Campaign-aware bulk subscription operations.
@@ -206,17 +207,44 @@ function pickReturnSurface(formData: FormData): {
 // ─── Actions ─────────────────────────────────────────────────────────
 
 /**
- * Assign a subscription tier to N users at once. Creates one
- * `subscriptions` row per user; existing subs are not modified
- * (latest-by-created_at picks up the new row on the next page render).
+ * Resolve a tier value from either an explicit `tier` field (legacy)
+ * or a `product_id` lookup (Phase 2.D.7b primary path). Returns the
+ * tier value that goes into `subscriptions.tier` (the enum column,
+ * still NOT NULL on the table) along with the product_id (or null).
+ */
+async function resolveTierAndProduct(formData: FormData): Promise<{
+  tier: ValidTier;
+  product_id: string | null;
+  productSlug: string | null;
+}> {
+  const rawProduct = String(formData.get("product_id") ?? "").trim();
+  if (rawProduct && rawProduct !== "none") {
+    const product = await loadProductForAssignment(rawProduct);
+    if (product) {
+      const tierFromProduct = (product.tier_enum && VALID_TIERS.includes(product.tier_enum as ValidTier))
+        ? (product.tier_enum as ValidTier)
+        : ("free" as ValidTier);
+      return { tier: tierFromProduct, product_id: product.id, productSlug: product.slug };
+    }
+  }
+  // Backward-compat: explicit tier still accepted when no product_id.
+  const tier = tierSchema.parse(String(formData.get("tier") ?? "free")) as ValidTier;
+  return { tier, product_id: null, productSlug: null };
+}
+
+/**
+ * Assign a subscription product (or tier, legacy) to N users at once.
+ * Creates one `subscriptions` row per user · existing subs are not
+ * modified (latest-by-created_at picks up the new row).
  *
- * Use for: activate · upgrade · downgrade · renew (passing a new expires_at).
+ * Use for: activate · upgrade · downgrade · renew. For an in-place
+ * UPDATE see `bulkReplaceProductAction`.
  */
 export async function bulkAssignSubscriptionAction(formData: FormData): Promise<void> {
   const surface = pickReturnSurface(formData);
   try {
     const ctx = await requireOperator();
-    const tier = tierSchema.parse(String(formData.get("tier") ?? "free")) as ValidTier;
+    const { tier, product_id, productSlug } = await resolveTierAndProduct(formData);
     const status = statusSchema.parse(String(formData.get("status") ?? "active")) as ValidStatus;
     const expires_at = parseDate(formData.get("expires_at"));
     const notesRaw = formData.get("notes") === null ? "" : String(formData.get("notes") ?? "");
@@ -238,6 +266,7 @@ export async function bulkAssignSubscriptionAction(formData: FormData): Promise<
       notes,
       assigned_by_email: ctx.email,
       source_campaign_id,
+      product_id,
     }));
 
     const { data: insertedRows, error } = await sb
@@ -257,7 +286,7 @@ export async function bulkAssignSubscriptionAction(formData: FormData): Promise<
       action: "subscription.bulk_assigned",
       actorId: ctx.userId,
       actorEmail: ctx.email,
-      metadata: { tier, status, expires_at, source_campaign_id, has_notes: !!notes },
+      metadata: { tier, product_id, product_slug: productSlug, status, expires_at, source_campaign_id, has_notes: !!notes },
     });
     revalidatePath("/user/admin/users");
     revalidatePath("/user/admin/subscriptions");
@@ -270,13 +299,156 @@ export async function bulkAssignSubscriptionAction(formData: FormData): Promise<
 }
 
 /**
- * Shortcut for the most common operator flow — grant Comped access at
- * `tier='comped'`, `status='active'`, optionally with an `expires_at`.
- * Wraps bulkAssignSubscriptionAction with a fixed tier.
+ * Replace the product on the LATEST active subscription of each
+ * selected user — in-place UPDATE rather than a new row. Use for clean
+ * upgrade / downgrade where you don't want a stack of historical rows.
+ * Skips Stripe-backed subscriptions.
+ */
+export async function bulkReplaceProductAction(formData: FormData): Promise<void> {
+  const surface = pickReturnSurface(formData);
+  try {
+    const ctx = await requireOperator();
+    const { tier, product_id, productSlug } = await resolveTierAndProduct(formData);
+    if (!product_id) surface.fail("Replace requires a product_id.");
+
+    const userIds = await resolveUserSelection(formData);
+    if (userIds.length === 0) surface.fail("No users in selection.");
+
+    const sb = getSupabaseAdmin();
+    // Latest sub per user that's not Stripe-backed and not already at this product
+    const { data: subs } = await sb
+      .from("subscriptions")
+      .select("id, user_id, tier, product_id, stripe_subscription_id, status, created_at")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false });
+
+    const seen = new Set<string>();
+    const targets: Array<{ id: string; user_id: string; tier: string }> = [];
+    for (const r of ((subs ?? []) as Array<{ id: string; user_id: string; tier: string; product_id: string | null; stripe_subscription_id: string | null; status: string; created_at: string }>)) {
+      if (seen.has(r.user_id)) continue;
+      seen.add(r.user_id);
+      if (r.stripe_subscription_id) continue;          // skip Stripe-backed
+      if (r.product_id === product_id && r.tier === tier) continue; // no-op
+      targets.push({ id: r.id, user_id: r.user_id, tier: r.tier });
+    }
+    if (targets.length === 0) surface.ok({ ok: 0, verb: "product_replaced" });
+
+    const ids = targets.map((t) => t.id);
+    const { error } = await sb
+      .from("subscriptions")
+      .update({ tier, product_id, status: "active" } as never)
+      .in("id", ids);
+    if (error) surface.fail(redactError(error));
+
+    await writeBulkSubAudit({
+      rows: targets.map((t) => ({
+        subscription_id: t.id,
+        user_id: t.user_id,
+        tier,
+        status: "active",
+      })),
+      action: "subscription.bulk_product_replaced",
+      actorId: ctx.userId,
+      actorEmail: ctx.email,
+      metadata: { product_id, product_slug: productSlug, previous_tiers: targets.map((t) => t.tier) },
+    });
+    revalidatePath("/user/admin/users");
+    revalidatePath("/user/admin/subscriptions");
+    revalidatePath("/user/admin/contacts");
+    const stripeBacked = userIds.length - targets.length;
+    surface.ok({ ok: targets.length, failed: stripeBacked, verb: "product_replaced" });
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("NEXT_REDIRECT")) throw err;
+    surface.fail(redactError(err));
+  }
+}
+
+/**
+ * Operator revoke: flip the latest active subscription of each
+ * selected user to status='canceled' and record the reason in
+ * notes + activity_log metadata. Skips Stripe-backed (operator should
+ * cancel via the Stripe Dashboard so the webhook stays authoritative).
+ */
+export async function bulkRevokeSubscriptionAction(formData: FormData): Promise<void> {
+  const surface = pickReturnSurface(formData);
+  try {
+    const ctx = await requireOperator();
+    const reasonRaw = formData.get("reason") === null ? "" : String(formData.get("reason"));
+    const reason = reasonRaw.trim().slice(0, 500) || null;
+
+    const userIds = await resolveUserSelection(formData);
+    if (userIds.length === 0) surface.fail("No users in selection.");
+
+    const sb = getSupabaseAdmin();
+    const { data: subs } = await sb
+      .from("subscriptions")
+      .select("id, user_id, tier, status, stripe_subscription_id, created_at, notes")
+      .in("user_id", userIds)
+      .order("created_at", { ascending: false });
+
+    const seen = new Set<string>();
+    const targets: Array<{ id: string; user_id: string; tier: string; existingNotes: string | null }> = [];
+    for (const r of ((subs ?? []) as Array<{ id: string; user_id: string; tier: string; status: string; stripe_subscription_id: string | null; created_at: string; notes: string | null }>)) {
+      if (seen.has(r.user_id)) continue;
+      seen.add(r.user_id);
+      if (r.stripe_subscription_id) continue;
+      if (r.status === "canceled" || r.status === "expired") continue;
+      targets.push({ id: r.id, user_id: r.user_id, tier: r.tier, existingNotes: r.notes });
+    }
+    if (targets.length === 0) surface.ok({ ok: 0, verb: "subscription_revoked" });
+
+    const nowIso = new Date().toISOString();
+    // Per-row notes append (cannot bulk-concatenate in PG without a CASE expression)
+    for (const t of targets) {
+      const appended = reason
+        ? `${t.existingNotes ? t.existingNotes + " · " : ""}revoked ${nowIso.slice(0, 10)}: ${reason}`
+        : (t.existingNotes ?? null);
+      await sb
+        .from("subscriptions")
+        .update({ status: "canceled", cancel_at_period_end: true, notes: appended } as never)
+        .eq("id", t.id);
+    }
+
+    await writeBulkSubAudit({
+      rows: targets.map((t) => ({
+        subscription_id: t.id,
+        user_id: t.user_id,
+        tier: t.tier,
+        status: "canceled",
+      })),
+      action: "subscription.bulk_revoked",
+      actorId: ctx.userId,
+      actorEmail: ctx.email,
+      metadata: { reason },
+    });
+    revalidatePath("/user/admin/users");
+    revalidatePath("/user/admin/subscriptions");
+    revalidatePath("/user/admin/contacts");
+    const stripeBacked = userIds.length - targets.length;
+    surface.ok({
+      ok: targets.length,
+      failed: stripeBacked,
+      verb: "subscription_revoked",
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("NEXT_REDIRECT")) throw err;
+    surface.fail(redactError(err));
+  }
+}
+
+/**
+ * Shortcut: grant Comped access. Pre-fills product_id from the seeded
+ * 'comped' slug (Phase 2.D.7+ catalogue source-of-truth). Falls back
+ * to legacy tier='comped' if the comped product was archived.
  */
 export async function bulkCompSubscriptionAction(formData: FormData): Promise<void> {
-  // Force tier=comped on the FormData before delegating.
-  formData.set("tier", "comped");
+  const comped = await loadCompedProduct();
+  if (comped?.id) {
+    formData.set("product_id", comped.id);
+  } else {
+    // Comped product was archived · fall back to legacy enum value
+    formData.set("tier", "comped");
+  }
   formData.set("status", "active");
   return bulkAssignSubscriptionAction(formData);
 }

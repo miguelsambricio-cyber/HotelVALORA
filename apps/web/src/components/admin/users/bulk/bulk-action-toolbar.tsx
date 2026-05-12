@@ -1,14 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, Sparkles, AlertCircle, X } from "lucide-react";
+import { CreditCard, Sparkles, AlertCircle, RefreshCw, Ban, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUsersBulkSelection } from "./bulk-selection-context";
 import {
   bulkAssignSubscriptionAction,
   bulkCompSubscriptionAction,
   bulkExpireSubscriptionAction,
+  bulkReplaceProductAction,
+  bulkRevokeSubscriptionAction,
 } from "@/lib/admin/subscriptions/bulk";
+
+export interface ProductPickerItem {
+  id: string;
+  slug: string;
+  name: string;
+  tier_enum: string | null;
+  monthly_price: number | null;
+  currency: string;
+  badge: string | null;
+}
 
 /**
  * Phase 2.D.6 · Users surface bulk action toolbar.
@@ -28,9 +40,11 @@ import {
 export function UsersBulkActionToolbar({
   filterQs,
   campaigns,
+  products,
 }: {
   filterQs: string;
   campaigns: Array<{ id: string; name: string }>;
+  products: ProductPickerItem[];
 }) {
   const sel = useUsersBulkSelection();
   const [active, setActive] = useState<ActiveAction>(null);
@@ -46,6 +60,7 @@ export function UsersBulkActionToolbar({
           active={active}
           filterQs={filterQs}
           campaigns={campaigns}
+          products={products}
           selMode={filtered ? "filtered" : "explicit"}
           idsCsv={sel.idsCsv}
           close={() => setActive(null)}
@@ -58,9 +73,11 @@ export function UsersBulkActionToolbar({
             {filtered ? `All filtered · ~${sel.filteredCount.toLocaleString()}` : `${sel.count} selected`}
           </p>
           <span className="font-mono text-[10px] text-slate-500">·</span>
-          <ToolBtn icon={<CreditCard size={11} />} label="Assign tier" onClick={() => setActive("assign")} tone="lime" />
+          <ToolBtn icon={<CreditCard size={11} />} label="Assign product" onClick={() => setActive("assign")} tone="lime" />
+          <ToolBtn icon={<RefreshCw size={11} />} label="Replace" onClick={() => setActive("replace")} />
           <ToolBtn icon={<Sparkles size={11} />} label="Comp" onClick={() => setActive("comp")} tone="lime" />
           <ToolBtn icon={<AlertCircle size={11} />} label="Expire" onClick={() => setActive("expire")} tone="rose" />
+          <ToolBtn icon={<Ban size={11} />} label="Revoke" onClick={() => setActive("revoke")} tone="rose" />
           <button
             type="button"
             onClick={sel.clear}
@@ -75,12 +92,14 @@ export function UsersBulkActionToolbar({
   );
 }
 
-type ActiveAction = null | "assign" | "comp" | "expire";
+type ActiveAction = null | "assign" | "replace" | "comp" | "expire" | "revoke";
 
 const LABELS: Record<Exclude<ActiveAction, null>, string> = {
-  assign: "Assign subscription tier",
+  assign: "Assign subscription product",
+  replace: "Replace product on latest active subscription",
   comp: "Grant Comped access",
   expire: "Expire current subscription",
+  revoke: "Revoke subscription",
 };
 
 function ToolBtn({
@@ -118,6 +137,7 @@ function BulkActionPanel({
   active,
   filterQs,
   campaigns,
+  products,
   selMode,
   idsCsv,
   close,
@@ -125,10 +145,20 @@ function BulkActionPanel({
   active: Exclude<ActiveAction, null>;
   filterQs: string;
   campaigns: Array<{ id: string; name: string }>;
+  products: ProductPickerItem[];
   selMode: "explicit" | "filtered";
   idsCsv: string;
   close: () => void;
 }) {
+  const productOptions = products.map((p) => ({
+    value: p.id,
+    label: `${p.name}${p.monthly_price !== null && p.monthly_price > 0 ? ` · ${p.currency} ${p.monthly_price}/mo` : (p.monthly_price === 0 ? " · Free" : "")}${p.badge ? ` · ${p.badge}` : ""}`,
+  }));
+  const defaultProduct = products.find((p) => p.slug === "pro")?.id
+    ?? products.find((p) => p.tier_enum === "pro")?.id
+    ?? products[0]?.id
+    ?? "";
+
   return (
     <div className="mb-2 rounded-2xl border border-slate-800/60 bg-slate-950/95 p-4 shadow-2xl">
       <div className="mb-3 flex items-center justify-between">
@@ -142,15 +172,7 @@ function BulkActionPanel({
 
       {active === "assign" && (
         <BulkForm action={bulkAssignSubscriptionAction} selMode={selMode} idsCsv={idsCsv} filterQs={filterQs} columns={3}>
-          <Select label="Tier" name="tier" required defaultValue="pro" options={[
-            { value: "free", label: "Free" },
-            { value: "pro", label: "Pro" },
-            { value: "premium", label: "Premium" },
-            { value: "top_promote", label: "Top Promote" },
-            { value: "comped", label: "Comped" },
-            { value: "team", label: "Team" },
-            { value: "enterprise", label: "Enterprise" },
-          ]} />
+          <Select label="Product" name="product_id" required defaultValue={defaultProduct} options={productOptions} />
           <Select label="Status" name="status" defaultValue="active" options={[
             { value: "active", label: "Active" },
             { value: "trialing", label: "Trialing" },
@@ -162,7 +184,22 @@ function BulkActionPanel({
             ...campaigns.map((c) => ({ value: c.id, label: c.name })),
           ]} />
           <Field label="Notes (optional)" name="notes" placeholder="comped for partnership · period ends 2026-12-31" />
-          <Submit label="Assign tier to selection" tone="lime" />
+          <p className="col-span-full font-mono text-[10.5px] leading-relaxed text-slate-400">
+            Creates a new `subscriptions` row per user · backward-compat: `subscriptions.tier` is derived from the
+            product's `tier_enum`. Use Replace to flip the existing latest sub in-place instead of stacking history.
+          </p>
+          <Submit label="Assign product to selection" tone="lime" />
+        </BulkForm>
+      )}
+
+      {active === "replace" && (
+        <BulkForm action={bulkReplaceProductAction} selMode={selMode} idsCsv={idsCsv} filterQs={filterQs} columns={2}>
+          <Select label="New product" name="product_id" required defaultValue={defaultProduct} options={productOptions} />
+          <p className="col-span-full font-mono text-[10.5px] leading-relaxed text-slate-400">
+            UPDATEs the latest active subscription of each selected user to the new product in-place (no new row).
+            Stripe-backed subs are skipped. Use for clean upgrade / downgrade.
+          </p>
+          <Submit label="Replace product on selection" tone="lime" />
         </BulkForm>
       )}
 
@@ -175,8 +212,8 @@ function BulkActionPanel({
           ]} />
           <Field label="Notes (optional)" name="notes" placeholder="e.g. partnership · advisory comp · investor preview" />
           <p className="col-span-full font-mono text-[10.5px] leading-relaxed text-slate-400">
-            Creates `subscriptions` rows with tier=comped · status=active. Source campaign attribution is preserved
-            in the audit trail.
+            Assigns the seeded `comped` product (status=active). Falls back to legacy tier=comped if the comped
+            product is archived. Source campaign attribution preserved in the audit trail.
           </p>
           <Submit label="Grant Comped access" tone="lime" />
         </BulkForm>
@@ -190,6 +227,18 @@ function BulkActionPanel({
             cancel those via the Stripe Dashboard so the webhook stays authoritative.
           </p>
           <Submit label="Expire selection" tone="rose" />
+        </BulkForm>
+      )}
+
+      {active === "revoke" && (
+        <BulkForm action={bulkRevokeSubscriptionAction} selMode={selMode} idsCsv={idsCsv} filterQs={filterQs}>
+          <Field label="Reason (operator-private, optional · ≤ 500 chars)" name="reason" placeholder="e.g. partnership ended · misuse · access withdrawn" />
+          <p className="font-mono text-[10.5px] leading-relaxed text-slate-400">
+            Flips the latest non-Stripe subscription to <code className="text-rose-200">status=canceled</code> +{" "}
+            <code className="text-rose-200">cancel_at_period_end=true</code>. Records the reason in notes + audit
+            row metadata. Stripe-backed subs are skipped.
+          </p>
+          <Submit label="Revoke selection" tone="rose" />
         </BulkForm>
       )}
     </div>

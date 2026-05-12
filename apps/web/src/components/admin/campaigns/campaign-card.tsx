@@ -59,6 +59,11 @@ export function CampaignCard({
 
         {/* Footer chips */}
         <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          {campaign.subscription_product_name && (
+            <span className="inline-flex items-center gap-1 rounded bg-lime-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-lime-800">
+              Grants · {campaign.subscription_product_name}
+            </span>
+          )}
           {campaign.owner_email && (
             <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">
               owner · {truncate(campaign.owner_email, 24)}

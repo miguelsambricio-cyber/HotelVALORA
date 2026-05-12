@@ -32,6 +32,7 @@ const createSchema = z.object({
   notes: z.string().trim().max(2000).or(z.literal("")).optional(),
   conversion_target: z.coerce.number().int().min(0).max(1_000_000).optional(),
   channel: z.string().trim().max(80).default("email"),
+  subscription_product_id: z.string().uuid().nullable().optional(),
 });
 
 const updateSchema = createSchema.partial();
@@ -57,6 +58,7 @@ async function writeAudit(params: {
 export async function createCampaignAction(formData: FormData): Promise<void> {
   try {
     const ctx = await requireOperator();
+    const productRaw = String(formData.get("subscription_product_id") ?? "").trim();
     const parsed = createSchema.safeParse({
       slug: formData.get("slug") ?? "",
       name: formData.get("name") ?? "",
@@ -68,6 +70,7 @@ export async function createCampaignAction(formData: FormData): Promise<void> {
       notes: formData.get("notes") ?? "",
       conversion_target: formData.get("conversion_target") || undefined,
       channel: formData.get("channel") ?? "email",
+      subscription_product_id: productRaw && productRaw !== "none" ? productRaw : null,
     });
     if (!parsed.success) {
       const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(" · ");
@@ -86,6 +89,7 @@ export async function createCampaignAction(formData: FormData): Promise<void> {
       notes: row.notes || null,
       conversion_target: row.conversion_target ?? null,
       channel: row.channel,
+      subscription_product_id: row.subscription_product_id ?? null,
       created_by_email: ctx.email,
     };
     const { data, error } = await sb
@@ -129,11 +133,12 @@ export async function updateCampaignAction(formData: FormData): Promise<void> {
       notes: formData.get("notes"),
       conversion_target: formData.get("conversion_target") || undefined,
       channel: formData.get("channel"),
+      subscription_product_id: formData.get("subscription_product_id"),
     };
     for (const [k, v] of Object.entries(raw)) {
       if (v === null || v === undefined) continue;
-      if (typeof v === "string" && v.length === 0) {
-        // Empty strings normalize to NULL for optional text fields
+      if (typeof v === "string" && (v.length === 0 || v === "none")) {
+        // Empty strings + sentinel "none" normalise to NULL for optional fields
         if (k === "name" || k === "slug" || k === "kind" || k === "status" || k === "channel") continue;
         patch[k] = null;
       } else if (k === "conversion_target") {

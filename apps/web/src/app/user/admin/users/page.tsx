@@ -7,6 +7,7 @@ import {
   type UsersFilter,
 } from "@/lib/admin/users/live";
 import { loadActiveCampaigns } from "@/lib/admin/subscriptions/live";
+import { loadProductsForPicker } from "@/lib/admin/subscriptions/products/live";
 import { UsersKpis } from "@/components/admin/users/users-kpis";
 import { UsersFilters } from "@/components/admin/users/users-filters";
 import { UsersTable } from "@/components/admin/users/users-table";
@@ -48,10 +49,11 @@ export default async function UsersAdminPage({ searchParams }: PageProps) {
     sort: (searchParams.sort as UsersFilter["sort"]) || "recent",
   };
 
-  const [kpis, { rows, total }, campaigns] = await Promise.all([
+  const [kpis, { rows, total }, campaigns, products] = await Promise.all([
     loadUserKpis(),
     loadUsers(filter),
     loadActiveCampaigns(),
+    loadProductsForPicker(),
   ]);
 
   // Build filter_qs for "Select all filtered" — drops page so the
@@ -134,7 +136,7 @@ export default async function UsersAdminPage({ searchParams }: PageProps) {
           page={filter.page ?? 0}
           pageSize={filter.page_size ?? 50}
         />
-        <UsersBulkActionToolbar filterQs={filterQs} campaigns={campaigns} />
+        <UsersBulkActionToolbar filterQs={filterQs} campaigns={campaigns} products={products} />
       </UsersBulkSelectionProvider>
     </div>
   );

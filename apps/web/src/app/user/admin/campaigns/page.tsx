@@ -13,6 +13,7 @@ import { CampaignsFilters } from "@/components/admin/campaigns/campaigns-filters
 import { CampaignsTable } from "@/components/admin/campaigns/campaigns-table";
 import { CampaignFormDrawer } from "@/components/admin/campaigns/campaign-form-drawer";
 import { CampaignGrid } from "@/components/admin/campaigns/campaign-grid";
+import { loadProductsForPicker } from "@/lib/admin/subscriptions/products/live";
 
 export const metadata: Metadata = {
   title: "Campaigns · Admin · HotelVALORA",
@@ -66,9 +67,10 @@ export default async function CampaignsAdminPage({ searchParams }: PageProps) {
   if (selected && !isCreate) {
     tasks.push((async () => { detail = await loadCampaignDetail(selected); })());
   }
-  const [kpis, { rows, total }] = await Promise.all([
+  const [kpis, { rows, total }, products] = await Promise.all([
     loadCampaignKpis(),
     loadCampaigns(filter),
+    loadProductsForPicker(),
     ...tasks,
   ]);
 
@@ -157,6 +159,7 @@ export default async function CampaignsAdminPage({ searchParams }: PageProps) {
             detail={isCreate ? null : detail}
             closeHref={closeHref}
             errorMessage={formError}
+            products={products}
           />
         </div>
       )}

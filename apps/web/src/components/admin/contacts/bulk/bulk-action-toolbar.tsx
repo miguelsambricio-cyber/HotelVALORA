@@ -34,9 +34,20 @@ import {
 export function BulkActionToolbar({
   filterQs,
   campaigns,
+  products,
 }: {
   filterQs: string;
   campaigns: Array<{ id: string; name: string }>;
+  /** Subscription products from the catalogue (Phase 2.D.7b). */
+  products: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    tier_enum: string | null;
+    monthly_price: number | null;
+    currency: string;
+    badge: string | null;
+  }>;
 }) {
   // Reused below for the subscription + revoke actions which need
   // to scope back to the contacts surface via `origin=contacts`.
@@ -55,6 +66,7 @@ export function BulkActionToolbar({
           active={active}
           filterQs={filterQs}
           campaigns={campaigns}
+          products={products}
           selMode={filtered ? "filtered" : "explicit"}
           idsCsv={sel.idsCsv}
           close={() => setActive(null)}
@@ -132,6 +144,7 @@ function BulkActionPanel({
   active,
   filterQs,
   campaigns,
+  products,
   selMode,
   idsCsv,
   close,
@@ -139,6 +152,11 @@ function BulkActionPanel({
   active: Exclude<ActiveAction, null>;
   filterQs: string;
   campaigns: Array<{ id: string; name: string }>;
+  products: Array<{
+    id: string; slug: string; name: string;
+    tier_enum: string | null; monthly_price: number | null;
+    currency: string; badge: string | null;
+  }>;
   selMode: "explicit" | "filtered";
   idsCsv: string;
   close: () => void;
@@ -260,22 +278,32 @@ function BulkActionPanel({
           <input type="hidden" name="contact_ids" value={idsCsv} />
           <input type="hidden" name="filter_qs" value={filterQs} />
           <input type="hidden" name="origin" value="contacts" />
-          <SubSelect label="Tier" name="tier" required defaultValue="pro" options={[
-            { value: "free", label: "Free" }, { value: "pro", label: "Pro" },
-            { value: "premium", label: "Premium" }, { value: "top_promote", label: "Top Promote" },
-            { value: "comped", label: "Comped" }, { value: "team", label: "Team" },
-            { value: "enterprise", label: "Enterprise" },
-          ]} />
+          <SubSelect
+            label="Product"
+            name="product_id"
+            required
+            defaultValue={
+              products.find((p) => p.slug === "pro")?.id
+              ?? products.find((p) => p.tier_enum === "pro")?.id
+              ?? products[0]?.id
+              ?? ""
+            }
+            options={products.map((p) => ({
+              value: p.id,
+              label: `${p.name}${p.monthly_price !== null && p.monthly_price > 0 ? ` · ${p.currency} ${p.monthly_price}/mo` : (p.monthly_price === 0 ? " · Free" : "")}${p.badge ? ` · ${p.badge}` : ""}`,
+            }))}
+          />
           <SubInput label="Expires at" name="expires_at" type="date" />
           <SubSelect label="Source campaign" name="source_campaign_id" defaultValue="none" options={[
             { value: "none", label: "No campaign" },
             ...campaigns.map((c) => ({ value: c.id, label: c.name })),
           ]} />
           <p className="col-span-full font-mono text-[10.5px] leading-relaxed text-slate-400">
-            Resolves each selected contact's `linked_user_id` and bootstraps a subscription. Contacts that have
-            not yet onboarded are silently skipped — invite them first via the Invite action.
+            Resolves each selected contact's `linked_user_id` and bootstraps a subscription tied to the chosen
+            product (Phase 2.D.7+ catalogue). Contacts that have not yet onboarded are silently skipped — invite
+            them first via the Invite action.
           </p>
-          <SubSubmit label="Assign subscription to linked users" tone="lime" />
+          <SubSubmit label="Assign product to linked users" tone="lime" />
         </form>
       )}
 

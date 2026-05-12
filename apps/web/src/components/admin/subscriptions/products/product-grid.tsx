@@ -30,11 +30,19 @@ export function ProductGrid({
           {products.length} {products.length === 1 ? "product" : "products"} · operator-managed catalogue
         </p>
       </header>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {products.map((p) => (
-          <ProductCard key={p.id} product={p} editHref={hrefForProduct(p.id)} />
-        ))}
-        <NewProductCard href={newHref} />
+      {/* Mobile-first: horizontal swipeable carousel below sm,
+          grid from sm upward. snap-x for a smooth touch experience. */}
+      <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:pb-0 xl:grid-cols-4">
+          {products.map((p) => (
+            <div key={p.id} className="w-[85%] shrink-0 snap-start sm:w-auto sm:shrink">
+              <ProductCard product={p} editHref={hrefForProduct(p.id)} />
+            </div>
+          ))}
+          <div className="w-[85%] shrink-0 snap-start sm:w-auto sm:shrink">
+            <NewProductCard href={newHref} />
+          </div>
+        </div>
       </div>
     </section>
   );

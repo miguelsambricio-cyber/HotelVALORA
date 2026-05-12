@@ -17,6 +17,7 @@ import { BulkSelectionProvider } from "@/components/admin/contacts/bulk/bulk-sel
 import { SelectAllControls } from "@/components/admin/contacts/bulk/select-all-controls";
 import { BulkActionToolbar } from "@/components/admin/contacts/bulk/bulk-action-toolbar";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { loadProductsForPicker } from "@/lib/admin/subscriptions/products/live";
 
 export const metadata: Metadata = {
   title: "Institutional Relationship Console · Admin · HotelVALORA",
@@ -95,7 +96,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
     : "/user/admin/contacts";
 
   const sb = getSupabaseAdmin();
-  const [kpis, { rows, total }, investorTypes, detail, campaignsResult] = await Promise.all([
+  const [kpis, { rows, total }, investorTypes, detail, campaignsResult, products] = await Promise.all([
     loadContactKpis(),
     loadContacts(filter),
     loadInvestorTypes(),
@@ -105,6 +106,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
       .in("status", ["draft", "running"])
       .order("name", { ascending: true })
       .limit(100),
+    loadProductsForPicker(),
   ]);
   const campaigns = ((campaignsResult.data ?? []) as Array<{ id: string; name: string }>);
 
@@ -186,7 +188,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
               selectedId={selectedId}
               baseSearchParams={baseSearchString}
             />
-            <BulkActionToolbar filterQs={filterQs} campaigns={campaigns} />
+            <BulkActionToolbar filterQs={filterQs} campaigns={campaigns} products={products} />
           </div>
           {hasDrawer && detail && (
             editMode

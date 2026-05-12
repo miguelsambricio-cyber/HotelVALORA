@@ -18,10 +18,13 @@ export function CampaignFormDrawer({
   detail,
   closeHref,
   errorMessage,
+  products,
 }: {
   detail: CampaignDetail | null;  // null = creating
   closeHref: string;
   errorMessage?: string | null;
+  /** Phase 2.D.7b · product picker for monetization cohort linkage */
+  products: Array<{ id: string; slug: string; name: string; tier_enum: string | null; monthly_price: number | null; currency: string }>;
 }) {
   const isCreate = detail === null;
   // Local non-null alias used inside the create==false branches. TS sees
@@ -86,6 +89,18 @@ export function CampaignFormDrawer({
           <Field label="Conversion target (optional · int)" name="conversion_target" type="number" min={0} defaultValue={c?.conversion_target?.toString() ?? ""} />
           <Field label="Target audience" name="target_audience" defaultValue={c?.target_audience ?? ""} placeholder="e.g. EU institutional · Tier 1 buyers" />
         </Grid>
+        <Select
+          label="Grants subscription product (monetization cohort)"
+          name="subscription_product_id"
+          defaultValue={c?.subscription_product_id ?? "none"}
+          options={[
+            { value: "none", label: "No product · contacts → users only" },
+            ...products.map((p) => ({
+              value: p.id,
+              label: `${p.name} · ${p.slug}${p.monthly_price !== null && p.monthly_price > 0 ? ` · ${p.currency} ${p.monthly_price}/mo` : (p.monthly_price === 0 ? " · Free" : "")}`,
+            })),
+          ]}
+        />
         <Textarea label="Description" name="description" rows={3} defaultValue={c?.description ?? ""} />
         <Textarea label="Notes (operator-private)" name="notes" rows={3} defaultValue={c?.notes ?? ""} />
 

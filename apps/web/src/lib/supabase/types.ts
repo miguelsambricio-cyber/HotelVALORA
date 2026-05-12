@@ -570,6 +570,7 @@ export type Database = {
           owner_email: string | null
           slug: string
           status: string
+          subscription_product_id: string | null
           target_audience: string | null
           updated_at: string
         }
@@ -587,6 +588,7 @@ export type Database = {
           owner_email?: string | null
           slug: string
           status?: string
+          subscription_product_id?: string | null
           target_audience?: string | null
           updated_at?: string
         }
@@ -604,10 +606,19 @@ export type Database = {
           owner_email?: string | null
           slug?: string
           status?: string
+          subscription_product_id?: string | null
           target_audience?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_subscription_product_id_fkey"
+            columns: ["subscription_product_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {

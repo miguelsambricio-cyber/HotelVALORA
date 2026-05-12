@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Check, X, EyeOff, Archive, Sparkles } from "lucide-react";
+import { Check, X, EyeOff, Eye, Archive, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ProductWithMetrics } from "@/lib/admin/subscriptions/products/live";
+import { setProductVisibilityAction } from "@/lib/admin/subscriptions/products/mutations";
 
 /**
  * Phase 2.D.7 · Subscription product card.
@@ -26,35 +27,64 @@ export function ProductCard({
   const accent = themeClasses(product.color_theme);
   const isFree = (product.monthly_price ?? 0) === 0;
 
+  // Inline visibility toggle target — Hidden ↔ Visible. Archived stays
+  // out of this quick-action (irreversible-ish state).
+  const nextVisibility = isHidden ? "visible" : "hidden";
+
   return (
-    <Link
-      href={editHref}
-      scroll={false}
-      className={cn(
-        "group relative flex flex-col rounded-2xl border bg-white shadow-sm transition-all",
-        "hover:-translate-y-0.5 hover:shadow-lg",
-        accent.border,
-        isHidden && "opacity-70",
-        isArchived && "opacity-50",
-      )}
-    >
+    <div className={cn(
+      "group relative flex h-full flex-col rounded-2xl border bg-white shadow-sm transition-all",
+      "hover:-translate-y-0.5 hover:shadow-lg",
+      accent.border,
+      isHidden && "opacity-70",
+      isArchived && "opacity-50",
+    )}>
+      <Link
+        href={editHref}
+        scroll={false}
+        aria-label={`Edit ${product.name}`}
+        className="absolute inset-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-300"
+      />
+
       {product.badge && (
         <div className={cn(
-          "absolute -top-2 left-4 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] shadow",
+          "pointer-events-none absolute -top-2 left-4 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] shadow",
           accent.badge,
         )}>
           <Sparkles size={9} /> {product.badge}
         </div>
       )}
 
-      {/* Visibility flag · top-right corner */}
-      {(isHidden || isArchived) && (
-        <div className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">
-          {isArchived ? <><Archive size={9} /> Archived</> : <><EyeOff size={9} /> Hidden</>}
-        </div>
-      )}
+      {/* Visibility flag · top-right corner (display + inline toggle) */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+        {isArchived && (
+          <span className="pointer-events-none inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">
+            <Archive size={9} /> Archived
+          </span>
+        )}
+        {!isArchived && (
+          <form action={setProductVisibilityAction}>
+            <input type="hidden" name="productId" value={product.id} />
+            <input type="hidden" name="visibility" value={nextVisibility} />
+            <button
+              type="submit"
+              aria-label={isHidden ? "Make visible" : "Hide"}
+              title={isHidden ? "Make visible" : "Hide"}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-headline text-[9px] font-bold uppercase tracking-[0.18em] ring-1 transition-colors",
+                isHidden
+                  ? "bg-amber-100 text-amber-700 ring-amber-200 hover:bg-amber-200"
+                  : "bg-white/0 text-slate-400 ring-transparent hover:bg-slate-100 hover:text-slate-600 hover:ring-slate-200",
+              )}
+            >
+              {isHidden ? <Eye size={11} /> : <EyeOff size={11} />}
+              {isHidden && <span>Hidden</span>}
+            </button>
+          </form>
+        )}
+      </div>
 
-      <div className="p-5">
+      <div className="relative z-[1] pointer-events-none p-5 [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_form]:pointer-events-auto">
         <p className={cn("font-headline text-[10px] font-extrabold uppercase tracking-[0.25em]", accent.label)}>
           {product.slug}
         </p>
@@ -116,7 +146,7 @@ export function ProductCard({
       </div>
 
       {/* Operator-only metric strip — only operator sees this surface */}
-      <div className={cn("mt-auto rounded-b-2xl border-t bg-slate-50 px-5 py-3", accent.footer)}>
+      <div className={cn("relative z-[1] pointer-events-none mt-auto rounded-b-2xl border-t bg-slate-50 px-5 py-3", accent.footer)}>
         <dl className="grid grid-cols-3 gap-3 text-center">
           <Metric label="Active" value={product.metrics.active_users} />
           <Metric
@@ -128,7 +158,7 @@ export function ProductCard({
           <Metric label="Total" value={product.metrics.total_subscriptions} />
         </dl>
       </div>
-    </Link>
+    </div>
   );
 }
 

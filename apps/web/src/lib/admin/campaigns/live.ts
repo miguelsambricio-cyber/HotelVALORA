@@ -41,6 +41,10 @@ export interface CampaignRow {
   created_by_email: string | null;
   created_at: string;
   updated_at: string;
+  /** Phase 2.D.7b · monetization cohort link */
+  subscription_product_id: string | null;
+  subscription_product_name: string | null;
+  subscription_product_slug: string | null;
   /** Pending + sent + opened + clicked invitations counted as "active". */
   invitations_active: number;
   /** status='accepted' or 'converted' */
@@ -97,9 +101,10 @@ export async function loadCampaigns(rawFilter: CampaignsFilter = {}): Promise<{
   let q = sb
     .from("campaigns")
     .select(
-      "id, slug, name, kind, status, owner_email, description, channel, " +
-      "target_audience, notes, conversion_target, archived_at, created_by_email, " +
-      "created_at, updated_at",
+      `id, slug, name, kind, status, owner_email, description, channel,
+       target_audience, notes, conversion_target, archived_at, created_by_email,
+       created_at, updated_at, subscription_product_id,
+       subscription_products:subscription_product_id ( name, slug )`,
       { count: "exact" },
     );
 
@@ -128,7 +133,12 @@ export async function loadCampaigns(rawFilter: CampaignsFilter = {}): Promise<{
     return { rows: [], total: 0, filter };
   }
 
-  const raw = (data ?? []) as unknown as Array<Omit<CampaignRow, "invitations_active" | "invitations_converted" | "invitations_failed" | "subscriptions_active">>;
+  const raw = (data ?? []) as unknown as Array<
+    Omit<CampaignRow,
+      "invitations_active" | "invitations_converted" | "invitations_failed" | "subscriptions_active"
+      | "subscription_product_name" | "subscription_product_slug"
+    > & { subscription_products: { name: string; slug: string } | null }
+  >;
   if (raw.length === 0) return { rows: [], total: count ?? 0, filter };
 
   // Parallel rollup: per-campaign invitation buckets + active subs
@@ -149,8 +159,11 @@ export async function loadCampaigns(rawFilter: CampaignsFilter = {}): Promise<{
   const rows: CampaignRow[] = raw.map((c) => {
     const inv = invRows.filter((i) => i.campaign_id === c.id);
     const sub = subRows.filter((s) => s.source_campaign_id === c.id);
+    const { subscription_products, ...rest } = c;
     return {
-      ...c,
+      ...rest,
+      subscription_product_name: subscription_products?.name ?? null,
+      subscription_product_slug: subscription_products?.slug ?? null,
       invitations_active: inv.filter((i) => ["pending", "sent", "delivered", "opened", "clicked"].includes(i.status)).length,
       invitations_converted: inv.filter((i) => ["accepted", "converted"].includes(i.status)).length,
       invitations_failed: inv.filter((i) => ["bounced", "declined"].includes(i.status)).length,
@@ -214,14 +227,24 @@ export async function loadCampaignDetail(campaignId: string): Promise<CampaignDe
   const { data: c, error } = await sb
     .from("campaigns")
     .select(
-      "id, slug, name, kind, status, owner_email, description, channel, " +
-      "target_audience, notes, conversion_target, archived_at, created_by_email, " +
-      "created_at, updated_at",
+      `id, slug, name, kind, status, owner_email, description, channel,
+       target_audience, notes, conversion_target, archived_at, created_by_email,
+       created_at, updated_at, subscription_product_id,
+       subscription_products:subscription_product_id ( name, slug )`,
     )
     .eq("id", campaignId)
     .maybeSingle();
   if (error || !c) return null;
-  const base = c as unknown as Omit<CampaignRow, "invitations_active" | "invitations_converted" | "invitations_failed" | "subscriptions_active">;
+  const raw = c as unknown as Omit<CampaignRow,
+    "invitations_active" | "invitations_converted" | "invitations_failed" | "subscriptions_active"
+    | "subscription_product_name" | "subscription_product_slug"
+  > & { subscription_products: { name: string; slug: string } | null };
+  const { subscription_products, ...rest } = raw;
+  const base = {
+    ...rest,
+    subscription_product_name: subscription_products?.name ?? null,
+    subscription_product_slug: subscription_products?.slug ?? null,
+  };
 
   const [invR, subR] = await Promise.all([
     sb.from("contact_invitations")
