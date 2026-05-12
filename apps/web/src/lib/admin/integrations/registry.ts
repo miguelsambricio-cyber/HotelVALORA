@@ -148,36 +148,45 @@ export const INTEGRATIONS_REGISTRY: IntegrationDescriptor[] = [
     externalLinks: [{ label: "Source", href: "https://www.hospitalitynet.org" }],
   },
 
+  // CoStar News occupies the Public · EU+Spain slot previously held by
+  // Expansión. CoStar Group is global but the hospitality desk runs
+  // institutional-grade transaction + analyst coverage that fits the
+  // EU/Spain operational view alongside HospitalityNet. API integration
+  // remains a Phase 5 deliverable; the dashboard surfaces it as a
+  // monitored source while ingestion wiring lands.
   {
-    id: "skift-hospitality",
-    name: "Skift Hospitality",
+    id: "costar-news",
+    name: "CoStar News",
     region: "GLOBAL",
     language: "en",
-    baseUrl: "https://skift.com",
-    rssUrl: "https://skift.com/feed/",
-    ingestionKind: "rss",
+    baseUrl: "https://www.costar.com/news/hotels",
+    rssUrl: null,
+    ingestionKind: "scrape",
     authStrategy: "none",
-    reliabilityScore: 0.85,
+    reliabilityScore: 0.90,
     enabled: true,
     requiresAuth: false,
     tier: "free_public",
-    tagline: "Travel industry trend coverage + hospitality transaction tracking.",
-    category: "global_market",
+    tagline: "CoStar hospitality desk · institutional-grade transactions, analyst coverage and US/EU deal wire.",
+    category: "european_market",
     connection: "operational",
     signal: "ok",
     session: null,
     health: {
-      lastRunAt: "2026-05-12T06:48:00Z",
-      lastRunStatus: "success",
-      runsSuccess7d: 7,
+      lastRunAt: null,
+      lastRunStatus: "unknown",
+      runsSuccess7d: 0,
       runsFailed7d: 0,
-      articlesToday: 12,
-      articles7d: 94,
-      articles30d: 412,
-      meanItemsPerRun7d: 13.4,
+      articlesToday: 0,
+      articles7d: 0,
+      articles30d: 0,
+      meanItemsPerRun7d: 0,
     },
-    notes: [],
-    externalLinks: [{ label: "Source", href: "https://skift.com" }],
+    notes: [
+      "Promoted from Deferred · positioned alongside HospitalityNet on the EU/Spain row",
+      "Public-preview scrape from /news/hotels until Phase 5 bearer-token API contract lands",
+    ],
+    externalLinks: [{ label: "Source", href: "https://www.costar.com/news/hotels" }],
   },
 
   {
@@ -213,38 +222,6 @@ export const INTEGRATIONS_REGISTRY: IntegrationDescriptor[] = [
   },
 
   {
-    id: "expansion",
-    name: "Expansión",
-    region: "ES",
-    language: "es",
-    baseUrl: "https://www.expansion.com",
-    rssUrl: "https://www.expansion.com/rss/empresas.xml",
-    ingestionKind: "rss",
-    authStrategy: "none",
-    reliabilityScore: 0.80,
-    enabled: true,
-    requiresAuth: false,
-    tier: "free_public",
-    tagline: "Spanish business newspaper · hospitality coverage in the empresas section.",
-    category: "spain_market",
-    connection: "operational",
-    signal: "ok",
-    session: null,
-    health: {
-      lastRunAt: "2026-05-12T06:48:00Z",
-      lastRunStatus: "success",
-      runsSuccess7d: 7,
-      runsFailed7d: 0,
-      articlesToday: 8,
-      articles7d: 61,
-      articles30d: 248,
-      meanItemsPerRun7d: 8.7,
-    },
-    notes: [],
-    externalLinks: [{ label: "Source", href: "https://www.expansion.com" }],
-  },
-
-  {
     id: "reuters-hospitality",
     name: "Reuters Hospitality",
     region: "GLOBAL",
@@ -274,41 +251,6 @@ export const INTEGRATIONS_REGISTRY: IntegrationDescriptor[] = [
     },
     notes: ["One 5xx failure 2026-05-09 — recovered next run"],
     externalLinks: [{ label: "Source", href: "https://www.reuters.com" }],
-  },
-
-  // ───────────────────────────────────────────────────────────────────────
-  // Deferred · API integrations pending vendor wiring
-  // ───────────────────────────────────────────────────────────────────────
-  {
-    id: "costar-news",
-    name: "CoStar News",
-    region: "GLOBAL",
-    language: "en",
-    baseUrl: "https://www.costar.com",
-    rssUrl: null,
-    ingestionKind: "api",
-    authStrategy: "bearer_token",
-    reliabilityScore: 0.90,
-    enabled: false,
-    requiresAuth: true,
-    tier: "paid_api",
-    tagline: "CoStar Group transactions feed · institutional-grade. API integration deferred to Phase 5.",
-    category: "research_house",
-    connection: "not_configured",
-    signal: "neutral",
-    session: null,
-    health: {
-      lastRunAt: null,
-      lastRunStatus: "unknown",
-      runsSuccess7d: 0,
-      runsFailed7d: 0,
-      articlesToday: 0,
-      articles7d: 0,
-      articles30d: 0,
-      meanItemsPerRun7d: 0,
-    },
-    notes: ["Phase 5 — bearer-token API integration · awaits CoStar API contract negotiation"],
-    externalLinks: [{ label: "CoStar", href: "https://www.costar.com" }],
   },
 ];
 
