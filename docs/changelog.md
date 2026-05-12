@@ -4,6 +4,56 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Integrations · state-inference fix + interactive article drawer
+
+Two changes to the Administrator integrations surface — one bug fix, one feature evolution.
+
+### Bug fix · state-inference
+
+After Hosteltur reached operational parity (T1 ✓ · T2 row ✓ · 1 successful run · 8 articles), the top badges still read `SESSION EXPIRED` / `EXPIRED` even though the credentials panel below correctly read `ACTIVE · ENCRYPTED`. Diagnosed in two places:
+
+1. **Silent session-query fallback.** `lib/admin/integrations/live.ts` used `.maybeSingle()` which can return `data: null` under PostgREST USER-DEFINED-enum edge cases even when the row exists. That null pushed `deriveSessionStatus(null, credentialsConfigured=true)` into the default branch which returned `session_expired`. Reproduced via direct SQL comparison · the row was always there.
+2. **Pessimistic inference.** Even with the session-query reading correctly, the previous `deriveConnection` would flip to `session_expired` on any session-row hiccup, ignoring the trio of positive signals (T1 active · T2 row present · ingestion succeeding).
+
+Fix:
+- `.maybeSingle()` → `.limit(1)` + array-take pattern · bulletproof against PostgREST single-row quirks.
+- New `sessionRowPresent` boolean on `LiveTelemetry` distinguishes "row exists, expiry detail TBD" from "no T2 lifecycle ever".
+- `deriveConnection` rewritten per the institutional rule: **if T1 active + T2 row present + recent ingestion → operational**, regardless of expires_at margin. Only escalate to `session_expired` when the system has no signs of life beyond T1 (no T2 row · no recent runs · no successful logins).
+
+After this fix, Hosteltur correctly surfaces `Operational` / `Active Session` in the top badges — matching the credentials panel + ingestion metrics.
+
+### Feature · interactive article drawer
+
+The `Articles · Today / 7 Days / 30 Days` tiles on every integration detail page are now **clickable buttons** that open a Bloomberg-style slide-in drawer listing the underlying articles.
+
+New components:
+- `lib/admin/integrations/live.ts` · `getRecentArticlesForSource(slug, daysBack=30, limit=200)` — server fetcher reading `public.market_news` for the given source, NEWEST-FIRST. Returns the `RecentArticle` shape (title · summary · url · canonical_url · category · country · published_at · first_seen_at · source_slug · source_name).
+- `components/admin/integrations/article-drawer.tsx` — client component, right-side drawer · 640px max-width · dark forest-900→slate-950 canvas · ESC closes · body scroll lock. Filters the 30d set client-side for today / 7d / 30d (no extra round-trips when switching).
+- `components/admin/integrations/interactive-metrics.tsx` — replaces the static 4-tile telemetry strip. Three article tiles become `<button>` elements with a chevron affordance · disabled when articles30d=0. Fourth tile (Runs OK / Failed) stays static (read-only metric).
+
+Article row layout:
+- Category chip · status-tinted by `news_category` enum (acquisition/sale=ok · refinancing/development=warn · distress=error · operator_change=neutral · investment=ok · pipeline_announcement=warn · etc.)
+- Country chip (ISO-3166-1 alpha-2)
+- Pubdate (UTC, monospace)
+- External-link icon right-aligned
+- Title in font-headline white bold
+- Summary line-clamped to 2 lines
+- Source URL truncated to 84 chars, monospace slate
+
+Clicking anywhere on a row opens the canonical URL in a new tab with `rel="noopener noreferrer"`.
+
+Loading / empty states:
+- The 30d data is server-fetched on the same render that produces the integration descriptor — no spinner needed (page already gates rendering).
+- Empty state (no articles in the selected window) renders the institutional "No articles" card with a hint about the next scheduled cron.
+
+Data flow: the parent Server Component pre-fetches the 30d article set in `Promise.all` alongside `getIntegrationLive` + `getCredentialsStatus` + `getCredentialsAudit`. Single round-trip per page. The drawer reuses the same data — no duplicate fetches. Per user spec.
+
+### Build characteristics
+
+`pnpm typecheck` clean · `pnpm build` clean. No new routes — only new client components and a server fetcher.
+
+---
+
 ## 2026-05-12 — Hosteltur · operational parity with Alimarket (session refresh + RSS ingestion)
 
 Same flow Alimarket got the day before, applied to Hosteltur. No architectural change — the live-state aggregator from `90047ea` already handled multiple authenticated sources correctly. The previous turn was simply scoped to `--slug=alimarket` only; this turn closes the parity gap.

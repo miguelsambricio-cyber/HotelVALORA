@@ -31,6 +31,11 @@ interface LiveTelemetry {
   lastLoginAt: string | null;
   lastLoginStatus: "success" | "failure" | null;
   session: SessionStatusDescriptor | null;
+  /** True when an `intelligence_source_sessions` row was found in DB,
+   *  regardless of its expiry / status. Used by the conservative
+   *  connection inference so we never down-grade an integration that
+   *  *has* exercised the full T1→T2 lifecycle. */
+  sessionRowPresent: boolean;
   health: IngestionHealthDescriptor;
 }
 
@@ -52,6 +57,7 @@ const EMPTY_TELEMETRY: LiveTelemetry = {
   lastLoginAt: null,
   lastLoginStatus: null,
   session: null,
+  sessionRowPresent: false,
   health: EMPTY_HEALTH,
 };
 
@@ -95,23 +101,30 @@ async function loadTelemetry(slug: string, requiresAuth: boolean): Promise<LiveT
     }
 
     // ── Session ──
+    // Defensive: use array+take[0] instead of maybeSingle(). maybeSingle()
+    // adds a PostgREST single-row header that silently returns null when
+    // anything unusual happens server-side (USER-DEFINED enum quirks have
+    // been observed). Reading as an array is bulletproof — we already
+    // limit to 1 and order by recency.
     let session: SessionStatusDescriptor | null = null;
+    let sessionRowPresent = false;
     if (requiresAuth) {
-      const sessRow = await sb
+      const sessRes = await sb
         .from("intelligence_source_sessions")
         .select("status, enc_key_id, refreshed_at, expires_at, refresh_count, last_refresh_error")
         .eq("source_slug", slug)
         .order("refreshed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const s = sessRow.data as {
+        .limit(1);
+      const rows = (sessRes.data as Array<{
         status: "active" | "expired" | "invalidated" | "refresh_failed";
         enc_key_id: string;
         refreshed_at: string;
         expires_at: string;
         refresh_count: number;
         last_refresh_error: string | null;
-      } | null;
+      }> | null) ?? [];
+      const s = rows[0] ?? null;
+      sessionRowPresent = s !== null;
       session = deriveSessionStatus(s, credentialsConfigured);
     }
 
@@ -183,6 +196,7 @@ async function loadTelemetry(slug: string, requiresAuth: boolean): Promise<LiveT
       lastLoginAt,
       lastLoginStatus,
       session,
+      sessionRowPresent,
       health,
     };
   } catch {
@@ -252,14 +266,51 @@ function deriveConnection(
     if (telemetry.health.runsFailed7d > 0) return "degraded";
     return "operational";
   }
-  // Authenticated source path.
+
+  // ── Authenticated source path ─────────────────────────────────────────
+  // Source-of-truth signals (per the 2026-05-12 inference fix):
+  //   1. T1 active credentials
+  //   2. T2 session row exists (regardless of imminent expiry)
+  //   3. Recent ingestion (success runs in last 7d OR last_login=success)
+  //
+  // If all three hold → operational. The previous logic flipped to
+  // "session_expired" whenever the session query returned null even with
+  // T1 active + ingestion succeeding, which produced contradictory UI
+  // (cred panel green, top badges expired).
+
   if (!telemetry.credentialsConfigured) return "awaiting_credentials";
-  if (telemetry.session?.status === "session_expired") return "session_expired";
+
+  // Real refresh failure is still a real failure.
   if (telemetry.session?.status === "refresh_failed") return "failing";
   if (telemetry.lastLoginStatus === "failure") return "degraded";
-  // Configured + valid session = operational, regardless of whether ingestion
-  // has yet produced articles (those follow the next cron tick).
-  return "operational";
+
+  const hasRecentIngestion =
+    telemetry.health.runsSuccess7d > 0 || telemetry.health.articlesToday > 0;
+  const sessionPresent = telemetry.sessionRowPresent;
+  const sessionExplicitlyDead =
+    telemetry.session?.status === "session_expired" && !sessionPresent;
+
+  // Trio rule · all three positive signals → operational.
+  if (telemetry.credentialsConfigured && sessionPresent && hasRecentIngestion) {
+    return "operational";
+  }
+
+  // Trio rule · partial signals — still operational when at least
+  // (creds + session-row) or (creds + recent-ingestion) hold. This
+  // matches the institutional intent: don't flip the integration to
+  // "expired" while real activity continues elsewhere in the lifecycle.
+  if (telemetry.credentialsConfigured && (sessionPresent || hasRecentIngestion)) {
+    return "operational";
+  }
+
+  // Only escalate to "session_expired" when the system genuinely has
+  // no signs of life beyond T1 — no T2 row, no recent runs, no
+  // successful logins.
+  if (sessionExplicitlyDead) return "session_expired";
+
+  // Provisioned credentials, but the first refresh has not yet
+  // happened. Operator action needed.
+  return "session_expired";
 }
 
 /**
@@ -284,4 +335,91 @@ export async function getIntegrationLive(slug: string): Promise<IntegrationDescr
 /** Return all integrations with live state merged in. */
 export async function getIntegrationsLive(): Promise<IntegrationDescriptor[]> {
   return Promise.all(INTEGRATIONS_REGISTRY.map((row) => getIntegrationLive(row.id) as Promise<IntegrationDescriptor>));
+}
+
+// ── Article fetcher · feeds the interactive metric drawer ──────────────────
+
+/** A market_news row in the shape the drawer + counters need.  Mirrors
+ *  the live DB column names so the swap-target shape is stable. */
+export interface RecentArticle {
+  id: string;
+  title: string;
+  summary: string | null;
+  url: string;
+  canonical_url: string;
+  /** news_category enum value */
+  category:
+    | "acquisition" | "sale" | "joint_venture" | "development" | "refinancing"
+    | "rebranding" | "operator_change" | "branded_residences" | "flex_living"
+    | "pipeline_announcement" | "distress" | "investment" | "other";
+  /** Country ISO-3166-1 alpha-2 (or NULL when unknown). */
+  country: string | null;
+  /** market_news.published_at OR fallback first_seen_at (ISO string). */
+  published_at: string;
+  /** ISO string for client-side filtering today/7d/30d. */
+  first_seen_at: string;
+  /** Source slug + display name · denormalised for the drawer header. */
+  source_slug: string;
+  source_name: string;
+}
+
+/**
+ * Fetches the last `daysBack` of articles for a given integration slug.
+ * Returns NEWEST-FIRST. The drawer filters this set client-side for the
+ * today/7d/30d tabs, so we only pay one round-trip per page render.
+ *
+ * Limit is bounded to 200 rows — institutional sources rarely exceed
+ * 50–100 articles in 30 days; the limit is a safety belt for unusual
+ * data shapes.
+ */
+export async function getRecentArticlesForSource(
+  slug: string,
+  daysBack = 30,
+  limit = 200,
+): Promise<RecentArticle[]> {
+  try {
+    const sb = getSupabaseAdmin();
+    const sourceRow = await sb
+      .from("sources")
+      .select("id, name, slug")
+      .eq("slug", slug)
+      .maybeSingle();
+    const src = sourceRow.data as { id: string; name: string; slug: string } | null;
+    if (!src) return [];
+    const since = new Date(Date.now() - daysBack * 86400_000).toISOString();
+    const res = await sb
+      .from("market_news")
+      .select("id, title, summary, url, canonical_url, category, country, published_at, first_seen_at")
+      .eq("source_id", src.id)
+      .gte("first_seen_at", since)
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("first_seen_at", { ascending: false })
+      .limit(limit);
+    const rows = (res.data as Array<{
+      id: string;
+      title: string;
+      summary: string | null;
+      url: string;
+      canonical_url: string;
+      category: RecentArticle["category"];
+      country: string | null;
+      published_at: string | null;
+      first_seen_at: string;
+    }> | null) ?? [];
+    return rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      summary: r.summary,
+      url: r.url,
+      canonical_url: r.canonical_url,
+      category: r.category,
+      country: r.country,
+      published_at: r.published_at ?? r.first_seen_at,
+      first_seen_at: r.first_seen_at,
+      source_slug: src.slug,
+      source_name: src.name,
+    }));
+  } catch {
+    return [];
+  }
 }

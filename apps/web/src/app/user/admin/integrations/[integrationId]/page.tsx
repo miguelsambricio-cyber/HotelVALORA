@@ -4,7 +4,10 @@ import {
   INTEGRATION_IDS,
   getIntegrationById,
 } from "@/lib/admin/integrations";
-import { getIntegrationLive } from "@/lib/admin/integrations/live";
+import {
+  getIntegrationLive,
+  getRecentArticlesForSource,
+} from "@/lib/admin/integrations/live";
 import { IntegrationDetail } from "@/components/admin/integrations/integration-detail";
 import {
   getCredentialsAudit,
@@ -38,13 +41,14 @@ export default async function IntegrationDetailPage({ params }: Params) {
   const integration = await getIntegrationLive(params.integrationId);
   if (!integration) notFound();
 
-  const [credentialsStatus, credentialsAudit] = await Promise.all([
+  const [credentialsStatus, credentialsAudit, recentArticles] = await Promise.all([
     integration.requiresAuth
       ? getCredentialsStatus(integration.id)
       : Promise.resolve(undefined),
     integration.requiresAuth
       ? getCredentialsAudit(integration.id, 10)
       : Promise.resolve([]),
+    getRecentArticlesForSource(integration.id, 30, 200),
   ]);
 
   return (
@@ -52,6 +56,7 @@ export default async function IntegrationDetailPage({ params }: Params) {
       integration={integration}
       credentialsStatus={credentialsStatus}
       credentialsAudit={credentialsAudit}
+      recentArticles={recentArticles}
     />
   );
 }

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import type { IntegrationDescriptor } from "@/lib/admin/integrations";
+import type { RecentArticle } from "@/lib/admin/integrations/live";
 import type {
   AuditEntry,
   CredentialsStatusView,
 } from "@/lib/intelligence/credentials-store";
 import { SessionStatusPanel } from "./session-status-panel";
 import { CredentialsPanel } from "./credentials-panel";
+import { InteractiveMetrics } from "./interactive-metrics";
 import {
   AuthStatusBadge,
   ConnectionStatusBadge,
@@ -25,10 +27,13 @@ export function IntegrationDetail({
   integration,
   credentialsStatus,
   credentialsAudit,
+  recentArticles,
 }: {
   integration: IntegrationDescriptor;
   credentialsStatus?: CredentialsStatusView;
   credentialsAudit?: AuditEntry[];
+  /** 30-day rolling article set · feeds the interactive metric drawer. */
+  recentArticles?: RecentArticle[];
 }) {
   return (
     <div className="space-y-6">
@@ -66,16 +71,16 @@ export function IntegrationDetail({
           </div>
         </div>
 
-        {/* Telemetry strip */}
-        <dl className="mt-7 grid grid-cols-2 gap-y-4 border-t border-slate-800/60 pt-5 sm:grid-cols-4">
-          <Strip label="Articles · Today" value={String(integration.health.articlesToday)} />
-          <Strip label="Articles · 7 Days" value={String(integration.health.articles7d)} />
-          <Strip label="Articles · 30 Days" value={String(integration.health.articles30d)} />
-          <Strip
-            label="Runs OK / Failed · 7d"
-            value={`${integration.health.runsSuccess7d} / ${integration.health.runsFailed7d}`}
-          />
-        </dl>
+        {/* Telemetry strip · article counters are interactive · click to drill */}
+        <InteractiveMetrics
+          sourceName={integration.name}
+          articlesToday={integration.health.articlesToday}
+          articles7d={integration.health.articles7d}
+          articles30d={integration.health.articles30d}
+          runsSuccess7d={integration.health.runsSuccess7d}
+          runsFailed7d={integration.health.runsFailed7d}
+          recentArticles={recentArticles ?? []}
+        />
       </section>
 
       {/* Credentials surface (authenticated integrations only) */}
