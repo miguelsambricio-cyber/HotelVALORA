@@ -129,10 +129,14 @@ async function loadTelemetry(slug: string, requiresAuth: boolean): Promise<LiveT
     }
 
     // ── Ingestion health rollup ──
+    // Rolling windows: 24h, 7d, 30d. We previously counted "since UTC
+    // midnight" for the leftmost tile but the operator-facing label was
+    // changed to "24h" — a rolling window is what the UI promises, so
+    // it's what the query computes.
     const now = Date.now();
+    const since24h = new Date(now - 1 * 86400_000).toISOString();
     const since7d = new Date(now - 7 * 86400_000).toISOString();
     const since30d = new Date(now - 30 * 86400_000).toISOString();
-    const startToday = new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString();
 
     const [runsRecent, articlesToday, articles7d, articles30d, lastRun] = await Promise.all([
       sb
@@ -144,7 +148,7 @@ async function loadTelemetry(slug: string, requiresAuth: boolean): Promise<LiveT
         .from("market_news")
         .select("id", { count: "exact", head: true })
         .eq("source_id", sourceId)
-        .gte("first_seen_at", startToday),
+        .gte("first_seen_at", since24h),
       sb
         .from("market_news")
         .select("id", { count: "exact", head: true })

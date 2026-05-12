@@ -40,7 +40,7 @@ export function InteractiveMetrics({
     <>
       <dl className="mt-7 grid grid-cols-2 gap-y-4 border-t border-slate-800/60 pt-5 sm:grid-cols-4">
         <MetricButton
-          label="Articles · Today"
+          label="Articles · 24h"
           value={String(articlesToday)}
           disabled={articles30d === 0}
           onClick={() => setActiveWindow("today")}

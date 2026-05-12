@@ -11,13 +11,13 @@ import type { RecentArticle } from "@/lib/admin/integrations/live";
 export type ArticleWindow = "today" | "7d" | "30d";
 
 const WINDOW_LABEL: Record<ArticleWindow, string> = {
-  today: "Today",
+  today: "Last 24 Hours",
   "7d": "Last 7 Days",
   "30d": "Last 30 Days",
 };
 
 const WINDOW_DAYS: Record<ArticleWindow, number> = {
-  today: 0,
+  today: 1, // rolling 24-hour window
   "7d": 7,
   "30d": 30,
 };
@@ -70,12 +70,9 @@ export function ArticleDrawer({
   const filtered = useMemo(() => {
     if (!articles || articles.length === 0) return [];
     if (view === "30d") return [...articles];
-    if (view === "today") {
-      const startToday = new Date(new Date().setUTCHours(0, 0, 0, 0)).getTime();
-      return articles.filter(
-        (a) => new Date(a.first_seen_at).getTime() >= startToday,
-      );
-    }
+    // Rolling window for today (24h) / 7d. The drawer's button shape doesn't
+    // require special-casing "today" any more — same arithmetic as 7d/30d
+    // with a different day count.
     const since = Date.now() - WINDOW_DAYS[view] * 86400_000;
     return articles.filter((a) => new Date(a.first_seen_at).getTime() >= since);
   }, [articles, view]);
