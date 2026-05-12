@@ -4,9 +4,87 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.8 · Institutional relevance tiering · article drawer becomes an investment terminal
+
+Operator directive: HotelVALORA is investment-grade hospitality intelligence, not a general news reader. Three-tier deterministic classifier runs at ingest time + retroactively over the existing 130-row corpus. The article drawer defaults to **Priority** tier (deal-flow, capital activity) so events / AI / awards / lifestyle articles never bubble up unless the operator explicitly switches tabs.
+
+**No LLM** · all regex/keyword heuristics · ranking is priority > operational > noise · unclassified defaults to operational (safer than hiding).
+
+### Tier definitions
+- **Priority** — institutional deal-flow & capital activity: SOCIMI/REIT · refinancing/debt · investment funds (Blackstone, KKR, Brookfield, Azora, etc.) · acquisitions/sales/disposals · JV/partnerships · operator agreements · leases (incl. sale-and-leaseback) · development · pipeline · conversion/repositioning · branded residences · flex-living · distress
+- **Operational** — performance metrics & demand: ADR · RevPAR · TRevPAR · GOPPAR · occupancy · STR/HotStats · tourism demand · arrivals · booking pace
+- **Noise** — non-investment signal: conferences (FITUR, IHIF, WTM, ITB) · awards · opinion/editorial · lifestyle/travel inspiration · marketing/loyalty PR · generic AI articles
+
+### New module
+**`lib/intelligence/relevance.ts`** · `classifyRelevance(title, body, summary)` returns `{ tier, signal }`. 21 rule blocks · case-insensitive · English + Spanish patterns · strong-fund-name shortcut (any article mentioning Blackstone / KKR / Brookfield / Cerberus / etc. lands in `priority/investment_fund`). Returns the matching signal slug for forensic audit.
+
+### Wired into the ingest pipeline
+- `NormalisedNewsItem` gains `relevance_tier` + `relevance_signal`
+- `normalise()` calls `classifyRelevance` after categorise
+- `ingest.ts` writes both into `market_news.enriched_meta` per row (jsonb · no schema change)
+- The classifier sees `title + summary + body` so the Phase 2.6 authed body fetch dramatically lifts hit accuracy
+
+### Backfill · 130 existing rows
+**New `apps/web/scripts/backfill-relevance.mjs`** · one-shot Node ESM with inlined rules (Node ESM can't import server-only TS). Dry-run shows distribution before committing. Production run wrote all 130 rows · 0 failures.
+
+**Live distribution post-backfill:**
+| Tier | Count | Share |
+|---|---|---|
+| Priority | 69 | 53% |
+| Operational | 47 | 36% |
+| Noise | 14 | 11% |
+
+**Top signals across corpus:**
+| Signal | Count | Tier |
+|---|---|---|
+| acquisition_sale | 28 | priority |
+| investment_fund | 13 | priority |
+| refinancing_debt | 9 | priority |
+| generic_ai | 7 | noise |
+| conversion_repositioning | 6 | priority |
+| event_conference | 5 | noise |
+| pipeline_expansion | 5 | priority |
+| socimi_reit | 2 | priority |
+
+### Drawer · tier tab strip · default = Priority
+- New tab strip in the `ArticleDrawer` header · `Priority` / `Operational` / `Noise` / `All` · each with live count
+- Default selection = `Priority` · operator opens any source's drawer and sees deal-flow rows only
+- Each row now has a **Signal chip** (M&A / SOCIMI/REIT / Conversion / etc.) · always rendered when the classifier tagged a signal · color-coded by tier
+- In the `All` view, rows additionally render a small **Tier chip** so the operator can see the verdict without leaving the tab
+- Empty state copy adapts to the active filter ("No priority articles · switch to All to see what was ingested")
+- Hero label flipped from "Article Feed" to **"Investment Intelligence Feed"** to make the editorial stance explicit
+
+### Data flow
+- `RecentArticle` (drawer descriptor) gains `relevanceTier` + `relevanceSignal`
+- `getRecentArticlesForSource` reads both from `enriched_meta` per row · falls back to `operational` if the field is missing (legacy rows pre-backfill would land here, but we backfilled everything)
+
+### Verified on dev (2026-05-12, Hosteltur 30d window)
+- Drawer ships 20 priority / 16 operational / 6 noise to the client (subset of 130 corpus filtered to Hosteltur source)
+- Top Hosteltur signals: acquisition_sale (8), refinancing_debt (3), investment_fund (3), conversion_repositioning (3), event_conference (3 · noise), socimi_reit (2), generic_ai (2 · noise), development (1)
+- Tier tab labels + counts render in the HTML payload
+
+### Decisions held
+- No DB enum change · `news_category` enum stays · relevance tier lives in `enriched_meta` JSONB (one less migration)
+- No LLM classification · regex baseline is the institutional foundation
+- No new agents · the classifier is a pure function called inside the existing ingest path
+- No browser-runtime orchestration · unchanged
+
+### Files added
+- `apps/web/src/lib/intelligence/relevance.ts`
+- `apps/web/scripts/backfill-relevance.mjs`
+
+### Files modified
+- `apps/web/src/lib/intelligence/normalise.ts` · imports and calls `classifyRelevance`
+- `apps/web/src/lib/intelligence/types.ts` · `NormalisedNewsItem` gains `relevance_tier` + `relevance_signal`
+- `apps/web/src/lib/intelligence/ingest.ts` · `EnrichedMeta` carries tier · upsert writes it
+- `apps/web/src/lib/admin/integrations/live.ts` · `RecentArticle` gains `relevanceTier` + `relevanceSignal` · `getRecentArticlesForSource` extracts from `enriched_meta`
+- `apps/web/src/components/admin/integrations/article-drawer.tsx` · tier tab strip · signal chip · tier chip in All view · adaptive empty state
+
+---
+
 ## 2026-05-12 — Admin UX consolidation · institutional operations console
 
-Five-priority consolidation on `/admin/integrations` and `/admin/ai-operations` per operator directive. Infra expansion paused · no new scrapers · no new agents · no Phase 3 modules · no browser-runtime orchestration. Goal: the admin should feel like a real operations console.
+Shipped as commit `db82a36`. Editorial-registry filter follow-up as commit `c5c18e5`. Five-priority consolidation on `/admin/integrations` and `/admin/ai-operations` per operator directive. Infra expansion paused · no new scrapers · no new agents · no Phase 3 modules · no browser-runtime orchestration. Goal: the admin should feel like a real operations console.
 
 ### 1 · Coherent operational state (T1 + T2 + T3 narrative)
 **New** `components/admin/integrations/operational-health-hero.tsx` — three-lane hero at the top of every integration detail page. Each lane (T1 Credentials / T2 Session / T3 Ingestion) carries its own severity + headline + detail. Merged verdict block at the bottom answers the operator's first question: "is this source healthy, and if not, what do I do?" Public sources collapse to two lanes (T1/T2 become "Not required · public source"). Worst-lane-wins severity escalation · CLI command shown inline when any lane is degraded.

@@ -441,6 +441,17 @@ export interface RecentArticle {
   fetchedAuthed: boolean | null;
   /** Whether the SOURCE this article belongs to is subscriber-gated. */
   premiumSource: boolean;
+  /**
+   * Institutional relevance tier · Phase 2.8 deterministic classifier
+   * verdict. `priority` = deal-flow / financing / SOCIMI / development /
+   * operator / lease / conversion / fund activity. `operational` = ADR /
+   * RevPAR / occupancy / demand. `noise` = events / AI / marketing /
+   * awards / lifestyle / opinion. Defaults to "operational" when no
+   * classifier signal hits (safer than hiding by default).
+   */
+  relevanceTier: "priority" | "operational" | "noise";
+  /** Matching regex signal label (e.g. "acquisition_sale") or null when no rule hit. */
+  relevanceSignal: string | null;
 }
 
 /**
@@ -494,6 +505,11 @@ export async function getRecentArticlesForSource(
       const enriched = r.enriched_meta ?? null;
       const authedFlag =
         enriched && typeof enriched.authed === "boolean" ? enriched.authed : null;
+      const tierRaw = enriched && typeof enriched.relevance_tier === "string" ? enriched.relevance_tier : null;
+      const tier: "priority" | "operational" | "noise" =
+        tierRaw === "priority" || tierRaw === "operational" || tierRaw === "noise" ? tierRaw : "operational";
+      const signal =
+        enriched && typeof enriched.relevance_signal === "string" ? enriched.relevance_signal : null;
       return {
         id: r.id,
         title: r.title,
@@ -509,6 +525,8 @@ export async function getRecentArticlesForSource(
         source_name: src.name,
         fetchedAuthed: authedFlag,
         premiumSource,
+        relevanceTier: tier,
+        relevanceSignal: signal,
       };
     });
   } catch {

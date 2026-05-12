@@ -106,6 +106,10 @@ interface EnrichedMeta {
   authed: boolean;
   session_id?: string;
   status: number;
+  /** Institutional-relevance tier · drives operator drawer default filter. */
+  relevance_tier?: "priority" | "operational" | "noise";
+  /** Matching regex signal label · forensic audit value. */
+  relevance_signal?: string | null;
 }
 
 async function upsertItem(
@@ -278,6 +282,21 @@ export async function runOneSource(source: SourceRow): Promise<IngestionRunResul
         const cookieHeader = jar ? jar.headerFor(raw.url) : "";
         const bodyResult = await fetchArticleBody(raw.url, cookieHeader, bodySelectors);
 
+        if (bodyResult.status > 0 && bodyResult.body.length > 0) {
+          bodyFetchSuccesses += 1;
+        } else {
+          bodyFetchFailures += 1;
+        }
+
+        // Attach body to the raw item so normalise/categorise/classifyRelevance
+        // see the full text — improves regex hit rate dramatically.
+        const rawWithBody = bodyResult.body
+          ? { ...raw, body: bodyResult.body }
+          : raw;
+        const item = normalise(rawWithBody);
+
+        // Build enriched_meta AFTER normalise · captures the tier verdict
+        // alongside the fetch forensics.
         const enriched: EnrichedMeta | null = bodyResult.status > 0
           ? {
               fetched_at: new Date().toISOString(),
@@ -288,22 +307,10 @@ export async function runOneSource(source: SourceRow): Promise<IngestionRunResul
               authed: jar !== null && cookieHeader.length > 0,
               ...(jar ? { session_id: jar.sessionId } : {}),
               status: bodyResult.status,
+              relevance_tier: item.relevance_tier,
+              relevance_signal: item.relevance_signal,
             }
           : null;
-        if (bodyResult.status > 0 && bodyResult.body.length > 0) {
-          bodyFetchSuccesses += 1;
-        } else if (bodyResult.status > 0 && bodyResult.body.length === 0) {
-          bodyFetchFailures += 1;
-        } else {
-          bodyFetchFailures += 1;
-        }
-
-        // Attach body to the raw item so normalise/categorise see the full
-        // text — improves regex categorisation hit rate dramatically.
-        const rawWithBody = bodyResult.body
-          ? { ...raw, body: bodyResult.body }
-          : raw;
-        const item = normalise(rawWithBody);
         const outcome = await upsertItem(item, enriched);
         if (outcome === "inserted") result.items_inserted += 1;
         else if (outcome === "updated") result.items_updated += 1;

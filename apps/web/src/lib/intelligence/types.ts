@@ -47,6 +47,10 @@ export interface NormalisedNewsItem extends RawNewsItem {
   content_hash: string;
   category: NewsCategory;
   tags: string[];
+  /** Institutional-relevance tier · controls whether the article surfaces in the default operator drawer. */
+  relevance_tier: "priority" | "operational" | "noise";
+  /** Matching regex signal label (e.g. "acquisition_sale") or null when no rule hit. */
+  relevance_signal: string | null;
 }
 
 /**

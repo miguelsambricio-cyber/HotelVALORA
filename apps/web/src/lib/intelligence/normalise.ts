@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { NormalisedNewsItem, RawNewsItem } from "./types";
 import { categorise, extractTags } from "./categorise";
+import { classifyRelevance } from "./relevance";
 
 /**
  * URL canonicalisation per `docs/intelligence/news-data-schema.md` §12.
@@ -75,6 +76,7 @@ export function normalise(raw: RawNewsItem): NormalisedNewsItem {
   const language = raw.language ?? inferLanguage(raw.title, raw.body ?? raw.summary);
   const category = categorise(raw.title, raw.summary ?? raw.body ?? "", language);
   const tags = extractTags(raw.title, raw.summary ?? raw.body ?? "");
+  const relevance = classifyRelevance(raw.title, raw.body, raw.summary);
   return {
     ...raw,
     language,
@@ -83,5 +85,7 @@ export function normalise(raw: RawNewsItem): NormalisedNewsItem {
     content_hash: contentHash(raw.title, raw.summary),
     category,
     tags,
+    relevance_tier: relevance.tier,
+    relevance_signal: relevance.signal,
   };
 }
