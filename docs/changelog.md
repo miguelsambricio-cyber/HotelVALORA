@@ -4,6 +4,43 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.C · Institutional Relationship Console live · Supabase-backed `/user/admin/contacts`
+
+The canonical Master is promoted from the local XLSM file into Supabase and the first operator-grade UI lands. The relationship graph is now queryable from the admin shell with band / investor-type / quality / recency filters, URL-driven and server-paginated.
+
+### Database — migration `0014_relationship_contacts`
+Five tables wired with FKs, indexes, RLS-enabled-zero-policy posture, and anon + authenticated revoked:
+- `relationship_companies` (unique `company_key` · indexed on country / continent)
+- `relationship_contacts` (FK → companies · unique `master_id` · generated `email_lower` for case-insensitive search · indexed on band / bucket / investor_type / collab score / company_id)
+- `relationship_interactions` (FK → companies · one row per company timeline)
+- `relationship_labels` (FK → contacts · unique on `(contact_id, label)`)
+- `relationship_health` (FK → contacts · unique on `contact_id`)
+
+### Ingester — `scripts/contactos/promote_to_supabase.py`
+Stdlib `urllib` PostgREST client with service-role bearer · `upsert` with `on_conflict` + `Prefer: resolution=merge-duplicates` · paginated `fetch_all()` (Range header) for FK lookups. Idempotent and re-runnable. Final ingest: **2,990 companies · 4,547 contacts · 2,990 interactions · 143 labels · 34 health rows**. First run was missing 99 labels and 30 health rows due to PostgREST's 1,000-row cap on FK-resolution GET — fixed by switching to range-paginated fetches before the second pass.
+
+### Server lib — `apps/web/src/lib/admin/contacts/live.ts`
+`loadContacts(filter)` · `loadContactKpis()` (15 parallel count queries · no waterfall) · `loadInvestorTypes()`. Joins `relationship_labels` for the visible page only. Default filter is quality-first: `bucket = 'active'` AND `hide_invalid` AND no-Gmail-activity dormant rows hidden.
+
+### UI — `/user/admin/contacts`
+- 14 KPI totems on top (Active · Strategic · Warm · Cold+signal · Dormant · Invalid/flagged · Recently active 90d · Investors · Operators · Lenders · Brokers · Family Office · REIT/SOCIMI · Bidirectional)
+- 10-column table: Contact (name + title + email + LinkedIn) · Company (with geography) · Type (with hospitality badge) · Band · Strength · Collab · Last email (with directionality) · Gmail labels · Email health · Strategic signal
+- URL-driven filter state — band chips · institutional type chips · "Show invalid" + "Recently active · 90d" toggles · sort (Collab / Strength / Recent / A-Z) · debounced search
+- Server-side pagination (50/page) via PostgREST `Range`
+- Visual language matches AI Operations / Integrations / Intelligence Feed (dark forest-900 → slate-950 gradient cards, lime-300 accents, tracked-out uppercase micro-labels)
+- Admin sidebar gets a new `Contacts · Live` entry under Integrations
+
+### Supporting work
+- Supabase TS types regenerated from the live schema — `apps/web/src/lib/supabase/types.ts` now includes the 5 new tables (the MCP wrapped the response in a JSON envelope; an unwrap step was added to the ad-hoc copy script)
+- `apps/web/src/components/admin/contacts/{contacts-kpis,contacts-filters,contacts-table}.tsx` are the three composable primitives
+
+### Out-of-scope (deferred)
+Realtime Supabase channel · auto Gmail crawling · embeddings · graph visualizer · AI orchestration on contacts. UI is read-only — mutations (merge / promote unmatched / correct invalid) still flow through the Python ingester so provenance stays auditable.
+
+Smoke: `curl /user/admin/contacts` → HTTP 200 · 370 KB · KPIs render with live Supabase counts (4,547 total · 1,902 investors visible in payload).
+
+---
+
 ## 2026-05-12 — Phase 2.B.2 · Relationship quality intelligence · bounce detection · institutional bands
 
 New quality layer on top of the Gmail signal merger. Master schema gains 7 new fields. Invalid emails get auto-segregated from the active relationship graph. Categorical relationship bands replace pure numeric strength for operator-facing reasoning.

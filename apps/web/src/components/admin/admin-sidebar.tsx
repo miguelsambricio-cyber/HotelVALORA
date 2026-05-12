@@ -13,6 +13,7 @@ import {
   Shield,
   Building2,
   ArrowLeft,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
   { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live" },
   { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live" },
+  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [

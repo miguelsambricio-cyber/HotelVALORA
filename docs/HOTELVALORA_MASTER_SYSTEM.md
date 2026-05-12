@@ -37,9 +37,12 @@ report        /report/{6 sections}                    PDF-ready institutional re
 settings      /settings/{profile,credentials,…}       3 user-settings sub-tabs
 library       /library/{favorites,top}/{map,list}     map + table views, contact card
 review        /(dashboard)/review                     data-quality queues (real API)
-admin         /user/admin + /user/admin/agents[/id]   Institutional Operations Center
-              ↑ Executive Control Room + AI Operations Center (orbital · CEO + 9 agents)
+admin         /user/admin + /user/admin/{agents[/id],   Institutional Operations Center
+              integrations[/id], contacts}            (4 surfaces)
+              ↑ Executive Control Room + AI Operations Center (orbital · CEO + 9 agents) +
+              ↑ Integrations Console + Institutional Relationship Console
               ↑ See `docs/features/admin.md` + `docs/architecture/admin-ui-architecture.md`
+              ↑ Contacts: `docs/integrations/datasite-contacts.md` § Phase 2.C
 ```
 
 See **`docs/routing.md`** for the full route map and active-state rules.

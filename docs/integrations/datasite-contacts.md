@@ -1,7 +1,7 @@
 # Integrations · Datasite Contacts (institutional relationship intelligence)
 
 **Last refreshed:** 2026-05-12
-**Status:** 🟢 Phase 1 live · 4,547 institutional contacts ingested · canonical Master shipped · re-classification flag functional · Google Contacts enrichment pipeline shipped (read-only join, no auto-merge)
+**Status:** 🟢 Phase 2.C live · canonical Master promoted to Supabase (5 tables · 4,547 contacts · 2,990 companies · 2,990 interactions · 143 labels · 34 health rows) · operator console live at `/user/admin/contacts` · quality-first default filters · `promote_to_supabase.py` is idempotent and re-runnable
 
 Datasite Outreach is the operator's deal-distribution platform. Its
 Companies & Contacts and Buyer Tracking modules together hold the
@@ -216,13 +216,67 @@ company. Add columns for `master_id`, `investor_type`, `hotel_focus`,
 - **Intelligence Engine** · join news articles mentioning institutional
   names to the Master · drive outreach hooks
 
-### Phase 2.C · Outreach intelligence UI
-- Admin surface at `/user/admin/contacts` (or `/user/admin/relationships`)
-  with the same panel language as Intelligence + Integrations
-- Search by name / company / canonical investor type / geography /
-  pipeline state
-- Per-company drawer showing all contacts + their last activity +
-  declined-buyer comments + bid history
+### Phase 2.C · Outreach intelligence UI · ✅ shipped 2026-05-12
+
+The institutional relationship console at `/user/admin/contacts` is now
+live and queries Supabase directly. Visual language matches AI
+Operations / Integrations / Intelligence Feed (dark forest-900 →
+slate-950 gradient cards, lime-300 accents, tracked-out uppercase
+micro-labels).
+
+**Schema (migration `0014_relationship_contacts`):**
+- `relationship_companies` (unique by `company_key`)
+- `relationship_contacts` (FK → companies · unique by `master_id` ·
+  generated `email_lower` for case-insensitive search · indexed on band
+  / bucket / investor_type / collab score / company_id)
+- `relationship_interactions` (FK → companies · one timeline per company)
+- `relationship_labels` (FK → contacts · unique on `(contact_id, label)`)
+- `relationship_health` (FK → contacts · unique on `contact_id`)
+
+RLS enabled · zero policies · anon + authenticated revoked. Only the
+service-role server lib reads these tables.
+
+**Ingester (`scripts/contactos/promote_to_supabase.py`):**
+- stdlib `urllib` PostgREST client · `Bearer SERVICE_KEY`
+- `upsert` with `on_conflict` + `Prefer: resolution=merge-duplicates`
+- paginated `fetch_all()` (Range header) for FK resolution — fixed the
+  first-run truncation at 1,000 IDs that lost company_id joins
+- 5-step ingest: companies → fetch IDs → contacts (with FK) → fetch IDs
+  → interactions + labels + health
+- idempotent · re-runnable · final ingest:
+  2,990 companies · 4,547 contacts · 2,990 interactions · 143 labels ·
+  34 health records
+
+**UI (`apps/web/src/app/user/admin/contacts/page.tsx`):**
+- 14 KPI totems split across 2 rows · top row = bands + recency, bottom
+  row = institutional-type breakdown
+- 10-column table: Contact (name + title + email + LinkedIn) · Company
+  (with geography) · Type (with hospitality badge) · Band · Strength ·
+  Collab · Last email (with directionality) · Gmail labels (max 3 chips
+  + count) · Email health · Strategic signal (inferred stage + Datasite
+  stage + pipeline state when non-Active)
+- URL-driven filter state — band chips · institutional type chips ·
+  "Show invalid" + "Recently active · 90d" toggles · sort (Collab /
+  Strength / Recent / A-Z) · debounced search across name + email +
+  company
+- Quality-first default filter active: `bucket = 'active'` AND
+  `hide_invalid` AND no-Gmail-activity dormant rows hidden. Operator
+  flips the toggle to widen.
+- Server-side pagination (50/page) via PostgREST `Range`
+- Sidebar entry added under "AI Operations" / "Integrations" with the
+  Users icon and a `Live` badge
+
+**Server lib:** `apps/web/src/lib/admin/contacts/live.ts`
+- `loadContacts(filter)` · `loadContactKpis()` · `loadInvestorTypes()`
+- 15 parallel count queries for the KPI strip (no waterfall)
+- joins `relationship_labels` for the visible page only (max
+  `page_size` lookups)
+
+**Out-of-scope (deferred):** realtime Supabase channel · auto Gmail
+crawling · embeddings · graph visualizer · AI orchestration on contacts
+table. The UI is read-only — mutations (merge / promote unmatched /
+correct invalid) still happen via the Python ingester so provenance
+stays auditable.
 
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's

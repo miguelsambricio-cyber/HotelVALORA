@@ -1858,6 +1858,515 @@ export type Database = {
           },
         ]
       }
+      relationship_companies: {
+        Row: {
+          association: string | null
+          calling_lead: string | null
+          client_company_id: string | null
+          company_key: string
+          company_notes: string | null
+          company_type: string | null
+          continent: string | null
+          coverage_officer: string | null
+          created_at: string
+          datasite_company_number: string | null
+          description: string | null
+          external_notes: string | null
+          fund_size: string | null
+          hotel_focus: string | null
+          id: string
+          industry: string | null
+          internal_notes: string | null
+          investment_max: string | null
+          investment_min: string | null
+          investment_preference: string | null
+          investor_subtype: string | null
+          investor_type_canonical: string | null
+          investor_type_raw: string | null
+          keyword: string | null
+          location: string | null
+          name: string
+          tier: string | null
+          updated_at: string
+        }
+        Insert: {
+          association?: string | null
+          calling_lead?: string | null
+          client_company_id?: string | null
+          company_key: string
+          company_notes?: string | null
+          company_type?: string | null
+          continent?: string | null
+          coverage_officer?: string | null
+          created_at?: string
+          datasite_company_number?: string | null
+          description?: string | null
+          external_notes?: string | null
+          fund_size?: string | null
+          hotel_focus?: string | null
+          id?: string
+          industry?: string | null
+          internal_notes?: string | null
+          investment_max?: string | null
+          investment_min?: string | null
+          investment_preference?: string | null
+          investor_subtype?: string | null
+          investor_type_canonical?: string | null
+          investor_type_raw?: string | null
+          keyword?: string | null
+          location?: string | null
+          name: string
+          tier?: string | null
+          updated_at?: string
+        }
+        Update: {
+          association?: string | null
+          calling_lead?: string | null
+          client_company_id?: string | null
+          company_key?: string
+          company_notes?: string | null
+          company_type?: string | null
+          continent?: string | null
+          coverage_officer?: string | null
+          created_at?: string
+          datasite_company_number?: string | null
+          description?: string | null
+          external_notes?: string | null
+          fund_size?: string | null
+          hotel_focus?: string | null
+          id?: string
+          industry?: string | null
+          internal_notes?: string | null
+          investment_max?: string | null
+          investment_min?: string | null
+          investment_preference?: string | null
+          investor_subtype?: string | null
+          investor_type_canonical?: string | null
+          investor_type_raw?: string | null
+          keyword?: string | null
+          location?: string | null
+          name?: string
+          tier?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      relationship_contacts: {
+        Row: {
+          active_threads: number
+          association: string | null
+          bounce_count: number
+          bucket: string
+          buyer_added_date: string | null
+          calling_lead: string | null
+          city: string | null
+          client_contact_id: string | null
+          collaboration_potential_score: number
+          company_id: string | null
+          company_name: string | null
+          continent: string | null
+          country: string | null
+          coverage_officer: string | null
+          created_at: string
+          datasite_company_number: string | null
+          datasite_contact_number: string | null
+          email: string | null
+          email_directionality: string | null
+          email_lower: string | null
+          email_validity: string | null
+          first_seen_batch_id: string | null
+          flagged_for_correction: boolean
+          full_name: string | null
+          fund_size: string | null
+          geography: string | null
+          gmail_signal_source: string | null
+          hotel_focus: string | null
+          id: string
+          imported_at: string
+          industry: string | null
+          inferred_relationship_stage: string | null
+          investment_max: string | null
+          investment_min: string | null
+          investment_preference: string | null
+          investor_subtype: string | null
+          investor_type: string | null
+          ioi_bid_high: string | null
+          ioi_bid_low: string | null
+          is_primary_contact: boolean
+          last_activity_date: string | null
+          last_activity_type: string | null
+          last_bounce_date: string | null
+          last_email_date: string | null
+          last_seen_batch_id: string | null
+          latest_deal_stage: string | null
+          linkedin: string | null
+          loi_bid_high: string | null
+          loi_bid_low: string | null
+          master_id: string
+          notes_consolidated: string | null
+          phone: string | null
+          pipeline_state: string | null
+          relationship_band: string | null
+          relationship_manager: string | null
+          relationship_status: string | null
+          relationship_strength: number
+          revised_bid_high: string | null
+          revised_bid_low: string | null
+          role: string | null
+          source_file: string | null
+          state: string | null
+          tier: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          active_threads?: number
+          association?: string | null
+          bounce_count?: number
+          bucket?: string
+          buyer_added_date?: string | null
+          calling_lead?: string | null
+          city?: string | null
+          client_contact_id?: string | null
+          collaboration_potential_score?: number
+          company_id?: string | null
+          company_name?: string | null
+          continent?: string | null
+          country?: string | null
+          coverage_officer?: string | null
+          created_at?: string
+          datasite_company_number?: string | null
+          datasite_contact_number?: string | null
+          email?: string | null
+          email_directionality?: string | null
+          email_lower?: string | null
+          email_validity?: string | null
+          first_seen_batch_id?: string | null
+          flagged_for_correction?: boolean
+          full_name?: string | null
+          fund_size?: string | null
+          geography?: string | null
+          gmail_signal_source?: string | null
+          hotel_focus?: string | null
+          id?: string
+          imported_at?: string
+          industry?: string | null
+          inferred_relationship_stage?: string | null
+          investment_max?: string | null
+          investment_min?: string | null
+          investment_preference?: string | null
+          investor_subtype?: string | null
+          investor_type?: string | null
+          ioi_bid_high?: string | null
+          ioi_bid_low?: string | null
+          is_primary_contact?: boolean
+          last_activity_date?: string | null
+          last_activity_type?: string | null
+          last_bounce_date?: string | null
+          last_email_date?: string | null
+          last_seen_batch_id?: string | null
+          latest_deal_stage?: string | null
+          linkedin?: string | null
+          loi_bid_high?: string | null
+          loi_bid_low?: string | null
+          master_id: string
+          notes_consolidated?: string | null
+          phone?: string | null
+          pipeline_state?: string | null
+          relationship_band?: string | null
+          relationship_manager?: string | null
+          relationship_status?: string | null
+          relationship_strength?: number
+          revised_bid_high?: string | null
+          revised_bid_low?: string | null
+          role?: string | null
+          source_file?: string | null
+          state?: string | null
+          tier?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active_threads?: number
+          association?: string | null
+          bounce_count?: number
+          bucket?: string
+          buyer_added_date?: string | null
+          calling_lead?: string | null
+          city?: string | null
+          client_contact_id?: string | null
+          collaboration_potential_score?: number
+          company_id?: string | null
+          company_name?: string | null
+          continent?: string | null
+          country?: string | null
+          coverage_officer?: string | null
+          created_at?: string
+          datasite_company_number?: string | null
+          datasite_contact_number?: string | null
+          email?: string | null
+          email_directionality?: string | null
+          email_lower?: string | null
+          email_validity?: string | null
+          first_seen_batch_id?: string | null
+          flagged_for_correction?: boolean
+          full_name?: string | null
+          fund_size?: string | null
+          geography?: string | null
+          gmail_signal_source?: string | null
+          hotel_focus?: string | null
+          id?: string
+          imported_at?: string
+          industry?: string | null
+          inferred_relationship_stage?: string | null
+          investment_max?: string | null
+          investment_min?: string | null
+          investment_preference?: string | null
+          investor_subtype?: string | null
+          investor_type?: string | null
+          ioi_bid_high?: string | null
+          ioi_bid_low?: string | null
+          is_primary_contact?: boolean
+          last_activity_date?: string | null
+          last_activity_type?: string | null
+          last_bounce_date?: string | null
+          last_email_date?: string | null
+          last_seen_batch_id?: string | null
+          latest_deal_stage?: string | null
+          linkedin?: string | null
+          loi_bid_high?: string | null
+          loi_bid_low?: string | null
+          master_id?: string
+          notes_consolidated?: string | null
+          phone?: string | null
+          pipeline_state?: string | null
+          relationship_band?: string | null
+          relationship_manager?: string | null
+          relationship_status?: string | null
+          relationship_strength?: number
+          revised_bid_high?: string | null
+          revised_bid_low?: string | null
+          role?: string | null
+          source_file?: string | null
+          state?: string | null
+          tier?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_health: {
+        Row: {
+          bounce_count: number
+          bounce_reasons: Json | null
+          contact_id: string
+          email_validity: string
+          flagged_for_correction: boolean
+          id: string
+          inferred_correct_company: string | null
+          last_bounce_date: string | null
+          last_health_check_at: string
+          suggested_replacement_email: string | null
+        }
+        Insert: {
+          bounce_count?: number
+          bounce_reasons?: Json | null
+          contact_id: string
+          email_validity?: string
+          flagged_for_correction?: boolean
+          id?: string
+          inferred_correct_company?: string | null
+          last_bounce_date?: string | null
+          last_health_check_at?: string
+          suggested_replacement_email?: string | null
+        }
+        Update: {
+          bounce_count?: number
+          bounce_reasons?: Json | null
+          contact_id?: string
+          email_validity?: string
+          flagged_for_correction?: boolean
+          id?: string
+          inferred_correct_company?: string | null
+          last_bounce_date?: string | null
+          last_health_check_at?: string
+          suggested_replacement_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_health_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "relationship_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_interactions: {
+        Row: {
+          buyer_added_date: string | null
+          cim_sent_date: string | null
+          client_buyer_id: string | null
+          company_id: string | null
+          company_name: string
+          created_at: string
+          datasite_activity_number: string | null
+          declined_comments: string | null
+          declined_date: string | null
+          declined_reason: string | null
+          id: string
+          initial_contact_date: string | null
+          ioi_bid_high: string | null
+          ioi_bid_low: string | null
+          ioi_bid_received_date: string | null
+          ioi_process_letter_date: string | null
+          last_activity_comments: string | null
+          last_activity_date: string | null
+          last_activity_type: string | null
+          latest_deal_stage: string | null
+          loi_bid_high: string | null
+          loi_bid_low: string | null
+          loi_bid_received_date: string | null
+          loi_process_letter_date: string | null
+          management_presentation_date: string | null
+          nda_executed_date: string | null
+          nda_initial_sent_date: string | null
+          nda_signed_date: string | null
+          on_hold_flag: string | null
+          pipeline_state: string | null
+          removed_flag: string | null
+          revised_bid_high: string | null
+          revised_bid_low: string | null
+          revised_bid_received_date: string | null
+          teaser_sent_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          buyer_added_date?: string | null
+          cim_sent_date?: string | null
+          client_buyer_id?: string | null
+          company_id?: string | null
+          company_name: string
+          created_at?: string
+          datasite_activity_number?: string | null
+          declined_comments?: string | null
+          declined_date?: string | null
+          declined_reason?: string | null
+          id?: string
+          initial_contact_date?: string | null
+          ioi_bid_high?: string | null
+          ioi_bid_low?: string | null
+          ioi_bid_received_date?: string | null
+          ioi_process_letter_date?: string | null
+          last_activity_comments?: string | null
+          last_activity_date?: string | null
+          last_activity_type?: string | null
+          latest_deal_stage?: string | null
+          loi_bid_high?: string | null
+          loi_bid_low?: string | null
+          loi_bid_received_date?: string | null
+          loi_process_letter_date?: string | null
+          management_presentation_date?: string | null
+          nda_executed_date?: string | null
+          nda_initial_sent_date?: string | null
+          nda_signed_date?: string | null
+          on_hold_flag?: string | null
+          pipeline_state?: string | null
+          removed_flag?: string | null
+          revised_bid_high?: string | null
+          revised_bid_low?: string | null
+          revised_bid_received_date?: string | null
+          teaser_sent_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buyer_added_date?: string | null
+          cim_sent_date?: string | null
+          client_buyer_id?: string | null
+          company_id?: string | null
+          company_name?: string
+          created_at?: string
+          datasite_activity_number?: string | null
+          declined_comments?: string | null
+          declined_date?: string | null
+          declined_reason?: string | null
+          id?: string
+          initial_contact_date?: string | null
+          ioi_bid_high?: string | null
+          ioi_bid_low?: string | null
+          ioi_bid_received_date?: string | null
+          ioi_process_letter_date?: string | null
+          last_activity_comments?: string | null
+          last_activity_date?: string | null
+          last_activity_type?: string | null
+          latest_deal_stage?: string | null
+          loi_bid_high?: string | null
+          loi_bid_low?: string | null
+          loi_bid_received_date?: string | null
+          loi_process_letter_date?: string | null
+          management_presentation_date?: string | null
+          nda_executed_date?: string | null
+          nda_initial_sent_date?: string | null
+          nda_signed_date?: string | null
+          on_hold_flag?: string | null
+          pipeline_state?: string | null
+          removed_flag?: string | null
+          revised_bid_high?: string | null
+          revised_bid_low?: string | null
+          revised_bid_received_date?: string | null
+          teaser_sent_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_interactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_labels: {
+        Row: {
+          contact_id: string
+          created_at: string
+          id: string
+          inferred_stage: string | null
+          label: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          id?: string
+          inferred_stage?: string | null
+          label: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          id?: string
+          inferred_stage?: string | null
+          label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_labels_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       renders: {
         Row: {
           bucket: string
