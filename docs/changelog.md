@@ -4,9 +4,54 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.5b · Alimarket real Playwright authentication (parity with Hosteltur)
+
+Second half of Phase 2.5b shipped. Alimarket now has a real authenticated T2 session captured via the exact same `playwright-refresh.mjs` runtime that landed for Hosteltur · same encryption envelope · same audit chain · same validation gate.
+
+### Recipe added to `SOURCE_RECIPES.alimarket`
+- `loginUrl` `https://www.alimarket.es/acceso/login` · selectors `#email-3` / `#pass-3` / `#login_form button[type='submit'].btn-submit`
+- Success signals: URL leaves `/login` (post-submit `/mi_cuenta`) · `[class*='user-name']` / `[href*='logout']` selector match · cookies `alimarket_session`, `laravel_session`, `XSRF-TOKEN`
+- Failure signals: `.btn-submit.btn-error` / `.alert-danger` / text fragments ("no es correcto", "no válido")
+- Validation targets: `homepage` + `/mi_cuenta` (subscriber-only account page · canonical discriminator)
+
+### Bug fixes shipped in the same pass
+- **`page.isVisible()` instead of `page.$()` for failure markers.** Alimarket pre-renders `.btn-submit.btn-error` with `style="display:none"` for client-side validation. `page.$()` matched it regardless and produced a false-positive login failure. `page.isVisible({ timeout: 500 })` now respects CSS display state.
+- **Size-delta as third validation signal.** Original verdict required (more authed-markers) OR (fewer paywall CTAs). Alimarket's homepage doesn't differentiate cleanly on either count (subscriber-specific nav rendered client-side, "Mi cuenta" link is in static nav for all states). Added `|Δbody| > 5000 bytes` as a third positive signal — covers any source whose subscriber differential surfaces as content delivery rather than UI text.
+- **Account-page validation target.** Added `/mi_cuenta` as the discriminative target — anon visitors hit the redirect to `/acceso/login` (fetch follows to ~80kB login form), authed visitors get the full account page (~115kB). Binary signal · works for any source with a similar subscriber-only landing.
+
+### Verification run · 2026-05-12 05:14 UTC
+- Login succeeded · post-submit URL `https://www.alimarket.es/mi_cuenta` · logged-in selector `[class*='user-name']` matched
+- storageState captured · 9 cookies · 1 origin
+- Validation 1/2 PASSED (`account-page` target Δ=+33,906 bytes · sufficient)
+- Real T2 row inserted `5c6a6677-0520-4386-8968-c81d76eea3af` · expires 2026-05-19 · placeholder demoted to `expired`
+- `credentials.last_login_at` updated · audit event `auth_success` written
+
+### Authenticated body fetch verification (`verify-authed-fetch.mjs`)
+- T2 decrypted clean · cookies attached to outbound fetches
+- `/mi_cuenta` target: anon 81.3kB → authed 115.2kB · Δ=+33,906 bytes · AUTHED-DIFFERS ✓
+- `homepage` target: anon 128.1kB → authed 124.6kB · Δ=-3,485 bytes (anon larger due to subscription promos) · NO-DIFFERENCE flag-wise but content does differ
+- `premium-article` (Tikehau Holiday Inn Express · article 425817): anon 126.7kB → authed 125.6kB · Δ=-1,154 bytes · this RSS-ingested article is fully open access for all visitors (same pattern as some Hosteltur editorial). The cookie jar works; this specific article simply has no paywall.
+
+**Conclusion · Alimarket auth fully operational.** Account page is the canonical proof. Paywalled content surfaces (Premium reports / Mercados / Atlas data) will demonstrate the body-delivery delta once a paywalled URL is added to the ingestion roster.
+
+### Files modified
+- `apps/web/scripts/playwright-refresh.mjs` · added `SOURCE_RECIPES.alimarket` block · `page.isVisible()` fix · size-delta verdict signal
+- `apps/web/scripts/verify-authed-fetch.mjs` · added `TARGETS.alimarket` with `/mi_cuenta` + premium-article entries
+- `docs/integrations/alimarket.md` · header status flipped to 🟢 with T2 session id
+- `docs/changelog.md` · this entry
+
+### Remaining blockers before Phase 2.6 (cron operationalization)
+1. ~~Real Hosteltur T2~~ ✅ done
+2. ~~Real Alimarket T2~~ ✅ done
+3. **Cron wire-up** · `/api/cron/hospitality-intel` currently calls placeholder ingestion paths. Phase 2.6 connects: T2 cookie hydration → authed RSS body fetch → market_news upsert → audit. Single nightly run at 08:48 Madrid (Vercel Hobby plan limit).
+4. **Operator "Refresh Session" CTA** in the Admin UI (`/admin/integrations/[slug]`) · triggers `playwright-refresh.mjs` semantics from the browser (auditable, validation-gated, audit event chain identical to CLI).
+5. **CoStar onboarding** is manual-first per editorial decision · no Playwright wire planned.
+
+---
+
 ## 2026-05-12 — Phase 2.5b · Hosteltur real Playwright authentication (placeholder T2 replaced)
 
-First half of Phase 2.5b shipped. Real authenticated Playwright session capture against `hosteltur.com` replaces the placeholder T2 row. Validated end-to-end via anon-vs-authed body comparison before persistence.
+Shipped as commit `8fd59fd`. First half of Phase 2.5b. Real authenticated Playwright session capture against `hosteltur.com` replaces the placeholder T2 row. Validated end-to-end via anon-vs-authed body comparison before persistence.
 
 ### Operator-side script
 **New:** `apps/web/scripts/playwright-refresh.mjs` (~330 lines). Single-attempt · no-retry · headed-by-default · validation-gated persistence. Architecture:

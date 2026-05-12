@@ -144,7 +144,68 @@ const SOURCE_RECIPES = {
       "Mi perfil",
     ],
   },
-  // Future: alimarket, etc.
+  alimarket: {
+    domain: "alimarket.es",
+    loginUrl: "https://www.alimarket.es/acceso/login",
+    selectors: {
+      // Confirmed via recon 2026-05-12 · /login + /acceder both 301 to /acceso/login
+      email: "#email-3",
+      password: "#pass-3",
+      submit: "#login_form button[type='submit'].btn-submit",
+    },
+    successSignals: {
+      urlAwayFromLogin: true,
+      anyLoggedInSelector: [
+        "a[href*='/logout']",
+        "a[href*='/acceso/logout']",
+        "a[href*='cerrar-sesion']",
+        ".user-menu",
+        "[class*='user-name']",
+        "[class*='premium']",
+      ],
+      cookieNamePrefixes: ["alimarket_session", "laravel_session", "XSRF-TOKEN"],
+    },
+    failureSignals: {
+      anyErrorSelector: [
+        ".btn-submit.btn-error",  // surfaces when login validator fails
+        ".alert-danger",
+        ".form-error",
+        "[role='alert']",
+        ".invalid-feedback",
+      ],
+      errorTextFragments: [
+        "no es correcto",
+        "no válido",
+        "incorrectos",
+        "demasiados intentos",
+        "captcha",
+        "verifica",
+      ],
+    },
+    validationTargets: [
+      { url: "https://www.alimarket.es/", label: "homepage" },
+      // /mi_cuenta is the discriminative target · subscriber-only account
+      // page. Anon visitors get redirected to /acceso/login (fetch follows
+      // redirect · ends up at login form). Authed visitors get the real
+      // account page. Massive body / content delta either way.
+      { url: "https://www.alimarket.es/mi_cuenta", label: "account-page" },
+    ],
+    paywallCtaPatterns: [
+      "Suscríbete",
+      "Hazte suscriptor",
+      "Sólo para suscriptores",
+      "Solo para suscriptores",
+      "Contenido premium",
+      "Acceder",
+    ],
+    authedOnlyPatterns: [
+      "logout",
+      "Cerrar sesión",
+      "Mi cuenta",
+      "Mi perfil",
+      "Mi suscripción",
+    ],
+  },
 };
 
 const recipe = SOURCE_RECIPES[slug];
@@ -281,11 +342,20 @@ try {
   console.log(`→ post-submit URL: ${postLoginUrl}`);
 
   // 9. Check failure signals FIRST (deterministic abort)
+  // Use isVisible() not $() · client-side validators (e.g. Alimarket)
+  // pre-render hidden error elements that match the selector but aren't
+  // actually shown. We only count VISIBLE error markers as failures.
   for (const sel of recipe.failureSignals.anyErrorSelector) {
-    const el = await page.$(sel);
-    if (el) {
-      const text = (await el.textContent())?.toLowerCase() ?? "";
-      failureReason = `error element matched: ${sel}${text ? ` · text="${text.slice(0, 120)}"` : ""}`;
+    let visible = false;
+    try {
+      visible = await page.isVisible(sel, { timeout: 500 });
+    } catch {
+      visible = false;
+    }
+    if (visible) {
+      const el = await page.$(sel);
+      const text = el ? ((await el.textContent())?.toLowerCase() ?? "") : "";
+      failureReason = `visible error element matched: ${sel}${text ? ` · text="${text.slice(0, 120)}"` : ""}`;
       break;
     }
   }
@@ -358,20 +428,27 @@ try {
       const authedFlags = scanHtml(authedHtml, recipe);
       const anonFlags = scanHtml(anonHtml, recipe);
 
-      // Verdict per target: authed should have MORE authed-markers and
-      // FEWER paywall-CTAs than anon. We require BOTH conditions for
-      // strong evidence (either alone could be coincidental).
+      // Verdict per target: authed differs from anon in any meaningful way.
+      // Three independent positive signals (any one triggers PASS):
+      //   1. More authed-markers found in authed body
+      //   2. Fewer paywall-CTAs in authed body
+      //   3. Body size delta > 5000 bytes (subscriber-only HTML chunk
+      //      is delivered in addition to the public shell)
       const moreAuthedMarkers = authedFlags.authedHits > anonFlags.authedHits;
       const fewerPaywallCtas = authedFlags.paywallHits < anonFlags.paywallHits;
-      const verdict = moreAuthedMarkers || fewerPaywallCtas;
+      const sizeDelta = authedFlags.length - anonFlags.length;
+      const significantSizeDelta = Math.abs(sizeDelta) > 5000;
+      const verdict = moreAuthedMarkers || fewerPaywallCtas || significantSizeDelta;
 
       validationReport.push({
         target: target.label,
         url: target.url,
         anon: anonFlags,
         authed: authedFlags,
+        sizeDelta,
         moreAuthedMarkers,
         fewerPaywallCtas,
+        significantSizeDelta,
         verdict,
       });
 
@@ -379,6 +456,7 @@ try {
         `  · ${target.label.padEnd(20)} ` +
         `anon(authed=${anonFlags.authedHits} paywall=${anonFlags.paywallHits} ${(anonFlags.length / 1024).toFixed(1)}kB) ` +
         `→ authed(authed=${authedFlags.authedHits} paywall=${authedFlags.paywallHits} ${(authedFlags.length / 1024).toFixed(1)}kB) ` +
+        `Δ=${sizeDelta > 0 ? "+" : ""}${sizeDelta}B ` +
         `· ${verdict ? "✓" : "✗"}`,
       );
     }

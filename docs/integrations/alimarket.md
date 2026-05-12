@@ -1,7 +1,7 @@
 # Integrations · Alimarket
 
 **Last refreshed:** 2026-05-12
-**Status:** 🟡 Operational with placeholder T2 · 8 articles ingested · awaiting Phase 2.5b Playwright wire
+**Status:** 🟢 Phase 2.5b complete · real Playwright authentication shipped 2026-05-12 · canonical T2 row `5c6a6677-0520-4386-8968-c81d76eea3af` · 9 cookies · validated via anon-vs-authed body comparison (`/mi_cuenta` Δ=+33,906 bytes)
 
 Alimarket is the second authenticated paid source onboarded after Hosteltur. Together they validate the **three-tier credential model** (Option B · 2026-05-12) on a real subscriber relationship. Architectural parity with Hosteltur is intentional — same script · same wire format · same audit chain.
 
