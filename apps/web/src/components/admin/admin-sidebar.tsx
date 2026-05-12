@@ -47,14 +47,22 @@ interface NavItem {
 // Sidebar = operational maturity only. Access scope (operator-only,
 // internal infrastructure) lives in each page header — see
 // docs/features/admin.md § 0.
+//
+// Order reflects the operational hierarchy:
+//   core intelligence  → AI Operations
+//   infrastructure     → Integrations
+//   growth             → Campaigns
+//   monetization       → Subscriptions
+//   onboarded users    → Users
+//   relationship graph → Contacts (upstream acquisition/support layer)
 const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
-  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live", tone: "live" },
-  { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live", tone: "live" },
-  { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Live", tone: "live" },
-  { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },
   { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live", tone: "live" },
   { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live", tone: "live" },
+  { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Live", tone: "live" },
+  { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },
+  { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live", tone: "live" },
+  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live", tone: "live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [

@@ -4,6 +4,23 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Admin sidebar reordered to operational hierarchy
+
+Sidebar items now flow top-to-bottom along the institutional value chain — core intelligence first, contacts last — instead of being grouped by "growth funnel surfaces vs operator infrastructure". This puts the dense, high-frequency operator surfaces (AI Operations, Integrations) at the top of the rail where they belong.
+
+New order:
+1. Overview
+2. AI Operations · core intelligence
+3. Integrations · infrastructure
+4. Campaigns · growth
+5. Subscriptions · monetization
+6. Users · onboarded users
+7. Contacts · relationship graph (upstream acquisition / support)
+
+All LIVE badges intact. No semantic change beyond the array shuffle + a comment in `admin-sidebar.tsx` documenting the rationale. Doc rubric in `docs/features/admin.md` § 0 carries the same hierarchy.
+
+---
+
 ## 2026-05-13 — Admin sidebar normalisation · operational state ≠ access scope
 
 Sidebar was mixing two orthogonal concerns: operational maturity (is this module working?) and access scope (who uses it?). AI Operations + Integrations were carrying `INTERNAL` even though both are fully operational, which read as "less than LIVE" — wrong signal.

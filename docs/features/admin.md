@@ -21,9 +21,19 @@ The sidebar answers one question — *is this module operational?*
 | **BETA** | amber | Partially connected · operational but with rough edges · expect polish gaps |
 | **PLANNED** | slate | Not yet built · static affordance for the roadmap |
 
-Current sidebar assignments (every operational module is LIVE):
-- LIVE — Contacts · Users · Campaigns · Subscriptions · AI Operations · Integrations
-- PLANNED — Workspaces · Observability · Cost Controls · Audit Log
+Current sidebar order (operational hierarchy · top → bottom):
+
+| # | Module | Stage |
+|---|---|---|
+| 1 | Overview | (entry · no badge) |
+| 2 | AI Operations | core intelligence |
+| 3 | Integrations | infrastructure |
+| 4 | Campaigns | growth |
+| 5 | Subscriptions | monetization |
+| 6 | Users | onboarded users |
+| 7 | Contacts | relationship graph · upstream acquisition / support |
+
+All operational modules carry **LIVE**. Planned section below the primary nav: Workspaces · Observability · Cost Controls · Audit Log.
 
 Promoting BETA → LIVE requires: end-to-end happy path with audit · soft-delete posture where mutations exist · no caller-visible holes in the operator workflow.
 
