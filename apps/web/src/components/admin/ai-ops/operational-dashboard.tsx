@@ -2,6 +2,7 @@ import { AlertTriangle, Activity, CheckCircle2, XCircle, Clock, Zap } from "luci
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { AiOpsLive, RecentRunRow, ThroughputBucket, DegradedSource, AlertEntry } from "@/lib/admin/ai-ops/live";
+import { PriorityIntelligenceFeed, TopSignalsSummary } from "./priority-intelligence-feed";
 
 /**
  * AI Operations Center · live operational dashboard. Sits at the top of
@@ -20,6 +21,11 @@ export function OperationalDashboard({ data }: { data: AiOpsLive }) {
   return (
     <section className="space-y-5">
       <TotalsStrip data={data} />
+      {/* Institutional command-center band · top signals strip + cross-source
+       *  priority feed. Sits ABOVE the runtime telemetry so the operator's
+       *  first read is the deal-flow, not the cron health. */}
+      <TopSignalsSummary signals={data.topSignals} />
+      <PriorityIntelligenceFeed items={data.priorityFeed} totalPriority7d={data.totals.priorityArticles7d} />
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ThroughputCard buckets={data.throughput} articlesTotal={data.totals.articlesInserted7d} />
@@ -53,7 +59,7 @@ function TotalsStrip({ data }: { data: AiOpsLive }) {
           Updated {formatRel(data.fetchedAt)}
         </p>
       </header>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-7">
         <Totem label="Runs · 7d" value={String(data.totals.runs7d)} />
         <Totem
           label="Success Rate"
@@ -72,6 +78,7 @@ function TotalsStrip({ data }: { data: AiOpsLive }) {
           severity={data.totals.failures7d > 0 ? "error" : "neutral"}
         />
         <Totem label="Articles · 7d" value={String(data.totals.articlesInserted7d)} />
+        <Totem label="Priority · 7d" value={String(data.totals.priorityArticles7d)} severity="ok" />
       </dl>
     </section>
   );

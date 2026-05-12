@@ -4,9 +4,61 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.9 · Cross-source Priority Intelligence Feed (institutional command-center)
+
+Until this pass the operator had to inspect each source individually to find deal-flow signal. Phase 2.9 promotes priority-tier articles to a single executive-level cross-source feed at the top of `/admin/ai-operations`. The dashboard now reads like a market-intelligence command center · the runtime telemetry (throughput · runs · alerts) lives below the fold.
+
+### Aggregator (`lib/admin/ai-ops/live.ts`) extensions
+- **`priorityFeed[]`** · last-7d priority-tier articles · source-balanced (cap 6 per source) · ranked by a heuristic 0–100 score (signal weight + body presence + authed-fetch bonus + recency)
+- **`topSignals[]`** · rolling-7d count per priority signal · ordered by count DESC
+- **`totals.priorityArticles7d`** · headline number for the totals strip
+- New `scoreItem(...)` heuristic · SOCIMI/REIT 30 · M&A 25 · investment_fund 22 · refinancing 20 · JV 18 · operator 16 · lease 15 · distress 14 · development 13 · pipeline 12 · conversion 11 · branded_residences 10 · flex_living 8 · default 5. Adds +8 for substantial body, +6 for authed fetch, recency 0–14
+- New `balanceBySource(...)` · caps each source at N items by score, then re-sorts the union by score → recency
+- Filtered to enabled registry-known sources only · disabled legacy slugs (Expansion, Skift, THP, HotelNewsNow) never bubble up
+
+### New components
+- **`components/admin/ai-ops/priority-intelligence-feed.tsx`** · `PriorityIntelligenceFeed` (cross-source rows) + `TopSignalsSummary` (horizontal signal-count strip)
+- Feed row visual language mirrors the per-source `ArticleDrawer` row: signal chip (color-coded by tier) · source-name chip · Premium/Public chip · Authed chip (when applicable) · score chip · pubdate · title · 3-line body preview with green left border · external-link icon
+- Empty-state copy adapted to the cross-source context
+- `TopSignalsSummary` puts the six operator-named signals first (M&A · Refinancing · Pipeline · SOCIMI/REIT · Operator · Development) followed by up to 6 others by count
+
+### Dashboard composition (`/user/admin/agents`)
+Layout above the fold (top → down):
+1. Totals strip (+ new **Priority · 7d** totem)
+2. **Top Signals · 7d** band — institutional signal counts
+3. **Priority Intelligence Feed** — cross-source deal-flow rows
+
+Runtime telemetry (throughput · degraded sources · recent runs · alerts) remains below — operator focuses on signal first, mechanism second.
+
+### Verified on dev (2026-05-12)
+- Priority · 7d totem: 26 (correct · 20 Hosteltur + 3 Alimarket + 3 HospitalityNet · the 40 Expansion priority rows are correctly filtered out as the source was disabled)
+- Feed rows: 12 (6 Hosteltur capped + 3 Alimarket + 3 HospitalityNet)
+- Visible signal chips: M&A 5 · Pipeline 4 · SOCIMI/REIT 3 · Operator 2 · Development 2 · Conversion 1
+- Real institutional content surfaced: "Hotei Properties vende el Radisson Collection Gran Vía Bilbao por 42 millones" · "En Europa la oferta de aparthoteles representa el 8% del stock existente"
+
+### One bug fixed in flight
+- Initial implementation passed `onClick={(e) => e.stopPropagation()}` to a `Link` inside a Server Component · Next 14 forbids event handlers on Client Component props from Server Components, returning HTTP 500
+- Source-name chip changed from `<Link>` to a plain informational `<span>` · nesting an anchor inside the row's outer `<a>` was invalid HTML anyway · per-source detail still reachable from the integrations directory
+
+### Held
+- No LLM ranking · scoring is a deterministic switch over signal slug
+- No ingestion redesign · feed reads from existing `market_news.enriched_meta.relevance_tier` (Phase 2.8 backfill)
+- No new agents · this is a UI + aggregator layer on top of existing data
+- No browser-runtime orchestration · unchanged
+- No Phase 3 modules opened
+
+### Files added
+- `apps/web/src/components/admin/ai-ops/priority-intelligence-feed.tsx`
+
+### Files modified
+- `apps/web/src/lib/admin/ai-ops/live.ts` · new `priorityFeed`, `topSignals`, `priorityArticles7d` · `scoreItem` + `balanceBySource` helpers · `extractBodyPreview` (moved here from integrations/live.ts pattern)
+- `apps/web/src/components/admin/ai-ops/operational-dashboard.tsx` · imports + Top Signals + Priority Feed above the fold · Priority · 7d totem added to the totals strip
+
+---
+
 ## 2026-05-12 — Phase 2.8 · Institutional relevance tiering · article drawer becomes an investment terminal
 
-Operator directive: HotelVALORA is investment-grade hospitality intelligence, not a general news reader. Three-tier deterministic classifier runs at ingest time + retroactively over the existing 130-row corpus. The article drawer defaults to **Priority** tier (deal-flow, capital activity) so events / AI / awards / lifestyle articles never bubble up unless the operator explicitly switches tabs.
+Shipped as commit `df57034`. Operator directive: HotelVALORA is investment-grade hospitality intelligence, not a general news reader. Three-tier deterministic classifier runs at ingest time + retroactively over the existing 130-row corpus. The article drawer defaults to **Priority** tier (deal-flow, capital activity) so events / AI / awards / lifestyle articles never bubble up unless the operator explicitly switches tabs.
 
 **No LLM** · all regex/keyword heuristics · ranking is priority > operational > noise · unclassified defaults to operational (safer than hiding).
 
