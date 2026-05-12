@@ -477,6 +477,33 @@ billing automation · Stripe self-serve upgrades · referral systems ·
 affiliate systems · lifecycle automation. Operator drives every
 state flip.
 
+### Phase 2.D.6 — Campaign-aware bulk subscription operations (shipped same day)
+
+The bulk toolbar pattern from Phase 2.D.3 now covers the full
+acquisition + monetization loop. Four new bulk actions ship in
+`lib/admin/subscriptions/bulk.ts`:
+
+| Action | Verb | Effect |
+|---|---|---|
+| Bulk assign tier | `subscription.bulk_assigned` | One `subscriptions` row per user with chosen tier/status/expires_at/source_campaign/notes |
+| Bulk comp | `subscription.bulk_assigned` (tier=comped, status=active) | Shortcut wrapping the assign action |
+| Bulk expire | `subscription.bulk_expired` | Flip latest sub to `status='expired'` + `expires_at=now()` · skips Stripe-backed |
+| Bulk revoke invitations | `invitation.bulk_revoked` | Flip pending/sent/delivered/opened/clicked/bounced invites to `revoked` · accepted untouched |
+
+**Tri-mode selection contract** (FormData fields):
+- `sel_mode='explicit'` + `user_ids=<csv>` — operator-ticked user rows
+- `sel_mode='filtered'` + `filter_qs=<encoded>` — re-runs the users-page filter at action time
+- `sel_mode='contacts'` + `contact_ids=<csv>` — resolves each contact's `linked_user_id`, drops not-yet-onboarded
+
+**Surfaces gained:**
+- `/user/admin/users` — full selection system + sticky bulk toolbar (Assign · Comp · Expire). Amber expiration ring on rows whose subscription expires within 7 days.
+- `/user/admin/contacts` — toolbar gains Subscribe + Revoke invite actions.
+- `/user/admin/subscriptions` — table rows now tint amber (within 7 days) or rose (past expiry on still-active) with day-count suffix.
+
+Audit trail rows preserve actor_email + actor_id + campaign attribution
+on every action; the activity_log entity_type discriminates
+`subscription` vs `relationship_contact` for filtering downstream.
+
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's
 Full Report into `incoming/`, the dedup logic merges by email/LinkedIn

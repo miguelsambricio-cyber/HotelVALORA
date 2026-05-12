@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Link as LinkIcon, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRow } from "@/lib/admin/users/live";
+import { UsersSelectionCheckbox } from "@/components/admin/users/bulk/selection-checkbox";
 
 export function UsersTable({
   rows,
@@ -36,6 +37,7 @@ export function UsersTable({
           <table className="w-full border-collapse text-[11.5px]">
             <thead>
               <tr className="text-left text-slate-500">
+                <Th></Th>
                 <Th>User</Th>
                 <Th>Company / Org</Th>
                 <Th>Role</Th>
@@ -59,7 +61,7 @@ export function UsersTable({
   );
 }
 
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+function Th({ children, right }: { children?: React.ReactNode; right?: boolean }) {
   return (
     <th
       className={cn(
@@ -74,8 +76,17 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
 
 function Row({ user }: { user: UserRow }) {
   const name = user.full_name || user.email.split("@")[0];
+  const expiringSoon = user.subscription_current_period_end
+    ? new Date(user.subscription_current_period_end).getTime() - Date.now() < 7 * 86_400_000
+    : false;
   return (
-    <tr className="border-t border-slate-800/60 align-top">
+    <tr className={cn(
+      "border-t border-slate-800/60 align-top",
+      expiringSoon && user.subscription_status === "active" && "ring-1 ring-inset ring-amber-500/30",
+    )}>
+      <td className="px-2 py-3 align-middle">
+        <UsersSelectionCheckbox id={user.id} />
+      </td>
       <td className="px-2 py-3">
         <p className="font-headline font-bold text-white">{name}</p>
         <a
@@ -130,6 +141,14 @@ function Row({ user }: { user: UserRow }) {
           <div>
             <p className="font-mono text-[11px] text-slate-300">{user.subscription_tier}</p>
             <p className="mt-0.5 font-mono text-[9.5px] text-slate-500">{user.subscription_status}</p>
+            {user.subscription_current_period_end && (
+              <p className={cn(
+                "mt-0.5 font-mono text-[9.5px]",
+                expiringSoon ? "text-amber-300" : "text-slate-500",
+              )}>
+                exp · {user.subscription_current_period_end.slice(0, 10)}
+              </p>
+            )}
           </div>
         ) : (
           <span className="font-mono text-[10px] text-slate-600">—</span>

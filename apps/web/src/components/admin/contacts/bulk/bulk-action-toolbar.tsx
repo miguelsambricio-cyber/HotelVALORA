@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Tag, UserCheck, Megaphone, CheckCircle, AlertCircle, ArchiveX, EyeOff, FileDown, X } from "lucide-react";
+import { Mail, Tag, UserCheck, Megaphone, CheckCircle, AlertCircle, ArchiveX, EyeOff, FileDown, X, CreditCard, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBulkSelection } from "./bulk-selection-context";
 import {
@@ -15,6 +15,10 @@ import {
   bulkMarkInvalidAction,
   bulkSuppressOutreachAction,
 } from "@/lib/admin/contacts/bulk";
+import {
+  bulkAssignSubscriptionAction,
+  bulkRevokeInvitationsAction,
+} from "@/lib/admin/subscriptions/bulk";
 
 /**
  * Sticky bottom action bar · client component. Appears when there is
@@ -34,6 +38,8 @@ export function BulkActionToolbar({
   filterQs: string;
   campaigns: Array<{ id: string; name: string }>;
 }) {
+  // Reused below for the subscription + revoke actions which need
+  // to scope back to the contacts surface via `origin=contacts`.
   const sel = useBulkSelection();
   const [active, setActive] = useState<ActiveAction>(null);
 
@@ -62,10 +68,12 @@ export function BulkActionToolbar({
           </p>
           <span className="font-mono text-[10px] text-slate-500">·</span>
           <ToolBtn icon={<Mail size={11} />} label="Invite" onClick={() => setActive("invite")} tone="lime" />
+          <ToolBtn icon={<CreditCard size={11} />} label="Subscribe" onClick={() => setActive("subscribe")} tone="lime" />
           <ToolBtn icon={<Tag size={11} />} label="Tag" onClick={() => setActive("tag")} />
           <ToolBtn icon={<UserCheck size={11} />} label="Owner" onClick={() => setActive("owner")} />
           <ToolBtn icon={<Megaphone size={11} />} label="Campaign" onClick={() => setActive("campaign")} />
           <ToolBtn icon={<CheckCircle size={11} />} label="Contacted" onClick={() => setActive("contacted")} />
+          <ToolBtn icon={<Ban size={11} />} label="Revoke invite" onClick={() => setActive("revoke")} tone="amber" />
           <ToolBtn icon={<ArchiveX size={11} />} label="Inactive" onClick={() => setActive("inactive")} tone="amber" />
           <ToolBtn icon={<AlertCircle size={11} />} label="Invalid" onClick={() => setActive("invalid")} tone="rose" />
           <ToolBtn icon={<EyeOff size={11} />} label="Suppress" onClick={() => setActive("suppress")} tone="amber" />
@@ -86,8 +94,8 @@ export function BulkActionToolbar({
 
 type ActiveAction =
   | null
-  | "invite" | "tag" | "owner" | "campaign"
-  | "contacted" | "inactive" | "invalid" | "suppress" | "export";
+  | "invite" | "subscribe" | "tag" | "owner" | "campaign"
+  | "contacted" | "revoke" | "inactive" | "invalid" | "suppress" | "export";
 
 function ToolBtn({
   icon,
@@ -245,6 +253,98 @@ function BulkActionPanel({
           <Submit label="Download CSV" />
         </BulkForm>
       )}
+
+      {active === "subscribe" && (
+        <form action={bulkAssignSubscriptionAction} className="grid gap-2 sm:grid-cols-3">
+          <input type="hidden" name="sel_mode" value="contacts" />
+          <input type="hidden" name="contact_ids" value={idsCsv} />
+          <input type="hidden" name="filter_qs" value={filterQs} />
+          <input type="hidden" name="origin" value="contacts" />
+          <SubSelect label="Tier" name="tier" required defaultValue="pro" options={[
+            { value: "free", label: "Free" }, { value: "pro", label: "Pro" },
+            { value: "premium", label: "Premium" }, { value: "top_promote", label: "Top Promote" },
+            { value: "comped", label: "Comped" }, { value: "team", label: "Team" },
+            { value: "enterprise", label: "Enterprise" },
+          ]} />
+          <SubInput label="Expires at" name="expires_at" type="date" />
+          <SubSelect label="Source campaign" name="source_campaign_id" defaultValue="none" options={[
+            { value: "none", label: "No campaign" },
+            ...campaigns.map((c) => ({ value: c.id, label: c.name })),
+          ]} />
+          <p className="col-span-full font-mono text-[10.5px] leading-relaxed text-slate-400">
+            Resolves each selected contact's `linked_user_id` and bootstraps a subscription. Contacts that have
+            not yet onboarded are silently skipped — invite them first via the Invite action.
+          </p>
+          <SubSubmit label="Assign subscription to linked users" tone="lime" />
+        </form>
+      )}
+
+      {active === "revoke" && (
+        <form action={bulkRevokeInvitationsAction} className="grid gap-2">
+          <input type="hidden" name="sel_mode" value="explicit" />
+          <input type="hidden" name="contact_ids" value={idsCsv} />
+          <input type="hidden" name="filter_qs" value={filterQs} />
+          <p className="font-mono text-[10.5px] leading-relaxed text-slate-400">
+            Flips every PENDING / SENT / DELIVERED / OPENED / CLICKED / BOUNCED invitation for the selected
+            contacts to <code className="text-rose-200">status=revoked</code>. Already-accepted invitations are
+            never touched — the funnel-closed state is preserved.
+          </p>
+          <SubSubmit label="Revoke selection's pending invitations" tone="amber" />
+        </form>
+      )}
+    </div>
+  );
+}
+
+function SubInput({ label, name, type }: { label: string; name: string; type?: string }) {
+  return (
+    <label className="block">
+      <span className="block font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</span>
+      <input
+        name={name}
+        type={type ?? "text"}
+        className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 font-mono text-[11px] text-slate-100 focus:border-lime-300/50 focus:outline-none"
+      />
+    </label>
+  );
+}
+
+function SubSelect({
+  label, name, required, defaultValue, options,
+}: {
+  label: string; name: string; required?: boolean; defaultValue: string;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="block">
+      <span className="block font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</span>
+      <select
+        name={name} required={required} defaultValue={defaultValue}
+        className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900/60 px-2.5 py-1.5 font-mono text-[11px] text-slate-100 focus:border-lime-300/50 focus:outline-none"
+      >
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function SubSubmit({ label, tone }: { label: string; tone?: "lime" | "amber" | "rose" }) {
+  const t =
+    tone === "lime" ? "bg-lime-300 text-forest-900 hover:bg-lime-200"
+    : tone === "amber" ? "bg-amber-500/25 text-amber-100 ring-1 ring-amber-500/50 hover:bg-amber-500/35"
+    : tone === "rose" ? "bg-rose-500/30 text-rose-100 ring-1 ring-rose-500/50 hover:bg-rose-500/40"
+    : "bg-slate-200 text-forest-900 hover:bg-white";
+  return (
+    <div className="col-span-full">
+      <button
+        type="submit"
+        className={cn(
+          "inline-flex items-center rounded-md px-3 py-1.5 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.2em] shadow-sm",
+          t,
+        )}
+      >
+        {label}
+      </button>
     </div>
   );
 }
@@ -258,6 +358,8 @@ const LABELS: Record<Exclude<ActiveAction, null>, string> = {
   invalid: "Mark email invalid",
   suppress: "Suppress outreach",
   invite: "Send invitations via Resend",
+  subscribe: "Assign subscription to onboarded users",
+  revoke: "Revoke pending invitations",
   export: "Export CSV",
 };
 

@@ -4,6 +4,60 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Phase 2.D.6 · Campaign-aware bulk subscription operations
+
+Operators can now run institutional growth ops directly from the admin console: assign tiers, grant Comped access, expire subscriptions, and revoke pending invitations — all at N-row scale with campaign attribution preserved end-to-end. The contacts and users surfaces share the same selection contract; the subscriptions table grows expiration indicators.
+
+### Server actions · `lib/admin/subscriptions/bulk.ts`
+- `bulkAssignSubscriptionAction(formData)` — creates one `subscriptions` row per selected user with operator-chosen tier · status · expires_at · source_campaign_id · notes. Existing subs are not modified (latest-by-created_at semantics).
+- `bulkCompSubscriptionAction(formData)` — shortcut wrapping the assign action with `tier='comped'`, `status='active'`.
+- `bulkExpireSubscriptionAction(formData)` — flips the LATEST subscription of each selected user to `status='expired'` + `expires_at=now()`. Stripe-backed rows are skipped (operator should cancel via Stripe Dashboard so the webhook stays authoritative); count surfaces in the result banner.
+- `bulkRevokeInvitationsAction(formData)` — flips every pending/sent/delivered/opened/clicked/bounced invitation for selected contacts to `status='revoked'`. Already-accepted invitations are never touched.
+
+### Selection resolver — three input modes
+- `explicit` — operator ticked user rows (Set<string>)
+- `filtered` — re-runs the users-page filter at action time
+- `contacts` — resolves `relationship_contacts.linked_user_id` (drops contacts that haven't onboarded)
+
+Hard cap `MAX_BULK_BATCH = 500` matches the contacts bulk surface. Audit: one `activity_log` row per subscription created/mutated with `entity_type='subscription'` and `action='subscription.bulk_<verb>'`.
+
+### `/user/admin/users` — bulk surface promoted to parity with contacts
+- New `components/admin/users/bulk/`:
+  - `UsersBulkSelectionProvider` — client context (explicit + filtered modes)
+  - `UsersSelectionCheckbox` — per-row checkbox with disabled-checked filtered state
+  - `UsersSelectAllControls` — Select page · Select all filtered · clear
+  - `UsersBulkActionToolbar` — sticky bottom with 3 actions (Assign tier · Comp · Expire) and per-action inline form panels
+- `UsersTable` gets a checkbox column + an amber expiration ring on rows with subscription expiring within 7 days
+- Page wires `bulk_ok` / `bulk_failed` / `bulk_error` banners (emerald / amber suffix for skipped-Stripe / rose for failures)
+- `loadActiveCampaigns()` from `lib/admin/subscriptions/live.ts` powers the campaign attribution dropdown
+
+### `/user/admin/contacts` toolbar — Subscribe + Revoke actions
+- New `Subscribe` button (lime tone) — opens an inline form posting to `bulkAssignSubscriptionAction` with `sel_mode='contacts'` and `origin='contacts'`. The server resolves `linked_user_id` and silently skips contacts that haven't onboarded.
+- New `Revoke invite` button (amber tone) — opens a confirmation panel posting to `bulkRevokeInvitationsAction`. Mass-flips pending/sent/delivered/opened/clicked/bounced invitations for selected contacts to `revoked`; accepted invitations are never touched.
+- Action labels added: `subscribe` and `revoke` in the LABELS dict.
+
+### Subscriptions table — expiration indicators
+- Row tint + ring when status='active' and expiry within 7 days (amber) or already past (rose)
+- Expires column shows the day count remaining ("· 3d") when expiring soon
+- Visual signal matches the lifecycle pill colors elsewhere
+
+### Audit trail (all bulk actions)
+- `subscription.bulk_assigned` — one row per inserted subscription with tier/status/expires_at/source_campaign metadata
+- `subscription.bulk_expired` — one row per flipped subscription with expired_at timestamp
+- `invitation.bulk_revoked` — one row on the contact entity with the invitation_id metadata
+- Every audit row carries `actor_email` + `actor_id` (when available) so operator attribution survives.
+
+### Intentional non-features (carried forward)
+No Stripe billing automation · no self-serve checkout · no automated lifecycle emails · no AI campaign orchestration · no referral systems. The operator drives every state flip from the admin console; audit trail is the receipt.
+
+### Smoke
+- `/user/admin/users` → 200 · checkbox column + Select page (50) + Select all filtered controls render
+- `/user/admin/contacts` → 200 · existing bulk surface intact; client-rendered toolbar gains Subscribe + Revoke when selection > 0
+- `/user/admin/subscriptions` → 200 · expiration indicators ready (rendering tested visually; SQL fixtures with future expires_at would tint the row)
+- Typecheck clean across server actions + UI
+
+---
+
 ## 2026-05-13 — Phase 2.D.5 · Invitation accept flow · contact → user → subscription end-to-end
 
 Closes the acquisition funnel. Recipients of a Resend invitation can now land on `/invite/<token>`, sign in via Supabase Auth (Google), and one-click accept — which deterministically links the contact ↔ user, bootstraps a subscription at the operator-chosen tier, and preserves the campaign attribution end-to-end.

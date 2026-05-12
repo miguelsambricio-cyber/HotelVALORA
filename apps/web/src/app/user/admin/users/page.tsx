@@ -6,9 +6,13 @@ import {
   loadUserKpis,
   type UsersFilter,
 } from "@/lib/admin/users/live";
+import { loadActiveCampaigns } from "@/lib/admin/subscriptions/live";
 import { UsersKpis } from "@/components/admin/users/users-kpis";
 import { UsersFilters } from "@/components/admin/users/users-filters";
 import { UsersTable } from "@/components/admin/users/users-table";
+import { UsersBulkSelectionProvider } from "@/components/admin/users/bulk/bulk-selection-context";
+import { UsersSelectAllControls } from "@/components/admin/users/bulk/select-all-controls";
+import { UsersBulkActionToolbar } from "@/components/admin/users/bulk/bulk-action-toolbar";
 
 export const metadata: Metadata = {
   title: "Users · Admin · HotelVALORA",
@@ -26,6 +30,10 @@ interface PageProps {
     search?: string;
     page?: string;
     sort?: string;
+    bulk_ok?: string;
+    bulk_failed?: string;
+    bulk_verb?: string;
+    bulk_error?: string;
   };
 }
 
@@ -40,10 +48,21 @@ export default async function UsersAdminPage({ searchParams }: PageProps) {
     sort: (searchParams.sort as UsersFilter["sort"]) || "recent",
   };
 
-  const [kpis, { rows, total }] = await Promise.all([
+  const [kpis, { rows, total }, campaigns] = await Promise.all([
     loadUserKpis(),
     loadUsers(filter),
+    loadActiveCampaigns(),
   ]);
+
+  // Build filter_qs for "Select all filtered" — drops page so the
+  // server action re-resolves the entire filter set, not just one page.
+  const filterParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(searchParams)) {
+    if (!v) continue;
+    if (["page", "bulk_ok", "bulk_failed", "bulk_verb", "bulk_error"].includes(k)) continue;
+    filterParams.set(k, v);
+  }
+  const filterQs = filterParams.toString();
 
   return (
     <div className="space-y-6">
@@ -93,12 +112,30 @@ export default async function UsersAdminPage({ searchParams }: PageProps) {
         }}
       />
 
-      <UsersTable
-        rows={rows}
-        total={total}
-        page={filter.page ?? 0}
-        pageSize={filter.page_size ?? 50}
-      />
+      {searchParams.bulk_ok && (
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2.5 font-mono text-[11px] text-emerald-200">
+          Bulk {searchParams.bulk_verb ?? "action"} · {searchParams.bulk_ok} user{searchParams.bulk_ok === "1" ? "" : "s"} affected
+          {searchParams.bulk_failed && Number(searchParams.bulk_failed) > 0 ? (
+            <span className="text-amber-200"> · {searchParams.bulk_failed} skipped (Stripe-backed)</span>
+          ) : null}
+        </div>
+      )}
+      {searchParams.bulk_error && (
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-2.5 font-mono text-[11px] text-rose-200">
+          Bulk action failed · {searchParams.bulk_error}
+        </div>
+      )}
+
+      <UsersBulkSelectionProvider filteredCount={total} totalOnPage={rows.length}>
+        <UsersSelectAllControls pageIds={rows.map((r) => r.id)} filteredTotal={total} />
+        <UsersTable
+          rows={rows}
+          total={total}
+          page={filter.page ?? 0}
+          pageSize={filter.page_size ?? 50}
+        />
+        <UsersBulkActionToolbar filterQs={filterQs} campaigns={campaigns} />
+      </UsersBulkSelectionProvider>
     </div>
   );
 }

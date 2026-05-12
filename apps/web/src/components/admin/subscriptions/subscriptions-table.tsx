@@ -89,10 +89,19 @@ function Row({ row, selected, baseSearchParams }: {
   const sep = baseSearchParams ? "&" : "";
   const detailHref = `/user/admin/subscriptions?${baseSearchParams}${sep}selected=${row.id}`;
   const displayName = row.user_full_name || row.user_email?.split("@")[0] || row.user_id.slice(0, 8);
+
+  const expiry = row.expires_at ?? row.current_period_end ?? null;
+  const expiryMs = expiry ? new Date(expiry).getTime() - Date.now() : null;
+  const expiringSoon = row.status === "active" && expiryMs !== null && expiryMs > 0 && expiryMs < 7 * 86_400_000;
+  const expiredVisible = row.status === "expired" || (expiryMs !== null && expiryMs <= 0 && row.status === "active");
+
   return (
     <tr className={cn(
       "border-t border-slate-800/60 align-top transition-colors",
-      selected ? "bg-lime-300/10" : "hover:bg-slate-800/30 focus-within:bg-slate-800/30",
+      selected ? "bg-lime-300/10"
+      : expiringSoon ? "bg-amber-500/5 ring-1 ring-inset ring-amber-500/30 hover:bg-amber-500/10"
+      : expiredVisible ? "bg-rose-500/5 ring-1 ring-inset ring-rose-500/30 hover:bg-rose-500/10"
+      : "hover:bg-slate-800/30 focus-within:bg-slate-800/30",
     )}>
       <td className="px-2 py-3">
         <Link href={detailHref} scroll={false} className="block focus:outline-none">
@@ -106,8 +115,18 @@ function Row({ row, selected, baseSearchParams }: {
       </td>
       <td className="px-2 py-3"><TierBadge tier={row.tier} /></td>
       <td className="px-2 py-3"><StatusBadge status={row.status} /></td>
-      <td className="px-2 py-3 text-right font-mono text-[10.5px] text-slate-400">
-        {row.expires_at ? row.expires_at.slice(0, 10) : (row.current_period_end ? row.current_period_end.slice(0, 10) : "—")}
+      <td className={cn(
+        "px-2 py-3 text-right font-mono text-[10.5px]",
+        expiringSoon ? "text-amber-300"
+        : expiredVisible ? "text-rose-300"
+        : "text-slate-400",
+      )}>
+        {expiry ? expiry.slice(0, 10) : "—"}
+        {expiringSoon && expiryMs !== null && (
+          <span className="ml-1 font-headline text-[9px] font-bold uppercase tracking-[0.15em] text-amber-400">
+            · {Math.max(1, Math.ceil(expiryMs / 86_400_000))}d
+          </span>
+        )}
       </td>
       <td className="px-2 py-3">
         {row.source_campaign_name ? (
