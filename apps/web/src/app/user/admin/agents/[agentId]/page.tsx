@@ -4,7 +4,7 @@ import { AgentDashboard } from "@/components/admin";
 import { IntelligenceTerminal } from "@/components/admin/intelligence/intelligence-terminal";
 import { AGENT_REGISTRY, ALL_AGENTS, isAgentId } from "@/lib/admin/agents";
 import { MOCK_TERMINAL_DATA } from "@/lib/admin/intelligence";
-import { INTEGRATIONS_REGISTRY } from "@/lib/admin/integrations";
+import { getIntegrationsLive } from "@/lib/admin/integrations/live";
 import { getCredentialsStatus } from "@/lib/intelligence/credentials-store";
 
 // market_intelligence reads live credentials status server-side; the rest
@@ -55,7 +55,8 @@ export default async function AgentDetailPage({
 }) {
   if (!isAgentId(params.agentId)) notFound();
   if (params.agentId === "market_intelligence") {
-    const authenticated = INTEGRATIONS_REGISTRY.filter((i) => i.requiresAuth);
+    const live = await getIntegrationsLive();
+    const authenticated = live.filter((i) => i.requiresAuth);
     const cards = await Promise.all(
       authenticated.map(async (integration) => ({
         integration,

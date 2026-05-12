@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { CircuitBoard, Plug } from "lucide-react";
-import { INTEGRATIONS_REGISTRY } from "@/lib/admin/integrations";
+import { getIntegrationsLive } from "@/lib/admin/integrations/live";
 import { IntegrationCard } from "@/components/admin/integrations/integration-card";
 
 export const metadata: Metadata = {
   title: "Administrator · Integrations · HotelVALORA",
   description: "Institutional hospitality intelligence sources — connection status, session validity, ingestion health.",
 };
+
+export const dynamic = "force-dynamic";
 
 /**
  * /user/admin/integrations — the directory of every hospitality intelligence
@@ -16,17 +18,16 @@ export const metadata: Metadata = {
  * Bloomberg-terminal aesthetic: dark forest-900 / slate-950 cards on the
  * lighter page canvas, lime-300 numerals, tracked-out micro-labels.
  */
-export default function IntegrationsPage() {
-  const groups: Array<{ label: string; rows: typeof INTEGRATIONS_REGISTRY }> = [
+export default async function IntegrationsPage() {
+  const live = await getIntegrationsLive();
+  const groups: Array<{ label: string; rows: typeof live }> = [
     {
       label: "Authenticated · Spain Market Intelligence",
-      rows: INTEGRATIONS_REGISTRY.filter(
-        (i) => i.requiresAuth && i.category === "spain_market",
-      ),
+      rows: live.filter((i) => i.requiresAuth && i.category === "spain_market"),
     },
     {
       label: "Public · European + Spain Market",
-      rows: INTEGRATIONS_REGISTRY.filter(
+      rows: live.filter(
         (i) =>
           !i.requiresAuth &&
           (i.category === "european_market" || i.category === "spain_market"),
@@ -34,7 +35,7 @@ export default function IntegrationsPage() {
     },
     {
       label: "Public · Global Market + Research Houses",
-      rows: INTEGRATIONS_REGISTRY.filter(
+      rows: live.filter(
         (i) =>
           !i.requiresAuth &&
           (i.category === "global_market" ||
@@ -44,7 +45,7 @@ export default function IntegrationsPage() {
     },
     {
       label: "Deferred · API / Vendor Pending",
-      rows: INTEGRATIONS_REGISTRY.filter((i) => !i.enabled),
+      rows: live.filter((i) => !i.enabled),
     },
   ];
 
@@ -67,7 +68,7 @@ export default function IntegrationsPage() {
               raw secrets never reach the database.
             </p>
           </div>
-          <SummaryStrip />
+          <SummaryStrip live={live} />
         </div>
       </section>
 
@@ -119,11 +120,11 @@ export default function IntegrationsPage() {
   );
 }
 
-function SummaryStrip() {
-  const ok = INTEGRATIONS_REGISTRY.filter((i) => i.signal === "ok").length;
-  const warn = INTEGRATIONS_REGISTRY.filter((i) => i.signal === "warn").length;
-  const error = INTEGRATIONS_REGISTRY.filter((i) => i.signal === "error").length;
-  const neutral = INTEGRATIONS_REGISTRY.filter((i) => i.signal === "neutral").length;
+function SummaryStrip({ live }: { live: Awaited<ReturnType<typeof getIntegrationsLive>> }) {
+  const ok = live.filter((i) => i.signal === "ok").length;
+  const warn = live.filter((i) => i.signal === "warn").length;
+  const error = live.filter((i) => i.signal === "error").length;
+  const neutral = live.filter((i) => i.signal === "neutral").length;
   return (
     <dl className="grid grid-cols-2 gap-3 text-right md:grid-cols-4">
       <Cell label="Operational" value={ok} dot="emerald" />

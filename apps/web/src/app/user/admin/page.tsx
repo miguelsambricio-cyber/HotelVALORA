@@ -14,7 +14,7 @@ import {
   KpiCard,
   PipelineCard,
 } from "@/components/admin";
-import { INTEGRATIONS_REGISTRY } from "@/lib/admin/integrations";
+import { getIntegrationsLive } from "@/lib/admin/integrations/live";
 import { IntegrationCard } from "@/components/admin/integrations/integration-card";
 
 export const metadata: Metadata = {
@@ -39,7 +39,13 @@ export const metadata: Metadata = {
  * structured details · tracked-out micro-labels · subtle pulse on
  * operational dots.
  */
-export default function ExecutiveControlRoom() {
+export const dynamic = "force-dynamic";
+
+export default async function ExecutiveControlRoom() {
+  const liveIntegrations = await getIntegrationsLive();
+  const featured = liveIntegrations.filter((i) =>
+    ["hosteltur", "alimarket", "hospitalitynet"].includes(i.id),
+  );
   return (
     <div className="space-y-8">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
@@ -108,10 +114,9 @@ export default function ExecutiveControlRoom() {
         />
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {/* Surface the 3 most-relevant integrations on the overview:
-              both authenticated sources + one anchor public source. */}
-          {INTEGRATIONS_REGISTRY.filter((i) =>
-            ["hosteltur", "alimarket", "hospitalitynet"].includes(i.id),
-          ).map((integration) => (
+              both authenticated sources + one anchor public source.
+              Now reading LIVE state — no more stale "NOT PROVISIONED". */}
+          {featured.map((integration) => (
             <IntegrationCard key={integration.id} integration={integration} />
           ))}
         </div>

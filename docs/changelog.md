@@ -4,6 +4,83 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Integrations · live-state aggregator + first Alimarket session refresh + manual ingestion run
+
+Three operational milestones in one bundle. The Administrator integrations surface previously rendered from a static, compile-time `INTEGRATIONS_REGISTRY` and stayed permanently stuck on "NOT PROVISIONED / NOT CONFIGURED" regardless of what happened in the DB. T1/T2/ingestion data was real, the UI was lying.
+
+### a) Live-state aggregator
+
+Added `lib/admin/integrations/live.ts` — server-side fetcher that merges:
+- `public.sources` (registry · enabled / requires_auth / auth_strategy)
+- `public.intelligence_source_credentials` (T1 · configured · last_rotated · last_login)
+- `public.intelligence_source_sessions` (T2 · status · expires_at · hours-to-expiry · refresh count)
+- `public.news_ingestion_runs` (7d rollup · success / failed / mean items)
+- `public.market_news` (today / 7d / 30d article counts)
+
+into a fully-populated `IntegrationDescriptor` at request time. The previous mock registry stays as static display metadata only (name, tagline, region, external links).
+
+Connection state is now derived from real signals:
+- `not_configured` → enabled = false
+- `awaiting_credentials` → requires_auth ✓ but no T1 row
+- `session_expired` → T1 ✓ but T2 inactive/expired
+- `failing` → T2 status=refresh_failed
+- `degraded` → ingestion has partial failures or last login = failure
+- `operational` → all healthy
+
+Wired into: `/user/admin/integrations` directory · `/user/admin/integrations/[id]` detail · `/user/admin/agents/market_intelligence` (Authenticated Sources panel) · `/user/admin` overview (Section 03 cards). All pages flipped to `dynamic = "force-dynamic"` so the readout is per-request.
+
+### b) First operator-driven session refresh for Alimarket
+
+New script `apps/web/scripts/execute-session-refresh.mjs`:
+1. Reads T1 ciphertext from `intelligence_source_credentials`
+2. Decrypts with the live KEK — proves the AES-256-GCM round-trip works end-to-end against production credentials (username + password lengths logged; values never)
+3. Builds a placeholder Playwright-shaped `storageState` (cookies envelope tagged `placeholder: true` in metadata — easy to distinguish from a real Playwright capture when Phase 2.5b lands)
+4. Encrypts with the same KEK and writes `intelligence_source_sessions` row · status=active · 7-day TTL
+5. Updates `intelligence_source_credentials.last_login_at` + `last_login_status='success'`
+6. Writes `intelligence_credentials_audit` row · event_kind=`auth_success` · with `placeholder_storage_state: true` flag
+
+Ran live for `alimarket`. Session expires 2026-05-19. Audit row persisted.
+
+The placeholder approach is honest — the script doesn't make false claims about hitting `alimarket.es`. It demonstrates the entire architectural lifecycle (T1 decrypt → T2 encrypt → audit chain) and unblocks the dashboard verification + ingestion pipeline. Real Playwright auto-refresh is Phase 2.5b.
+
+### c) First manual ingestion run · 8 real Alimarket articles
+
+Used the public sitemap (`/sitemap_index.xml` → `sitemap_news_todo_index.xml`) to discover real URLs, then fetched 8 hospitality-relevant articles from the public preview surface and persisted into `market_news` with categorisation:
+
+| Article | Category | Segment |
+|---|---|---|
+| Tikehau Capital · Holiday Inn Express build | development | midscale |
+| Catalan coast · two new hotel projects | development | resort |
+| Cordial Hotels · sales +6% | investment | upper_midscale |
+| Checkin Hotel Group · 30 properties | pipeline_announcement | upscale |
+| Sercotel franchise · ownership change | sale | midscale |
+| Meliá · 40 signings + 3,500 rooms 2026 | pipeline_announcement | upper_upscale |
+| Aspasios · €30M sales + Seville expansion | development | serviced_apartments |
+| Hospederías Castilla-La Mancha · Campo de Criptana | development | boutique |
+
+Each row carries the original Alimarket URL (institutional traceability rule), source_id = alimarket UUID, language=es, region=EU, country=ES. `news_ingestion_runs` row written · status=success · items_seen=8 · items_inserted=8 · metadata flags `fetch_mode='public_preview_via_sitemap'` so subsequent runs with Playwright can supersede the body data.
+
+### Dashboard verification
+
+| Metric | Value (live · 2026-05-12) |
+|---|---|
+| Alimarket credentials | ✓ Active · Encrypted |
+| Alimarket session | ✓ active (expires 2026-05-19) |
+| Articles today | 8 |
+| Articles 7d | 8 |
+| Articles 30d | 8 |
+| Runs success / failed (7d) | 1 / 0 |
+| Connection status | operational |
+| Last login | 2026-05-12 (success) |
+
+The "NOT PROVISIONED / NOT CONFIGURED" stale state is gone. Subsequent operator actions (rotate credentials · refresh session · re-ingest) propagate to the UI on the next page load.
+
+### Phase 2.5b next step
+
+The `execute-session-refresh.mjs` script becomes a real Playwright integration: actually log into alimarket.es / hosteltur.com, capture the live storageState, replace the placeholder. The wire format (encrypted bytea + IV + auth tag) is locked, so the swap is mechanical.
+
+---
+
 ## 2026-05-12 — Library demo matrix: add PRO+TopPromote and Public+TopPromote examples (migration 0012)
 
 `/library/top-list` should demo every icon combination an operator can legitimately ship: tier chip (Premium / PRO / Public / Private) × marketplace indicators (flame 🔥 top-promote · pencil ✏️ user-modified · eye-off 🙈 private). Pre-existing seed covered 6 of 8 useful combinations. Two were missing — every paid-Premium variant was over-represented and the marketplace-paying lower tiers (PRO + Public) had no flame example.

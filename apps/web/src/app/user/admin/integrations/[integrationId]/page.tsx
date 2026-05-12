@@ -4,6 +4,7 @@ import {
   INTEGRATION_IDS,
   getIntegrationById,
 } from "@/lib/admin/integrations";
+import { getIntegrationLive } from "@/lib/admin/integrations/live";
 import { IntegrationDetail } from "@/components/admin/integrations/integration-detail";
 import {
   getCredentialsAudit,
@@ -32,13 +33,11 @@ export function generateMetadata({ params }: Params): Metadata {
 }
 
 export default async function IntegrationDetailPage({ params }: Params) {
-  const integration = getIntegrationById(params.integrationId);
+  // Use the live aggregator so the page reflects real T1 + T2 + ingestion
+  // health, not the compile-time registry seed.
+  const integration = await getIntegrationLive(params.integrationId);
   if (!integration) notFound();
 
-  // Server-side: fetch real credentials status + audit when authenticated.
-  // For public integrations (requiresAuth=false) we still return an empty
-  // status object so the panel can render the "No credentials required"
-  // banner without conditional logic.
   const [credentialsStatus, credentialsAudit] = await Promise.all([
     integration.requiresAuth
       ? getCredentialsStatus(integration.id)

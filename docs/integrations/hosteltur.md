@@ -152,6 +152,19 @@ The operator pulls this via `vercel env pull apps/web/.env.local --environment=p
 
 ---
 
+## 6b · Live-state aggregator (added 2026-05-12)
+
+The Administrator dashboard reads integration state from `lib/admin/integrations/live.ts` (`getIntegrationLive(slug)` / `getIntegrationsLive()`). It merges static registry metadata with per-request DB reads of:
+
+- `public.intelligence_source_credentials` → credentials configured + last rotated + last login
+- `public.intelligence_source_sessions` → session status, expires_at, hours-to-expiry, refresh count
+- `public.news_ingestion_runs` → 7d success / failed counts, mean items/run, last run state
+- `public.market_news` → article counts (today / 7d / 30d)
+
+The `IntegrationCard`, `IntegrationDetail`, `AuthenticatedSourcesPanel` components are unchanged — they consume the same `IntegrationDescriptor` shape. The static `INTEGRATIONS_REGISTRY` now only supplies display metadata (name, tagline, region, external links). Connection status is derived dynamically by `deriveConnection()`.
+
+The first session-refresh and ingestion run for `alimarket` were executed via `scripts/execute-session-refresh.mjs` and a direct SQL ingestion run — see changelog 2026-05-12 entry.
+
 ## 7 · Operational runbook
 
 ### First-time setup (one-off)
