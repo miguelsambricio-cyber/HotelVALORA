@@ -555,6 +555,45 @@ export type Database = {
           },
         ]
       }
+      campaigns: {
+        Row: {
+          channel: string
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          name: string
+          owner_email: string | null
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind: string
+          name: string
+          owner_email?: string | null
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          owner_email?: string | null
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string
@@ -595,6 +634,66 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_invitations: {
+        Row: {
+          campaign_id: string | null
+          contact_id: string
+          created_at: string
+          id: string
+          invited_by_email: string | null
+          invited_email: string
+          notes: string | null
+          promo_code: string | null
+          resend_message_id: string | null
+          responded_at: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          contact_id: string
+          created_at?: string
+          id?: string
+          invited_by_email?: string | null
+          invited_email: string
+          notes?: string | null
+          promo_code?: string | null
+          resend_message_id?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          contact_id?: string
+          created_at?: string
+          id?: string
+          invited_by_email?: string | null
+          invited_email?: string
+          notes?: string | null
+          promo_code?: string | null
+          resend_message_id?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_invitations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_invitations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_contacts"
             referencedColumns: ["id"]
           },
         ]
@@ -1964,6 +2063,7 @@ export type Database = {
           collaboration_potential_score: number
           company_id: string | null
           company_name: string | null
+          contact_invitation_status: string
           continent: string | null
           country: string | null
           coverage_officer: string | null
@@ -1996,9 +2096,11 @@ export type Database = {
           last_activity_date: string | null
           last_activity_type: string | null
           last_bounce_date: string | null
+          last_contacted_at: string | null
           last_email_date: string | null
           last_seen_batch_id: string | null
           latest_deal_stage: string | null
+          linked_user_id: string | null
           linkedin: string | null
           loi_bid_high: string | null
           loi_bid_low: string | null
@@ -2031,6 +2133,7 @@ export type Database = {
           collaboration_potential_score?: number
           company_id?: string | null
           company_name?: string | null
+          contact_invitation_status?: string
           continent?: string | null
           country?: string | null
           coverage_officer?: string | null
@@ -2063,9 +2166,11 @@ export type Database = {
           last_activity_date?: string | null
           last_activity_type?: string | null
           last_bounce_date?: string | null
+          last_contacted_at?: string | null
           last_email_date?: string | null
           last_seen_batch_id?: string | null
           latest_deal_stage?: string | null
+          linked_user_id?: string | null
           linkedin?: string | null
           loi_bid_high?: string | null
           loi_bid_low?: string | null
@@ -2098,6 +2203,7 @@ export type Database = {
           collaboration_potential_score?: number
           company_id?: string | null
           company_name?: string | null
+          contact_invitation_status?: string
           continent?: string | null
           country?: string | null
           coverage_officer?: string | null
@@ -2130,9 +2236,11 @@ export type Database = {
           last_activity_date?: string | null
           last_activity_type?: string | null
           last_bounce_date?: string | null
+          last_contacted_at?: string | null
           last_email_date?: string | null
           last_seen_batch_id?: string | null
           latest_deal_stage?: string | null
+          linked_user_id?: string | null
           linkedin?: string | null
           loi_bid_high?: string | null
           loi_bid_low?: string | null
@@ -2159,6 +2267,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "relationship_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationship_contacts_linked_user_id_fkey"
+            columns: ["linked_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -2986,7 +3101,13 @@ export type Database = {
           created_at: string
           current_organization_id: string | null
           email: string
+          full_name: string | null
           id: string
+          invitation_status: string
+          last_seen_at: string | null
+          linked_contact_id: string | null
+          promo_code: string | null
+          relationship_owner_email: string | null
           role: Database["public"]["Enums"]["user_role"]
           stripe_customer_id: string | null
           tier: Database["public"]["Enums"]["user_tier"]
@@ -2996,7 +3117,13 @@ export type Database = {
           created_at?: string
           current_organization_id?: string | null
           email: string
+          full_name?: string | null
           id: string
+          invitation_status?: string
+          last_seen_at?: string | null
+          linked_contact_id?: string | null
+          promo_code?: string | null
+          relationship_owner_email?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           stripe_customer_id?: string | null
           tier?: Database["public"]["Enums"]["user_tier"]
@@ -3006,7 +3133,13 @@ export type Database = {
           created_at?: string
           current_organization_id?: string | null
           email?: string
+          full_name?: string | null
           id?: string
+          invitation_status?: string
+          last_seen_at?: string | null
+          linked_contact_id?: string | null
+          promo_code?: string | null
+          relationship_owner_email?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           stripe_customer_id?: string | null
           tier?: Database["public"]["Enums"]["user_tier"]
@@ -3018,6 +3151,13 @@ export type Database = {
             columns: ["current_organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_linked_contact_id_fkey"
+            columns: ["linked_contact_id"]
+            isOneToOne: false
+            referencedRelation: "relationship_contacts"
             referencedColumns: ["id"]
           },
         ]

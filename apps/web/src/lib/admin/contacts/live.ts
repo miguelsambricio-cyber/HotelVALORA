@@ -64,6 +64,10 @@ export interface ContactRow {
   source_file: string | null;
   first_seen_batch_id: string | null;
   last_seen_batch_id: string | null;
+  /** Phase 2.D.1 · operational growth fields */
+  linked_user_id: string | null;
+  contact_invitation_status: string;
+  last_contacted_at: string | null;
   /** Gmail label list aggregated from relationship_labels (join). */
   labels: string[];
 }
@@ -144,7 +148,8 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
     "relationship_strength, collaboration_potential_score, relationship_band, " +
     "email_validity, email_directionality, inferred_relationship_stage, " +
     "active_threads, last_email_date, bounce_count, last_bounce_date, flagged_for_correction, " +
-    "bucket, notes_consolidated, source_file, first_seen_batch_id, last_seen_batch_id",
+    "bucket, notes_consolidated, source_file, first_seen_batch_id, last_seen_batch_id, " +
+    "linked_user_id, contact_invitation_status, last_contacted_at",
     { count: "exact" },
   );
 
@@ -365,6 +370,19 @@ export interface ContactDetail {
   peers: PeerContact[];
   /** activity density · count of dated events from interactions + labels + gmail */
   activity_density: number;
+  /** Phase 2.D.1 · contact → user link if the contact has onboarded */
+  linked_user: {
+    id: string;
+    email: string;
+    full_name: string | null;
+    invitation_status: string;
+    tier: string;
+    role: string;
+    last_seen_at: string | null;
+    created_at: string;
+  } | null;
+  /** Phase 2.D.1 · total invitation events ever sent to this contact */
+  invitation_count: number;
 }
 
 /**
@@ -395,7 +413,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
       "email_validity, email_directionality, inferred_relationship_stage, " +
       "active_threads, last_email_date, bounce_count, last_bounce_date, " +
       "flagged_for_correction, bucket, notes_consolidated, source_file, " +
-      "first_seen_batch_id, last_seen_batch_id",
+      "first_seen_batch_id, last_seen_batch_id, " +
+      "linked_user_id, contact_invitation_status, last_contacted_at",
     )
     .eq("id", contactId)
     .maybeSingle();
@@ -405,8 +424,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
   }
   const contact = contactRow as unknown as Omit<ContactRow, "labels">;
 
-  // Parallel fan-out: company · interactions · labels · health · peers
-  const [companyR, interactionsR, labelsR, healthR, peersR] = await Promise.all([
+  // Parallel fan-out: company · interactions · labels · health · peers · linked user · invitation count
+  const [companyR, interactionsR, labelsR, healthR, peersR, linkedUserR, invitesR] = await Promise.all([
     contact.company_id
       ? sb.from("relationship_companies")
           .select("id, name, investor_type_canonical, investor_subtype, tier, industry, hotel_focus, fund_size, investment_preference, investment_min, investment_max, continent, location, description, external_notes, internal_notes")
@@ -435,6 +454,15 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
           .order("relationship_strength", { ascending: false, nullsFirst: false })
           .limit(8)
       : Promise.resolve({ data: [], error: null }),
+    contact.linked_user_id
+      ? sb.from("users")
+          .select("id, email, full_name, invitation_status, tier, role, last_seen_at, created_at")
+          .eq("id", contact.linked_user_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    sb.from("contact_invitations")
+      .select("id", { count: "exact", head: true })
+      .eq("contact_id", contactId),
   ]);
 
   const company = (companyR.data ?? null) as ContactDetail["company"];
@@ -458,6 +486,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
   const labels = labelRows.map((r) => r.label);
   const health = (healthR.data ?? null) as ContactDetail["health"];
   const peers = (peersR.data ?? []) as unknown as PeerContact[];
+  const linked_user = (linkedUserR.data ?? null) as ContactDetail["linked_user"];
+  const invitation_count = invitesR.count ?? 0;
 
   // ── Compose chronological event timeline ────────────────────────────
   const events: TimelineEvent[] = [];
@@ -542,6 +572,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
     timeline: events,
     peers,
     activity_density,
+    linked_user,
+    invitation_count,
   };
 }
 

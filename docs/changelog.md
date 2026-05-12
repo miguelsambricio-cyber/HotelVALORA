@@ -4,6 +4,62 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.D.1 · Operational growth funnel · Users console + activation/monetization scaffolds + product realignment
+
+**Strategic realignment (user-driven on 2026-05-12).** The contacts base is HOTELVALORA's **growth engine**, NOT a CRM, NOT a relationship-intelligence OS. The previous Phase 2.C framing drifted toward enterprise relationship intelligence; the system thesis is now explicit:
+
+`contact → invited → onboarded user → active subscriber → premium/top-promote client`
+
+Four operational admin surfaces, each with a specific role:
+- `/user/admin/contacts` — commercial universe / pipeline
+- `/user/admin/users` — real platform users (NEW · live)
+- `/user/admin/campaigns` — activation: contacts → users (NEW · scaffold)
+- `/user/admin/subscriptions` — monetization / plans (NEW · scaffold)
+
+### Database — migration `0015_users_growth_layer`
+- `public.users` extended: `full_name` · `last_seen_at` · `invitation_status` (CHECK: invited/onboarding/active/inactive/churn_risk) · `promo_code` · `relationship_owner_email` · `linked_contact_id` FK → `relationship_contacts`
+- `public.relationship_contacts` extended: `linked_user_id` FK → `users` (bidirectional) · `contact_invitation_status` (CHECK: not_invited/invited/onboarding/converted/declined/bounced) · `last_contacted_at`
+- New table `public.campaigns` — slug · name · kind (CHECK: investor_outreach/operator_onboarding/beta_invite/top_promote_rollout/lender_campaign/newsletter/partnership/custom) · status · owner_email · channel
+- New table `public.contact_invitations` — per-contact activation event log (1 row per outbound send) · contact_id FK · campaign_id FK · status (pending/sent/delivered/opened/clicked/bounced/accepted/declined/converted) · resend_message_id
+- All new tables RLS-enabled · zero policies · anon + authenticated revoked
+- Supabase TS types regenerated
+
+### `/user/admin/users` (Live)
+- Server lib `apps/web/src/lib/admin/users/live.ts` · joins users + organizations + relationship_contacts (via `linked_contact_id`) + latest subscription per user (sorted client-side by created_at desc)
+- 11 KPI totems: Active · Invited · Onboarding · Inactive · Churn risk · Linked from contacts (top row); Free · Pro · Premium · Team/Enterprise · Active subs (bottom row)
+- 11-column table: User (name + email) · Company / Org · Role · **Linked contact** (with click-through to `/user/admin/contacts?selected=<id>`) · Status badge · Tier badge · Subscription · Promo · Last seen · Created · Owner
+- URL-driven filters: status chips · plan chips · "Linked from contacts only" toggle · sort (Recent / Last seen / A-Z / Tier) · debounced search
+
+### `/user/admin/campaigns` (Scaffold)
+- Foundation page reads live counts: `campaigns` rows · pending `contact_invitations` · in-flight (sent/delivered/opened)
+- 7 planned kinds enumerated as visible scaffold: investor_outreach · operator_onboarding · beta_invite · top_promote_rollout · lender_campaign · partnership · newsletter
+- Full CRUD + Resend execution land in Phase 2.D.4
+
+### `/user/admin/subscriptions` (Scaffold)
+- Foundation page reads live counts from `public.subscriptions`: total · active · trialing · past_due · canceled
+- 5 tier rows from `user_tier` enum (free / pro / premium / team / enterprise) · Comped/Expired/Top Promote/Trial/Internal noted as Phase 2.D.4 workflow surface
+
+### Contacts drawer realigned (`?selected=<id>`)
+- Added "Conversion status" section: stage chip (Active user / Onboarding / Invited / Inactive / Churn risk / Not invited / Bounced / Declined / Converted) · linked-user card (when `linked_user_id` set) with click-through to `/user/admin/users` · contact-invite state + invitation history count
+- "Suggested next action" rewritten with **growth verbs**: Mark invalid · Re-activate · Win-back · Re-send invite · Personal invite · Add to beta-invite campaign · Invite to platform / assign promo · Add to outreach campaign · Park (declined/dormant) — not the previous "warm intro / maintain cadence / strategic counterparty" verbs
+- Tags renamed `Strategic tags` → `Growth tags`: converted · invite-pending · invite-bounced · onboarded · priority · warm · qualified-lead · live-deal · declined-history · email-fragile · hospitality-mandate
+- Read-only stays in place; mutation/bulk surfaces land in 2.D.2-2.D.3
+
+### Sidebar
+- New `Users · Live`, `Campaigns · Scaffold`, `Subscriptions · Scaffold` entries
+- Order tuned to reflect the conversion arc: Overview → Contacts → Users → Campaigns → Subscriptions → AI Operations → Integrations
+
+### Out-of-scope (deferred)
+- **Phase 2.D.2** · contact mutation workflows (edit / add / delete / merge / mark invalid / update tags / company / owner / status) — all via server actions with audit trail
+- **Phase 2.D.3** · bulk actions (row selection · select-filtered-set · bulk invite via Resend · bulk promo / tags / export / contacted / inactive / campaign assign)
+- **Phase 2.D.4** · full Campaigns + Subscriptions UIs (CRUD · execution · conversion tracking · grant Comped · mark Expired · refunds · per-org billing)
+
+Out-of-scope by design (the product redirect): Salesforce-style CRM · complex automation workflows · AI outbound orchestration · email sequencing engines · graph visualisation. Outbound = Resend + lightweight campaigns only.
+
+Smoke: all 4 routes return 200 · KPIs populate from live Supabase counts · drawer carries the Conversion status section with growth verbs.
+
+---
+
 ## 2026-05-12 — Phase 2.C.1 · Operator Console security gate + relationship intelligence drawer
 
 Two-part follow-up to Phase 2.C. Closes the long-standing operator-allow-list gap and turns the institutional table into a true relationship intelligence console.

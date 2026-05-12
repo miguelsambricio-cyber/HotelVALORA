@@ -38,11 +38,13 @@ settings      /settings/{profile,credentials,…}       3 user-settings sub-tabs
 library       /library/{favorites,top}/{map,list}     map + table views, contact card
 review        /(dashboard)/review                     data-quality queues (real API)
 admin         /user/admin + /user/admin/{agents[/id],   Institutional Operations Center
-              integrations[/id], contacts}            (4 surfaces)
-              ↑ Executive Control Room + AI Operations Center (orbital · CEO + 9 agents) +
-              ↑ Integrations Console + Institutional Relationship Console
-              ↑ See `docs/features/admin.md` + `docs/architecture/admin-ui-architecture.md`
-              ↑ Contacts: `docs/integrations/datasite-contacts.md` § Phase 2.C
+              integrations[/id], contacts, users,      (6 surfaces · 2 scaffolds)
+              campaigns, subscriptions}
+              ↑ Executive Control Room · AI Operations Center · Integrations Console
+              ↑ Contacts (growth funnel) · Users (real users) · Campaigns (activation, scaffold)
+              ↑ Subscriptions (monetization, scaffold)
+              ↑ Conversion arc: contact → invited → onboarded user → active subscriber → premium
+              ↑ See `docs/features/admin.md` + `docs/integrations/datasite-contacts.md` § Phase 2.D
 ```
 
 See **`docs/routing.md`** for the full route map and active-state rules.
@@ -82,6 +84,7 @@ Today's runtime reality:
 - **AI Operations Layer registry is at 12 agents** (CEO + 9 in the institutional orbital roster + `crm_dealflow` hidden + legacy `report_generation` retained for backward compat). Per-agent charters live under `docs/agents/*` (CEO · CoStar Market Data · CompSet Underwriting). The market-vs-underwriting separation is the load-bearing architectural decision — see `docs/architecture/market-vs-underwriting-separation.md`.
 - **Three institutional ingestion workspaces** live under `services/`: `transactions/` (deals + projects, CLI live), `costar/` (country / market / submarket / class warehouse, scaffold + masters live, CLI Phase 2.3.d.1), `compset/` (per-hotel COMPSET + HOTEL_POSITIONING, scaffold + masters live, agent Phase 2.4.1).
 - **Administrator surface is live** at `/user/admin` (Executive Control Room) and `/user/admin/agents` (AI Operations Center — orbital layout with `AgentDetailPanel` slide-out). Bloomberg-terminal aesthetic, mock data today; Phase 3 swaps in realtime reads from `ai_agent_runs` + `INGESTION_LOG` sheets.
+- **Operational growth layer is live** (Phase 2.D.1) — `/user/admin/contacts` (4,547 contacts) · `/user/admin/users` (real users on the platform) · `/user/admin/campaigns` (activation scaffold) · `/user/admin/subscriptions` (monetization scaffold). The contacts base is a **growth engine**, NOT a CRM: the system relation is `contact → invited → onboarded user → active subscriber → premium client`. Migration `0015` extends `users` with `linked_contact_id` + `invitation_status` + `promo_code` + `relationship_owner_email`, adds `campaigns` + `contact_invitations` tables, and adds the reverse FK on contacts. Mutation workflows + bulk actions land in Phase 2.D.2-2.D.4. The previous "relationship intelligence OS" framing was a drift — corrected on 2026-05-12.
 
 ---
 

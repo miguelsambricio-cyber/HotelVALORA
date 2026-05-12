@@ -1,7 +1,9 @@
-# Integrations · Datasite Contacts (institutional relationship intelligence)
+# Integrations · Datasite Contacts (operational growth funnel)
 
 **Last refreshed:** 2026-05-12
-**Status:** 🟢 Phase 2.C live · canonical Master promoted to Supabase (5 tables · 4,547 contacts · 2,990 companies · 2,990 interactions · 143 labels · 34 health rows) · operator console live at `/user/admin/contacts` · quality-first default filters · `promote_to_supabase.py` is idempotent and re-runnable
+**Status:** 🟢 Phase 2.D.1 live · canonical contacts base wired into operational growth funnel · 6 tables (5 from 0014 + 2 new from 0015 minus the shared ones) · 4,547 contacts queryable · `/user/admin/contacts` + `/user/admin/users` consoles live · `/user/admin/campaigns` + `/user/admin/subscriptions` scaffolds live · `promote_to_supabase.py` remains idempotent
+
+**Strategic framing (corrected 2026-05-12):** the contacts base is HOTELVALORA's **growth engine**, NOT a CRM, NOT a "relationship intelligence OS". The system relation is `contact → invited → onboarded user → active subscriber → premium/top-promote client`. The previous Phase 2.C framing leaned too far toward enterprise relationship intelligence; Phase 2.D.1 realigned the surface around operational conversion.
 
 Datasite Outreach is the operator's deal-distribution platform. Its
 Companies & Contacts and Buyer Tracking modules together hold the

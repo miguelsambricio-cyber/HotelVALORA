@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { X, ExternalLink, Mail, Phone, Building2, MapPin, Activity } from "lucide-react";
+import { X, ExternalLink, Mail, Phone, Building2, MapPin, Activity, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContactDetail, TimelineEvent } from "@/lib/admin/contacts/live";
 
@@ -31,10 +31,13 @@ export function ContactDetailDrawer({
   return (
     <aside className="rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-2xl lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
       <DrawerHeader detail={detail} closeHref={closeHref} />
+      <DrawerSection title="Conversion status">
+        <ConversionStatus detail={detail} />
+      </DrawerSection>
       <DrawerSection title="Institutional context">
         <InstitutionalContext detail={detail} />
       </DrawerSection>
-      <DrawerSection title="Strategic">
+      <DrawerSection title="Suggested next action">
         <StrategicSection detail={detail} />
       </DrawerSection>
       <DrawerSection title={`Timeline · ${detail.timeline.length} events`}>
@@ -264,55 +267,72 @@ function ActivityDensity({ density }: { density: number }) {
 function StrategicSection({ detail }: { detail: ContactDetail }) {
   const c = detail.contact;
   const inter = detail.interactions;
+  const inv = c.contact_invitation_status;
+  const isUser = detail.linked_user !== null;
 
-  // Next-action heuristic · deterministic mapping based on band + signals.
-  // Read-only suggestion — operator decides whether to act.
+  // Growth-oriented next-action heuristic · deterministic mapping.
+  // HOTELVALORA's contacts base feeds growth — actions are framed in
+  // funnel terms (invite, promo, campaign), not abstract intelligence.
   const nextAction = ((): { tag: string; tone: "ok" | "warn" | "error" | "neutral" } => {
     if (c.flagged_for_correction || c.email_validity === "invalid")
-      return { tag: "Correct email · invalid address", tone: "error" };
-    if (c.relationship_band === "dormant")
-      return { tag: "Re-engagement campaign · dormant > 3 yr", tone: "warn" };
+      return { tag: "Mark invalid · correct address before any send", tone: "error" };
+    if (isUser && detail.linked_user?.invitation_status === "churn_risk")
+      return { tag: "Re-activate · churn-risk subscriber", tone: "warn" };
+    if (isUser && detail.linked_user?.invitation_status === "inactive")
+      return { tag: "Win-back campaign · inactive user", tone: "warn" };
+    if (isUser) return { tag: "User onboarded · maintain relationship · upsell-ready", tone: "ok" };
+    if (inv === "invited") return { tag: "Re-send / follow up · invite outstanding", tone: "ok" };
+    if (inv === "bounced") return { tag: "Re-confirm address · last invite bounced", tone: "warn" };
+    if (inv === "declined") return { tag: "Park · declined this round, retry next cycle", tone: "neutral" };
+    // Brand-new contact: pick the best growth action by band + signals
     if (c.relationship_band === "strategic")
-      return { tag: "Maintain warm cadence · strategic counterparty", tone: "ok" };
+      return { tag: "Personal invite · strategic counterparty", tone: "ok" };
     if (c.relationship_band === "active")
-      return { tag: "Continue active dialogue · bidirectional thread live", tone: "ok" };
+      return { tag: "Add to beta-invite campaign · active relationship", tone: "ok" };
     if (c.relationship_band === "warm")
-      return { tag: "Promote to active · introduce next deal", tone: "ok" };
+      return { tag: "Invite to platform · assign promo code", tone: "ok" };
+    if (c.relationship_band === "dormant")
+      return { tag: "Park · re-engage via newsletter only", tone: "neutral" };
     if (c.collaboration_potential_score >= 60)
-      return { tag: "High collab potential · initiate outreach", tone: "ok" };
+      return { tag: "Add to outreach campaign · qualified lead", tone: "ok" };
     return { tag: "Background contact · no immediate action", tone: "neutral" };
   })();
 
-  // Warm-intro potential · based on peer density inside the same company
-  const warmIntro =
-    detail.peers.length >= 3
-      ? `Strong · ${detail.peers.length} peers known at the same firm`
-      : detail.peers.length > 0
-        ? `Possible · ${detail.peers.length} peer${detail.peers.length === 1 ? "" : "s"} known at the firm`
-        : "Direct only · no peers at this firm in the Master";
-
-  // Strategic tags · derived signals
+  // Growth tags · derived signals (focus on what unlocks an action)
   const tags: string[] = [];
-  if (c.relationship_band === "strategic" || c.relationship_band === "active")
-    tags.push("institutional-priority");
-  if (c.email_directionality === "bidirectional") tags.push("bidirectional");
-  if (c.collaboration_potential_score >= 70) tags.push("collab-priority");
+  if (isUser) tags.push("converted");
+  if (inv === "invited") tags.push("invite-pending");
+  if (inv === "bounced") tags.push("invite-bounced");
+  if (inv === "converted") tags.push("onboarded");
+  if (c.relationship_band === "strategic" || c.relationship_band === "active") tags.push("priority");
+  if (c.email_directionality === "bidirectional") tags.push("warm");
+  if (c.collaboration_potential_score >= 70) tags.push("qualified-lead");
   if (inter?.latest_deal_stage && /loi|ioi|bid|investment meeting/i.test(inter.latest_deal_stage))
-    tags.push("live-process");
+    tags.push("live-deal");
   if (inter?.declined_date) tags.push("declined-history");
   if (c.bounce_count > 0) tags.push("email-fragile");
   if (c.hotel_focus === "Yes") tags.push("hospitality-mandate");
 
+  // Warm-intro potential · still useful · framed as a growth lever
+  const warmIntro =
+    detail.peers.length >= 3
+      ? `Strong · ${detail.peers.length} peers known at the same firm`
+      : detail.peers.length > 0
+        ? `Possible · ${detail.peers.length} peer${detail.peers.length === 1 ? "" : "s"} at the firm`
+        : "Direct only · no peers at the firm in the Master";
+
   return (
     <div className="space-y-3">
-      <Field
-        label="Suggested next action"
-        value={nextAction.tag}
-        tone={nextAction.tone}
-      />
+      <Field label="Action" value={nextAction.tag} tone={nextAction.tone} />
       <Field label="Warm-intro potential" value={warmIntro} />
-      {c.inferred_relationship_stage && (
-        <Field label="Inferred relationship stage" value={c.inferred_relationship_stage} tone="ok" />
+      {detail.invitation_count > 0 && (
+        <Field
+          label="Invitation history"
+          value={`${detail.invitation_count} invitation event${detail.invitation_count === 1 ? "" : "s"} on record`}
+        />
+      )}
+      {c.last_contacted_at && (
+        <Field label="Last contacted" value={c.last_contacted_at.slice(0, 10)} />
       )}
       {inter?.declined_comments && (
         <Field label="Declined comments" value={inter.declined_comments} />
@@ -330,7 +350,7 @@ function StrategicSection({ detail }: { detail: ContactDetail }) {
       {tags.length > 0 && (
         <div>
           <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
-            Strategic tags
+            Growth tags
           </p>
           <div className="mt-1 flex flex-wrap gap-1">
             {tags.map((t) => (
@@ -344,6 +364,90 @@ function StrategicSection({ detail }: { detail: ContactDetail }) {
           </div>
         </div>
       )}
+      <p className="rounded-md border border-slate-700/40 bg-slate-900/40 p-3 text-[10.5px] leading-relaxed text-slate-400">
+        Read-only today. Mutation surfaces (invite · promo assign · merge · mark invalid · assign owner)
+        land in Phase 2.D.2. Bulk actions in Phase 2.D.3.
+      </p>
+    </div>
+  );
+}
+
+function ConversionStatus({ detail }: { detail: ContactDetail }) {
+  const c = detail.contact;
+  const u = detail.linked_user;
+  const stage = u
+    ? u.invitation_status === "active"
+      ? { label: "Active user", tone: "ok" as const }
+      : u.invitation_status === "onboarding"
+        ? { label: "Onboarding", tone: "ok" as const }
+        : u.invitation_status === "invited"
+          ? { label: "Invited (account created)", tone: "ok" as const }
+          : u.invitation_status === "inactive"
+            ? { label: "Inactive user", tone: "warn" as const }
+            : u.invitation_status === "churn_risk"
+              ? { label: "Churn risk", tone: "error" as const }
+              : { label: u.invitation_status, tone: "neutral" as const }
+    : c.contact_invitation_status === "invited"
+      ? { label: "Invited · awaiting signup", tone: "ok" as const }
+      : c.contact_invitation_status === "onboarding"
+        ? { label: "Onboarding", tone: "ok" as const }
+        : c.contact_invitation_status === "converted"
+          ? { label: "Converted (linked user missing)", tone: "warn" as const }
+          : c.contact_invitation_status === "declined"
+            ? { label: "Declined", tone: "neutral" as const }
+            : c.contact_invitation_status === "bounced"
+              ? { label: "Bounced invite", tone: "warn" as const }
+              : { label: "Not invited", tone: "neutral" as const };
+
+  const stageTone =
+    stage.tone === "ok" ? "bg-emerald-500/20 text-emerald-200 ring-emerald-500/40"
+    : stage.tone === "warn" ? "bg-amber-500/15 text-amber-200 ring-amber-500/40"
+    : stage.tone === "error" ? "bg-rose-500/20 text-rose-200 ring-rose-500/40"
+    : "bg-slate-700/40 text-slate-300 ring-slate-600/40";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+          Stage
+        </span>
+        <span className={cn(
+          "inline-flex items-center rounded px-2 py-0.5 font-headline text-[10px] font-bold uppercase tracking-[0.2em] ring-1",
+          stageTone,
+        )}>
+          {stage.label}
+        </span>
+      </div>
+
+      {u && (
+        <div className="rounded-md bg-slate-900/40 p-3 ring-1 ring-slate-700/40">
+          <div className="flex items-center gap-2">
+            <UserCircle2 size={14} className="text-emerald-300" />
+            <Link
+              href={`/user/admin/users?search=${encodeURIComponent(u.email)}`}
+              className="font-headline text-[12px] font-bold text-emerald-200 hover:text-emerald-100"
+            >
+              {u.full_name || u.email}
+            </Link>
+            <span className="ml-auto font-mono text-[9.5px] text-slate-500">{u.tier}</span>
+          </div>
+          <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1">
+            <Stat label="Role" value={u.role} />
+            <Stat label="Status" value={u.invitation_status} />
+            <Stat label="Signed up" value={u.created_at.slice(0, 10)} />
+            <Stat label="Last seen" value={u.last_seen_at ? u.last_seen_at.slice(0, 10) : "—"} />
+          </dl>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        <Field label="Contact invite state" value={c.contact_invitation_status.replace(/_/g, " ")} />
+        <Field
+          label="Invitations sent"
+          value={`${detail.invitation_count}`}
+          tone={detail.invitation_count > 0 ? "ok" : "neutral"}
+        />
+      </div>
     </div>
   );
 }

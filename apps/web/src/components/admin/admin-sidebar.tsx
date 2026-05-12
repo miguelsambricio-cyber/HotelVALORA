@@ -14,6 +14,9 @@ import {
   Building2,
   ArrowLeft,
   Users,
+  UserCircle2,
+  Megaphone,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,9 +31,12 @@ interface NavItem {
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
+  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live" },
+  { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live" },
+  { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Scaffold" },
+  { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Scaffold" },
   { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live" },
   { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live" },
-  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [
