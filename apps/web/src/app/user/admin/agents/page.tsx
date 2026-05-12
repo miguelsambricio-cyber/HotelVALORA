@@ -56,9 +56,15 @@ export default async function AgentsPage() {
 
       {/* Header */}
       <header className="space-y-2">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-md bg-forest-900 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-lime-300">
             Live
+          </span>
+          <span
+            title="Operator-only · internal infrastructure with no customer-facing counterpart by design"
+            className="rounded-md bg-slate-100 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-slate-600 ring-1 ring-inset ring-slate-200"
+          >
+            Operator only · internal infrastructure
           </span>
           <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.32em] text-slate-500">
             AI Operations Center

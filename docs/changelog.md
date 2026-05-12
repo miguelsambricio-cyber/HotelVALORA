@@ -4,6 +4,25 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Admin sidebar normalisation · operational state ≠ access scope
+
+Sidebar was mixing two orthogonal concerns: operational maturity (is this module working?) and access scope (who uses it?). AI Operations + Integrations were carrying `INTERNAL` even though both are fully operational, which read as "less than LIVE" — wrong signal.
+
+### Fix
+- `NavTone` reduced to `live | beta | planned` · `internal` removed
+- Every operational module now carries `LIVE` in the sidebar: Contacts · Users · Campaigns · Subscriptions · AI Operations · Integrations
+- Access-scope chip ("Operator only · internal infrastructure") moved into the AI Operations + Integrations page headers · slate-toned secondary metadata that sits alongside the existing eyebrow row
+
+### Rubric (corrected · `docs/features/admin.md` § 0)
+| Surface | Concern answered | Vocabulary |
+|---|---|---|
+| Sidebar badge | *is this module operational?* | LIVE / BETA / PLANNED |
+| Page header chip | *who uses this module and why?* | Operator only · internal infrastructure · (none = default operator console for customer-visible data) |
+
+The two layers are intentionally orthogonal: access scope is additive context, never a replacement for the operational badge.
+
+---
+
 ## 2026-05-13 — Admin sidebar · status semantics rubric codified · Campaigns + Subscriptions promoted to LIVE
 
 Sidebar badges now follow a 4-state global rubric. Campaigns + Subscriptions flip from "Scaffold" to **LIVE** — both surfaces have operational routes, dashboards, attribution models, activation UI, entity tables and invitation-flow integration shipped. AI Operations + Integrations re-classified as **INTERNAL** (operator-only infrastructure with no customer-facing counterpart by design). Planned items use "Planned" instead of the implementation-detail "Phase 3" label.

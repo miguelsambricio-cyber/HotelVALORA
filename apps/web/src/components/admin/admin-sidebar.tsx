@@ -21,18 +21,18 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Status semantics (global rubric — codified 2026-05-13):
+ * Status semantics (sidebar = operational map · codified 2026-05-13):
  *
- *   LIVE     · operational end-to-end MVP · customer-visible impact
- *   BETA     · partially connected · operational with rough edges
- *   PLANNED  · not yet built · static affordance
- *   INTERNAL · operator-only tooling · no public-facing counterpart
+ *   LIVE    · operational end-to-end MVP
+ *   BETA    · partially connected · operational with rough edges
+ *   PLANNED · not yet built · static affordance
  *
- * A surface picks the most informative single label. INTERNAL replaces
- * LIVE for surfaces that will never have a customer-facing counterpart
- * (AI Operations infrastructure, Integrations data sources).
+ * The sidebar answers ONE question: *is this module operational?* —
+ * not who uses it. Access-scope ("operator only", "internal tooling")
+ * is page-header secondary metadata, never replaces the operational
+ * badge in navigation.
  */
-type NavTone = "live" | "beta" | "planned" | "internal";
+type NavTone = "live" | "beta" | "planned";
 
 interface NavItem {
   /** Real Next.js route. Omit for disabled / planned items — they render as
@@ -44,16 +44,17 @@ interface NavItem {
   tone?: NavTone;
 }
 
+// Sidebar = operational maturity only. Access scope (operator-only,
+// internal infrastructure) lives in each page header — see
+// docs/features/admin.md § 0.
 const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
-  // Customer-visible operational surfaces · operational end-to-end → LIVE
   { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live", tone: "live" },
   { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live", tone: "live" },
   { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Live", tone: "live" },
   { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },
-  // Operator infrastructure surfaces · no public-facing counterpart → INTERNAL
-  { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Internal", tone: "internal" },
-  { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Internal", tone: "internal" },
+  { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live", tone: "live" },
+  { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live", tone: "live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [
@@ -213,10 +214,6 @@ function badgeToneClass(tone: NavTone | undefined, active: boolean): string {
       return active
         ? "bg-amber-100 text-amber-800"
         : "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/60";
-    case "internal":
-      return active
-        ? "bg-forest-900 text-lime-300"
-        : "bg-slate-900 text-lime-300";
     case "planned":
       return "bg-slate-100 text-slate-500";
     default:

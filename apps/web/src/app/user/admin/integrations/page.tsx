@@ -64,6 +64,12 @@ export default async function IntegrationsPage() {
             <p className="mt-2 max-w-3xl text-[13.5px] leading-relaxed text-slate-300/90">
               The institutional source roster powering the Market Intelligence Agent.
             </p>
+            <span
+              title="Operator-only · internal infrastructure with no customer-facing counterpart by design"
+              className="mt-3 inline-flex items-center rounded-md bg-slate-900/60 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-slate-300 ring-1 ring-inset ring-slate-700/60"
+            >
+              Operator only · internal infrastructure
+            </span>
           </div>
           <SummaryStrip live={live} />
         </div>

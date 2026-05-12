@@ -7,23 +7,36 @@ Institutional Operations Center for HOTELVALORA. The visual layer of the AI Oper
 
 > Institutional baseline state: `docs/SNAPSHOT_2026_05_12.md` § 3.3.
 
-## 0. Sidebar status rubric (codified 2026-05-13)
+## 0. Status semantics — sidebar vs page header (codified 2026-05-13)
 
-The badge on every admin nav item now picks from a 4-state vocabulary. A surface picks the most informative single label; INTERNAL replaces LIVE for surfaces that will never have a customer-facing counterpart.
+The sidebar carries **operational maturity only**. Access scope ("operator only", "internal infrastructure") is page-header secondary metadata, not a sidebar badge. The two concerns are deliberately split so the sidebar reads as a clean operational map.
+
+### Sidebar badges · operational maturity
+
+The sidebar answers one question — *is this module operational?*
 
 | Badge | Tone | Meaning |
 |---|---|---|
-| **LIVE** | emerald | Operational end-to-end MVP · customer-visible impact · safe to use in production |
-| **BETA** | amber | Partially connected · operational but with rough edges or incomplete wiring · operator should expect occasional polish gaps |
-| **PLANNED** | slate | Not yet built · surface renders as a non-interactive pill for visibility into the roadmap |
-| **INTERNAL** | forest / lime | Operator-only tooling · no public-facing counterpart by design (e.g. AI Operations agents, Integrations data sources) · "internal" replaces "live" for these surfaces |
+| **LIVE** | emerald | Operational end-to-end MVP · safe to use in production |
+| **BETA** | amber | Partially connected · operational but with rough edges · expect polish gaps |
+| **PLANNED** | slate | Not yet built · static affordance for the roadmap |
 
-Current sidebar assignments:
-- `Contacts` · `Users` · `Campaigns` · `Subscriptions` → **LIVE** (customer-visible operational data)
-- `AI Operations` · `Integrations` → **INTERNAL** (operator infrastructure)
-- `Workspaces` · `Observability` · `Cost Controls` · `Audit Log` → **PLANNED**
+Current sidebar assignments (every operational module is LIVE):
+- LIVE — Contacts · Users · Campaigns · Subscriptions · AI Operations · Integrations
+- PLANNED — Workspaces · Observability · Cost Controls · Audit Log
 
-The rubric is the contract that future surfaces must hew to. Promoting from BETA → LIVE requires: end-to-end happy path with audit · soft-delete posture (where mutations exist) · no caller-visible holes in the operator workflow.
+Promoting BETA → LIVE requires: end-to-end happy path with audit · soft-delete posture where mutations exist · no caller-visible holes in the operator workflow.
+
+### Page header secondary metadata · access scope
+
+Where useful, a page's header chip strip surfaces *who uses this module and why*. The current vocabulary:
+
+| Chip text | Where it appears | What it signals |
+|---|---|---|
+| Operator only · internal infrastructure | AI Operations, Integrations | This surface exists for operator infrastructure and has no customer-facing counterpart by design |
+| (none) | Contacts, Users, Campaigns, Subscriptions | Default: operator console for customer-visible data |
+
+Access scope is *additive context*. It never replaces the operational badge in navigation.
 
 ---
 
