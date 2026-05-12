@@ -41,6 +41,14 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
       autoRefreshToken: false,
       detectSessionInUrl: false,
     },
+    global: {
+      // Next.js wraps the global fetch with a Data Cache layer. For
+      // admin / operator queries we always want the freshest row —
+      // invitation status, subscription state, audit counts all flip
+      // out-of-band. Force every PostgREST roundtrip through this
+      // surface to bypass the Data Cache.
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
   return cached;
 }

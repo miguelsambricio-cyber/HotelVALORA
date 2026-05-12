@@ -655,10 +655,14 @@ export type Database = {
       }
       contact_invitations: {
         Row: {
+          accepted_at: string | null
+          accepted_by_user_id: string | null
           campaign_id: string | null
           contact_id: string
+          converted_at: string | null
           created_at: string
           default_subscription_tier: string | null
+          expires_at: string | null
           id: string
           invited_by_email: string | null
           invited_email: string
@@ -670,10 +674,14 @@ export type Database = {
           status: string
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by_user_id?: string | null
           campaign_id?: string | null
           contact_id: string
+          converted_at?: string | null
           created_at?: string
           default_subscription_tier?: string | null
+          expires_at?: string | null
           id?: string
           invited_by_email?: string | null
           invited_email: string
@@ -685,10 +693,14 @@ export type Database = {
           status?: string
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by_user_id?: string | null
           campaign_id?: string | null
           contact_id?: string
+          converted_at?: string | null
           created_at?: string
           default_subscription_tier?: string | null
+          expires_at?: string | null
           id?: string
           invited_by_email?: string | null
           invited_email?: string
@@ -700,6 +712,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "contact_invitations_accepted_by_user_id_fkey"
+            columns: ["accepted_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contact_invitations_campaign_id_fkey"
             columns: ["campaign_id"]

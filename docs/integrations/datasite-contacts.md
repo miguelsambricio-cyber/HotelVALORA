@@ -443,6 +443,40 @@ backed subscriptions are operator-edit-only via the Stripe dashboard
 so the webhook stays authoritative; admin UI shows them with a yellow
 warning banner.
 
+### Phase 2.D.5 — Invitation accept flow closes the funnel (shipped same day)
+
+The bulk-invite Resend send loop from Phase 2.D.3 generates a
+`contact_invitations.id` as the invite token. Phase 2.D.5 wires the
+public `/invite/<token>` landing that:
+
+| Layer | What it does |
+|---|---|
+| Token validation | uuid pre-check · single DB roundtrip joins `relationship_contacts` + `campaigns` |
+| First-visit stamp | `sent`/`pending`/`delivered` → `opened` · one `activity_log` row · idempotent |
+| Blocking states | revoked · declined · bounced · expired · already-accepted — each renders its own institutional card |
+| Acceptance | One-click form when signed in · `/login?next=/invite/<token>` redirect when not |
+| Funnel closure | `acceptInvitationAction` runs the contact↔user link, subscription bootstrap, and invitation status flip in sequence with 2 audit rows |
+
+**Schema (migration `0020`):**
+- `contact_invitations.accepted_at`, `converted_at`, `accepted_by_user_id`, `expires_at` (default 30 days)
+- Status CHECK extended with `revoked` + `expired`
+
+**Server-side:**
+- `lib/invitations/live.ts` — token landing read + opened-stamp
+- `lib/invitations/accept.ts` — the funnel-closer (`acceptInvitationAction`) + operator-only `revokeInvitationAction`
+
+**Data Cache bug fix:** The Supabase admin client now passes
+`cache: 'no-store'` on every roundtrip. Surfaced during the
+invitation-state smoke test (stale snapshot of `status='sent'`
+persisted even after a SQL `UPDATE status='revoked'`); fixing on the
+shared client benefits every admin surface (contacts, users,
+campaigns, subscriptions, invitations).
+
+**Out of scope (deferred — explicit non-features per directive):**
+billing automation · Stripe self-serve upgrades · referral systems ·
+affiliate systems · lifecycle automation. Operator drives every
+state flip.
+
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's
 Full Report into `incoming/`, the dedup logic merges by email/LinkedIn

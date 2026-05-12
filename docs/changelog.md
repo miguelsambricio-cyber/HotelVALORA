@@ -4,6 +4,56 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Phase 2.D.5 · Invitation accept flow · contact → user → subscription end-to-end
+
+Closes the acquisition funnel. Recipients of a Resend invitation can now land on `/invite/<token>`, sign in via Supabase Auth (Google), and one-click accept — which deterministically links the contact ↔ user, bootstraps a subscription at the operator-chosen tier, and preserves the campaign attribution end-to-end.
+
+### Database — migration `0020_invitation_accept_flow`
+- `contact_invitations` gains `accepted_at`, `converted_at`, `accepted_by_user_id` FK → users, `expires_at timestamptz DEFAULT (now() + interval '30 days')`. Existing rows pick up the default on insert; back-dated rows stay NULL.
+- Status CHECK constraint extended from 9 to 11 values: adds `revoked` (operator-cancel) and `expired` (natural-end). Existing operator code remains compatible — both new values are explicitly handled by the read/write paths.
+- Indexes: `contact_invitations_expires_idx` (partial WHERE NOT NULL), `contact_invitations_accepted_by_idx`.
+
+### Public `/invite/[token]` landing
+- New route `apps/web/src/app/invite/[token]/page.tsx` — **NOT operator-gated by design**; the unguessable token (uuid) is the bearer credential.
+- Renders the institutional preview card with: company, invited email, sender, campaign attribution, promo code, tier-on-acceptance, expires-at. Visual contract mirrors the Resend invite email (forest header, lime CTA).
+- Idempotent first-visit stamp: status `pending`/`sent`/`delivered` flips to `opened` with one `activity_log` row.
+- Blocking states render their own card with copy:
+  - `revoked` → "This invitation was revoked"
+  - `declined` → "Previously declined"
+  - `bounced` → "Delivery issue detected"
+  - `expired` (or past `expires_at`) → "This invitation has expired"
+  - `accepted` / `converted` → "Already accepted · sign in to your account" with link to `/library`
+- Signed-in user with matching email: one-click **Accept invitation** form posting to `acceptInvitationAction`. Email mismatch shows a yellow warning but still allows acceptance (token-bearer policy).
+- Anonymous user: **Sign in to accept** CTA bouncing through `/login?next=/invite/<token>`.
+
+### Server actions — `lib/invitations/`
+- `live.ts` · `loadInvitationLanding(token)` (uuid pre-check, single roundtrip joining `relationship_contacts` + `campaigns`) and `markInvitationOpened(invitationId)` (idempotent state flip, audit row).
+- `accept.ts` · `acceptInvitationAction(formData)` — the funnel-closing flow:
+  1. Requires Supabase Auth session (or redirects to `/login`).
+  2. Loads invitation by token. Gates by status (revoked/declined/expired/bounced → fail back to landing with error; converted → bounce to `/library`).
+  3. Resolves `public.users` row for the auth user (relies on the `handle_new_user` trigger; falls back to manual insert if missing).
+  4. Sequentially: links contact `linked_user_id` + `contact_invitation_status='converted'`, links user `linked_contact_id` + `invitation_status='active'`, bootstraps `subscriptions` row with `tier = default_subscription_tier ?? 'free'` and `source_campaign_id` preserved, flips invitation `status='converted'` + `accepted_at` + `converted_at` + `accepted_by_user_id` + `responded_at`.
+  5. Writes per-stage `activity_log` rows: `invitation.accepted` (on contact) + `invitation.converted` (on subscription). Partial-failure path captures `invitation.subscription_bootstrap_failed` for ops.
+  6. Redirects to `/library?onboarded=1`.
+- `revokeInvitationAction(formData)` — operator-only (dynamic `requireOperator` import to avoid bundling into the public path). Flips `status='revoked'` + audit row. Gates by accepted/converted (can't revoke a closed funnel step).
+
+### Bug fix · Next.js Data Cache bypass on the Supabase admin client
+- `apps/web/src/lib/supabase/admin.ts` now passes `global.fetch` to the client with `cache: 'no-store'` on every roundtrip.
+- Smoke-discovered: Next.js wraps the global `fetch` with a Data Cache that was returning stale invitation statuses across renders (a `'sent' → 'opened'` flip would persist across landings even after a SQL `UPDATE` flipped the row to `'revoked'`). All admin queries (contacts, users, subscriptions, campaigns, invitations) now bypass the cache. This was a latent issue across the entire admin surface — fixing it on the shared client means every subsequent operator surface benefits.
+
+### Smoke
+- End-to-end: inserted invitation, hit `/invite/<id>` → status flipped sent → opened with `invitation.opened` audit row, page rendered institutional landing with campaign + promo + tier + sender.
+- Blocking states: SQL `UPDATE status='revoked'` → curl returns the "invitation was revoked" cancellation card.
+- Invalid uuids: hit `/invite/00000000-...` and `/invite/not-a-uuid` → both render "Invitation not found" shell (regex pre-check catches malformed tokens before the DB roundtrip).
+- Typecheck clean. Smoke row cleaned up.
+
+### Out of scope (deferred)
+- Billing automation · Stripe self-serve upgrades · referral systems · affiliate systems · lifecycle automation (per the explicit non-feature list).
+- The natural-end `expired` cron (Phase 2.D.5b) — for now `expires_at` is enforced server-side at acceptance time, and the landing renders a clean "expired" card. Adding a background sweep that pre-stamps `status='expired'` is a half-day follow-up.
+- Operator revoke UI surface — `revokeInvitationAction` is shipped but not yet wired into any drawer / toolbar.
+
+---
+
 ## 2026-05-12 — Phase 2.D.4 · Campaigns CRUD + Subscriptions admin + funnel lifecycle joins
 
 The contacts layer becomes a real acquisition + subscription operations system. Operator can run campaigns, attribute every send/conversion/subscription, manually grant tiers (Comped + manual), set expirations, and see the full funnel — `contact → invited → onboarded → active subscriber → expired → inactive` — joined per row.
