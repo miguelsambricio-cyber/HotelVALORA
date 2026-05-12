@@ -75,6 +75,26 @@ try:
 except (AttributeError, ValueError):
     pass
 
+# Import the Datasite ingester's Master I/O so we can auto-merge Google
+# rows into the canonical Master without duplicating Master schema + Summary
+# logic. Both scripts live in the same directory, so a plain import works
+# once we put that directory on the path.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from ingest import (  # type: ignore[import-not-found]
+        MASTER_SCHEMA,
+        load_existing_master,
+        write_master_workbook,
+        build_summary,
+        synthesize_master_id,
+        consolidate_notes,
+        canonical_investor_type,
+        detect_hotel_focus,
+    )
+except ImportError as err:
+    print(f"ERROR: cannot import from ingest.py · {err}", file=sys.stderr)
+    sys.exit(2)
+
 try:
     from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -593,6 +613,254 @@ def recommend_action(strategy: str, score: float, g: dict[str, Any],
     return "NO_OP", "no match"
 
 
+# ── Phase 2.B · auto-merge Google rows into the canonical Master ───────────
+
+
+def build_master_row_from_google(g: dict[str, Any], batch_id: str) -> dict[str, Any] | None:
+    """Compose a canonical Master row from a Google normalized record.
+
+    Returns None when the row lacks any usable identifier (no email · no
+    LinkedIn · no name+company).
+    """
+    full_name = g.get("full_name", "")
+    email = g.get("primary_email", "")
+    phone = g.get("primary_phone", "")
+    linkedin = g.get("linkedin", "")
+    company = g.get("company", "")
+    title = g.get("title", "")
+    classification = g.get("classification", "")
+    notes = g.get("notes", "")
+    labels = g.get("labels", "")
+    address = g.get("address", "")
+
+    if not (email or linkedin or (full_name and company)):
+        return None
+
+    # Map Google classification to canonical investor_type via the same rules
+    # used by the Datasite ingester (re-uses canonical_investor_type from ingest.py)
+    canonical = canonical_investor_type(classification, "", notes + " " + labels, "")
+    if canonical in ("Unknown", "") and classification:
+        # Use the Google high-level bucket title-cased as a fallback
+        canonical = classification.capitalize()
+
+    # Hotel-focus via the imported helper
+    hf = detect_hotel_focus("", notes, labels, "")
+
+    # Light address split (Google's address is already "Street, City, Region, Postal, Country")
+    addr_parts = [p.strip() for p in address.split(",") if p.strip()]
+    city = ""
+    country = ""
+    if len(addr_parts) >= 1:
+        # Best-effort: last token = country, second-to-last = city
+        country = addr_parts[-1]
+        if len(addr_parts) >= 2:
+            city = addr_parts[-2]
+
+    geography = ", ".join(p for p in (city, country) if p)
+
+    return {
+        "master_id": synthesize_master_id(email, linkedin, full_name, company),
+        "full_name": full_name,
+        "email": email,
+        "phone": phone,
+        "linkedin": linkedin,
+        "title": title,
+        "role": "",
+        "is_primary_contact": "",
+        "company": company,
+        "investor_type": canonical,
+        "investor_subtype": "",
+        "tier": "",
+        "industry": "",
+        "fund_size": "",
+        "investment_preference": "",
+        "investment_min": "",
+        "investment_max": "",
+        "association": "",
+        "hotel_focus": hf,
+        "geography": geography,
+        "city": city,
+        "state": "",
+        "country": country,
+        "continent": "",
+        "latest_deal_stage": "",
+        "last_activity_type": "",
+        "last_activity_date": "",
+        "buyer_added_date": "",
+        "pipeline_state": "",
+        "ioi_bid_low": "", "ioi_bid_high": "",
+        "loi_bid_low": "", "loi_bid_high": "",
+        "revised_bid_low": "", "revised_bid_high": "",
+        "relationship_status": "Active",
+        "relationship_manager": "",
+        "coverage_officer": "",
+        "calling_lead": "",
+        "notes_consolidated": consolidate_notes(notes, labels),
+        "datasite_contact_number": "",
+        "datasite_company_number": "",
+        "client_contact_id": "",
+        "client_company_id": "",
+        "source_file": g.get("source_file", "google-contacts"),
+        "first_seen_batch_id": batch_id,
+        "last_seen_batch_id": batch_id,
+        "last_updated_at": now_iso(),
+        # Phase 2.B Gmail-derived fields default empty · populated by ingest_gmail.py
+        "relationship_strength": 0,
+        "last_email_date": "",
+        "active_threads": 0,
+        "gmail_labels": "",
+        "inferred_relationship_stage": "",
+        "email_directionality": "",
+        "gmail_signal_source": "",
+    }
+
+
+# Datasite-authoritative fields · Google MUST NOT overwrite these. Google
+# can only FILL when they are empty on the existing Master row.
+DATASITE_AUTHORITATIVE_FIELDS = {
+    "investor_type", "investor_subtype", "tier", "industry",
+    "fund_size", "investment_preference", "investment_min", "investment_max",
+    "association", "continent",
+    "latest_deal_stage", "last_activity_type", "last_activity_date",
+    "buyer_added_date", "pipeline_state",
+    "ioi_bid_low", "ioi_bid_high", "loi_bid_low", "loi_bid_high",
+    "revised_bid_low", "revised_bid_high",
+    "relationship_manager", "coverage_officer", "calling_lead",
+    "datasite_contact_number", "datasite_company_number",
+    "client_contact_id", "client_company_id",
+    "first_seen_batch_id",  # never re-key provenance
+    "master_id",            # never re-key the synthetic id
+}
+
+
+def merge_google_into_master_row(existing: dict[str, Any], google_row: dict[str, Any],
+                                 batch_id: str) -> list[str]:
+    """Strict gap-fill merge · only writes when existing field is empty.
+
+    Returns list of fields changed. Notes are concatenated (dedup substrings).
+    `source_file` becomes a semicolon-joined trail.
+    """
+    changed: list[str] = []
+    for field in MASTER_SCHEMA:
+        if field in DATASITE_AUTHORITATIVE_FIELDS:
+            continue
+        if field in ("last_seen_batch_id", "last_updated_at", "source_file"):
+            continue  # handled below
+        if field == "notes_consolidated":
+            merged = consolidate_notes(existing.get(field, ""), google_row.get(field, ""))
+            if merged != existing.get(field, ""):
+                existing[field] = merged
+                changed.append(field)
+            continue
+        new_val = google_row.get(field, "")
+        old_val = existing.get(field, "")
+        # Strict gap-fill · only set when existing is empty (or 0 for numerics)
+        if new_val and (not old_val or old_val == 0):
+            existing[field] = new_val
+            changed.append(field)
+
+    existing["last_seen_batch_id"] = batch_id
+    existing["last_updated_at"] = now_iso()
+    # Append source file trail (so we know which Google CSV touched this row)
+    existing_src = str(existing.get("source_file", ""))
+    g_src = google_row.get("source_file", "")
+    if g_src and g_src not in existing_src:
+        existing["source_file"] = f"{existing_src}; {g_src}".strip("; ")
+    return changed
+
+
+def apply_google_to_master(enriched: list[dict[str, Any]],
+                           normalized: list[dict[str, Any]],
+                           batch_id: str) -> tuple[int, int, int]:
+    """Apply Google's MERGE/INSERT recommendations to the canonical Master.
+
+    Loads the full Master state (Master + Contacts + Companies + Activities
+    sheets), mutates Master rows, recomputes Summary, writes back.
+
+    Returns (inserted, merged, skipped).
+    """
+    master_rows, contacts_rows, companies_rows, activities_rows = load_existing_master()
+
+    by_master_id = {r.get("master_id"): i for i, r in enumerate(master_rows) if r.get("master_id")}
+    by_google_id = {n["google_id"]: n for n in normalized}
+
+    inserted = merged_count = skipped = 0
+    apply_log: list[dict[str, str]] = []
+
+    for rec in enriched:
+        action = rec.get("recommended_action")
+        if action not in ("MERGE", "INSERT"):
+            continue
+        g = by_google_id.get(rec.get("google_id"))
+        if not g:
+            skipped += 1
+            continue
+        canonical = build_master_row_from_google(g, batch_id)
+        if not canonical:
+            skipped += 1
+            continue
+
+        if action == "MERGE":
+            target_id = rec.get("master_id")
+            idx = by_master_id.get(target_id)
+            if idx is None:
+                # Master row vanished between resolution and apply · defensive INSERT
+                master_rows.append(canonical)
+                by_master_id[canonical["master_id"]] = len(master_rows) - 1
+                inserted += 1
+                apply_log.append({
+                    "action": "INSERT (fallback)",
+                    "google_id": g["google_id"],
+                    "master_id": canonical["master_id"],
+                    "full_name": canonical["full_name"],
+                    "company": canonical["company"],
+                    "fields_changed": "all (new row)",
+                })
+            else:
+                changed = merge_google_into_master_row(master_rows[idx], canonical, batch_id)
+                if changed:
+                    merged_count += 1
+                    apply_log.append({
+                        "action": "MERGE",
+                        "google_id": g["google_id"],
+                        "master_id": target_id,
+                        "full_name": master_rows[idx].get("full_name", ""),
+                        "company": master_rows[idx].get("company", ""),
+                        "fields_changed": "|".join(changed),
+                    })
+                else:
+                    skipped += 1
+        elif action == "INSERT":
+            master_rows.append(canonical)
+            by_master_id[canonical["master_id"]] = len(master_rows) - 1
+            inserted += 1
+            apply_log.append({
+                "action": "INSERT",
+                "google_id": g["google_id"],
+                "master_id": canonical["master_id"],
+                "full_name": canonical["full_name"],
+                "company": canonical["company"],
+                "fields_changed": "all (new row)",
+            })
+
+    # Recompute Summary against the mutated master
+    summary = build_summary(master_rows, companies_rows, activities_rows, batch_id)
+    write_master_workbook(master_rows, contacts_rows, companies_rows, activities_rows, summary)
+
+    # Write apply log (audit trail of what we just did to the Master)
+    apply_csv = REPORTS / f"google-applied-to-master_{batch_id}.csv"
+    if apply_log:
+        with apply_csv.open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=[
+                "action", "google_id", "master_id", "full_name", "company", "fields_changed",
+            ])
+            w.writeheader()
+            for row in apply_log:
+                w.writerow(row)
+
+    return inserted, merged_count, skipped
+
+
 # ── output writers ──────────────────────────────────────────────────────────
 
 
@@ -1071,7 +1339,15 @@ def main() -> int:
         "recommended_action", "recommendation_reason",
     ])
 
-    # Markdown report
+    # Phase 2.B · auto-merge Google INSERTs and MERGEs into the canonical Master
+    print(f"\n→ applying Google recommendations to canonical Master")
+    inserted, merged_cnt, applied_skipped = apply_google_to_master(
+        all_enriched, all_normalized, last_batch_id,
+    )
+    print(f"  master · inserted={inserted} · merged={merged_cnt} · skipped={applied_skipped}")
+
+    # Markdown report (note: counts reflect post-merge Master state since
+    # build_summary was just re-run inside apply_google_to_master)
     report_path = write_enrichment_report(
         all_normalized, all_enriched, within_dups, len(master), last_batch_id, processed_files,
     )

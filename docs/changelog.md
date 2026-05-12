@@ -4,6 +4,140 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.B · Institutional relationship graph · 3 ingestion lanes + Gmail signal intelligence
+
+The CONTACTOS pipeline becomes the canonical institutional relationship graph for HotelVALORA. Three lanes feed ONE Master:
+
+1. **Datasite Outreach** · Full Report .xlsm → canonical Master rows
+2. **Google Contacts** · CSV → auto-merge into Master (was read-only · now writes via the same dedup engine with strict Datasite-authoritative gap-fill)
+3. **Gmail relationship signals** · JSONL snapshots → populate 6 new Master fields (deal stage · relationship strength · engagement history)
+
+Single entry point `scripts/contactos/pipeline.py` dispatches all three to the right handler · auto-archives processed files to `old/` with structured names: `<source-type>-<original-stem>-<batch_id>.<ext>`.
+
+### Master schema extended (6 new institutional fields)
+- `relationship_strength` · 0–100 deterministic score · derived from email recency + thread volume + Gmail label depth + Datasite pipeline alignment
+- `last_email_date` · most recent inbound/outbound thread
+- `active_threads` · rolling 12-month Gmail thread count
+- `gmail_labels` · semicolon-joined list of institutional Gmail labels touching this email
+- `inferred_relationship_stage` · canonical · derived from Gmail labels + Datasite pipeline (Active LOI · Investor · Interested · Lender · Follow-up · etc.)
+- `email_directionality` · inbound | outbound | bidirectional | none
+- (plus `gmail_signal_source` · provenance of the snapshot that populated these fields)
+
+These fields are appended to MASTER_SCHEMA (never reordered) · existing position-binding consumers untouched.
+
+### `pipeline.py` · unified orchestrator
+Walks `incoming/` + `incoming/google-contacts/` + `incoming/gmail-signals/`. Detects file type by subfolder. Dispatches to:
+- `ingest.py` (Datasite .xlsm/.xlsx)
+- `ingest_google.py` (Google Contacts .csv)
+- `ingest_gmail.py` (Gmail signal .jsonl)
+
+Each handler runs in its own subprocess so a failure in one lane doesn't poison the others · Master is the canonical shared state on disk between runs.
+
+Structured renames on archive: original `mis_contactos.csv` becomes `google-contacts-mis_contactos-20260512T183325Z.csv` in `old/google-contacts/`. Operator sees clean source-type · timestamp prefix · everything traceable.
+
+### `ingest_google.py` · upgraded from read-only to auto-merge
+Previously the Google handler produced only an enrichment workbook + reports · operator had to cherry-pick. Now it ALSO writes back to Master:
+- For each `recommended_action=MERGE` row: gap-fill merge (only fills fields where Master is empty · Datasite-authoritative fields like `investor_type`, `pipeline_state`, `latest_deal_stage`, all bid columns NEVER overwritten · notes concatenated)
+- For each `recommended_action=INSERT` row: append a new canonical Master row built from the Google normalized record
+- Audit trail: per-batch `google-applied-to-master_<batch>.csv` lists every row touched + fields changed
+- `REVIEW` and `NO_OP` rows still surface in the enrichment workbook for operator decision · they do NOT auto-merge
+
+`DATASITE_AUTHORITATIVE_FIELDS` set: investor_type · investor_subtype · tier · industry · fund_size · investment_preference · investment_min/max · association · continent · all deal-state fields · all bid columns · relationship_manager · coverage_officer · datasite_* IDs · client_* IDs. Google can only ADD information to empty cells in these.
+
+### `ingest_gmail.py` · new · Gmail signal merger
+Reads JSONL snapshots from `incoming/gmail-signals/`. Each line is one institutional email's aggregated signal:
+```json
+{
+  "email": "investor@firm.com",
+  "labels": ["INVERSOR INTERESADO", "FINANCIADORES SEGUIMIENTO"],
+  "thread_count": 7,
+  "last_email_date": "2026-04-22",
+  "first_email_date": "2024-08-15",
+  "directionality": "bidirectional",
+  "inbound_count": 3,
+  "outbound_count": 4
+}
+```
+
+Joins by email to Master rows. Populates the 6 new Gmail fields. Unmatched signals (no Master row for that email) are logged to `gmail-unmatched-emails_<batch>.csv` for operator review · NOT auto-inserted (personal relationships don't get auto-promoted to the institutional graph).
+
+Built-in canonical stage taxonomy (`STAGE_PRECEDENCE`):
+- Active LOI (any `LOI - X` label) ← highest precedence · live deals
+- Active MoU
+- Investor · Interested / Follow-up / Contacted
+- Lender · Interested / Follow-up / Contacted
+- Hotel Chain · Interested / Follow-up / Contacted
+- Developer · Interested / Follow-up
+- Broker · Follow-up / Contacted
+- Hotel Owner · Contacted
+- F&B Operator · Engaged
+- Branded Residences · Engaged
+- Investor Q&A · Active
+- Investor Round · Active
+- Declined ← labels containing RECHAZADO or NO INTERESADO
+
+`compute_relationship_strength(...)` · deterministic 0–100 score:
+- Recency boost: +30 if <30 days · +20 <90d · +10 <180d · +5 <365d
+- Volume: +min(threads, 10) × 3 (up to +30)
+- Directionality: +10 bidirectional · +5 outbound · +2 inbound
+- Label depth: +30 for INTERESADO · +20 for SEGUIMIENTO · +25 for LOI/MoU · -20 for RECHAZADO/NO INTERESADO
+- Datasite alignment: +15 when pipeline_state includes LOI/Bid/Investment Meeting · -10 when Declined
+- Clamped to [0, 100]
+
+### `extract_gmail_signals.py` · new · MCP-driven Gmail extraction
+Helper that converts MCP-saved `mcp__claude_ai_Gmail__search_threads` raw JSON dumps into the canonical signal JSONL. Workflow:
+
+1. Claude (this session) calls search_threads for each institutional Gmail label
+2. Oversized responses get auto-saved by the MCP runtime to `.claude/projects/.../tool-results/`
+3. Operator (or Claude) `cp`'s each saved file to `CONTACTOS DATASITE/google-contacts/gmail-raw/<LABEL-NAME>.json`
+4. `extract_gmail_signals.py` walks `gmail-raw/`, parses all participants, filters noise (mailer-daemon · postmaster · service@datasite.com · auto-responders), excludes self (`miguel.sambricio@*` + `info@metcub.com` + `expansion@build3rent.com`), aggregates per-remote-email, emits the JSONL into `incoming/gmail-signals/`
+
+Filters: `SELF_EMAILS` set (configurable) · `NOISE_PATTERNS` regex list (mailer-daemon · postmaster · cloud-security · invitations.mailinblack · datasite service · bounce · noreply · notifications · donotreply).
+
+### First production run · validation
+- Master loaded: 4,547 canonical contacts (from Phase 2.10)
+- Gmail extraction · 2 institutional labels processed (INVERSOR-INTERESADO + FINANCIADORES-INTERESADOS) · 100 threads · 556 raw signals → 118 unique remote emails
+- Pipeline merge: **68 of 118 matched to Master** (institutional contacts already in the graph) · 50 unmatched (personal or new institutional)
+- Master enrichment verified · top-strength relationships now showing:
+
+| Score | Name | Company | Labels | Threads | Stage |
+|---|---|---|---|---|---|
+| 67 | Sergio Prieto | BANC SABADELL | FINANCIADORES-INTERESADOS | 4 | Lender · Contacted |
+| 64 | José Fernández Canete | FERNÁNDEZ MOLINA | DOUBLE-label (Lender + Investor) | 8 | Lender · Contacted |
+| 58 | MaríaPia Intini | CITIZENM HOTELS | INVERSOR-INTERESADO | 1 | Investor · Contacted |
+| 52 | Luis Pedro Rodriguez | Caixabank | FINANCIADORES-INTERESADOS | 4 | Lender · Contacted |
+| 49 | Rafael Ferragut · Hector Noel · Hugo Martinez · Juan Vazquez Perala | Banca March + Bankinter | FINANCIADORES-INTERESADOS | 3 each | Lender · Contacted |
+
+Double-label match (José Fernández Canete) = same contact appears in BOTH lender and investor labels = straddles both networks = highest institutional signal density.
+
+### Structured archival validated
+- `incoming/gmail-signals/gmail-signals-20260512T183325Z.jsonl` → `old/gmail-signals/gmail-signals-gmail_signals_20260512T183325Z-20260512T183332Z.jsonl`
+- Source-type prefix · slugified original stem · batch_id timestamp · all traceable
+
+### Privacy
+- All new folders gitignored: `incoming/google-contacts/` · `incoming/gmail-signals/` · `old/google-contacts/` · `old/gmail-signals/` · `google-contacts/raw/normalized/enriched/gmail-raw/` · all reports
+- New JSONL signal files never enter git
+- README.md remains the only safe artifact under `CONTACTOS DATASITE/`
+
+### Files added (committed · NO data)
+- `scripts/contactos/pipeline.py` · unified orchestrator
+- `scripts/contactos/ingest_gmail.py` · Gmail signal merger
+- `scripts/contactos/extract_gmail_signals.py` · MCP-driven raw → JSONL extractor
+
+### Files modified
+- `scripts/contactos/ingest.py` · MASTER_SCHEMA extended with 6 new Gmail fields · build_master_row defaults them
+- `scripts/contactos/ingest_google.py` · auto-merge into Master (`apply_google_to_master` + `merge_google_into_master_row` + `build_master_row_from_google`) · Datasite-authoritative field protection
+- `CONTACTOS DATASITE/README.md` · Phase 2.B section · operator workflow for all 3 lanes
+- `docs/integrations/datasite-contacts.md` · Phase 2.B architecture · 3-lane data flow · Gmail signal extraction protocol · canonical relationship_strength formula
+
+### Future expansions (deferred)
+- More Gmail labels in the next extraction (only 2 of ~25 institutional labels processed in this first run · adding the remaining 23 will roughly 10× the signal coverage)
+- Phase 2.B.2 · `apply_gmail_unmatched.py` · operator-side tool to review the unmatched 50 emails and decide which to INSERT into Master as new institutional contacts
+- Phase 2.B.3 · scheduled Gmail extraction via OAuth-based Python client (currently MCP-driven, runs in Claude session)
+- Phase 2.C · push the Master to Supabase as queryable `relationship_contacts` table
+
+---
+
 ## 2026-05-12 — Phase 2.A · Google Contacts enrichment pipeline (read-only join with Datasite Master)
 
 Shipped as commit `47bdf1c`. Second relationship-intelligence ingestion lane · cross-references the operator's Google Contacts (personal/professional address book) against the canonical Datasite Master. **By design, does NOT mutate the Master** — every output lands in a separate workspace and the operator approves what to promote.

@@ -15,6 +15,30 @@ against `master_id` (synthetic stable id) or `email` (primary natural key).
 
 ---
 
+## Unified pipeline (Phase 2.B)
+
+Single entry point for all three lanes:
+
+```bash
+python scripts/contactos/pipeline.py
+```
+
+Walks `incoming/` (any subfolder), detects file type, dispatches to the
+appropriate handler, auto-archives processed files to `old/` with a
+structured name: `<source-type>-<original-stem>-<batch_id>.<ext>`.
+
+Three ingestion lanes feed ONE canonical Master:
+
+| Lane | Input | Handler | Master impact |
+|---|---|---|---|
+| 1 · Datasite | `incoming/<file>.xlsm` | `ingest.py` | canonical rows · full enrichment |
+| 2 · Google Contacts | `incoming/google-contacts/<file>.csv` | `ingest_google.py` | gap-fill merge (Datasite-authoritative fields protected) + INSERT for new institutional |
+| 3 · Gmail signals | `incoming/gmail-signals/<file>.jsonl` | `ingest_gmail.py` | populates the 6 Gmail-derived fields on existing Master rows |
+
+To check pending work: just look at `incoming/`. Empty = nothing to process.
+
+---
+
 ## Folder layout
 
 ```

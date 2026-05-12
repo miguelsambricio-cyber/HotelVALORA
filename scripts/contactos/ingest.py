@@ -146,6 +146,14 @@ MASTER_SCHEMA: list[str] = [
     "first_seen_batch_id",
     "last_seen_batch_id",
     "last_updated_at",
+    # Phase 2.B · Gmail-derived relationship intelligence (institutional graph)
+    "relationship_strength",       # 0–100 numeric · derived score (see compute_relationship_strength)
+    "last_email_date",             # ISO date · most recent inbound/outbound thread
+    "active_threads",              # rolling 12-month Gmail thread count
+    "gmail_labels",                # semicolon-joined list of institutional Gmail labels touching this email
+    "inferred_relationship_stage", # canonical stage derived from Gmail labels + Datasite pipeline_state
+    "email_directionality",        # inbound | outbound | bidirectional | none
+    "gmail_signal_source",         # filename of the Gmail signal snapshot that populated these fields
 ]
 
 
@@ -625,6 +633,14 @@ def build_master_row(
         "first_seen_batch_id": batch_id,
         "last_seen_batch_id": batch_id,
         "last_updated_at": now_iso(),
+        # Phase 2.B Gmail-derived fields · default empty until ingest_gmail.py populates them
+        "relationship_strength": 0,
+        "last_email_date": "",
+        "active_threads": 0,
+        "gmail_labels": "",
+        "inferred_relationship_stage": "",
+        "email_directionality": "",
+        "gmail_signal_source": "",
     }
 
 
