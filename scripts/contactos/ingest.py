@@ -154,6 +154,14 @@ MASTER_SCHEMA: list[str] = [
     "inferred_relationship_stage", # canonical stage derived from Gmail labels + Datasite pipeline_state
     "email_directionality",        # inbound | outbound | bidirectional | none
     "gmail_signal_source",         # filename of the Gmail signal snapshot that populated these fields
+    # Phase 2.B.2 · relationship quality intelligence (institutional usefulness)
+    "relationship_band",           # cold | warm | active | strategic | dormant | invalid (derived)
+    "collaboration_potential_score", # 0–100 · fit for HotelVALORA collaboration (deal flow / fundraising / JV / operator)
+    "email_validity",              # valid | uncertain | invalid (derived from bounce signals)
+    "bounce_count",                # number of delivery failures observed in Gmail
+    "last_bounce_date",            # most recent bounce date · ISO
+    "flagged_for_correction",      # "yes" / "" · routes to DATASITE-CORREGIR bucket
+    "bucket",                      # active | DATASITE-CORREGIR | dormant-archive (operator routing)
 ]
 
 
@@ -641,6 +649,14 @@ def build_master_row(
         "inferred_relationship_stage": "",
         "email_directionality": "",
         "gmail_signal_source": "",
+        # Phase 2.B.2 · relationship quality defaults
+        "relationship_band": "",
+        "collaboration_potential_score": 0,
+        "email_validity": "uncertain",
+        "bounce_count": 0,
+        "last_bounce_date": "",
+        "flagged_for_correction": "",
+        "bucket": "active",
     }
 
 

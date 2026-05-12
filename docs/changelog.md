@@ -4,9 +4,129 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.B.2 · Relationship quality intelligence · bounce detection · institutional bands
+
+New quality layer on top of the Gmail signal merger. Master schema gains 7 new fields. Invalid emails get auto-segregated from the active relationship graph. Categorical relationship bands replace pure numeric strength for operator-facing reasoning.
+
+### New MASTER_SCHEMA fields (appended · never reordered)
+- `relationship_band` · `cold | warm | active | strategic | dormant | invalid` (derived)
+- `collaboration_potential_score` · 0–100 deterministic · institutional fit for HotelVALORA collaboration · distinct from relationship_strength (engagement intensity) · this score weights strategic fit + deal-flow value + capital relevance
+- `email_validity` · `valid | uncertain | invalid` · derived from bounce signals
+- `bounce_count` · number of delivery failures observed in Gmail
+- `last_bounce_date` · most recent bounce date · ISO
+- `flagged_for_correction` · `"yes"` or `""` · routes to DATASITE-CORREGIR bucket
+- `bucket` · `active | DATASITE-CORREGIR | dormant-archive` · operator routing
+
+### Bounce detection · `extract_gmail_signals.py`
+Per thread, walk messages in order. When a bounce-pattern message appears (MAILER-DAEMON / postmaster / Undeliverable / Delivery Status Notification / "no se ha entregado" / "no se ha encontrado" / "550 5.x.x" / "couldn't be delivered" / etc.), attribute the bounce to:
+1. The recipients of the prior outbound message in the same thread
+2. PLUS any email addresses extracted from the bounce snippet (regex over the snippet text)
+
+Per-email aggregation now tracks: `bounce_count`, `last_bounce_date`, `bounce_reasons` (up to 5 forensic snippet samples).
+
+20+ snippet patterns covered in Spanish + English + French + German · including soft signals like "X ya no trabaja en la compañía", "account is no longer in use", "no longer working for".
+
+### Email validity rules · `ingest_gmail.py`
+- **INVALID**: `bounce_count >= 2` OR (`bounce_count >= 1` AND `inbound_count == 0`) · No human ever replied AND postmaster rejected → clearly dead address
+- **UNCERTAIN**: `bounce_count == 0` AND `inbound_count == 0` · We send, they don't reply, could be valid-but-unresponsive or silently dead
+- **VALID**: any inbound · real human response observed
+
+When `validity == "invalid"`:
+- `flagged_for_correction = "yes"`
+- `relationship_status = "invalid_email"` (overrides Datasite's value)
+- `bucket = "DATASITE-CORREGIR"`
+- `relationship_band = "invalid"`
+- `collaboration_potential_score = 0` (clamped)
+→ excluded from active graph
+
+### Relationship band derivation (categorical · operator-facing)
+- **strategic** · strength >= 70 AND (LOI/MoU label OR Datasite deal stage in LOI/IOI/Bid/Investment Meeting)
+- **active** · bidirectional + (Gmail < 1 yr OR Datasite Active pipeline < 2 yrs) + strength >= 40 · OR · strength >= 60 with active deal stage
+- **warm** · bidirectional + Gmail < 2 yrs · OR · inbound > 0 + (< 1.5 yr OR Datasite active) · OR · strength >= 35 + has deal stage
+- **cold** · low engagement default
+- **dormant** · explicit rejection label · OR · Gmail > 3 yrs AND no Datasite active state
+- **invalid** · email bounced
+
+Datasite pipeline state is the source of truth for "active deal" — Gmail age alone doesn't dormant a contact that's currently in a live LOI.
+
+### Collaboration potential score (0–100 · institutional fit)
+Distinct dimension from engagement intensity. Weights:
+- Real bidirectional engagement (volume + back-and-forth) · up to +30
+- Positive Gmail labels (INTERESADO / SEGUIMIENTO) · up to +35
+- Active LOI/MoU label · +25
+- Datasite deal stage (LOI/IOI/Bid) · +20 · Investment Meeting +15 · NDA +10
+- Pipeline = Declined · -25
+- Investor type ∈ canonical institutional bucket · +15
+- Hospitality focus (Yes/Likely) · +10/+5
+- Rejection labels · -30
+- Validity = invalid · 0 (forced clamp)
+- Strength carryover · +0.15× (low weight · keeps scales decoupled)
+
+### New script · `scripts/contactos/build_health_report.py`
+Outputs:
+1. **`CONTACTOS DATASITE/google-contacts/relationship-health-report.md`** · 11-section institutional analysis:
+   - Health totals (enriched / unenriched / flagged / bounce rate)
+   - Email validity breakdown (Master)
+   - Relationship band distribution + meaning
+   - Top institutional collaboration potential (top 25 by score)
+   - Bounce rate detail
+   - Strongest counterparties (active + strategic companies)
+   - Most responsive institutions (highest inbound reply volume)
+   - Hottest relationship clusters (2+ active/strategic contacts)
+   - Contacts needing correction (sample · 25)
+   - Dead domains (≥ 50% bounce rate · ≥ 2 contacts)
+   - Operator next steps
+
+2. **`CONTACTOS DATASITE/reports/contacts-needing-correction_<batch_id>.csv`** · per-row:
+   - `current_email` · `full_name_known` · `inferred_correct_company`
+   - `in_master` (yes/no flag · distinguishes correction vs avoidance)
+   - `reason_flagged` (truncated bounce snippet · forensic)
+   - `bounce_count` · `last_failed_interaction`
+   - `suggested_replacement` · auto-inferred when a non-bounced email at the same domain with matching surname exists in Master or Gmail signals
+   - `source_labels` (all Gmail labels)
+
+### First validation run
+Re-ran existing 4-label Gmail snapshot through the new code:
+
+- **Master:** 4,547 contacts (unchanged · no auto-merge)
+- **Gmail signals analysed:** 235 unique emails
+- **Bounce signals detected:** 62 emails (**26% bounce rate** · institutional cleanup opportunity)
+- **Of those, in Master:** 34 (need correction)
+- **Of those, NOT in Master:** 28 (junk-insert avoided)
+- **Suggested replacements auto-inferred:** Zhongyuan Li @ anbang-international.com → natalia.patton@anbang-international.com (and others)
+
+**Band distribution post-Phase-2.B.2:**
+- strategic: 0 (no LOI/MoU labels processed yet · expanding next)
+- active: 7
+- warm: 11
+- cold: 60
+- dormant: 60
+
+**Collaboration potential score:** 138 rows with score > 0 · avg 54.7 · max 95
+
+### Privacy preserved
+- All new outputs gitignored
+- README.md remains the only safe artifact under CONTACTOS DATASITE/
+- Bounce snippets stay local · zero PII in git
+
+### Files added (committed · NO data)
+- `scripts/contactos/build_health_report.py` (~370 LOC · stdlib + openpyxl)
+
+### Files modified
+- `scripts/contactos/ingest.py` · MASTER_SCHEMA + 7 new fields · build_master_row defaults
+- `scripts/contactos/extract_gmail_signals.py` · BOUNCE_SENDER_PATTERNS · BOUNCE_SUBJECT_PATTERNS · BOUNCE_SNIPPET_PATTERNS · `is_bounce_message` · prior-outbound-attribution loop · bounce stats in JSONL output
+- `scripts/contactos/ingest_gmail.py` · `compute_email_validity` · `derive_relationship_band` · `compute_collaboration_score` · field population in apply_signals_to_master
+
+### Held until next round
+- **Gmail extraction expansion** · 23 remaining institutional labels (LOIs · MoUs · CADENA HOTEL SEGUIENTO · INTERMEDIARIO · PROPIETARIO · PROMOTOR / CONSTRUCTOR · Q&A INVERSORES · RONDA INVERSORES · etc.) · once those land, expect "strategic" band to populate
+- **Phase 2.B.3** · `apply_gmail_unmatched.py` · operator-side review + selective INSERT
+- **Phase 2.C** · Supabase + UI · explicitly held until institutional graph stabilizes
+
+---
+
 ## 2026-05-12 — Phase 2.B.1 · Gmail signal expansion + institutional relationship graph report
 
-Expansion of the Gmail signal layer to 4 institutional labels · 235 unique remote emails aggregated · 138 matched to Datasite Master (was 68 in v0) · 97 reviewable unmatched candidates surfaced. **Master not auto-mutated** · all 97 candidates land in a reviewable CSV with rich enrichment per operator directive.
+Shipped as commit `19ae16b`. Expansion of the Gmail signal layer to 4 institutional labels · 235 unique remote emails aggregated · 138 matched to Datasite Master (was 68 in v0) · 97 reviewable unmatched candidates surfaced. **Master not auto-mutated** · all 97 candidates land in a reviewable CSV with rich enrichment per operator directive.
 
 ### New script · `scripts/contactos/build_relationship_report.py`
 Reads:
