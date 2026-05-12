@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import type { IntegrationDescriptor } from "@/lib/admin/integrations";
+import type { CredentialStatusDescriptor } from "@/lib/intelligence/credentials";
 import { SessionStatusPanel } from "./session-status-panel";
+import { CredentialsPanel } from "./credentials-panel";
 import {
   AuthStatusBadge,
   ConnectionStatusBadge,
@@ -11,11 +13,18 @@ import {
  * Per-integration detail page. Composes:
  *   - Header (name · region · tagline · connection + auth badges)
  *   - Telemetry strip (ingestion health · reliability · auth)
- *   - SessionStatusPanel (the T2 surface)
+ *   - CredentialsPanel (T1.5 — only when requiresAuth and a descriptor is provided)
+ *   - SessionStatusPanel (T2)
  *   - Ingestion health card (7d run rollup)
  *   - Notes + external links
  */
-export function IntegrationDetail({ integration }: { integration: IntegrationDescriptor }) {
+export function IntegrationDetail({
+  integration,
+  credentialDescriptor,
+}: {
+  integration: IntegrationDescriptor;
+  credentialDescriptor?: CredentialStatusDescriptor;
+}) {
   return (
     <div className="space-y-6">
       <Link
@@ -63,6 +72,17 @@ export function IntegrationDetail({ integration }: { integration: IntegrationDes
           />
         </dl>
       </section>
+
+      {/* T1.5 credentials panel — surfaces above the session panel because
+          credentials are the prerequisite for sessions. Only rendered for
+          authenticated sources (public RSS sources skip this entirely). */}
+      {integration.requiresAuth && credentialDescriptor && (
+        <CredentialsPanel
+          sourceSlug={integration.id}
+          sourceName={integration.name}
+          descriptor={credentialDescriptor}
+        />
+      )}
 
       {/* Two-column body */}
       <div className="grid gap-5 lg:grid-cols-3">

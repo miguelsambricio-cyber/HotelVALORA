@@ -987,6 +987,142 @@ export type Database = {
           },
         ]
       }
+      intelligence_source_credentials: {
+        Row: {
+          created_at: string
+          enc_key_id: string
+          id: string
+          invalidated_at: string | null
+          invalidated_reason: string | null
+          last_rotated_at: string
+          last_used_at: string | null
+          meta: Json
+          password_auth_tag: string
+          password_encrypted: string
+          password_iv: string
+          provisioned_by: string | null
+          rotation_count: number
+          source_id: string
+          source_slug: string
+          status: Database["public"]["Enums"]["intelligence_credential_status"]
+          username_auth_tag: string
+          username_encrypted: string
+          username_iv: string
+        }
+        Insert: {
+          created_at?: string
+          enc_key_id?: string
+          id?: string
+          invalidated_at?: string | null
+          invalidated_reason?: string | null
+          last_rotated_at?: string
+          last_used_at?: string | null
+          meta?: Json
+          password_auth_tag: string
+          password_encrypted: string
+          password_iv: string
+          provisioned_by?: string | null
+          rotation_count?: number
+          source_id: string
+          source_slug: string
+          status?: Database["public"]["Enums"]["intelligence_credential_status"]
+          username_auth_tag: string
+          username_encrypted: string
+          username_iv: string
+        }
+        Update: {
+          created_at?: string
+          enc_key_id?: string
+          id?: string
+          invalidated_at?: string | null
+          invalidated_reason?: string | null
+          last_rotated_at?: string
+          last_used_at?: string | null
+          meta?: Json
+          password_auth_tag?: string
+          password_encrypted?: string
+          password_iv?: string
+          provisioned_by?: string | null
+          rotation_count?: number
+          source_id?: string
+          source_slug?: string
+          status?: Database["public"]["Enums"]["intelligence_credential_status"]
+          username_auth_tag?: string
+          username_encrypted?: string
+          username_iv?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intelligence_source_credentials_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intelligence_source_sessions: {
+        Row: {
+          auth_tag: string
+          created_at: string
+          enc_key_id: string
+          expires_at: string
+          id: string
+          iv: string
+          last_refresh_error: string | null
+          meta: Json
+          refresh_count: number
+          refreshed_at: string
+          refreshed_by: string | null
+          source_id: string
+          source_slug: string
+          status: Database["public"]["Enums"]["intelligence_session_status"]
+          storage_state_encrypted: string
+        }
+        Insert: {
+          auth_tag: string
+          created_at?: string
+          enc_key_id?: string
+          expires_at: string
+          id?: string
+          iv: string
+          last_refresh_error?: string | null
+          meta?: Json
+          refresh_count?: number
+          refreshed_at?: string
+          refreshed_by?: string | null
+          source_id: string
+          source_slug: string
+          status?: Database["public"]["Enums"]["intelligence_session_status"]
+          storage_state_encrypted: string
+        }
+        Update: {
+          auth_tag?: string
+          created_at?: string
+          enc_key_id?: string
+          expires_at?: string
+          id?: string
+          iv?: string
+          last_refresh_error?: string | null
+          meta?: Json
+          refresh_count?: number
+          refreshed_at?: string
+          refreshed_by?: string | null
+          source_id?: string
+          source_slug?: string
+          status?: Database["public"]["Enums"]["intelligence_session_status"]
+          storage_state_encrypted?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intelligence_source_sessions_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investment_requirements: {
         Row: {
           asset: Json
@@ -2009,6 +2145,8 @@ export type Database = {
       sources: {
         Row: {
           api_endpoint: string | null
+          auth_notes: string | null
+          auth_strategy: Database["public"]["Enums"]["intelligence_auth_strategy"]
           base_url: string
           created_at: string
           enabled: boolean
@@ -2021,6 +2159,7 @@ export type Database = {
           notes: string | null
           region: string
           reliability_score: number | null
+          requires_auth: boolean
           rss_url: string | null
           schedule_hint: string | null
           scrape_selector: Json | null
@@ -2029,6 +2168,8 @@ export type Database = {
         }
         Insert: {
           api_endpoint?: string | null
+          auth_notes?: string | null
+          auth_strategy?: Database["public"]["Enums"]["intelligence_auth_strategy"]
           base_url: string
           created_at?: string
           enabled?: boolean
@@ -2041,6 +2182,7 @@ export type Database = {
           notes?: string | null
           region: string
           reliability_score?: number | null
+          requires_auth?: boolean
           rss_url?: string | null
           schedule_hint?: string | null
           scrape_selector?: Json | null
@@ -2049,6 +2191,8 @@ export type Database = {
         }
         Update: {
           api_endpoint?: string | null
+          auth_notes?: string | null
+          auth_strategy?: Database["public"]["Enums"]["intelligence_auth_strategy"]
           base_url?: string
           created_at?: string
           enabled?: boolean
@@ -2061,6 +2205,7 @@ export type Database = {
           notes?: string | null
           region?: string
           reliability_score?: number | null
+          requires_auth?: boolean
           rss_url?: string | null
           schedule_hint?: string | null
           scrape_selector?: Json | null
@@ -2488,6 +2633,8 @@ export type Database = {
         | "crm_dealflow"
         | "qa_monitoring"
         | "ceo"
+        | "costar_market_data"
+        | "compset_underwriting"
       ai_agent_run_status:
         | "queued"
         | "running"
@@ -2555,6 +2702,21 @@ export type Database = {
         | "unknown"
       ingestion_source_kind: "rss" | "scrape" | "api" | "manual"
       ingestion_status: "queued" | "running" | "success" | "partial" | "failed"
+      intelligence_auth_strategy:
+        | "none"
+        | "cookie_session"
+        | "bearer_token"
+        | "oauth2"
+      intelligence_credential_status:
+        | "active"
+        | "invalidated"
+        | "auth_failure"
+        | "rotated"
+      intelligence_session_status:
+        | "active"
+        | "expired"
+        | "invalidated"
+        | "refresh_failed"
       lead_status:
         | "new"
         | "qualified"
@@ -2742,6 +2904,8 @@ export const Constants = {
         "crm_dealflow",
         "qa_monitoring",
         "ceo",
+        "costar_market_data",
+        "compset_underwriting",
       ],
       ai_agent_run_status: [
         "queued",
@@ -2810,6 +2974,24 @@ export const Constants = {
       ],
       ingestion_source_kind: ["rss", "scrape", "api", "manual"],
       ingestion_status: ["queued", "running", "success", "partial", "failed"],
+      intelligence_auth_strategy: [
+        "none",
+        "cookie_session",
+        "bearer_token",
+        "oauth2",
+      ],
+      intelligence_credential_status: [
+        "active",
+        "invalidated",
+        "auth_failure",
+        "rotated",
+      ],
+      intelligence_session_status: [
+        "active",
+        "expired",
+        "invalidated",
+        "refresh_failed",
+      ],
       lead_status: [
         "new",
         "qualified",

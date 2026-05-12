@@ -8,6 +8,7 @@ import { ExtractedDealsPanel } from "./extracted-deals-panel";
 import { CategoryBreakdown } from "./category-breakdown";
 import { EntityMentionsPanel } from "./entity-mentions-panel";
 import { SourceCoveragePanel } from "./source-coverage-panel";
+import { AuthenticatedSourcesPanel } from "./authenticated-sources-panel";
 
 /**
  * Market Intelligence Terminal — the institutional hospitality intelligence
@@ -61,6 +62,9 @@ export function IntelligenceTerminal({ data }: { data: IntelligenceTerminalData 
 
       {/* Alerts */}
       <RelevanceAlertsPanel alerts={data.relevanceAlerts} />
+
+      {/* Authenticated sources — T1.5 + T2 pair per credentialed source */}
+      <AuthenticatedSourcesPanel />
 
       {/* Source coverage */}
       <SourceCoveragePanel rows={data.sourceCoverage} />

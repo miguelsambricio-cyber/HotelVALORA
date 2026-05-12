@@ -107,10 +107,12 @@ Source-of-truth: `docs/integrations/hosteltur.md` (validation source). The three
 
 | Tier | What | Where it lives | Read by | RLS / scope |
 |---|---|---|---|---|
-| T1 | Raw login credentials (`*_USERNAME`, `*_PASSWORD`) | Vercel env (Production · Sensitive) + operator `.env.local` (gitignored) | Refresh script only | n/a — env vars |
-| T1.5 | Encryption key (`INTELLIGENCE_SESSION_ENC_KEY`) | Vercel env + local | Refresh writer + ingestion reader | n/a — env vars |
+| KEK | Encryption key (`INTELLIGENCE_SESSION_ENC_KEY`) | Vercel env (Production · Sensitive) + operator `.env.local` | Crypto envelope module only | n/a — env vars |
+| T1.5 | Login credentials (AES-256-GCM encrypted) | `public.intelligence_source_credentials` | Service-role only · admin UI write · refresh script read | RLS enabled · zero policies · `revoke all` from `anon` / `authenticated` |
 | T2 | Session artifact (AES-256-GCM encrypted `storageState`) | `public.intelligence_source_sessions` | Service-role only | RLS enabled · zero policies · `revoke all` from `anon` / `authenticated` |
 | T3 | Article content (no credentials) | `public.market_news` + companions | Standard read policies (existing) | Same as current intelligence tables |
+
+**T1.5 came in 2026-05-12.** Before then, T1 was raw credentials in Vercel env vars. The migration to encrypted-in-DB credentials happened because the institutional operating model requires HotelVALORA to be the credentials-management console, not Vercel.
 
 ### Hard guarantees enforced by the architecture
 

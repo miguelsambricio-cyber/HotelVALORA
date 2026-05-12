@@ -4,6 +4,80 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — T1.5 encrypted credentials (DB) · admin provisioning UI · audit chain
+
+Moves T1 credentials off Vercel env vars and into Supabase, encrypted at rest with AES-256-GCM. The operator now provisions / rotates / invalidates paid-source credentials directly from `Administrator → Integrations` instead of touching Vercel or terminal. HotelVALORA becomes the institutional operating console for authenticated intelligence sources.
+
+### Schema changes
+
+- **Migration 0009** applied to live Supabase (twebgqutuqgonabvhzjk) — `intelligence_source_sessions` (T2) + `requires_auth` / `auth_strategy` / `auth_notes` on `public.sources`.
+- **Migration 0010** applied — `intelligence_source_credentials` (T1.5) with:
+  - `username_encrypted` + `username_iv` + `username_auth_tag` (separate envelope)
+  - `password_encrypted` + `password_iv` + `password_auth_tag` (separate envelope, distinct IV)
+  - `enc_key_id` (KEK rotation handle)
+  - `status` enum (`active` · `invalidated` · `auth_failure` · `rotated`)
+  - `last_rotated_at` · `last_used_at` · `rotation_count` · `invalidated_at` · `invalidated_reason`
+  - RLS enabled · zero policies · `revoke all` from `anon` + `authenticated`
+- `public.sources` rows for `hosteltur` + `alimarket` flipped to `requires_auth=true`, `auth_strategy='cookie_session'`.
+
+### Crypto envelope (`apps/web/src/lib/intelligence/crypto.ts`)
+
+`server-only` Node module that wraps `node:crypto`. AES-256-GCM with 12-byte random IV per encryption + 16-byte auth tag verified on decrypt. KEK from `INTELLIGENCE_SESSION_ENC_KEY` (env-only, never in DB). Tamper detection throws loudly. KEK identifier surfaces in audit so rotation can target old rows precisely.
+
+### Server actions (`lib/intelligence/credentials/`)
+
+- `provisionCredentialsAction(formData)` — handles both first provision and rotation. Validates input with Zod, verifies operator token via constant-time compare, encrypts username + password as separate envelopes, demotes any existing active row to `status='rotated'`, inserts the new active row, emits `credential.provisioned` or `credential.rotated` audit event, returns a frontend-safe descriptor.
+- `invalidateCredentialsAction(formData)` — marks the active row `status='invalidated'`, records reason, emits `credential.invalidated`.
+- `getCredentialStatus(slug)` — server-only reader, returns descriptor (provisioned · status · lastRotatedAt · rotationCount · lastUsedAt · encKeyId · invalidatedAt · invalidatedReason). **Never returns encrypted bytes**.
+- `getDecryptedCredentials(slug)` — server-only reader for the future refresh script. Decrypts via the KEK in env. Plaintext exists only on the caller's stack; caller responsible for discarding immediately after use.
+- `markCredentialUsed(slug)` — bumps `last_used_at` after a successful login.
+
+### Admin UI (`Administrator → Integrations → Hosteltur` and `→ Alimarket`)
+
+- **CredentialsPanel** — surfaces the descriptor on the integration detail page. Status badge (active / not provisioned / invalidated / auth failure), telemetry grid (KEK · rotation count · encryption · last rotated · last used · invalidated reason), and action buttons (Provision / Rotate / Invalidate). Encrypted bytes never reach the browser.
+- **ProvisionCredentialsModal** — client island for input. Three fields: operator token (read from `sessionStorage` per-tab so the operator types it once), subscriber email, subscriber password (with visibility toggle). Submits via the server action. On any outcome the password field is cleared. Generic error messages — never echo input back. Includes a security-contract panel reminding the operator of the AES-256-GCM + service-role-only + never-logged guarantees.
+
+### Audit chain (`lib/intelligence/credentials/audit.ts`)
+
+Every operation writes a row into `public.ai_events` with `kind='system_alert'`, `severity` derived from the operation type, and a payload containing `{category:"credential", operation:"credential.provisioned|rotated|invalidated|auth_failure_detected|auth_attempt_failed", source_slug, rotationCountAfter?, reason?, encKeyId?}`. **Payload never contains credential values, usernames, or passwords**. Failed operator-token attempts emit `credential.auth_attempt_failed` for security forensics.
+
+### Intelligence Terminal extension
+
+Adds **Authenticated Sources panel** above the Source Coverage matrix. One row per authenticated source surfacing the T1.5 + T2 status pair (Credentials state · Session state · 7-day article volume). Links each row into the integration detail.
+
+### Independent lifecycles
+
+`intelligence_source_credentials` (T1.5) and `intelligence_source_sessions` (T2) are independent. Credentials rotate quarterly; sessions rotate weekly. Invalidating credentials forces session refresh on next run; invalidating a session does NOT touch credentials.
+
+### Security guarantees preserved
+
+- ✅ No plaintext in DB — both fields are AES-256-GCM ciphertext with distinct IVs
+- ✅ No PostgREST exposure — RLS-on with zero policies + explicit `revoke all`
+- ✅ No frontend exposure — descriptor strips bytea before serialization
+- ✅ No logs — Vercel function logs strip credential names; structured logs use `redact()`
+- ✅ No Git tracking — `.env.local` covers HOSTELTUR_* (now optional since creds are in DB)
+- ✅ No telemetry leak — `ai_events.payload` schema enforced
+
+### Build characteristics
+
+`pnpm typecheck` clean · `pnpm build` clean — 52 routes · `/user/admin/integrations/[id]` now 5.5 kB / 107 kB First Load (added panel + modal client bundle) · `dynamic = "force-dynamic"` on the per-integration route so the descriptor reflects current DB state on every render.
+
+### What the operator does now
+
+```
+/user/admin/integrations/hosteltur
+  → CredentialsPanel renders: "Not Provisioned"
+  → Click "Provision Credentials"
+  → Modal: enter operator token (once per tab), subscriber email, subscriber password
+  → Submit → server-side encrypt + insert + audit
+  → Modal closes · panel re-renders: "Active · KEK v1 · rotation count 1 · last rotated <now>"
+  → Plaintext credential never persisted anywhere outside the GCM ciphertext
+```
+
+Future rotations and invalidations follow the same flow. No Vercel CLI, no `.env.local` editing, no terminal.
+
+---
+
 ## 2026-05-12 — Institutional Hospitality Intelligence Terminal + Integrations admin surface
 
 Two new admin surfaces ship as one bundle. Mock data layer shaped 1:1 against migration 0006 + 0009 so Phase 3 realtime swap is mechanical.
@@ -68,6 +142,8 @@ Bloomberg-terminal aesthetic throughout — dark `forest-900 → slate-950` pane
 ### Phase 3 path (mechanical swap)
 
 `getTerminalData()` and `getIntegrations()` become server-side reads against the live tables. Components stay unchanged. Realtime subscriptions (Supabase Realtime on `ai_agent_runs` + `market_news`) are a Phase 4 follow-up.
+
+Wave landed as commit `8a2b063` (26 files · +2410/-12).
 
 ---
 
