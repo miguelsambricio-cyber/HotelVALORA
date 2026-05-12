@@ -4,6 +4,63 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Phase 2.D.7 · Subscriptions + Campaigns become visual operational frontends
+
+Strategic redirect from the operator: Campaigns + Subscriptions are NOT admin CRUD tables — they must be visual operational frontends for institutional growth and monetization. Subscription tiers stop being enum-locked code; the catalogue is now data, operator-managed from the admin console, mobile-first.
+
+### Database — migration `0021_subscription_products`
+- New `public.subscription_products` table — the catalogue source-of-truth:
+  - `id` · `slug` (unique) · `name` · `subtitle` · `description`
+  - **Pricing**: `currency` (EUR/USD/GBP) · `monthly_price numeric(10,2)` · `yearly_price numeric(10,2)` · `vat_display` (inclusive / exclusive / none)
+  - **Presentation**: `badge` · `cta_label` · `color_theme` (lime / emerald / amber / rose / slate / forest) · `features jsonb` (array of `{title, included}`)
+  - **Catalogue ordering**: `display_order` · `visibility` (visible / hidden / archived)
+  - **Backward compat**: `tier_enum` preserves the existing user_tier enum mapping; new products created via the UI leave it NULL
+- `public.subscriptions.product_id` FK → `subscription_products(id) ON DELETE SET NULL`. Existing subscription rows are backfilled by joining `tier::text = subscription_products.tier_enum`.
+- Seeded 4 default products: Free (€0) · Pro (€49/mo · €490/yr · lime) · Premium (€199/mo · €1990/yr · emerald · "Most popular") · Top Promote (€499/mo · €4990/yr · amber · "Investor visibility"). All operator-editable.
+- Activity log verbs land under `entity_type='subscription_product'`: `product.created` · `product.updated` · `product.visibility_<visible|hidden|archived>`.
+
+### Server lib · `lib/admin/subscriptions/products/`
+- `live.ts` · `loadProductsWithMetrics()` joins per-product subscription counts in a single roundtrip · derives Active / Trialing / Expired counts + a simple MRR estimate (`monthly_price * active_users`). `loadProductById()` for the edit drawer.
+- `mutations.ts` · `createProductAction` / `updateProductAction` / `setProductVisibilityAction`. All gated by `requireOperator`, all audit-logged. Features arrive from a single textarea (`title|true` per line) to minimise mobile-keyboard friction.
+
+### `/user/admin/subscriptions` — visual operational frontend
+- **Primary surface is now a Stripe/Notion-style pricing card grid.** The existing subscribers table is relegated to a secondary section below ("Active subscription rows · operator-driven assignments + Stripe-backed rows live here").
+- Each card surfaces: slug uppercase label · name · subtitle · monthly price (with yearly + discount % when set) · VAT display · up to 6 feature bullets with check/strikethrough · operator metric strip (Active / MRR / Total) on a tinted footer.
+- Card visual contract scales: full-width 1-col on mobile → 2-col at sm → 4-col at xl. Touch targets >= 44px.
+- Hidden products render at reduced opacity with an `EyeOff` corner pill; archived products at lower opacity with an `Archive` pill.
+- "+ New product" dashed card always rendered as last cell.
+- `?product=<id>` opens the edit drawer; `?product=new` opens the create drawer. Drawer carries the full schema (slug, name, subtitle, description, currency, monthly/yearly, VAT display, badge, CTA label, color theme, display order, visibility, features-as-textarea, tier_enum compat).
+- Visibility quick actions in the edit drawer: Make visible · Hide · Archive (one-click forms · audit-logged separately).
+
+### `/user/admin/campaigns` — visual operational frontend
+- **Primary surface is now a card grid.** Cards have: slug uppercase label · name · status pill · description (line-clamp 2) · 4-metric funnel strip (Active / Converted / Failed / Subs) · owner chip · channel chip · conversion target chip · "Manage" CTA arrow.
+- Per-status color rings (lime / emerald / amber / slate) mirror the pricing-card aesthetic.
+- "+ New campaign" dashed card always last.
+- Existing CampaignsFilters + CampaignsTable moved into a collapsed `<details>` block below ("Filters · table view (N)") so power-user inspection remains available without crowding the visual primary.
+- Form drawer unchanged; opens via card tap (`?selected=<id>`) or the New CTA (`?selected=new`).
+
+### Mobile-first polish
+- All grids use Tailwind responsive prefixes (1-col → 2-col → 3/4-col)
+- Touch-friendly tap targets on the cards (clickable area extends to the entire card)
+- Edit drawer's Features textarea uses a deliberately wide line-format (`title|true`) so an operator typing on a phone can compose new bullets without leaving the keyboard
+
+### Intentional non-features (carried forward per directive)
+No Stripe billing automation · no self-serve checkout · no automated lifecycle emails · no AI campaign orchestration · no referral systems · no enterprise CRM complexity. The operator drives every state change; `activity_log` is the receipt.
+
+### Smoke
+- `/user/admin/subscriptions` → 200 · 100 KB · 4 seeded products + new-product card render · subscribers section preserved
+- `/user/admin/subscriptions?product=new` → 200 · 123 KB · create-product form drawer with all fields
+- `/user/admin/subscriptions?product=<premium-id>` → 200 · 129 KB · edit drawer with "Most popular" badge preserved + Hide/Archive quick actions
+- `/user/admin/campaigns` → 200 · 51 KB · card grid + collapsed table view
+- Typecheck clean
+
+### Coming on the roadmap
+- 2.D.7b — wire products into the existing bulk-subscription-assign action so the picker reads from `subscription_products` instead of the user_tier enum
+- 2.D.8 — campaign builder: card surface gains an "Assign product + invite cohort" inline wizard
+- 2.D.5b — invitation expiration cron + drawer-level revoke action (carried over)
+
+---
+
 ## 2026-05-13 — Phase 2.D.6 · Campaign-aware bulk subscription operations
 
 Operators can now run institutional growth ops directly from the admin console: assign tiers, grant Comped access, expire subscriptions, and revoke pending invitations — all at N-row scale with campaign attribution preserved end-to-end. The contacts and users surfaces share the same selection contract; the subscriptions table grows expiration indicators.

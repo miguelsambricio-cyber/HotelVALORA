@@ -13,6 +13,9 @@ import { SubscriptionsKpis } from "@/components/admin/subscriptions/subscription
 import { SubscriptionsFilters } from "@/components/admin/subscriptions/subscriptions-filters";
 import { SubscriptionsTable } from "@/components/admin/subscriptions/subscriptions-table";
 import { SubscriptionFormDrawer } from "@/components/admin/subscriptions/subscription-form-drawer";
+import { loadProductsWithMetrics, loadProductById, type SubscriptionProduct } from "@/lib/admin/subscriptions/products/live";
+import { ProductGrid } from "@/components/admin/subscriptions/products/product-grid";
+import { ProductFormDrawer } from "@/components/admin/subscriptions/products/product-form-drawer";
 
 export const metadata: Metadata = {
   title: "Subscriptions · Admin · HotelVALORA",
@@ -32,7 +35,18 @@ interface PageProps {
     selected?: string;
     saved?: string;
     form_error?: string;
+    /** Phase 2.D.7 · product surface */
+    view?: string;
+    product?: string;
   };
+}
+
+/** Treat the param as a uuid or 'new' · empty/garbage → null. */
+function parseSelectedId(raw: string | undefined): string | null {
+  if (!raw) return null;
+  if (raw === "new") return "new";
+  if (/^[0-9a-f-]{36}$/i.test(raw)) return raw;
+  return null;
 }
 
 export default async function SubscriptionsAdminPage({ searchParams }: PageProps) {
@@ -51,10 +65,15 @@ export default async function SubscriptionsAdminPage({ searchParams }: PageProps
   const savedFlag = searchParams.saved === "1";
   const formError = searchParams.form_error || null;
 
+  // Product-side drawer state (`?product=<id|new>`)
+  const productParam = parseSelectedId(searchParams.product ?? undefined);
+  const isProductCreate = productParam === "new";
+  const productId = productParam && productParam !== "new" ? productParam : null;
+
   const baseParams = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
     if (!v) continue;
-    if (["selected", "saved", "form_error"].includes(k)) continue;
+    if (["selected", "saved", "form_error", "product"].includes(k)) continue;
     baseParams.set(k, v);
   }
   const baseSearchString = baseParams.toString();
@@ -62,12 +81,27 @@ export default async function SubscriptionsAdminPage({ searchParams }: PageProps
     ? `/user/admin/subscriptions?${baseSearchString}`
     : "/user/admin/subscriptions";
 
-  const [kpis, { rows, total }, users, campaigns] = await Promise.all([
+  // Product-drawer hrefs share the same base
+  const newProductHref = baseSearchString
+    ? `/user/admin/subscriptions?${baseSearchString}&product=new`
+    : "/user/admin/subscriptions?product=new";
+  const hrefForProduct = (id: string) =>
+    baseSearchString
+      ? `/user/admin/subscriptions?${baseSearchString}&product=${id}`
+      : `/user/admin/subscriptions?product=${id}`;
+  const productCloseHref = closeHref;
+
+  const [kpis, { rows, total }, users, campaigns, products, selectedProduct] = await Promise.all([
     loadSubscriptionKpis(),
     loadSubscriptions(filter),
     isCreate ? loadAssignableUsers() : Promise.resolve([]),
     loadActiveCampaigns(),
+    loadProductsWithMetrics({ includeArchived: true }),
+    productId ? loadProductById(productId) : Promise.resolve(null),
   ]);
+  let productForDrawer: SubscriptionProduct | null = null;
+  if (isProductCreate) productForDrawer = null;
+  else if (selectedProduct) productForDrawer = selectedProduct;
 
   let currentRow: SubscriptionRow | null = null;
   if (selected && !isCreate) {
@@ -117,6 +151,29 @@ export default async function SubscriptionsAdminPage({ searchParams }: PageProps
       )}
 
       <SubscriptionsKpis kpis={kpis} />
+
+      <ProductGrid
+        products={products}
+        newHref={newProductHref}
+        hrefForProduct={hrefForProduct}
+      />
+
+      <div className="border-t border-slate-200 pt-6">
+        <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.25em] text-slate-500">
+              Subscribers
+            </p>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-forest-900">
+              Active subscription rows
+            </h2>
+          </div>
+          <p className="font-mono text-[10.5px] text-slate-500">
+            Filter / inspect individual subscriptions · operator-driven assignments + Stripe-backed rows live here.
+          </p>
+        </header>
+      </div>
+
       <SubscriptionsFilters current={{
         status: filter.status ?? "all",
         tier: filter.tier ?? "all",
@@ -125,7 +182,11 @@ export default async function SubscriptionsAdminPage({ searchParams }: PageProps
         sort: filter.sort ?? "recent",
       }} />
 
-      <div className={hasDrawer ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]" : "block"}>
+      <div className={
+        hasDrawer || isProductCreate || productForDrawer
+          ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]"
+          : "block"
+      }>
         <div className="min-w-0">
           <SubscriptionsTable
             rows={rows}
@@ -136,7 +197,13 @@ export default async function SubscriptionsAdminPage({ searchParams }: PageProps
             baseSearchParams={baseSearchString}
           />
         </div>
-        {hasDrawer && (
+        {(isProductCreate || productForDrawer) ? (
+          <ProductFormDrawer
+            product={productForDrawer}
+            closeHref={productCloseHref}
+            errorMessage={formError}
+          />
+        ) : hasDrawer ? (
           <SubscriptionFormDrawer
             row={isCreate ? null : currentRow}
             closeHref={closeHref}
@@ -144,7 +211,7 @@ export default async function SubscriptionsAdminPage({ searchParams }: PageProps
             users={users}
             campaigns={campaigns}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

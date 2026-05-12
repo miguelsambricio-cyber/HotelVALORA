@@ -2941,6 +2941,72 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_products: {
+        Row: {
+          badge: string | null
+          color_theme: string
+          created_at: string
+          created_by_email: string | null
+          cta_label: string
+          currency: string
+          description: string | null
+          display_order: number
+          features: Json
+          id: string
+          monthly_price: number | null
+          name: string
+          slug: string
+          subtitle: string | null
+          tier_enum: string | null
+          updated_at: string
+          vat_display: string
+          visibility: string
+          yearly_price: number | null
+        }
+        Insert: {
+          badge?: string | null
+          color_theme?: string
+          created_at?: string
+          created_by_email?: string | null
+          cta_label?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          features?: Json
+          id?: string
+          monthly_price?: number | null
+          name: string
+          slug: string
+          subtitle?: string | null
+          tier_enum?: string | null
+          updated_at?: string
+          vat_display?: string
+          visibility?: string
+          yearly_price?: number | null
+        }
+        Update: {
+          badge?: string | null
+          color_theme?: string
+          created_at?: string
+          created_by_email?: string | null
+          cta_label?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          features?: Json
+          id?: string
+          monthly_price?: number | null
+          name?: string
+          slug?: string
+          subtitle?: string | null
+          tier_enum?: string | null
+          updated_at?: string
+          vat_display?: string
+          visibility?: string
+          yearly_price?: number | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           assigned_by_email: string | null
@@ -2952,6 +3018,7 @@ export type Database = {
           id: string
           notes: string | null
           organization_id: string | null
+          product_id: string | null
           source_campaign_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string | null
@@ -2970,6 +3037,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id?: string | null
+          product_id?: string | null
           source_campaign_id?: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -2988,6 +3056,7 @@ export type Database = {
           id?: string
           notes?: string | null
           organization_id?: string | null
+          product_id?: string | null
           source_campaign_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -3002,6 +3071,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_products"
             referencedColumns: ["id"]
           },
           {

@@ -12,6 +12,7 @@ import { CampaignsKpis } from "@/components/admin/campaigns/campaigns-kpis";
 import { CampaignsFilters } from "@/components/admin/campaigns/campaigns-filters";
 import { CampaignsTable } from "@/components/admin/campaigns/campaigns-table";
 import { CampaignFormDrawer } from "@/components/admin/campaigns/campaign-form-drawer";
+import { CampaignGrid } from "@/components/admin/campaigns/campaign-grid";
 
 export const metadata: Metadata = {
   title: "Campaigns · Admin · HotelVALORA",
@@ -109,6 +110,27 @@ export default async function CampaignsAdminPage({ searchParams }: PageProps) {
       )}
 
       <CampaignsKpis kpis={kpis} />
+
+      <CampaignGrid
+        campaigns={rows}
+        newHref={
+          baseSearchString
+            ? `/user/admin/campaigns?${baseSearchString}&selected=new`
+            : "/user/admin/campaigns?selected=new"
+        }
+        hrefForCampaign={(id) =>
+          baseSearchString
+            ? `/user/admin/campaigns?${baseSearchString}&selected=${id}`
+            : `/user/admin/campaigns?selected=${id}`
+        }
+      />
+
+      <details className="rounded-2xl border border-slate-200 bg-white">
+        <summary className="cursor-pointer select-none px-4 py-3 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500 hover:text-forest-900">
+          Filters · table view ({total})
+        </summary>
+        <div className="space-y-4 border-t border-slate-200 p-4">
+
       <CampaignsFilters current={{
         status: filter.status ?? "all",
         kind: filter.kind ?? "all",
@@ -117,9 +139,7 @@ export default async function CampaignsAdminPage({ searchParams }: PageProps) {
         sort: filter.sort ?? "recent",
       }} />
 
-      <div className={hasDrawer ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]" : "block"}>
-        <div className="min-w-0">
-          <CampaignsTable
+      <CampaignsTable
             rows={rows}
             total={total}
             page={filter.page ?? 0}
@@ -128,14 +148,18 @@ export default async function CampaignsAdminPage({ searchParams }: PageProps) {
             baseSearchParams={baseSearchString}
           />
         </div>
-        {hasDrawer && (
+      </details>
+
+      {hasDrawer && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]">
+          <div />
           <CampaignFormDrawer
             detail={isCreate ? null : detail}
             closeHref={closeHref}
             errorMessage={formError}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
