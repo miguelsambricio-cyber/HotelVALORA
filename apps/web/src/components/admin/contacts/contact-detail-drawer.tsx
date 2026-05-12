@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { X, ExternalLink, Mail, Phone, Building2, MapPin, Activity, UserCircle2 } from "lucide-react";
+import { X, ExternalLink, Mail, Phone, Building2, MapPin, Activity, UserCircle2, Pencil, Plus, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContactDetail, TimelineEvent } from "@/lib/admin/contacts/live";
+import { addTagFromForm, removeTagFromForm } from "@/lib/admin/contacts/mutations";
 
 /**
  * Institutional relationship intelligence drawer · server component.
@@ -23,16 +24,30 @@ import type { ContactDetail, TimelineEvent } from "@/lib/admin/contacts/live";
 export function ContactDetailDrawer({
   detail,
   closeHref,
+  editHref,
+  savedFlag,
 }: {
   detail: ContactDetail;
   closeHref: string;
+  editHref: string;
+  /** When `?saved=1` rode in from a redirect, shows a one-shot toast */
+  savedFlag?: boolean;
 }) {
   const c = detail.contact;
   return (
     <aside className="rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-2xl lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-      <DrawerHeader detail={detail} closeHref={closeHref} />
+      {savedFlag && (
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2.5">
+          <CheckCircle2 size={14} className="text-emerald-300" />
+          <p className="font-mono text-[11px] text-emerald-200">Changes saved · audit row written.</p>
+        </div>
+      )}
+      <DrawerHeader detail={detail} closeHref={closeHref} editHref={editHref} />
       <DrawerSection title="Conversion status">
         <ConversionStatus detail={detail} />
+      </DrawerSection>
+      <DrawerSection title="Operator tags">
+        <OperatorTags contactId={c.id} tags={c.tags ?? []} />
       </DrawerSection>
       <DrawerSection title="Institutional context">
         <InstitutionalContext detail={detail} />
@@ -46,6 +61,14 @@ export function ContactDetailDrawer({
       <DrawerSection title={`Peers at ${c.company_name || "this company"} · ${detail.peers.length}`}>
         <PeerList peers={detail.peers} />
       </DrawerSection>
+      <footer className="mt-3 flex items-center justify-between border-t border-slate-800/60 pt-3 font-mono text-[10px] text-slate-500">
+        <span>
+          {detail.mutation_count} mutation{detail.mutation_count === 1 ? "" : "s"} on record
+        </span>
+        {c.relationship_owner_email && (
+          <span>owner · {c.relationship_owner_email}</span>
+        )}
+      </footer>
     </aside>
   );
 }
@@ -53,9 +76,11 @@ export function ContactDetailDrawer({
 function DrawerHeader({
   detail,
   closeHref,
+  editHref,
 }: {
   detail: ContactDetail;
   closeHref: string;
+  editHref: string;
 }) {
   const c = detail.contact;
   return (
@@ -84,13 +109,22 @@ function DrawerHeader({
             )}
           </p>
         </div>
-        <Link
-          href={closeHref}
-          aria-label="Close detail"
-          className="rounded-md p-1 text-slate-500 hover:bg-slate-800/60 hover:text-slate-200"
-        >
-          <X size={16} />
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={editHref}
+            aria-label="Edit contact"
+            className="inline-flex items-center gap-1 rounded-md bg-lime-300/20 px-2 py-1 font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-lime-200 ring-1 ring-lime-300/40 hover:bg-lime-300/30"
+          >
+            <Pencil size={10} /> Edit
+          </Link>
+          <Link
+            href={closeHref}
+            aria-label="Close detail"
+            className="rounded-md p-1 text-slate-500 hover:bg-slate-800/60 hover:text-slate-200"
+          >
+            <X size={16} />
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -520,6 +554,56 @@ function SourceDot({ source }: { source: TimelineEvent["source"] }) {
     : source === "gmail"  ? "bg-amber-300"
     : "bg-lime-300";
   return <span aria-hidden className={cn("h-2 w-2 rounded-full", tone)} />;
+}
+
+function OperatorTags({ contactId, tags }: { contactId: string; tags: string[] }) {
+  return (
+    <div className="space-y-2">
+      {tags.length === 0 ? (
+        <p className="font-mono text-[11px] text-slate-500">
+          No operator tags yet. Use the form below to add the first one — these are distinct from
+          Gmail-derived labels and live in `relationship_contacts.tags`.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <form
+              key={tag}
+              action={removeTagFromForm}
+              className="inline-flex items-center gap-1 rounded bg-lime-300/15 px-2 py-0.5 font-mono text-[10px] text-lime-200 ring-1 ring-lime-300/30"
+            >
+              <input type="hidden" name="contactId" value={contactId} />
+              <input type="hidden" name="tag" value={tag} />
+              <span>{tag}</span>
+              <button
+                type="submit"
+                aria-label={`Remove tag ${tag}`}
+                className="text-lime-200/70 hover:text-rose-300"
+              >
+                <X size={10} />
+              </button>
+            </form>
+          ))}
+        </div>
+      )}
+      <form action={addTagFromForm} className="flex items-center gap-2">
+        <input type="hidden" name="contactId" value={contactId} />
+        <input
+          name="tag"
+          type="text"
+          placeholder="add a tag · letters / numbers / dash"
+          maxLength={80}
+          className="flex-1 rounded-md border border-slate-700 bg-slate-900/60 px-2.5 py-1 font-mono text-[11px] text-slate-100 placeholder:text-slate-600 focus:border-lime-300/50 focus:outline-none"
+        />
+        <button
+          type="submit"
+          className="inline-flex items-center gap-1 rounded-md bg-lime-300/20 px-2 py-1 font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-lime-200 ring-1 ring-lime-300/40 hover:bg-lime-300/30"
+        >
+          <Plus size={10} /> Add
+        </button>
+      </form>
+    </div>
+  );
 }
 
 function PeerList({ peers }: { peers: ContactDetail["peers"] }) {

@@ -4,6 +4,58 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.D.2 · Contact mutation workflows (PRIMERA OLA) · edit · invalid · tags · owner · status
+
+The contacts surface stops being read-only. PRIMERA OLA covers the five operational growth basics with full audit. SEGUNDA OLA (merge / delete / add manually) and bulk actions remain deferred to 2.D.3.
+
+### Database
+- **`0016_contacts_operator_tags_and_softdelete`** — adds `relationship_contacts.tags text[]` (operator-added · GIN-indexed · distinct from Gmail-derived `relationship_labels`) and `deleted_at timestamptz` (soft-delete column · NULL = active · mutation layer already filters by this so SEGUNDA OLA delete is a one-line UPDATE). Partial index `relationship_contacts_active_idx` on `id WHERE deleted_at IS NULL`.
+- **`0017_contact_relationship_owner`** — adds `relationship_contacts.relationship_owner_email` so ownership lives on the contact across the full funnel (the prior column was on `users` only — too late in the conversion arc). Indexed.
+
+### Server actions · `apps/web/src/lib/admin/contacts/mutations.ts`
+Five typed actions, all gated by `requireOperator()`, all write one row to `public.activity_log` (entity_type=`relationship_contact`, action=`contact.<kind>`, metadata = `{ diff | before/after | reason | tag }`):
+- `updateContactAction(id, patch)` — bulk edit of name · email · phone · LinkedIn · title · role · company_name · investor_type · collaboration_potential_score · notes_consolidated. Empty strings normalised to NULL. Diff computed before UPDATE so the audit row only captures changed fields.
+- `markContactInvalidAction(id, reason?)` — flips `email_validity=invalid` · `flagged_for_correction=true` · `bucket=DATASITE-CORREGIR` · `relationship_band=invalid`. Optional reason captured in metadata.
+- `addContactTagAction(id, tag)` / `removeContactTagAction(id, tag)` — idempotent operator tag management. Tags normalised to lowercase; regex `^[A-Za-z0-9][A-Za-z0-9\-_\s]*$`.
+- `assignRelationshipOwnerAction(id, email)` — sets `relationship_owner_email`. Empty string clears.
+- `updateRelationshipStatusAction(id, band)` — sets `relationship_band` (active · warm · strategic · cold · dormant · invalid). Note: operator override wins until the next Python ingest cycle.
+
+Form-wrapper actions (`updateContactFromForm`, `markInvalidFromForm`, `addTagFromForm`, `removeTagFromForm`, `assignOwnerFromForm`, `updateStatusFromForm`) accept `FormData`, parse field values, delegate to the typed action, and `redirect()` back to view mode with `?saved=1` or `?error=<msg>`. No client state.
+
+### UX — split drawer · same visual contract
+- **View drawer** (`?selected=<id>`) — adds **Edit** button in header (lime pill · links to `?mode=edit`), new **Operator tags** subsection with chip-style add/remove via inline forms, a one-shot **Saved · audit row written** toast when `?saved=1` rides in, and a footer showing `N mutations on record` + the relationship owner email.
+- **Edit drawer** (`?selected=<id>&mode=edit`) — new `apps/web/src/components/admin/contacts/contact-detail-drawer-edit.tsx`. Single side panel matching the view drawer visual contract; four form sections:
+  1. **Identity** — 9 inline-editable fields + notes textarea + Save changes button
+  2. **Relationship status** — band selector
+  3. **Relationship owner** — email assignment
+  4. **Email health · operator override** — Mark invalid with optional reason
+- Tag add/remove lives in the view drawer (no need to enter edit mode to manage tags).
+- Cancel link in edit mode goes back to view mode. Save submits the form; the wrapper action redirects back to view mode with `?saved=1` (or `?error=...` on validation failure).
+
+### Audit trail
+- Every mutation writes to `public.activity_log` with `entity_type='relationship_contact'`. Action verbs: `contact.updated` · `contact.invalid_marked` · `contact.tag_added` · `contact.tag_removed` · `contact.owner_assigned` · `contact.status_updated`.
+- Metadata is jsonb. Diff format: `{"diff":{"full_name":{"from":"X","to":"Y"}}}`.
+- `mutation_count` surfaced in the view drawer footer (`activity_log` count for the contact).
+- All audit metadata passes through `redactError()` / `redact()` before persistence (no credential leakage even if a value contains a tokenish substring).
+
+### Discipline
+- Every mutation filters by `deleted_at IS NULL` so the soft-delete invariant holds from day one.
+- Errors returned to the client redirect to `?mode=edit&error=<msg>` — the edit drawer shows a rose-tinted banner.
+- Audit write failures log but do not roll back the mutation (the row already changed; ops reconciles via row-level `updated_at` if needed).
+
+### Out of scope (next pushes)
+- **2.D.2b** (next sub-push) — merge duplicates · soft-delete action · add contact manually
+- **2.D.3** — bulk actions (row selection · select-filtered-set · bulk invite via Resend · bulk promo / tags / export / contacted / inactive / campaign assign)
+- **2.D.4** — full Campaigns + Subscriptions UIs
+
+Smoke
+- `/user/admin/contacts?selected=<id>` → 200 · 445 KB · Edit button + Operator tags section + footer rendered
+- `/user/admin/contacts?selected=<id>&mode=edit` → 200 · 429 KB · all 4 form sections render
+- Direct INSERT into `public.activity_log` with `entity_type=relationship_contact` succeeded · DELETE cleanup confirmed (audit shape matches what the mutations layer writes)
+- Typecheck clean
+
+---
+
 ## 2026-05-12 — Phase 2.D.1 · Operational growth funnel · Users console + activation/monetization scaffolds + product realignment
 
 **Strategic realignment (user-driven on 2026-05-12).** The contacts base is HOTELVALORA's **growth engine**, NOT a CRM, NOT a relationship-intelligence OS. The previous Phase 2.C framing drifted toward enterprise relationship intelligence; the system thesis is now explicit:

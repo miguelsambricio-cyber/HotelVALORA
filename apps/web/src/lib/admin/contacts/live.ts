@@ -68,6 +68,10 @@ export interface ContactRow {
   linked_user_id: string | null;
   contact_invitation_status: string;
   last_contacted_at: string | null;
+  /** Phase 2.D.2 · operator-added tags (distinct from Gmail labels). */
+  tags: string[];
+  /** Phase 2.D.2 · operator-set relationship owner (commercial owner inside HOTELVALORA). */
+  relationship_owner_email: string | null;
   /** Gmail label list aggregated from relationship_labels (join). */
   labels: string[];
 }
@@ -149,7 +153,8 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
     "email_validity, email_directionality, inferred_relationship_stage, " +
     "active_threads, last_email_date, bounce_count, last_bounce_date, flagged_for_correction, " +
     "bucket, notes_consolidated, source_file, first_seen_batch_id, last_seen_batch_id, " +
-    "linked_user_id, contact_invitation_status, last_contacted_at",
+    "linked_user_id, contact_invitation_status, last_contacted_at, tags, " +
+    "relationship_owner_email",
     { count: "exact" },
   );
 
@@ -383,6 +388,8 @@ export interface ContactDetail {
   } | null;
   /** Phase 2.D.1 · total invitation events ever sent to this contact */
   invitation_count: number;
+  /** Phase 2.D.2 · count of activity_log rows for this contact (audit trail length) */
+  mutation_count: number;
 }
 
 /**
@@ -414,7 +421,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
       "active_threads, last_email_date, bounce_count, last_bounce_date, " +
       "flagged_for_correction, bucket, notes_consolidated, source_file, " +
       "first_seen_batch_id, last_seen_batch_id, " +
-      "linked_user_id, contact_invitation_status, last_contacted_at",
+      "linked_user_id, contact_invitation_status, last_contacted_at, tags, " +
+      "relationship_owner_email",
     )
     .eq("id", contactId)
     .maybeSingle();
@@ -424,8 +432,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
   }
   const contact = contactRow as unknown as Omit<ContactRow, "labels">;
 
-  // Parallel fan-out: company · interactions · labels · health · peers · linked user · invitation count
-  const [companyR, interactionsR, labelsR, healthR, peersR, linkedUserR, invitesR] = await Promise.all([
+  // Parallel fan-out: company · interactions · labels · health · peers · linked user · invitation count · audit count
+  const [companyR, interactionsR, labelsR, healthR, peersR, linkedUserR, invitesR, auditR] = await Promise.all([
     contact.company_id
       ? sb.from("relationship_companies")
           .select("id, name, investor_type_canonical, investor_subtype, tier, industry, hotel_focus, fund_size, investment_preference, investment_min, investment_max, continent, location, description, external_notes, internal_notes")
@@ -463,6 +471,10 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
     sb.from("contact_invitations")
       .select("id", { count: "exact", head: true })
       .eq("contact_id", contactId),
+    sb.from("activity_log")
+      .select("id", { count: "exact", head: true })
+      .eq("entity_type", "relationship_contact")
+      .eq("entity_id", contactId),
   ]);
 
   const company = (companyR.data ?? null) as ContactDetail["company"];
@@ -488,6 +500,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
   const peers = (peersR.data ?? []) as unknown as PeerContact[];
   const linked_user = (linkedUserR.data ?? null) as ContactDetail["linked_user"];
   const invitation_count = invitesR.count ?? 0;
+  const mutation_count = auditR.count ?? 0;
+
 
   // ── Compose chronological event timeline ────────────────────────────
   const events: TimelineEvent[] = [];
@@ -574,6 +588,7 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
     activity_density,
     linked_user,
     invitation_count,
+    mutation_count,
   };
 }
 

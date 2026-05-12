@@ -2070,6 +2070,7 @@ export type Database = {
           created_at: string
           datasite_company_number: string | null
           datasite_contact_number: string | null
+          deleted_at: string | null
           email: string | null
           email_directionality: string | null
           email_lower: string | null
@@ -2110,6 +2111,7 @@ export type Database = {
           pipeline_state: string | null
           relationship_band: string | null
           relationship_manager: string | null
+          relationship_owner_email: string | null
           relationship_status: string | null
           relationship_strength: number
           revised_bid_high: string | null
@@ -2117,6 +2119,7 @@ export type Database = {
           role: string | null
           source_file: string | null
           state: string | null
+          tags: string[]
           tier: string | null
           title: string | null
           updated_at: string
@@ -2140,6 +2143,7 @@ export type Database = {
           created_at?: string
           datasite_company_number?: string | null
           datasite_contact_number?: string | null
+          deleted_at?: string | null
           email?: string | null
           email_directionality?: string | null
           email_lower?: string | null
@@ -2180,6 +2184,7 @@ export type Database = {
           pipeline_state?: string | null
           relationship_band?: string | null
           relationship_manager?: string | null
+          relationship_owner_email?: string | null
           relationship_status?: string | null
           relationship_strength?: number
           revised_bid_high?: string | null
@@ -2187,6 +2192,7 @@ export type Database = {
           role?: string | null
           source_file?: string | null
           state?: string | null
+          tags?: string[]
           tier?: string | null
           title?: string | null
           updated_at?: string
@@ -2210,6 +2216,7 @@ export type Database = {
           created_at?: string
           datasite_company_number?: string | null
           datasite_contact_number?: string | null
+          deleted_at?: string | null
           email?: string | null
           email_directionality?: string | null
           email_lower?: string | null
@@ -2250,6 +2257,7 @@ export type Database = {
           pipeline_state?: string | null
           relationship_band?: string | null
           relationship_manager?: string | null
+          relationship_owner_email?: string | null
           relationship_status?: string | null
           relationship_strength?: number
           revised_bid_high?: string | null
@@ -2257,6 +2265,7 @@ export type Database = {
           role?: string | null
           source_file?: string | null
           state?: string | null
+          tags?: string[]
           tier?: string | null
           title?: string | null
           updated_at?: string

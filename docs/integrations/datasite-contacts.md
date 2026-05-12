@@ -323,6 +323,42 @@ Backed by `loadContactDetail(contactId)` — 5 parallel Supabase queries
 (contact · company · interactions · labels · health · peers) composed
 into a single typed `ContactDetail` shape.
 
+### Phase 2.D.2 — Mutation workflows (PRIMERA OLA · shipped same day)
+
+The contacts surface stops being read-only. Five operational growth
+basics land with full audit:
+
+| Action | Server action | Audit verb |
+|---|---|---|
+| Edit (identity bulk) | `updateContactAction` | `contact.updated` |
+| Mark email invalid | `markContactInvalidAction` | `contact.invalid_marked` |
+| Add operator tag | `addContactTagAction` | `contact.tag_added` |
+| Remove operator tag | `removeContactTagAction` | `contact.tag_removed` |
+| Assign relationship owner | `assignRelationshipOwnerAction` | `contact.owner_assigned` |
+| Update relationship band | `updateRelationshipStatusAction` | `contact.status_updated` |
+
+All gated by `requireOperator()` (fail-closed) and writing one row to
+`public.activity_log` with diff/before/after in jsonb metadata.
+
+**Schema additions:**
+- Migration `0016` — `relationship_contacts.tags text[]` (operator-added,
+  GIN-indexed, distinct from Gmail-derived `relationship_labels`) +
+  `deleted_at timestamptz` (soft-delete column · all mutations filter
+  by `deleted_at IS NULL`).
+- Migration `0017` — `relationship_contacts.relationship_owner_email`
+  (commercial owner across the funnel · distinct from the users.row
+  field which only kicks in post-conversion).
+
+**UX:** split drawer. `?selected=<id>` renders read view (gains an Edit
+button + Operator tags section with inline +/− forms). `?selected=<id>&mode=edit`
+renders the editable side panel with 4 form sections (Identity ·
+Relationship status · Relationship owner · Email health override).
+Form-wrapper actions redirect back to view mode with `?saved=1` or
+`?error=<msg>` so the page reload surfaces outcome without client state.
+
+**SEGUNDA OLA (next sub-push):** merge duplicates · soft-delete action ·
+add contact manually. Bulk actions in Phase 2.D.3.
+
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's
 Full Report into `incoming/`, the dedup logic merges by email/LinkedIn

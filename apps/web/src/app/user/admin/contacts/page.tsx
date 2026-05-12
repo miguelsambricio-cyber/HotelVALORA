@@ -12,6 +12,7 @@ import { ContactsKpis } from "@/components/admin/contacts/contacts-kpis";
 import { ContactsFilters } from "@/components/admin/contacts/contacts-filters";
 import { ContactsTable } from "@/components/admin/contacts/contacts-table";
 import { ContactDetailDrawer } from "@/components/admin/contacts/contact-detail-drawer";
+import { ContactDetailDrawerEdit } from "@/components/admin/contacts/contact-detail-drawer-edit";
 
 export const metadata: Metadata = {
   title: "Institutional Relationship Console · Admin · HotelVALORA",
@@ -32,6 +33,9 @@ interface PageProps {
     page?: string;
     sort?: string;
     selected?: string;
+    mode?: string;
+    saved?: string;
+    error?: string;
   };
 }
 
@@ -49,18 +53,31 @@ export default async function ContactsPage({ searchParams }: PageProps) {
   };
 
   const selectedId = searchParams.selected || null;
+  const editMode = searchParams.mode === "edit";
+  const savedFlag = searchParams.saved === "1";
+  const drawerError = searchParams.error || null;
 
   // Rebuild the "current filters" search string (without the `selected`
   // param) so row links navigate to the same filter state with the
   // drawer attached. Drives the close-button href too.
   const baseParams = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
-    if (!v || k === "selected") continue;
+    if (!v || k === "selected" || k === "mode" || k === "saved" || k === "error") continue;
     baseParams.set(k, v);
   }
   const baseSearchString = baseParams.toString();
   const closeHref = baseSearchString
     ? `/user/admin/contacts?${baseSearchString}`
+    : "/user/admin/contacts";
+  const editHref = selectedId
+    ? (baseSearchString
+        ? `/user/admin/contacts?${baseSearchString}&selected=${selectedId}&mode=edit`
+        : `/user/admin/contacts?selected=${selectedId}&mode=edit`)
+    : "/user/admin/contacts";
+  const viewHref = selectedId
+    ? (baseSearchString
+        ? `/user/admin/contacts?${baseSearchString}&selected=${selectedId}`
+        : `/user/admin/contacts?selected=${selectedId}`)
     : "/user/admin/contacts";
 
   const [kpis, { rows, total }, investorTypes, detail] = await Promise.all([
@@ -134,7 +151,14 @@ export default async function ContactsPage({ searchParams }: PageProps) {
           />
         </div>
         {hasDrawer && detail && (
-          <ContactDetailDrawer detail={detail} closeHref={closeHref} />
+          editMode
+            ? <ContactDetailDrawerEdit detail={detail} closeHref={viewHref} errorMessage={drawerError} />
+            : <ContactDetailDrawer
+                detail={detail}
+                closeHref={closeHref}
+                editHref={editHref}
+                savedFlag={savedFlag}
+              />
         )}
       </div>
     </div>
