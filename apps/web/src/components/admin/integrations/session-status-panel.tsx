@@ -1,7 +1,7 @@
-import { ShieldCheck, ShieldAlert, KeyRound } from "lucide-react";
+import { ShieldCheck, ShieldAlert, KeyRound, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SIGNAL_VISUAL } from "@/components/admin/dashboard/signal-tints";
-import type { IntegrationDescriptor } from "@/lib/admin/integrations";
+import type { IntegrationDescriptor, SessionValidationTarget } from "@/lib/admin/integrations";
 import { AUTH_STATUS_VISUAL } from "@/lib/admin/integrations";
 
 /**
@@ -40,10 +40,16 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
   const session = integration.session;
   const visual = AUTH_STATUS_VISUAL[session.status];
   const signal = SIGNAL_VISUAL[visual.signal];
+  const isReauthRequired =
+    session.hoursToExpiry !== null && session.hoursToExpiry <= 24;
+  const isPlaceholder = session.placeholder === true;
+  const validationPassed = session.validationReport.filter((r) => r.verdict).length;
+  const validationTotal = session.validationReport.length;
+  const fetchOk = session.lastAuthedFetchStatus === "ok";
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
-      <header className="mb-4 flex items-center justify-between">
+      <header className="mb-4 flex flex-wrap items-center gap-2">
         <h3 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.25em] text-slate-400">
           Authentication · Session
         </h3>
@@ -58,7 +64,39 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
           <span aria-hidden className={cn(signal.text, signal.pulse && "animate-pulse")}>{signal.dot}</span>
           {visual.label}
         </span>
+        {session.placeholder !== null && (
+          <span
+            className={cn(
+              "inline-flex items-center rounded px-2 py-0.5 font-headline text-[10px] font-bold uppercase tracking-[0.18em] ring-1",
+              isPlaceholder
+                ? "bg-amber-500/15 text-amber-200 ring-amber-500/40"
+                : "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40",
+            )}
+          >
+            {isPlaceholder ? "Placeholder T2" : "Real T2 · Playwright"}
+          </span>
+        )}
+        <span className="ml-auto" />
       </header>
+
+      {/* Prominent re-auth banner · only when session has ≤24h left. */}
+      {isReauthRequired && session.status !== "session_expired" && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-300" aria-hidden />
+          <div className="flex-1">
+            <p className="font-headline text-[12px] font-extrabold uppercase tracking-[0.18em] text-amber-200">
+              Re-auth required — session expires in {session.hoursToExpiry}h
+            </p>
+            <p className="mt-1 text-[11.5px] leading-relaxed text-amber-100/80">
+              Run{" "}
+              <code className="rounded bg-amber-950/40 px-1.5 py-0.5 font-mono text-[10.5px] text-amber-200">
+                node apps/web/scripts/playwright-refresh.mjs --slug={integration.id}
+              </code>{" "}
+              before expiry to avoid placeholder fallback in the next cron run.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-start gap-3">
         {session.status === "active_session" || session.status === "session_expiring" ? (
@@ -74,7 +112,7 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
         </div>
       </div>
 
-      {/* Telemetry grid */}
+      {/* Telemetry grid — six core fields plus optional row for cookies/origins */}
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-800/60 pt-4 sm:grid-cols-4">
         <Field label="Auth Strategy" value={authStrategyLabel(integration.authStrategy)} />
         <Field label="KEK" value={session.encKeyId ?? "—"} mono />
@@ -86,6 +124,24 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
         />
         <Field label="Last Refresh" value={formatTs(session.refreshedAt)} mono />
         <Field label="Expires" value={formatTs(session.expiresAt)} mono />
+        <Field
+          label="Cookies"
+          value={session.cookiesCount !== null ? String(session.cookiesCount) : "—"}
+          mono
+        />
+        <Field
+          label="Origins"
+          value={session.originsCount !== null ? String(session.originsCount) : "—"}
+          mono
+        />
+        {session.postLoginUrl && (
+          <Field
+            label="Post-login URL"
+            value={session.postLoginUrl}
+            mono
+            className="col-span-full"
+          />
+        )}
         {session.lastRefreshError && (
           <Field
             label="Last Error"
@@ -96,19 +152,127 @@ export function SessionStatusPanel({ integration }: { integration: IntegrationDe
         )}
       </dl>
 
+      {/* Premium-access verification — last authed fetch + validation table */}
+      <div className="mt-5 border-t border-slate-800/60 pt-4">
+        <div className="mb-3 flex items-center gap-2">
+          <h4 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-slate-400">
+            Premium-access verification
+          </h4>
+          {session.lastAuthedFetchStatus !== null && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] ring-1",
+                fetchOk
+                  ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40"
+                  : "bg-rose-500/15 text-rose-200 ring-rose-500/40",
+              )}
+            >
+              {fetchOk ? <CheckCircle2 size={11} aria-hidden /> : <XCircle size={11} aria-hidden />}
+              {fetchOk ? "OK" : "Fail"}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Field
+            label="Last Authed Fetch"
+            value={formatTs(session.lastAuthedFetchAt)}
+            mono
+          />
+          <Field
+            label="Validation"
+            value={
+              validationTotal > 0
+                ? `${validationPassed}/${validationTotal} targets passed`
+                : "—"
+            }
+            mono
+          />
+          <Field
+            label="Refresh Source"
+            value={isPlaceholder ? "Placeholder" : "Playwright"}
+            mono
+          />
+        </div>
+
+        {validationTotal > 0 && (
+          <div className="mt-3 overflow-hidden rounded-lg border border-slate-800/60">
+            <table className="w-full border-collapse text-[11.5px]">
+              <thead>
+                <tr className="bg-slate-900/60">
+                  <th className="px-3 py-2 text-left font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Target
+                  </th>
+                  <th className="px-3 py-2 text-right font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Anon
+                  </th>
+                  <th className="px-3 py-2 text-right font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Authed
+                  </th>
+                  <th className="px-3 py-2 text-right font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Δ Bytes
+                  </th>
+                  <th className="px-3 py-2 text-right font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Verdict
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {session.validationReport.map((row) => (
+                  <ValidationRow key={row.target} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Action affordances — runbook hints only, not wired yet */}
       <div className="mt-5 flex items-center gap-2 border-t border-slate-800/60 pt-4">
         <KeyRound size={14} className="text-slate-500" aria-hidden />
         <p className="text-[11.5px] leading-relaxed text-slate-400">
           Refresh runbook:{" "}
           <code className="rounded bg-slate-800/60 px-1.5 py-0.5 font-mono text-[11px] text-lime-300">
-            pnpm intel:refresh {integration.id}
+            node apps/web/scripts/playwright-refresh.mjs --slug={integration.id}
           </code>{" "}
-          (operator CLI · Phase 2.5). Autonomous refresh API arrives in Phase 4.
+          (operator CLI · Phase 2.5b). Browser-driven refresh deferred until runtime decision.
         </p>
       </div>
     </section>
   );
+}
+
+function ValidationRow({ row }: { row: SessionValidationTarget }) {
+  const deltaClass =
+    row.sizeDelta > 0 ? "text-emerald-300" : row.sizeDelta < 0 ? "text-amber-300" : "text-slate-400";
+  return (
+    <tr className="border-t border-slate-800/60">
+      <td className="px-3 py-2 font-headline font-bold text-white">{row.target}</td>
+      <td className="px-3 py-2 text-right font-mono text-slate-300">{formatBytes(row.anonLength)}</td>
+      <td className="px-3 py-2 text-right font-mono text-slate-300">{formatBytes(row.authedLength)}</td>
+      <td className={cn("px-3 py-2 text-right font-mono", deltaClass)}>
+        {row.sizeDelta > 0 ? "+" : ""}
+        {row.sizeDelta}B
+      </td>
+      <td className="px-3 py-2 text-right">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-headline text-[9.5px] font-bold uppercase tracking-[0.16em] ring-1",
+            row.verdict
+              ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40"
+              : "bg-slate-600/30 text-slate-300 ring-slate-500/40",
+          )}
+        >
+          {row.verdict ? <CheckCircle2 size={10} aria-hidden /> : <XCircle size={10} aria-hidden />}
+          {row.verdict ? "Pass" : "No diff"}
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+function formatBytes(n: number): string {
+  if (n >= 1024) return `${(n / 1024).toFixed(1)}kB`;
+  return `${n}B`;
 }
 
 function Field({

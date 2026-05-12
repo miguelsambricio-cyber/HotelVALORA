@@ -121,7 +121,7 @@ Lives at `/user/admin/integrations/[integrationId]`. Composes:
 
 - **Hero** — name · region · language · ingestion kind · tagline · connection + auth badges · reliability score
 - **Telemetry strip** — articles today / 7d / 30d + runs success/failed in last 7d
-- **SessionStatusPanel** — when authenticated: T2 row · KEK identifier · refresh count · hours-to-expiry · last refresh · expires · last error · operator runbook hint. When public: zero-credentials banner.
+- **SessionStatusPanel** — when authenticated: T2 row · KEK identifier · refresh count · hours-to-expiry · last refresh · expires · last error · cookies / origins counts · post-login URL · **Real T2 vs Placeholder badge** (from `meta.placeholder`) · **Re-auth-required banner** when `hoursToExpiry ≤ 24` (copy-pasteable CLI command, no orchestration) · **Premium-access verification block** (last authed fetch timestamp + ok/fail badge + targets-passed counter + validation report table with anon-size / authed-size / Δ-bytes / verdict per target). When public: zero-credentials banner.
 - **IngestionHealthPanel** — last run timestamp · success / failure counts · mean items per run
 - **Operator notes** + **External links** (login portal · premium signup · public RSS hub · integration dossier)
 

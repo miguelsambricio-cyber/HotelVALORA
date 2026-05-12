@@ -39,6 +39,26 @@ export type AuthStatus =
   | "refresh_failed"       // last refresh attempt failed; operator needed
   | "not_provisioned";     // T1 credentials not yet set in env vars
 
+/** One row in the anon-vs-authed validation report (Phase 2.5b). */
+export interface SessionValidationTarget {
+  /** Operator-facing label for the target URL (e.g. "homepage", "premium-landing"). */
+  target: string;
+  /** Absolute URL fetched anon + authed for comparison. */
+  url: string;
+  /** Body length in bytes for the anon fetch. */
+  anonLength: number;
+  /** Body length in bytes for the authed fetch. */
+  authedLength: number;
+  /** authedLength - anonLength · positive when authed body is larger. */
+  sizeDelta: number;
+  /** Number of authed-only marker hits in the authed body. */
+  authedMarkerHits: number;
+  /** Number of paywall-CTA hits in the authed body. */
+  paywallCtaHits: number;
+  /** Final binary verdict for this target (any positive signal triggers true). */
+  verdict: boolean;
+}
+
 /** Per-integration session descriptor — null when source.requires_auth=false. */
 export interface SessionStatusDescriptor {
   status: AuthStatus;
@@ -54,6 +74,35 @@ export interface SessionStatusDescriptor {
   refreshCount: number;
   /** Last refresh error, redacted by the writer. Never includes credentials. */
   lastRefreshError: string | null;
+  /**
+   * True when the active T2 row is a synthetic placeholder (no real
+   * cookie jar, not validated against the source). False when the row
+   * was produced by a real Playwright run. Null when the row predates
+   * the placeholder field (back-compat). Drives the
+   * Real-Session-vs-Placeholder badge.
+   */
+  placeholder: boolean | null;
+  /** Number of cookies captured in the encrypted storageState. */
+  cookiesCount: number | null;
+  /** Number of origins captured (localStorage / sessionStorage bag). */
+  originsCount: number | null;
+  /** URL the browser landed on immediately after submitting credentials. */
+  postLoginUrl: string | null;
+  /**
+   * Anon-vs-authed validation report from the last refresh. Empty array
+   * when the integration is brand-new or pre-Phase-2.5b. The Admin UI
+   * uses this to prove the session can actually unlock paywalled content.
+   */
+  validationReport: SessionValidationTarget[];
+  /**
+   * When this T2 row last produced a successfully differentiated authed
+   * fetch (via `verify-authed-fetch.mjs` or the future ingestion runtime).
+   * ISO string. Distinct from `refreshedAt` — auth refresh and authed
+   * fetch are independent operations.
+   */
+  lastAuthedFetchAt: string | null;
+  /** Result of the last authenticated fetch attempt (ok / fail). */
+  lastAuthedFetchStatus: "ok" | "fail" | null;
 }
 
 /** Ingestion-health rollup over the last 7 days of `news_ingestion_runs`. */

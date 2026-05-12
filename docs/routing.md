@@ -37,7 +37,7 @@
 | `/user/admin/agents` | `app/user/admin/agents/page.tsx` | `AdminLayout` | AI Operations Center — orbital layout (CEO centre · 9 operational agents) + agent directory grouped by Tier |
 | `/user/admin/agents/[agentId]` | `app/user/admin/agents/[agentId]/page.tsx` | `AdminLayout` | Per-agent dashboard · SSG · `market_intelligence` renders the institutional Intelligence Terminal (volume KPIs · alerts · extracted deals · category breakdown · entity mentions · source coverage · news feed) |
 | `/user/admin/integrations` | `app/user/admin/integrations/page.tsx` | `AdminLayout` | Integrations directory — 10 hospitality intelligence sources grouped by category (Authenticated · Public EU/ES · Global · Deferred) with connection / auth / session / health / volume metrics |
-| `/user/admin/integrations/[integrationId]` | `app/user/admin/integrations/[integrationId]/page.tsx` | `AdminLayout` | Per-integration detail · SSG with 10 pre-rendered paths · session-status panel (T2 row · KEK · expiry) · ingestion-health rollup · operator notes · external links |
+| `/user/admin/integrations/[integrationId]` | `app/user/admin/integrations/[integrationId]/page.tsx` | `AdminLayout` | Per-integration detail · SSG with 10 pre-rendered paths · session-status panel (Real T2 vs placeholder badge · cookies/origins · post-login URL · re-auth banner ≤24h · premium-access verification table) · ingestion-health rollup · operator notes · external links |
 
 ### HTTP redirects (`next.config.mjs`)
 

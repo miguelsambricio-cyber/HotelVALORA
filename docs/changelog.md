@@ -4,9 +4,58 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Admin · Operational observability for authenticated T2 sessions
+
+Visibility-first delivery on the Admin → Integration detail surface · the institutional source of truth for authenticated-intelligence health. No orchestration · refresh execution stays CLI-driven until the runtime decision is made.
+
+### Surfaces added to `SessionStatusPanel`
+- **Placeholder vs Real T2 badge** · driven by `meta.placeholder` · amber for placeholder, emerald for "Real T2 · Playwright"
+- **Cookies / Origins counts** · pulled from `meta.cookies_count` + `meta.origins_count`
+- **Post-login URL** · the URL the browser landed on right after credential submit (forensic signal)
+- **Re-auth-required banner** · prominent amber panel with copy-pasteable refresh command when `hoursToExpiry ≤ 24`
+- **Premium-access verification block** · last authed fetch timestamp + ok/fail badge + targets-passed counter
+- **Validation report table** · target / anon-size / authed-size / Δ bytes / verdict per row · proves the session actually unlocks paywalled content
+
+### Type system
+- `SessionStatusDescriptor` extended with `placeholder`, `cookiesCount`, `originsCount`, `postLoginUrl`, `validationReport[]`, `lastAuthedFetchAt`, `lastAuthedFetchStatus`
+- New `SessionValidationTarget` interface · 1:1 mirror of the per-target row stored in `intelligence_source_sessions.meta.validation_report`
+- Barrel `lib/admin/integrations/index.ts` re-exports the new type
+- Compile-time registry placeholders for hosteltur + alimarket fill the new fields with `null` / `[]` (back-compat with components that read pre-Phase-2.5b descriptors)
+
+### Aggregator (`lib/admin/integrations/live.ts`)
+- `loadTelemetry` now SELECTs `meta` from `intelligence_source_sessions`
+- `deriveSessionStatus` extracts the new fields via narrow JSONB readers (`readBool`, `readNum`, `readStr`, `parseValidationReport`, `parseFetchStatus`) — meta is treated as untrusted, every helper returns `null` on shape mismatch and never throws
+- `parseValidationReport` flatMaps invalid rows out so the UI never crashes on a malformed `meta.validation_report` entry
+
+### Scripts wiring (so the data lands in `meta`)
+- **`playwright-refresh.mjs`** · on persist, writes `validation_report[]` + `validation_passed_at` into `meta` alongside the existing placeholder / cookies / origins / post-login fields
+- **`verify-authed-fetch.mjs`** · after every health-check run, stamps `meta.last_authed_fetch_at`, `meta.last_authed_fetch_status` (`ok`/`fail`), `meta.last_authed_fetch_passed`, `meta.last_authed_fetch_total`, `meta.validation_report` (latest authoritative anon-vs-authed signal · overwrites prior report)
+
+### Backfill — both canonical T2 rows
+- Re-ran `verify-authed-fetch.mjs --slug=hosteltur` · stamped session `81f57ee0-…` · 4/4 targets passed · premium-landing Δ=+57,062B
+- Re-ran `verify-authed-fetch.mjs --slug=alimarket` · stamped session `5c6a6677-…` · 1/3 targets passed · account-page Δ=+33,905B
+- DB confirmed: both rows have full `validation_report` array + last_authed_fetch_at/status in meta
+
+### Runtime decision still deferred
+- Re-auth banner uses copy-pasteable CLI command, not a button — runtime/orchestration architecture (where Playwright runs in production) intentionally left for after the operational layer is stable
+- The "Refresh runbook" footer now points to `node apps/web/scripts/playwright-refresh.mjs --slug=<id>` (replacing the obsolete `pnpm intel:refresh` runbook hint)
+
+### Files modified
+- `apps/web/src/lib/admin/integrations/types.ts` · new `SessionValidationTarget` + extended descriptor
+- `apps/web/src/lib/admin/integrations/index.ts` · re-export new type
+- `apps/web/src/lib/admin/integrations/registry.ts` · placeholder values for new descriptor fields
+- `apps/web/src/lib/admin/integrations/live.ts` · meta select + extractors
+- `apps/web/src/components/admin/integrations/session-status-panel.tsx` · 6 new surfaces, validation table
+- `apps/web/scripts/playwright-refresh.mjs` · write validation_report into meta on persist
+- `apps/web/scripts/verify-authed-fetch.mjs` · stamp meta after every health check
+- `docs/features/admin.md` · session-status panel surfaces documented
+- `docs/architecture/admin-ui-architecture.md` · meta-driven aggregator note
+
+---
+
 ## 2026-05-12 — Phase 2.5b · Alimarket real Playwright authentication (parity with Hosteltur)
 
-Second half of Phase 2.5b shipped. Alimarket now has a real authenticated T2 session captured via the exact same `playwright-refresh.mjs` runtime that landed for Hosteltur · same encryption envelope · same audit chain · same validation gate.
+Shipped as commit `65cf07c`. Second half of Phase 2.5b. Alimarket now has a real authenticated T2 session captured via the exact same `playwright-refresh.mjs` runtime that landed for Hosteltur · same encryption envelope · same audit chain · same validation gate.
 
 ### Recipe added to `SOURCE_RECIPES.alimarket`
 - `loginUrl` `https://www.alimarket.es/acceso/login` · selectors `#email-3` / `#pass-3` / `#login_form button[type='submit'].btn-submit`

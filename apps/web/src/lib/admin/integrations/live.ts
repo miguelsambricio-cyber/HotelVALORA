@@ -7,6 +7,7 @@ import type {
   IngestionHealthDescriptor,
   IntegrationDescriptor,
   SessionStatusDescriptor,
+  SessionValidationTarget,
 } from "./types";
 import { CONNECTION_VISUAL } from "./types";
 
@@ -111,7 +112,7 @@ async function loadTelemetry(slug: string, requiresAuth: boolean): Promise<LiveT
     if (requiresAuth) {
       const sessRes = await sb
         .from("intelligence_source_sessions")
-        .select("status, enc_key_id, refreshed_at, expires_at, refresh_count, last_refresh_error")
+        .select("status, enc_key_id, refreshed_at, expires_at, refresh_count, last_refresh_error, meta")
         .eq("source_slug", slug)
         .order("refreshed_at", { ascending: false })
         .limit(1);
@@ -122,6 +123,7 @@ async function loadTelemetry(slug: string, requiresAuth: boolean): Promise<LiveT
         expires_at: string;
         refresh_count: number;
         last_refresh_error: string | null;
+        meta: Record<string, unknown> | null;
       }> | null) ?? [];
       const s = rows[0] ?? null;
       sessionRowPresent = s !== null;
@@ -216,6 +218,7 @@ function deriveSessionStatus(
     expires_at: string;
     refresh_count: number;
     last_refresh_error: string | null;
+    meta: Record<string, unknown> | null;
   } | null,
   credentialsConfigured: boolean,
 ): SessionStatusDescriptor {
@@ -228,6 +231,13 @@ function deriveSessionStatus(
       hoursToExpiry: null,
       refreshCount: 0,
       lastRefreshError: null,
+      placeholder: null,
+      cookiesCount: null,
+      originsCount: null,
+      postLoginUrl: null,
+      validationReport: [],
+      lastAuthedFetchAt: null,
+      lastAuthedFetchStatus: null,
     };
   }
   const expiresAtMs = new Date(row.expires_at).getTime();
@@ -247,6 +257,7 @@ function deriveSessionStatus(
     status = "active_session";
   }
 
+  const meta = row.meta ?? {};
   return {
     status,
     encKeyId: row.enc_key_id,
@@ -255,7 +266,56 @@ function deriveSessionStatus(
     hoursToExpiry,
     refreshCount: row.refresh_count,
     lastRefreshError: row.last_refresh_error,
+    placeholder: readBool(meta, "placeholder"),
+    cookiesCount: readNum(meta, "cookies_count"),
+    originsCount: readNum(meta, "origins_count"),
+    postLoginUrl: readStr(meta, "post_login_url"),
+    validationReport: parseValidationReport(meta),
+    lastAuthedFetchAt: readStr(meta, "last_authed_fetch_at"),
+    lastAuthedFetchStatus: parseFetchStatus(readStr(meta, "last_authed_fetch_status")),
   };
+}
+
+// ── meta extractors ─────────────────────────────────────────────────────────
+// Treats meta as untrusted (it's free-form JSONB). Each helper does its
+// own narrow check and returns null on shape mismatch — never throws.
+
+function readBool(meta: Record<string, unknown>, key: string): boolean | null {
+  const v = meta[key];
+  return typeof v === "boolean" ? v : null;
+}
+function readNum(meta: Record<string, unknown>, key: string): number | null {
+  const v = meta[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+function readStr(meta: Record<string, unknown>, key: string): string | null {
+  const v = meta[key];
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+function parseFetchStatus(s: string | null): "ok" | "fail" | null {
+  return s === "ok" || s === "fail" ? s : null;
+}
+function parseValidationReport(meta: Record<string, unknown>): SessionValidationTarget[] {
+  const raw = meta["validation_report"];
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const e = entry as Record<string, unknown>;
+    const target = typeof e.target === "string" ? e.target : null;
+    const url = typeof e.url === "string" ? e.url : null;
+    if (!target || !url) return [];
+    const result: SessionValidationTarget = {
+      target,
+      url,
+      anonLength: typeof e.anon_length === "number" ? e.anon_length : 0,
+      authedLength: typeof e.authed_length === "number" ? e.authed_length : 0,
+      sizeDelta: typeof e.size_delta === "number" ? e.size_delta : 0,
+      authedMarkerHits: typeof e.authed_authed_hits === "number" ? e.authed_authed_hits : 0,
+      paywallCtaHits: typeof e.authed_paywall_hits === "number" ? e.authed_paywall_hits : 0,
+      verdict: e.verdict === true,
+    };
+    return [result];
+  });
 }
 
 function deriveConnection(

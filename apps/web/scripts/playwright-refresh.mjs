@@ -507,6 +507,25 @@ try {
           cookies_count: storageState.cookies.length,
           origins_count: storageState.origins.length,
           post_login_url: postLoginUrl,
+          // Anon-vs-authed validation report (Phase 2.5b) — Admin UI
+          // surfaces this so an operator can see WHY the session is
+          // considered authenticated, not just that the refresh ran.
+          validation_report: validationReport.map((r) => ({
+            target: r.target,
+            url: r.url,
+            anon_length: r.anon.length,
+            authed_length: r.authed.length,
+            anon_authed_hits: r.anon.authedHits,
+            anon_paywall_hits: r.anon.paywallHits,
+            authed_authed_hits: r.authed.authedHits,
+            authed_paywall_hits: r.authed.paywallHits,
+            size_delta: r.sizeDelta,
+            more_authed_markers: r.moreAuthedMarkers,
+            fewer_paywall_ctas: r.fewerPaywallCtas,
+            significant_size_delta: r.significantSizeDelta,
+            verdict: r.verdict,
+          })),
+          validation_passed_at: now.toISOString(),
         },
       })
       .select("id")

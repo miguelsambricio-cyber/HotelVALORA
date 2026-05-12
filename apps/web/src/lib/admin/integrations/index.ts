@@ -7,6 +7,7 @@ export type {
   IngestionHealthDescriptor,
   IntegrationDescriptor,
   SessionStatusDescriptor,
+  SessionValidationTarget,
 } from "./types";
 
 export { AUTH_STATUS_VISUAL, CONNECTION_VISUAL } from "./types";

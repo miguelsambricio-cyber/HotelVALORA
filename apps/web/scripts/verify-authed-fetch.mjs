@@ -251,6 +251,52 @@ for (const t of targets) {
   lastTargetAuthedBody = { url: t.url, body: authed.body, length: authed.length, verdict };
 }
 
+// ── stamp last_authed_fetch_at on the active T2 row ─────────────────────────
+//
+// The Admin UI surfaces this timestamp + status as "Last successful
+// authenticated fetch" — distinct from `refreshed_at`, since auth refresh
+// and authed fetch are independent operations. Writing here is the cheap,
+// honest signal: every time the cookie jar successfully demonstrated a
+// differential against anon, we stamp this row.
+const passedTargets = report.filter((r) => r.verdict === "AUTHED-DIFFERS").length;
+const fetchStatus = passedTargets > 0 ? "ok" : "fail";
+{
+  const currentMeta = (t2.meta && typeof t2.meta === "object") ? t2.meta : {};
+  // Persist the latest authoritative anon-vs-authed signal into T2.meta
+  // so the Admin UI ("Premium-access verification" table) reflects
+  // real data, not just the snapshot captured at refresh time.
+  const validationReport = report.map((r) => ({
+    target: r.label,
+    url: r.url,
+    anon_length: r.anon.length,
+    authed_length: r.authed.length,
+    anon_authed_hits: r.anon.authedHits,
+    anon_paywall_hits: r.anon.paywallHits,
+    authed_authed_hits: r.authed.authedHits,
+    authed_paywall_hits: r.authed.paywallHits,
+    size_delta: r.size_delta_bytes,
+    more_authed_markers: r.more_authed_markers,
+    fewer_paywall_ctas: r.fewer_paywall_ctas,
+    significant_size_delta: Math.abs(r.size_delta_bytes) > 5000,
+    verdict: r.verdict === "AUTHED-DIFFERS",
+  }));
+  const nextMeta = {
+    ...currentMeta,
+    last_authed_fetch_at: new Date().toISOString(),
+    last_authed_fetch_status: fetchStatus,
+    last_authed_fetch_passed: passedTargets,
+    last_authed_fetch_total: report.length,
+    last_authed_fetch_via: "verify-authed-fetch.mjs",
+    validation_report: validationReport,
+    validation_passed_at: new Date().toISOString(),
+  };
+  const { error: metaErr } = await sb
+    .from("intelligence_source_sessions")
+    .update({ meta: nextMeta })
+    .eq("id", t2.id);
+  if (metaErr) console.error(`⚠  meta stamp failed: ${metaErr.message}`);
+}
+
 // ── output ──────────────────────────────────────────────────────────────────
 
 if (JSON_OUT) {
