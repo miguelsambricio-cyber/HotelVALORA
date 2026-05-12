@@ -4,6 +4,7 @@ import type { IntegrationDescriptor } from "@/lib/admin/integrations";
 import type { CredentialStatusDescriptor } from "@/lib/intelligence/credentials";
 import { SessionStatusPanel } from "./session-status-panel";
 import { CredentialsPanel } from "./credentials-panel";
+import { AuthHealthStrip } from "./auth-health-strip";
 import {
   AuthStatusBadge,
   ConnectionStatusBadge,
@@ -72,6 +73,16 @@ export function IntegrationDetail({
           />
         </dl>
       </section>
+
+      {/* Auth Health Strip — institutional at-a-glance for authenticated
+          sources: last successful auth (T2) · last credential rotation
+          (T1.5) · session expiry · last ingestion run. */}
+      {integration.requiresAuth && (
+        <AuthHealthStrip
+          integration={integration}
+          credentialDescriptor={credentialDescriptor}
+        />
+      )}
 
       {/* T1.5 credentials panel — surfaces above the session panel because
           credentials are the prerequisite for sessions. Only rendered for

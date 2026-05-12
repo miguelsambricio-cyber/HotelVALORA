@@ -4,7 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
-## 2026-05-12 — T1.5 encrypted credentials (DB) · admin provisioning UI · audit chain
+## 2026-05-12 — Auth Health Strip on integration detail · 4-KPI institutional summary
+
+Adds `AuthHealthStrip` at the top of every authenticated integration's detail page. Four KPIs fed by three independent lifecycle systems:
+
+| KPI | Source | Threshold (signal) |
+|---|---|---|
+| **Last Successful Auth** | `intelligence_source_sessions.refreshed_at` (T2) | ok ≤ 48h · warn ≤ 7d · error > 7d |
+| **Last Credential Rotation** | `intelligence_source_credentials.last_rotated_at` (T1.5) | ok ≤ 90d · warn ≤ 180d · error > 180d |
+| **Session Expires In** | `intelligence_source_sessions.expires_at` (T2) | ok ≥ 24h · warn < 24h · error if past |
+| **Last Ingestion Run** | `news_ingestion_runs` rollup (T3) | ok ≤ 30h · warn ≤ 72h · error > 72h |
+
+Renders as a horizontal dark-canvas strip with per-cell signal rails (lime / amber / rose / slate). Subline carries the absolute UTC timestamp (mono) when the headline is relative ("4h ago" → "2026-05-12 06:48 UTC"). Public sources skip the strip entirely.
+
+`pnpm typecheck` clean · `pnpm build` clean.
 
 Moves T1 credentials off Vercel env vars and into Supabase, encrypted at rest with AES-256-GCM. The operator now provisions / rotates / invalidates paid-source credentials directly from `Administrator → Integrations` instead of touching Vercel or terminal. HotelVALORA becomes the institutional operating console for authenticated intelligence sources.
 
