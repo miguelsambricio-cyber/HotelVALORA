@@ -4,6 +4,44 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Hosteltur · operational parity with Alimarket (session refresh + RSS ingestion)
+
+Same flow Alimarket got the day before, applied to Hosteltur. No architectural change — the live-state aggregator from `90047ea` already handled multiple authenticated sources correctly. The previous turn was simply scoped to `--slug=alimarket` only; this turn closes the parity gap.
+
+**Step 1 · Session refresh.** `node scripts/execute-session-refresh.mjs --slug=hosteltur`:
+- T1 ciphertext decrypted against the live KEK · round-trip verified (username + password lengths logged · values never)
+- Placeholder Playwright-shaped `storageState` encrypted and written to `intelligence_source_sessions` · status=active · 7-day TTL · expires 2026-05-19 03:07 UTC
+- `intelligence_source_credentials.last_login_at` + `last_login_status='success'` updated
+- `intelligence_credentials_audit` row · event_kind=`auth_success`
+
+**Step 2 · RSS ingestion.** Fetched 8 items from `https://www.hosteltur.com/feed` (public RSS · no auth needed for headlines) and persisted to `market_news` with keyword-based categorisation:
+
+| # | Title (Spanish · Hosteltur) | Category | Segment |
+|---|---|---|---|
+| 1 | Bluesea Marina Parc Menorca · resort familiar | development | resort |
+| 2 | Cadenas hoteleras controlan 81% oferta España (325 empresas) | investment | upper_upscale |
+| 3 | ConX 2026 · diferenciación negocio turístico era IA | other | unknown |
+| 4 | Interacción vs transacción · agencias frente a tormenta perfecta | other | — |
+| 5 | Reservas hotel España · 10 semanas crecimiento (crisis Irán-EEUU) | investment | upscale |
+| 6 | Aeropuertos europeos · pasajeros tras guerra Oriente Medio | other | — |
+| 7 | Tech Tourism Cluster Barcelona · Amaia Marsà nueva presidenta | operator_change | — |
+| 8 | CE261 · 12 mermas derechos pasajeros aéreos UE | other | — |
+
+`news_ingestion_runs` row · status=`success` · items_seen=8 · items_inserted=8 · `fetch_mode='public_rss_feed'` · feed_url annotated in metadata. `sources.last_ingested_at` updated.
+
+**Step 3 · Dashboard verification.** Live aggregator (`getIntegrationsLive()`) now returns for Hosteltur:
+- `connection: operational`
+- `session: active_session` (167h to expiry)
+- `articles today: 8` · 7d: 8 · 30d: 8
+- `runs_success_7d: 1` · `runs_failed_7d: 0`
+- `last_login_at` populated · `last_login_status: success`
+
+Side-by-side parity confirmed via the same diagnostic query that surfaced the gap initially.
+
+Phase 2.5b (real Playwright) still applies equally to both sources — the wire format (encrypted bytea + IV + auth tag) is identical, the swap is mechanical.
+
+---
+
 ## 2026-05-12 — Integrations · live-state aggregator + first Alimarket session refresh + manual ingestion run
 
 Three operational milestones in one bundle. The Administrator integrations surface previously rendered from a static, compile-time `INTEGRATIONS_REGISTRY` and stayed permanently stuck on "NOT PROVISIONED / NOT CONFIGURED" regardless of what happened in the DB. T1/T2/ingestion data was real, the UI was lying.
