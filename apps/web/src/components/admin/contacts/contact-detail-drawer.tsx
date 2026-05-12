@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { X, ExternalLink, Mail, Phone, Building2, MapPin, Activity, UserCircle2, Pencil, Plus, CheckCircle2 } from "lucide-react";
+import { X, ExternalLink, Mail, Phone, Building2, MapPin, Activity, UserCircle2, Pencil, Plus, CheckCircle2, CreditCard, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContactDetail, TimelineEvent } from "@/lib/admin/contacts/live";
+import { deriveLifecycle } from "@/lib/admin/lifecycle";
 import { addTagFromForm, removeTagFromForm } from "@/lib/admin/contacts/mutations";
 
 /**
@@ -409,47 +410,35 @@ function StrategicSection({ detail }: { detail: ContactDetail }) {
 function ConversionStatus({ detail }: { detail: ContactDetail }) {
   const c = detail.contact;
   const u = detail.linked_user;
-  const stage = u
-    ? u.invitation_status === "active"
-      ? { label: "Active user", tone: "ok" as const }
-      : u.invitation_status === "onboarding"
-        ? { label: "Onboarding", tone: "ok" as const }
-        : u.invitation_status === "invited"
-          ? { label: "Invited (account created)", tone: "ok" as const }
-          : u.invitation_status === "inactive"
-            ? { label: "Inactive user", tone: "warn" as const }
-            : u.invitation_status === "churn_risk"
-              ? { label: "Churn risk", tone: "error" as const }
-              : { label: u.invitation_status, tone: "neutral" as const }
-    : c.contact_invitation_status === "invited"
-      ? { label: "Invited · awaiting signup", tone: "ok" as const }
-      : c.contact_invitation_status === "onboarding"
-        ? { label: "Onboarding", tone: "ok" as const }
-        : c.contact_invitation_status === "converted"
-          ? { label: "Converted (linked user missing)", tone: "warn" as const }
-          : c.contact_invitation_status === "declined"
-            ? { label: "Declined", tone: "neutral" as const }
-            : c.contact_invitation_status === "bounced"
-              ? { label: "Bounced invite", tone: "warn" as const }
-              : { label: "Not invited", tone: "neutral" as const };
+  const sub = detail.linked_subscription;
+  const inv = detail.latest_invitation;
+
+  const lifecycle = deriveLifecycle({
+    has_linked_user: u !== null,
+    contact_invitation_status: c.contact_invitation_status,
+    subscription_status: sub?.status ?? null,
+    subscription_expires_at: sub?.expires_at ?? null,
+    user_invitation_status: u?.invitation_status ?? null,
+  });
 
   const stageTone =
-    stage.tone === "ok" ? "bg-emerald-500/20 text-emerald-200 ring-emerald-500/40"
-    : stage.tone === "warn" ? "bg-amber-500/15 text-amber-200 ring-amber-500/40"
-    : stage.tone === "error" ? "bg-rose-500/20 text-rose-200 ring-rose-500/40"
+    lifecycle.tone === "ok" ? "bg-emerald-500/20 text-emerald-200 ring-emerald-500/40"
+    : lifecycle.tone === "warn" ? "bg-amber-500/15 text-amber-200 ring-amber-500/40"
+    : lifecycle.tone === "error" ? "bg-rose-500/20 text-rose-200 ring-rose-500/40"
+    : lifecycle.tone === "lime" ? "bg-lime-300/20 text-lime-200 ring-lime-300/40"
     : "bg-slate-700/40 text-slate-300 ring-slate-600/40";
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-          Stage
+          Lifecycle
         </span>
         <span className={cn(
           "inline-flex items-center rounded px-2 py-0.5 font-headline text-[10px] font-bold uppercase tracking-[0.2em] ring-1",
           stageTone,
         )}>
-          {stage.label}
+          {lifecycle.label}
         </span>
       </div>
 
@@ -471,6 +460,48 @@ function ConversionStatus({ detail }: { detail: ContactDetail }) {
             <Stat label="Signed up" value={u.created_at.slice(0, 10)} />
             <Stat label="Last seen" value={u.last_seen_at ? u.last_seen_at.slice(0, 10) : "—"} />
           </dl>
+        </div>
+      )}
+
+      {sub && (
+        <div className="rounded-md bg-slate-900/40 p-3 ring-1 ring-slate-700/40">
+          <div className="flex items-center gap-2">
+            <CreditCard size={14} className="text-lime-300" />
+            <Link
+              href={`/user/admin/subscriptions?selected=${sub.id}`}
+              className="font-headline text-[12px] font-bold text-lime-200 hover:text-lime-100"
+            >
+              Subscription · {sub.tier === "top_promote" ? "Top Promote" : sub.tier.charAt(0).toUpperCase() + sub.tier.slice(1)}
+            </Link>
+            <span className="ml-auto font-mono text-[9.5px] text-slate-500">{sub.status}</span>
+          </div>
+          {(sub.expires_at || sub.source_campaign_name || sub.assigned_by_email) && (
+            <dl className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1">
+              {sub.expires_at && <Stat label="Expires" value={sub.expires_at.slice(0, 10)} />}
+              {sub.source_campaign_name && <Stat label="Campaign" value={sub.source_campaign_name} />}
+              {sub.assigned_by_email && <Stat label="Assigned by" value={sub.assigned_by_email} />}
+            </dl>
+          )}
+          {sub.notes && (
+            <p className="mt-2 whitespace-pre-line rounded border border-slate-700/40 bg-slate-950/60 p-2 font-mono text-[10px] leading-relaxed text-slate-400">
+              {sub.notes}
+            </p>
+          )}
+        </div>
+      )}
+
+      {inv?.campaign_name && (
+        <div className="flex items-center gap-2 rounded-md bg-slate-900/40 px-3 py-2 ring-1 ring-slate-700/40">
+          <Megaphone size={12} className="text-emerald-300" />
+          <span className="font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+            Source campaign
+          </span>
+          <Link
+            href={`/user/admin/campaigns?selected=${inv.campaign_id}`}
+            className="ml-auto font-mono text-[11px] text-emerald-200 hover:text-emerald-100"
+          >
+            {inv.campaign_name}
+          </Link>
         </div>
       )}
 

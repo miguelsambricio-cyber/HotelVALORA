@@ -4,6 +4,66 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.D.4 · Campaigns CRUD + Subscriptions admin + funnel lifecycle joins
+
+The contacts layer becomes a real acquisition + subscription operations system. Operator can run campaigns, attribute every send/conversion/subscription, manually grant tiers (Comped + manual), set expirations, and see the full funnel — `contact → invited → onboarded → active subscriber → expired → inactive` — joined per row.
+
+### Database — migration `0019_campaigns_subscriptions_full`
+- `subscription_status` enum extended with `expired` (distinct from `canceled`; canceled = explicit, expired = natural-end past expires_at)
+- `campaigns` gains `target_audience` · `notes` · `conversion_target int` · `archived_at` · `created_by_email`. Partial index on archived, index on owner.
+- `subscriptions` gains `expires_at` · `notes` · `assigned_by_email` · `source_campaign_id FK → campaigns(id) ON DELETE SET NULL`. Partial indexes on expires + source_campaign_id.
+- `subscriptions.stripe_customer_id` dropped NOT NULL — comped/manual assignments don't have a Stripe customer.
+
+### Campaigns CRUD · `/user/admin/campaigns` (promoted from scaffold to Live)
+- Server lib `apps/web/src/lib/admin/campaigns/live.ts` (loadCampaigns + loadCampaignKpis + loadCampaignDetail with parallel rollup of invitation buckets + attributed-subs count)
+- Mutations `mutations.ts` — `createCampaign · updateCampaign · archiveCampaign · restoreCampaign`. All gated by `requireOperator`, all write `entity_type='campaign'` activity_log rows.
+- KPIs: 5 status totems (running/draft/paused/completed/archived) + invitation flow strip (total/sent/converted/conversion rate %) + attributed-subs count
+- Filters: status chips · kind chips · archived toggle · sort · debounced search
+- Table: name+slug, kind, status badge, owner, active invitations, converted, failed, attributed subs, created
+- Form drawer (server component) used in both **Create** (selected=new) and **Edit** (selected=<id>) modes — slug, name, kind, status, owner_email, channel, conversion_target, target_audience, description, notes. Plus Archive/Restore quick action and a last-25 invitations list
+
+### Subscriptions admin · `/user/admin/subscriptions` (promoted from scaffold to Live)
+- Server lib `lib/admin/subscriptions/live.ts` (loadSubscriptions joins `users` + `campaigns` · loadSubscriptionKpis with by-tier breakdown · loadAssignableUsers · loadActiveCampaigns)
+- Mutations `mutations.ts` — `assignSubscriptionAction · updateSubscriptionAction · expireSubscriptionAction`. All gated, all audit-logged with `entity_type='subscription'`. The expire shortcut sets `status=expired` + `expires_at=now()`.
+- KPIs: status totems (active/trialing/past_due/canceled/expired/comped-active) + 7-tier breakdown (Free / Pro / Premium / Top Promote / Comped / Team / Enterprise) + attributed-to-campaign count
+- Filters: status chips (incl. expired) · tier chips · attributed-to-campaign toggle · sort
+- Table: user (name+email), tier badge, status badge, expires-at, source campaign (click-through to `/user/admin/campaigns`), assigned-by, created
+- Form drawer — same split-form pattern as campaigns. Assign mode picks an existing user from `loadAssignableUsers()` · update mode patches tier/status/expires/notes/source_campaign. Stripe-backed rows show an amber warning "edits should flow through the Stripe dashboard".
+
+### Lifecycle layer · `lib/admin/lifecycle.ts`
+- Single `deriveLifecycle({ has_linked_user, contact_invitation_status, subscription_status, subscription_expires_at, user_invitation_status })` function returning `{ state, label, tone }`. States: `contact_only · invited · onboarded · active_subscriber · expired · inactive`.
+- Subscription state wins: active/trialing → active subscriber; expired/canceled → expired; past_due → active with payment-warn.
+- User state second: invitation_status `inactive` or `churn_risk` flips to inactive.
+- Falls back to contact invitation status when no linked user.
+
+### Contacts drawer enrichment — `Conversion status` section
+- Shows the **lifecycle pill** at the top (replaces the prior single-source stage chip)
+- Adds a **subscription card** (lime-tinted) when the linked user has a sub: tier · status · expires · source campaign · assigned by · notes. Click-through to `/user/admin/subscriptions?selected=<id>`.
+- Adds a **source campaign row** when the latest invitation has campaign attribution. Click-through to `/user/admin/campaigns?selected=<id>`.
+- `loadContactDetail` now joins `subscriptions` (most recent for linked user) + `contact_invitations` (latest with campaign name) in the same parallel fan-out.
+
+### Cross-links between surfaces
+- `/user/admin/users` table: linked-contact click-through unchanged (Phase 2.D.1)
+- `/user/admin/contacts` drawer: now links to users + subscriptions + campaigns (Phase 2.D.4)
+- `/user/admin/subscriptions` table: each row links to source campaign (Phase 2.D.4)
+- `/user/admin/campaigns` detail: invitations list + attributed-subs list with timestamps
+
+### Intentional non-features
+- No drip campaigns. No automated sequences. No AI-generated outreach. No CRM pipelines. No scoring engines.
+- Each operator action is a manual trigger. Audit is the receipt.
+- Stripe-backed subscriptions are read-only here — edits flow through the Stripe dashboard so the webhook stays authoritative.
+
+Smoke
+- `/user/admin/campaigns` → 200 · KPIs + filters + empty state render
+- `/user/admin/campaigns?selected=new` → 200 · "Create campaign" form rendered with all 8 enum kinds
+- `/user/admin/subscriptions` → 200 · 7-tier KPI breakdown + status chips render
+- `/user/admin/subscriptions?selected=new` → 200 · "Assign subscription" form with user picker
+- End-to-end SQL smoke: inserted a campaign, verified list + detail rendering, deleted cleanly
+- Contacts drawer `?selected=<id>` → 200 · 472 KB · new "Lifecycle" pill + subscription card render path exercised
+- Typecheck clean
+
+---
+
 ## 2026-05-12 — Phase 2.D.3 · Bulk operational workflows on contacts · 9 actions · Resend invite send · CSV export
 
 Operator can now act on N contacts at a time. Selection model + sticky toolbar + 9 bulk actions cover the full growth-ops loop (invite · tag · owner · campaign · contacted · inactive · invalid · suppress · CSV export). All actions follow the same shape: gated by `requireOperator()`, soft-delete-aware (`deleted_at IS NULL`), and write one `activity_log` row per affected contact.

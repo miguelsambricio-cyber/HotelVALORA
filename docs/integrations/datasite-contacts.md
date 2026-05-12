@@ -407,6 +407,42 @@ the URL stays clean). Hard cap `MAX_BULK_BATCH = 500`.
 builder, no AI outbound generation. Selection is in-page only (no
 persistence across reloads). The operator pulls each trigger by hand.
 
+### Phase 2.D.4 — Campaigns CRUD + Subscriptions admin + lifecycle joins (shipped same day)
+
+The contacts layer becomes a real acquisition + subscription operations
+system. Three surfaces work in concert:
+
+| Surface | Role | What lands |
+|---|---|---|
+| `/user/admin/campaigns` | Activation source-of-truth | Full CRUD · create/edit/archive/restore · per-campaign invitation list · attributed-subs counter |
+| `/user/admin/subscriptions` | Monetization source-of-truth | Assign tier · update tier/status/expires · expire-now quick action · joins users + campaigns |
+| `/user/admin/contacts?selected=<id>` | Funnel intelligence | Lifecycle pill · subscription card · source campaign row · cross-links to all three surfaces |
+
+**Schema additions (migration `0019`):**
+- `subscription_status` enum gains `expired` (distinct from `canceled`)
+- `campaigns` gains `target_audience` · `notes` · `conversion_target` ·
+  `archived_at` · `created_by_email`
+- `subscriptions` gains `expires_at` · `notes` · `assigned_by_email` ·
+  `source_campaign_id` FK
+- `subscriptions.stripe_customer_id` becomes nullable (comped/manual
+  assignments don't have Stripe customers)
+
+**Lifecycle layer (`lib/admin/lifecycle.ts`):** a single `deriveLifecycle()`
+function takes `{ has_linked_user, contact_invitation_status,
+subscription_status, subscription_expires_at, user_invitation_status }`
+and returns `{ state, label, tone }`. States:
+`contact_only · invited · onboarded · active_subscriber · expired · inactive`.
+
+**Audit:** every mutation writes one `activity_log` row with
+`entity_type ∈ { campaign, subscription }` and `action='<entity>.<verb>'`.
+
+**Intentional non-features (carried forward):** no automation engine,
+no drip campaigns, no AI outbound generation, no CRM pipelines, no
+scoring engines. Each operator action is a manual trigger. Stripe-
+backed subscriptions are operator-edit-only via the Stripe dashboard
+so the webhook stays authoritative; admin UI shows them with a yellow
+warning banner.
+
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's
 Full Report into `incoming/`, the dedup logic merges by email/LinkedIn

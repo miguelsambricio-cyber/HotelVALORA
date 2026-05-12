@@ -390,6 +390,27 @@ export interface ContactDetail {
   invitation_count: number;
   /** Phase 2.D.2 · count of activity_log rows for this contact (audit trail length) */
   mutation_count: number;
+  /** Phase 2.D.4 · latest active subscription for the linked user, if any */
+  linked_subscription: {
+    id: string;
+    tier: string;
+    status: string;
+    expires_at: string | null;
+    source_campaign_id: string | null;
+    source_campaign_name: string | null;
+    assigned_by_email: string | null;
+    notes: string | null;
+  } | null;
+  /** Phase 2.D.4 · most recent invitation (carries the campaign attribution) */
+  latest_invitation: {
+    id: string;
+    status: string;
+    sent_at: string | null;
+    campaign_id: string | null;
+    campaign_name: string | null;
+    promo_code: string | null;
+    default_subscription_tier: string | null;
+  } | null;
 }
 
 /**
@@ -432,8 +453,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
   }
   const contact = contactRow as unknown as Omit<ContactRow, "labels">;
 
-  // Parallel fan-out: company · interactions · labels · health · peers · linked user · invitation count · audit count
-  const [companyR, interactionsR, labelsR, healthR, peersR, linkedUserR, invitesR, auditR] = await Promise.all([
+  // Parallel fan-out · adds subscription + latest invitation in 2.D.4
+  const [companyR, interactionsR, labelsR, healthR, peersR, linkedUserR, invitesR, auditR, subR, latestInvR] = await Promise.all([
     contact.company_id
       ? sb.from("relationship_companies")
           .select("id, name, investor_type_canonical, investor_subtype, tier, industry, hotel_focus, fund_size, investment_preference, investment_min, investment_max, continent, location, description, external_notes, internal_notes")
@@ -475,6 +496,20 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
       .select("id", { count: "exact", head: true })
       .eq("entity_type", "relationship_contact")
       .eq("entity_id", contactId),
+    // Subscription for the linked user — pick the most recent row
+    contact.linked_user_id
+      ? sb.from("subscriptions")
+          .select("id, tier, status, expires_at, source_campaign_id, assigned_by_email, notes, campaigns:source_campaign_id ( name )")
+          .eq("user_id", contact.linked_user_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+      : Promise.resolve({ data: [], error: null }),
+    // Latest invitation event with campaign attribution
+    sb.from("contact_invitations")
+      .select("id, status, sent_at, campaign_id, promo_code, default_subscription_tier, campaigns:campaign_id ( name )")
+      .eq("contact_id", contactId)
+      .order("created_at", { ascending: false })
+      .limit(1),
   ]);
 
   const company = (companyR.data ?? null) as ContactDetail["company"];
@@ -501,6 +536,41 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
   const linked_user = (linkedUserR.data ?? null) as ContactDetail["linked_user"];
   const invitation_count = invitesR.count ?? 0;
   const mutation_count = auditR.count ?? 0;
+
+  const subRow = ((subR.data ?? []) as Array<{
+    id: string; tier: string; status: string; expires_at: string | null;
+    source_campaign_id: string | null; assigned_by_email: string | null; notes: string | null;
+    campaigns: { name: string } | null;
+  }>)[0];
+  const linked_subscription = subRow
+    ? {
+        id: subRow.id,
+        tier: subRow.tier,
+        status: subRow.status,
+        expires_at: subRow.expires_at,
+        source_campaign_id: subRow.source_campaign_id,
+        source_campaign_name: subRow.campaigns?.name ?? null,
+        assigned_by_email: subRow.assigned_by_email,
+        notes: subRow.notes,
+      }
+    : null;
+
+  const invRow = ((latestInvR.data ?? []) as Array<{
+    id: string; status: string; sent_at: string | null; campaign_id: string | null;
+    promo_code: string | null; default_subscription_tier: string | null;
+    campaigns: { name: string } | null;
+  }>)[0];
+  const latest_invitation = invRow
+    ? {
+        id: invRow.id,
+        status: invRow.status,
+        sent_at: invRow.sent_at,
+        campaign_id: invRow.campaign_id,
+        campaign_name: invRow.campaigns?.name ?? null,
+        promo_code: invRow.promo_code,
+        default_subscription_tier: invRow.default_subscription_tier,
+      }
+    : null;
 
 
   // ── Compose chronological event timeline ────────────────────────────
@@ -589,6 +659,8 @@ export async function loadContactDetail(contactId: string): Promise<ContactDetai
     linked_user,
     invitation_count,
     mutation_count,
+    linked_subscription,
+    latest_invitation,
   };
 }
 

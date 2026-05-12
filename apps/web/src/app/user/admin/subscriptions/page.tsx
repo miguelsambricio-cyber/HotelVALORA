@@ -1,39 +1,84 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import {
+  loadSubscriptions,
+  loadSubscriptionKpis,
+  loadAssignableUsers,
+  loadActiveCampaigns,
+  type SubscriptionsFilter,
+  type SubscriptionRow,
+} from "@/lib/admin/subscriptions/live";
+import { SubscriptionsKpis } from "@/components/admin/subscriptions/subscriptions-kpis";
+import { SubscriptionsFilters } from "@/components/admin/subscriptions/subscriptions-filters";
+import { SubscriptionsTable } from "@/components/admin/subscriptions/subscriptions-table";
+import { SubscriptionFormDrawer } from "@/components/admin/subscriptions/subscription-form-drawer";
 
 export const metadata: Metadata = {
   title: "Subscriptions · Admin · HotelVALORA",
-  description:
-    "Monetization layer — Free · Pro · Premium · Top Promote · Comped · Expired.",
+  description: "Monetization layer · Free · Pro · Premium · Top Promote · Comped · Expired",
 };
 
 export const dynamic = "force-dynamic";
 
-const TIERS = [
-  { tier: "free", label: "Free", hint: "Public showcase tier · sample reports + library browse" },
-  { tier: "pro", label: "Pro", hint: "Institutional underwriting + advanced CompSet" },
-  { tier: "premium", label: "Premium", hint: "Full Intelligence Engine + AI Operations surfaces" },
-  { tier: "team", label: "Team", hint: "Workspace + role management (multi-seat)" },
-  { tier: "enterprise", label: "Enterprise", hint: "Custom contracts, dedicated support, white-glove onboarding" },
-];
+interface PageProps {
+  searchParams: {
+    status?: string;
+    tier?: string;
+    campaign_only?: string;
+    search?: string;
+    page?: string;
+    sort?: string;
+    selected?: string;
+    saved?: string;
+    form_error?: string;
+  };
+}
 
-export default async function SubscriptionsAdminPage() {
-  const sb = getSupabaseAdmin();
-  const [
-    { count: total },
-    { count: active },
-    { count: trialing },
-    { count: pastDue },
-    { count: canceled },
-  ] = await Promise.all([
-    sb.from("subscriptions").select("id", { count: "exact", head: true }),
-    sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "active"),
-    sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "trialing"),
-    sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "past_due"),
-    sb.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "canceled"),
+export default async function SubscriptionsAdminPage({ searchParams }: PageProps) {
+  const filter: SubscriptionsFilter = {
+    status: (searchParams.status as SubscriptionsFilter["status"]) || "all",
+    tier: (searchParams.tier as SubscriptionsFilter["tier"]) || "all",
+    campaign_only: searchParams.campaign_only === "1",
+    search: searchParams.search || "",
+    page: Number.parseInt(searchParams.page ?? "0", 10) || 0,
+    page_size: 50,
+    sort: (searchParams.sort as SubscriptionsFilter["sort"]) || "recent",
+  };
+
+  const selected = searchParams.selected || null;
+  const isCreate = selected === "new";
+  const savedFlag = searchParams.saved === "1";
+  const formError = searchParams.form_error || null;
+
+  const baseParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(searchParams)) {
+    if (!v) continue;
+    if (["selected", "saved", "form_error"].includes(k)) continue;
+    baseParams.set(k, v);
+  }
+  const baseSearchString = baseParams.toString();
+  const closeHref = baseSearchString
+    ? `/user/admin/subscriptions?${baseSearchString}`
+    : "/user/admin/subscriptions";
+
+  const [kpis, { rows, total }, users, campaigns] = await Promise.all([
+    loadSubscriptionKpis(),
+    loadSubscriptions(filter),
+    isCreate ? loadAssignableUsers() : Promise.resolve([]),
+    loadActiveCampaigns(),
   ]);
+
+  let currentRow: SubscriptionRow | null = null;
+  if (selected && !isCreate) {
+    currentRow = rows.find((r) => r.id === selected) ?? null;
+    if (!currentRow) {
+      const { rows: page1 } = await loadSubscriptions({ ...filter, page: 0, page_size: 1, search: "" });
+      currentRow = page1.find((r) => r.id === selected) ?? null;
+    }
+  }
+
+  const hasDrawer = isCreate || currentRow !== null;
 
   return (
     <div className="space-y-6">
@@ -46,8 +91,8 @@ export default async function SubscriptionsAdminPage() {
 
       <header className="space-y-2">
         <div className="flex items-center gap-3">
-          <span className="rounded-md bg-slate-200 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-slate-700">
-            Scaffold
+          <span className="rounded-md bg-forest-900 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-lime-300">
+            Live
           </span>
           <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.32em] text-slate-500">
             Monetization Layer
@@ -57,73 +102,50 @@ export default async function SubscriptionsAdminPage() {
           Subscriptions
         </h1>
         <p className="max-w-3xl text-[13.5px] leading-relaxed text-slate-600">
-          The final node of the conversion arc — active subscribers pay for HOTELVALORA. Schema is live
-          (Stripe customer + subscription IDs · per-period billing windows) · the full management UI
-          (assign tier · grant Comped · mark Expired · refunds · per-org billing) lands in Phase 2.D.4.
+          The final node of the conversion arc. Operator can assign tiers manually (Free / Pro / Premium / Top
+          Promote / Comped), set expirations, and attribute the subscription to its source campaign. Stripe-backed
+          subscriptions appear here too · operator edits flow through the Stripe dashboard so the webhook stays
+          authoritative.
         </p>
       </header>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
-        <header className="mb-3 flex items-baseline justify-between">
-          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.25em] text-lime-300/80">
-            Foundation state
-          </p>
-          <p className="font-mono text-[10.5px] text-slate-400">subscriptions scaffold · 2026-05-12</p>
-        </header>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-5">
-          <Totem label="Total" value={total ?? 0} />
-          <Totem label="Active" value={active ?? 0} severity="ok" />
-          <Totem label="Trialing" value={trialing ?? 0} />
-          <Totem label="Past due" value={pastDue ?? 0} severity={pastDue && pastDue > 0 ? "warn" : "neutral"} />
-          <Totem label="Canceled" value={canceled ?? 0} />
-        </dl>
-      </section>
+      {savedFlag && (
+        <div className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2.5">
+          <CheckCircle2 size={14} className="text-emerald-300" />
+          <p className="font-mono text-[11px] text-emerald-200">Saved · audit row written.</p>
+        </div>
+      )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="mb-2 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
-          Plan tiers (schema enum · `user_tier`)
-        </p>
-        <ul className="space-y-2">
-          {TIERS.map((t) => (
-            <li key={t.tier} className="flex items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50 p-3">
-              <div>
-                <p className="font-headline text-[12px] font-bold text-forest-900">{t.label}</p>
-                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{t.hint}</p>
-              </div>
-              <span className="font-mono text-[10px] text-slate-400">{t.tier}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-[11px] leading-snug text-slate-500">
-          <strong>Comped</strong> + <strong>Expired</strong> + <strong>Top Promote</strong> states are
-          modelled in Phase 2.D.4 — they need explicit operator workflows (grant · revoke · monitor
-          period end) before they land. <strong>Trial</strong> and <strong>Internal</strong> are
-          reserved.
-        </p>
-      </section>
-    </div>
-  );
-}
+      <SubscriptionsKpis kpis={kpis} />
+      <SubscriptionsFilters current={{
+        status: filter.status ?? "all",
+        tier: filter.tier ?? "all",
+        campaign_only: filter.campaign_only ?? false,
+        search: filter.search ?? "",
+        sort: filter.sort ?? "recent",
+      }} />
 
-function Totem({
-  label,
-  value,
-  severity,
-}: {
-  label: string;
-  value: number;
-  severity?: "ok" | "warn" | "neutral";
-}) {
-  const tone =
-    severity === "ok" ? "text-emerald-300"
-    : severity === "warn" ? "text-amber-300"
-    : "text-lime-300";
-  return (
-    <div>
-      <dt className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
-        {label}
-      </dt>
-      <dd className={`mt-1 font-headline text-2xl font-extrabold ${tone}`}>{value}</dd>
+      <div className={hasDrawer ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]" : "block"}>
+        <div className="min-w-0">
+          <SubscriptionsTable
+            rows={rows}
+            total={total}
+            page={filter.page ?? 0}
+            pageSize={filter.page_size ?? 50}
+            selectedId={isCreate ? null : selected}
+            baseSearchParams={baseSearchString}
+          />
+        </div>
+        {hasDrawer && (
+          <SubscriptionFormDrawer
+            row={isCreate ? null : currentRow}
+            closeHref={closeHref}
+            errorMessage={formError}
+            users={users}
+            campaigns={campaigns}
+          />
+        )}
+      </div>
     </div>
   );
 }

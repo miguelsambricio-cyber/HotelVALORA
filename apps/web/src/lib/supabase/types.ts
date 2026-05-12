@@ -557,39 +557,54 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          archived_at: string | null
           channel: string
+          conversion_target: number | null
           created_at: string
+          created_by_email: string | null
           description: string | null
           id: string
           kind: string
           name: string
+          notes: string | null
           owner_email: string | null
           slug: string
           status: string
+          target_audience: string | null
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           channel?: string
+          conversion_target?: number | null
           created_at?: string
+          created_by_email?: string | null
           description?: string | null
           id?: string
           kind: string
           name: string
+          notes?: string | null
           owner_email?: string | null
           slug: string
           status?: string
+          target_audience?: string | null
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           channel?: string
+          conversion_target?: number | null
           created_at?: string
+          created_by_email?: string | null
           description?: string | null
           id?: string
           kind?: string
           name?: string
+          notes?: string | null
           owner_email?: string | null
           slug?: string
           status?: string
+          target_audience?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -2909,42 +2924,54 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          assigned_by_email: string | null
           cancel_at_period_end: boolean
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          expires_at: string | null
           id: string
+          notes: string | null
           organization_id: string | null
+          source_campaign_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
-          stripe_customer_id: string
+          stripe_customer_id: string | null
           stripe_subscription_id: string | null
           tier: Database["public"]["Enums"]["user_tier"]
           updated_at: string
           user_id: string
         }
         Insert: {
+          assigned_by_email?: string | null
           cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          expires_at?: string | null
           id?: string
+          notes?: string | null
           organization_id?: string | null
+          source_campaign_id?: string | null
           status: Database["public"]["Enums"]["subscription_status"]
-          stripe_customer_id: string
+          stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           tier: Database["public"]["Enums"]["user_tier"]
           updated_at?: string
           user_id: string
         }
         Update: {
+          assigned_by_email?: string | null
           cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          expires_at?: string | null
           id?: string
+          notes?: string | null
           organization_id?: string | null
+          source_campaign_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
-          stripe_customer_id?: string
+          stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           tier?: Database["public"]["Enums"]["user_tier"]
           updated_at?: string
@@ -2956,6 +2983,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_source_campaign_id_fkey"
+            columns: ["source_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -3489,6 +3523,7 @@ export type Database = {
         | "past_due"
         | "canceled"
         | "incomplete"
+        | "expired"
       user_role: "user" | "admin" | "owner"
       user_tier:
         | "free"
@@ -3783,6 +3818,7 @@ export const Constants = {
         "past_due",
         "canceled",
         "incomplete",
+        "expired",
       ],
       user_role: ["user", "admin", "owner"],
       user_tier: [
