@@ -1,7 +1,7 @@
 # Integrations · Hosteltur
 
 **Last refreshed:** 2026-05-12
-**Status:** 🟢 Phase 2.5b complete · real Playwright authentication shipped 2026-05-12 04:50 UTC · canonical T2 row `81f57ee0-…` · 11 cookies · validated via anon-vs-authed body comparison (2/2 targets passed) · expires 2026-05-19
+**Status:** 🟢 Phase 2.6 live · authenticated cron ingestion shipped 2026-05-12 · session-health gate writes `auth_success` audit + stamps T2 meta every nightly run · canonical T2 row `81f57ee0-…` · 11 cookies · last cron run: 34 articles with authed body fetches (avg 4.8kB body each) · `/premium` health check Δ=+57,062B · expires 2026-05-19
 
 Hosteltur is the validation source for HOTELVALORA's authenticated-intelligence track. Architecture goal: prove the **three-tier credential model** end-to-end on a single source before extending to Alimarket / STR / others. **Goal achieved.**
 

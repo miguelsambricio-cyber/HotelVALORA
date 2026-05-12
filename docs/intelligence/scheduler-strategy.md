@@ -2,8 +2,9 @@
 
 How and when the daily hospitality intelligence cron fires.
 
-**Last refreshed:** 2026-05-11
+**Last refreshed:** 2026-05-12
 **Decision:** Vercel Cron (single daily firing). Supabase pg_cron evaluated and parked as future option.
+**Phase 2.6 status:** Cron now hydrates real T2 cookie jars per run · validates session health against the canonical target · auto-degrades to anon mode on validation failure (T2 marked `refresh_failed`, Admin UI red banner triggers immediately). Smoke-tested 2026-05-12 · 9/10 sources success · 114 articles ingested · 34 Hosteltur authed body fetches.
 
 ---
 

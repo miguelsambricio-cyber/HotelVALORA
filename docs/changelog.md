@@ -4,9 +4,63 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.6 · Authenticated cron ingestion + session-health gate + auto-degrade
+
+The daily cron at `/api/cron/hospitality-intel` now hydrates the real T2 cookie jars per run · validates session health against a canonical per-source target · fetches the full authenticated article body · persists `body` + `enriched_meta` on `market_news` · auto-degrades to anon-only when validation collapses. Refresh execution stays CLI-driven per the operator decision.
+
+### New modules
+- **`lib/intelligence/source-recipes.ts`** · per-source operational config (canonical health-check target URL, paywall/authed marker patterns, body extraction selectors). Cron-side mirror of the playwright-refresh script recipes · keeps the cron path independent of operator scripts.
+- **`lib/intelligence/session-fetch.ts`** · server-only cookie-jar loader + session validator. Surfaces:
+  - `loadActiveCookieJar(slug)` · decrypts active T2, returns opaque jar with `headerFor(absoluteUrl)` cookie builder (domain/path/secure-aware)
+  - `validateSessionHealth(slug, jar)` · anon-vs-authed differential on the canonical target · three independent positive signals (any one passes): more authed markers · fewer paywall CTAs · `|sizeDelta| > minSizeDeltaBytes`
+  - `markSessionHealthOk(...)` / `markSessionRefreshFailed(...)` · stamps T2 meta (`last_authed_fetch_at/status/via`, `cron_last_health`), writes `intelligence_credentials_audit` row with `context=cron_session_health`
+- **`lib/intelligence/body-fetch.ts`** · `fetchArticleBody(url, cookieHeader, selectors)` · regex-based HTML → clean body extractor with timeout + 65kB truncation · supports `tag`, `[class*='foo']`, `tag.class`, and `outer inner` descendant selectors
+
+### `lib/intelligence/ingest.ts` rewired
+- New session-health gate at the top of `runOneSource`
+- Per-item body fetch with cookies attached when jar exists
+- `upsertItem` now accepts `enriched_meta` and persists `body` + `enriched_meta` on insert AND on update (so a later authed run can rescue a body that an earlier anon run missed)
+- Run-row metadata now carries `session_health` + `body_fetch_successes` / `body_fetch_failures`
+- Run status flips to `partial` whenever session auto-degraded so the cron failure is visible in the Admin UI
+
+### Smoke test (2026-05-12 05:40 UTC, dev mode)
+| Source | Auth | Items | Body fetches | Status |
+|---|---|---|---|---|
+| hosteltur | ✅ authed | 34 | 34/34 ok | success |
+| alimarket | ✅ authed (health-only) | 0 | — | success (scrape stub still pending) |
+| expansion | anon | 50 | 50/50 ok | success |
+| skift-hospitality | anon | 10 | 10/10 ok | success |
+| hospitalitynet | anon | 20 | 0/20 (selectors miss) | success |
+| reuters-hospitality | anon | — | — | **failed** (401 bot detection) |
+| hvs / costar-news / hotelnewsnow / thp-news | stub | 0 | — | success/note |
+
+Totals: 9/10 sources, 114 articles inserted, 94 with `market_news.body` populated.
+
+### Audit chain on real DB
+- `intelligence_credentials_audit` · 2 rows · `auth_success` · `context=cron_session_health` · Hosteltur `/premium` Δ=+57,062B · Alimarket `/mi_cuenta` Δ=+33,906B
+- `intelligence_source_sessions.meta.cron_last_health` · populated for both T2 rows · the Admin UI "Premium-access verification" block reflects it
+- `news_ingestion_runs` · 10 rows · all carry `session_health` discriminator (`ok` / `failed_auto_degraded` / `no_session` / `no_auth_required`)
+
+### Decisions deferred (intentionally)
+- LLM-based classification · regex categoriser is sufficient for institutional categorisation; LLM enrichment lands as a separate AI Ops feature later
+- Browser-runtime orchestration for Playwright refresh · operator CLI remains canonical · the cron + admin path is fully observable, so the runtime decision can be made on operational evidence rather than speculation
+- Alimarket scrape ingestion path (`scrape_not_implemented_phase2`) · cookie jar + health validation ready, scraper substrate not yet written · Phase 2.7 candidate
+- Reuters 401 fix · Reuters' bot wall is an editorial decision (worth using or replace with alternative wire) · not part of the auth layer
+
+### Files modified
+- `apps/web/src/lib/intelligence/source-recipes.ts` (new)
+- `apps/web/src/lib/intelligence/session-fetch.ts` (new)
+- `apps/web/src/lib/intelligence/body-fetch.ts` (new)
+- `apps/web/src/lib/intelligence/ingest.ts` (session-health gate + body fetch + body upsert)
+- `docs/intelligence/ingestion-pipeline.md` (Phase 2.6 lifecycle)
+- `docs/intelligence/scheduler-strategy.md` (Phase 2.6 status line)
+- `docs/integrations/hosteltur.md`, `docs/integrations/alimarket.md` (status flipped to 🟢 Phase 2.6 live)
+
+---
+
 ## 2026-05-12 — Admin · Operational observability for authenticated T2 sessions
 
-Visibility-first delivery on the Admin → Integration detail surface · the institutional source of truth for authenticated-intelligence health. No orchestration · refresh execution stays CLI-driven until the runtime decision is made.
+Shipped as commit `6a5d073`. Visibility-first delivery on the Admin → Integration detail surface · the institutional source of truth for authenticated-intelligence health. No orchestration · refresh execution stays CLI-driven until the runtime decision is made.
 
 ### Surfaces added to `SessionStatusPanel`
 - **Placeholder vs Real T2 badge** · driven by `meta.placeholder` · amber for placeholder, emerald for "Real T2 · Playwright"

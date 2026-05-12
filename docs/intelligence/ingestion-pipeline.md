@@ -2,8 +2,50 @@
 
 Design of the daily fetch → parse → normalise → categorise → dedupe → store pipeline.
 
-**Status:** implementation live (apps/web/src/lib/intelligence/) — Phase 2 shipped 2026-05-11.
-**Last refreshed:** 2026-05-11
+**Status:** Phase 2.6 live — authenticated daily ingestion + session-health validation + auto-degrade shipped 2026-05-12. Real T2 cookie jars hydrate body fetch for paywalled sources (Hosteltur, Alimarket).
+**Last refreshed:** 2026-05-12
+
+## Phase 2.6 — Authenticated cron operationalization
+
+Per-source lifecycle for each nightly cron run:
+
+```
+runOneSource(source):
+  open news_ingestion_runs row (status='running')
+  if recipe.requiresAuth:
+    jar = loadActiveCookieJar(slug)            # decrypt T2 storageState
+    if jar:
+      report = validateSessionHealth(slug, jar) # anon-vs-authed on canonical target
+      if report.ok:
+        markSessionHealthOk()                   # audit auth_success + stamp meta
+        attach cookies to body fetch
+      else:
+        markSessionRefreshFailed()              # T2 → status=refresh_failed
+        audit auth_failure · context=cron_session_health
+        degrade to anon-only body fetch (RSS metadata still lands)
+    else:
+      result.metadata.session_health = "no_session"  # placeholder or expired
+
+  fetch RSS items (lib/intelligence/fetchers.ts)
+  for each item:
+    body = fetchArticleBody(url, cookieHeader, recipe.bodySelectors)
+    normalise(item with body)                   # regex categoriser uses full body
+    upsert market_news with body + enriched_meta
+
+  close run row with body_fetch counts in metadata
+```
+
+Key modules added in Phase 2.6:
+- `lib/intelligence/source-recipes.ts` — per-source canonical health target + body selectors
+- `lib/intelligence/session-fetch.ts` — `loadActiveCookieJar`, `validateSessionHealth`, `markSession{HealthOk,RefreshFailed}`
+- `lib/intelligence/body-fetch.ts` — regex-based HTML → clean body extractor
+
+Session-health verdict requires **any one** positive signal:
+1. More authed-only marker hits in authed body
+2. Fewer paywall-CTA hits in authed body
+3. `|sizeDelta| > recipe.minSizeDeltaBytes` (default 5,000 bytes)
+
+Auto-degrade contract: validation failure flips T2 to `refresh_failed`, writes audit chain, surfaces Admin UI red banner, and `news_ingestion_runs.status='partial'` so cron health stays visible. Ingestion continues anon-only — never silent.
 
 ## Three ingestion branches
 
