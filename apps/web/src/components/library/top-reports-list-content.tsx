@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Map, Settings, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import type { LibraryReport } from "@/types/library";
 import { FavoritesTable } from "./favorites-table";
 
 /**
@@ -12,7 +13,9 @@ import { FavoritesTable } from "./favorites-table";
  * table — but switches the table on its REF column and overrides the
  * page-specific copy. Sidebar, shell, footer remain byte-identical.
  */
-export function TopReportsListContent() {
+export function TopReportsListContent({
+  initialReports,
+}: { initialReports?: LibraryReport[] } = {}) {
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-5">
       <header className="flex items-end justify-between gap-4">
@@ -60,7 +63,7 @@ export function TopReportsListContent() {
         </nav>
       </header>
 
-      <FavoritesTable showReferenceColumn />
+      <FavoritesTable showReferenceColumn initialReports={initialReports} />
     </section>
   );
 }

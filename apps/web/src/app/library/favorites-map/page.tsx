@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HotelMap, LibrarySidebar } from "@/components/library";
+import { fetchLibraryReports } from "@/lib/library/server/fetch-library";
 
 export const metadata: Metadata = {
   title: "Favoritos · Library",
@@ -7,19 +8,20 @@ export const metadata: Metadata = {
     "Saved valuations, community insights and TOP PROMOTE hotels on the institutional map.",
 };
 
+export const revalidate = 60;
+
 /**
  * /library/favorites-map — first page of the institutional Library.
  *
- * Hosts the saved-reports / community / top-promote map view. Layout is
- * a 300 px sticky sidebar on the left and an edge-to-edge mock map on
- * the right; the floating preview card lives inside the map layer so
- * resizing the viewport reflows correctly without prop wiring.
+ * Server Component: prefetches valuations so the map renders with pins
+ * server-side. Client hydrates and refines (favourites · refetch).
  */
-export default function FavoritesMapPage() {
+export default async function FavoritesMapPage() {
+  const initialReports = await fetchLibraryReports();
   return (
     <>
       <LibrarySidebar />
-      <HotelMap listViewHref="/library/favorites-list" />
+      <HotelMap listViewHref="/library/favorites-list" initialReports={initialReports} />
     </>
   );
 }

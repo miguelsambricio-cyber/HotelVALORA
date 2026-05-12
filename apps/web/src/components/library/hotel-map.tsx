@@ -99,9 +99,12 @@ export interface HotelMapProps {
    *  Library map page provides its own list sibling (favorites-map →
    *  /library/favorites-list, top-map → /library/top-list). */
   listViewHref?: string;
+  /** Server-prefetched reports — seeds the map so pins render immediately
+   *  in the SSR'd HTML, before the client-side fetch refines them. */
+  initialReports?: LibraryReport[];
 }
 
-export function HotelMap({ listViewHref }: HotelMapProps = {}) {
+export function HotelMap({ listViewHref, initialReports }: HotelMapProps = {}) {
   const legend = useLibraryStore((s) => s.legend);
   const layers = useLibraryStore((s) => s.layers);
   const searchQuery = useLibraryStore((s) => s.searchQuery);
@@ -111,7 +114,9 @@ export function HotelMap({ listViewHref }: HotelMapProps = {}) {
   // Live data — TanStack Query against public.valuations (+ joined
   // top_promote_reports). The legend / search filters still apply
   // client-side so toggling them stays instantaneous.
-  const { reports, isLoading, isError, error, refetch } = useLibraryReports();
+  const { reports, isLoading, isError, error, refetch } = useLibraryReports({
+    initialData: initialReports,
+  });
 
   const visible = useMemo<LibraryReport[]>(() => {
     const q = searchQuery.trim().toLowerCase();

@@ -18,6 +18,10 @@ export interface UseLibraryReportsOptions extends LibraryReportsFilter {
   limit?: number;
   /** Future pagination — currently only used at the queryKey level. */
   offset?: number;
+  /** Server-prefetched LibraryReport[] used as the initial cache.
+   *  When provided, the SSR'd page shows hotel rows immediately and the
+   *  background refetch refines without a loading-state flash. */
+  initialData?: LibraryReport[];
 }
 
 /**
@@ -31,7 +35,7 @@ export interface UseLibraryReportsOptions extends LibraryReportsFilter {
  * `FavoritesTable` components — no UI changes required.
  */
 export function useLibraryReports(options: UseLibraryReportsOptions = {}) {
-  const { promotedOnly, search, limit = 100, offset = 0 } = options;
+  const { promotedOnly, search, limit = 100, offset = 0, initialData } = options;
   const favorites = useFavoriteValuationIds();
 
   const query = useQuery({
@@ -73,8 +77,12 @@ export function useLibraryReports(options: UseLibraryReportsOptions = {}) {
 
   // Combine raw rows with the user's favorite_ids set. Memoised so map +
   // list don't re-derive on every render.
+  //
+  // Fallback chain: query.data (live fetch) → initialData (SSR seed) → [].
+  // This keeps the table populated even when the client-side query is
+  // delayed (slow network, stale browser cache, intermittent failure).
   const reports = useMemo<LibraryReport[]>(() => {
-    if (!query.data) return [];
+    if (!query.data) return initialData ?? [];
     const favoriteIds = new Set(favorites.ids);
     return query.data.map((row) =>
       adaptValuationToLibraryReport(row, {
@@ -82,7 +90,7 @@ export function useLibraryReports(options: UseLibraryReportsOptions = {}) {
         treatAllAsFavorited: favorites.isAnonymous,
       }),
     );
-  }, [query.data, favorites.ids, favorites.isAnonymous]);
+  }, [query.data, favorites.ids, favorites.isAnonymous, initialData]);
 
   return {
     reports,

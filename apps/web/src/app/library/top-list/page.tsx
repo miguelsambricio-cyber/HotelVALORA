@@ -3,6 +3,7 @@ import {
   LibrarySidebar,
   TopReportsListContent,
 } from "@/components/library";
+import { fetchLibraryReports } from "@/lib/library/server/fetch-library";
 
 export const metadata: Metadata = {
   title: "Top Reports · List · Library",
@@ -10,12 +11,16 @@ export const metadata: Metadata = {
     "Promoted institutional hotel opportunities and underwriting intelligence.",
 };
 
+export const revalidate = 60;
+
 /**
- * /library/top-list — list-view sibling of /library/top-map. Reuses the
- * shared sidebar (Top Reports copy, TOP segmented active) + the
- * institutional reports table with its REF column toggled on.
+ * /library/top-list — list-view sibling of /library/top-map. Server
+ * Component: prefetches the full library and lets the client filter to
+ * top-promoted entries. (Both views share the same prefetch + filter
+ * pipeline; no per-route divergence.)
  */
-export default function TopReportsListPage() {
+export default async function TopReportsListPage() {
+  const initialReports = await fetchLibraryReports();
   return (
     <>
       <LibrarySidebar
@@ -23,7 +28,7 @@ export default function TopReportsListPage() {
         subtitle="Explore community insights and top promote valuations"
         searchPlaceholder="Search reports..."
       />
-      <TopReportsListContent />
+      <TopReportsListContent initialReports={initialReports} />
     </>
   );
 }

@@ -362,6 +362,10 @@ const FavoritesRow = memo(function FavoritesRow({
 // ── Table ───────────────────────────────────────────────────────────────────
 
 export interface FavoritesTableProps {
+  /** Server-prefetched reports — seeds the initial render so the table
+   *  shows hotels immediately, before the client-side query refines them.
+   *  Optional: client-only callers (rare) skip it and get the live fetch. */
+  initialReports?: LibraryReport[];
   /** Insert a REF column (HV-YYYY-NNN) just before "Report Type". Used by
    *  /library/top-list. Default: false. */
   showReferenceColumn?: boolean;
@@ -369,6 +373,7 @@ export interface FavoritesTableProps {
 
 export function FavoritesTable({
   showReferenceColumn = false,
+  initialReports,
 }: FavoritesTableProps = {}) {
   const legend = useLibraryStore((s) => s.legend);
   const search = useLibraryStore((s) => s.searchQuery);
@@ -376,7 +381,9 @@ export function FavoritesTable({
 
   // Live data — same TanStack Query call the map uses, so navigating
   // between map ↔ list never re-fetches.
-  const { reports, isLoading, isError, error, refetch } = useLibraryReports();
+  const { reports, isLoading, isError, error, refetch } = useLibraryReports({
+    initialData: initialReports,
+  });
   const { isAnonymous } = useFavoriteValuationIds();
   const toggleFavorite = useToggleFavorite();
 

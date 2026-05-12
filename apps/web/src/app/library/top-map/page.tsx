@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HotelMap, LibrarySidebar } from "@/components/library";
+import { fetchLibraryReports } from "@/lib/library/server/fetch-library";
 
 export const metadata: Metadata = {
   title: "Top Reports · Library",
@@ -7,14 +8,15 @@ export const metadata: Metadata = {
     "Explore community-driven insights and top-performing institutional hotel valuations.",
 };
 
+export const revalidate = 60;
+
 /**
  * /library/top-map — sibling of /library/favorites-map focused on the
- * Top Promote / community surface. Visual chrome is byte-identical to
- * favorites-map (single institutional language across the Library
- * route group). The page-specific copy + the segmented default tab
- * are the only deltas.
+ * Top Promote / community surface. Server Component: prefetches the
+ * library corpus so map pins render server-side.
  */
-export default function TopReportsMapPage() {
+export default async function TopReportsMapPage() {
+  const initialReports = await fetchLibraryReports();
   return (
     <>
       <LibrarySidebar
@@ -22,7 +24,7 @@ export default function TopReportsMapPage() {
         subtitle="Explore community insights and top promote valuations"
         searchPlaceholder="Search reports..."
       />
-      <HotelMap listViewHref="/library/top-list" />
+      <HotelMap listViewHref="/library/top-list" initialReports={initialReports} />
     </>
   );
 }

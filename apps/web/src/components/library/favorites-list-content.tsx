@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Map, Settings, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import type { LibraryReport } from "@/types/library";
 import { FavoritesTable } from "./favorites-table";
 
 /**
@@ -20,7 +21,9 @@ import { FavoritesTable } from "./favorites-table";
  * The map icon links back to /library/favorites-map; the filter and
  * settings icons are mock actions today — they emit a sonner toast.
  */
-export function FavoritesListContent() {
+export function FavoritesListContent({
+  initialReports,
+}: { initialReports?: LibraryReport[] } = {}) {
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-5">
       <header className="flex items-end justify-between gap-4">
@@ -67,7 +70,7 @@ export function FavoritesListContent() {
         </nav>
       </header>
 
-      <FavoritesTable />
+      <FavoritesTable initialReports={initialReports} />
     </section>
   );
 }
