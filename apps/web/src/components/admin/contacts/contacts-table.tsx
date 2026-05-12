@@ -1,21 +1,31 @@
+import Link from "next/link";
 import { ExternalLink, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContactRow } from "@/lib/admin/contacts/live";
 
 /**
  * Institutional relationship table · server component · displays the
- * paginated query result with band + signal chips.
+ * paginated query result with band + signal chips. Each row is a
+ * `<Link>` to the same page with `?selected=<id>` attached — the page
+ * server component reads the param and renders the detail drawer
+ * alongside.
  */
 export function ContactsTable({
   rows,
   total,
   page,
   pageSize,
+  selectedId,
+  baseSearchParams,
 }: {
   rows: ContactRow[];
   total: number;
   page: number;
   pageSize: number;
+  /** Currently-open row id · highlights the row in the table */
+  selectedId?: string | null;
+  /** The current URLSearchParams string (without selected) so row links preserve filters */
+  baseSearchParams: string;
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
@@ -51,7 +61,12 @@ export function ContactsTable({
             </thead>
             <tbody>
               {rows.map((r) => (
-                <Row key={r.id} row={r} />
+                <Row
+                  key={r.id}
+                  row={r}
+                  selected={selectedId === r.id}
+                  baseSearchParams={baseSearchParams}
+                />
               ))}
             </tbody>
           </table>
@@ -74,13 +89,37 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
   );
 }
 
-function Row({ row }: { row: ContactRow }) {
+function Row({
+  row,
+  selected,
+  baseSearchParams,
+}: {
+  row: ContactRow;
+  selected: boolean;
+  baseSearchParams: string;
+}) {
   const fullName = row.full_name || "(no name)";
   const email = row.email || "";
+  const sep = baseSearchParams ? "&" : "";
+  const detailHref = `/user/admin/contacts?${baseSearchParams}${sep}selected=${row.id}`;
   return (
-    <tr className="border-t border-slate-800/60 align-top">
+    <tr
+      className={cn(
+        "border-t border-slate-800/60 align-top transition-colors",
+        selected
+          ? "bg-lime-300/10"
+          : "hover:bg-slate-800/30 focus-within:bg-slate-800/30",
+      )}
+    >
       <td className="px-2 py-3">
-        <p className="font-headline font-bold text-white">{fullName}</p>
+        <Link
+          href={detailHref}
+          scroll={false}
+          aria-label={`Open relationship intelligence for ${fullName}`}
+          className="block focus:outline-none"
+        >
+          <p className="font-headline font-bold text-white hover:text-lime-200">{fullName}</p>
+        </Link>
         {row.title && (
           <p className="mt-0.5 text-[10.5px] text-slate-400">{row.title}{row.role && row.role !== row.title ? ` · ${row.role}` : ""}</p>
         )}

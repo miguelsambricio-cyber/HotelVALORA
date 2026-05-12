@@ -28,6 +28,8 @@ HotelVALORA's production authentication runs on **Supabase Auth** (OAuth + sessi
 
 Activates Supabase Auth route protection on `/user/admin/*` so credential provisioning + agent operations require a real signed-in operator. **One-time bootstrap per environment.**
 
+**Posture (since Phase 2.C · `lib/security/operator-guard.ts`):** the guard is **fail-closed**. When `AUTH_ENABLED=true` and `ADMIN_OPERATOR_EMAILS` is empty (and `INTERNAL_ALERT_RECIPIENTS` is also empty), every caller is denied — including the operator themselves. Always set the allow-list **in the same redeploy** as flipping `AUTH_ENABLED`, never in separate steps, or you'll lock yourself out for the duration of the gap. Layout-level guard renders an opaque 404 to non-operators (no info leak about the admin section).
+
 ### Step 1 — Create your Supabase Auth user
 
 Supabase Dashboard → Authentication → **Users** → **Add user**:
@@ -63,7 +65,7 @@ Navigate to `https://www.hotelvalora.com/login` → enter your operator email + 
 
 Now `/user/admin/integrations/hosteltur` → **Provision Credentials** → enter the **rotated** Hosteltur email + password (rotated since the previous chat leak) → **Encrypt & Store**.
 
-Same flow for Alimarket. The server action runs `assertAdminContext()` → finds your Supabase session + your email in `ADMIN_OPERATOR_EMAILS` → passes → encrypts → upserts → audit row written with `actor_user_id` set to your UUID.
+Same flow for Alimarket. The server action calls `requireOperator()` from `lib/security/operator-guard.ts` → finds your Supabase session + your email in `ADMIN_OPERATOR_EMAILS` → passes → encrypts → upserts → audit row written with `actor_user_id` set to your UUID. The layout RSC already gated the page itself — actions get a second-line check by design.
 
 ### Step 5 — Verify
 
@@ -75,11 +77,12 @@ Same flow for Alimarket. The server action runs `assertAdminContext()` → finds
 
 Server action `provisionCredentialsAction` returns explicit messages so you can self-diagnose:
 
-| Error message | Root cause | Fix |
+| Error message / behaviour | Root cause | Fix |
 |---|---|---|
-| `Supabase Auth is not activated (AUTH_ENABLED=false)…` | Vercel env still has the flag off | Step 2 |
-| `Sign in required. Visit /login?next=…` | Auth on but no active session | Step 3 |
-| `Your account (X) is not in ADMIN_OPERATOR_EMAILS…` | Email mismatch | Step 2 — add to allow-list |
+| `Sign in required.` (server action) · redirect to `/login` (page) | `AUTH_ENABLED=true` + no Supabase session | Step 3 |
+| `Operator allow-list is empty — production cannot proceed without ADMIN_OPERATOR_EMAILS.` | `AUTH_ENABLED=true` but both `ADMIN_OPERATOR_EMAILS` and `INTERNAL_ALERT_RECIPIENTS` are empty | Step 2 — set the allow-list |
+| Page renders 404 (`notFound()`) for signed-in user | Email not on the allow-list | Step 2 — add your email |
+| `Your account is not authorised for the Operator Console.` (server action) | Email not on the allow-list, called from a mutation surface | Step 2 — add your email |
 | `intelligence: encryption key unavailable` | KEK env missing/malformed | Step 2 — verify `INTELLIGENCE_SESSION_ENC_KEY` is 32-byte base64 |
 
 ### Rollback

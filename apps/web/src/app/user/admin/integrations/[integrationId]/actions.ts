@@ -6,8 +6,8 @@ import {
   invalidate,
   provisionOrRotate,
 } from "@/lib/intelligence/credentials-store";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { redactError } from "@/lib/security/redact";
+import { requireOperator } from "@/lib/security/operator-guard";
 
 /**
  * Server actions for the credentials-provisioning admin surface.
@@ -51,42 +51,10 @@ const provisionSchema = z.object({
     .max(512, "password too long"),
 });
 
-async function assertAdminContext(): Promise<{ userId: string | null; email: string }> {
-  const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) {
-    // Self-diagnostic: distinguish "auth not yet activated" from "you need
-    // to sign in" so the operator UI can show the right CTA.
-    if (process.env.AUTH_ENABLED !== "true") {
-      throw new Error(
-        "Supabase Auth is not activated (AUTH_ENABLED=false). See docs/auth.md for the activation runbook.",
-      );
-    }
-    throw new Error(
-      "Sign in required. Visit /login?next=/user/admin/integrations and authenticate before retrying.",
-    );
-  }
-  const email = data.user.email?.toLowerCase();
-  if (!email) {
-    throw new Error("Signed-in user has no email on record — cannot evaluate operator allow-list.");
-  }
-  const allow = (process.env.ADMIN_OPERATOR_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  // Fallback: when ADMIN_OPERATOR_EMAILS is unset, accept emails listed
-  // in INTERNAL_ALERT_RECIPIENTS (already-configured operator list).
-  const fallback = (process.env.INTERNAL_ALERT_RECIPIENTS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  const allowed = allow.length > 0 ? allow : fallback;
-  if (allowed.length > 0 && !allowed.includes(email)) {
-    throw new Error(
-      `Your account (${email}) is not in ADMIN_OPERATOR_EMAILS. Ask an operator to add you, or set the env var on Vercel.`,
-    );
-  }
-  return { userId: data.user.id, email };
+async function assertAdminContext(): Promise<{ userId: string | null; email: string | null }> {
+  // Central, fail-closed operator guard. See lib/security/operator-guard.ts.
+  const ctx = await requireOperator();
+  return { userId: ctx.userId, email: ctx.email };
 }
 
 export async function provisionCredentialsAction(

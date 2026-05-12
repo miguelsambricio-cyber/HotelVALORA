@@ -4,6 +4,36 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.C.1 · Operator Console security gate + relationship intelligence drawer
+
+Two-part follow-up to Phase 2.C. Closes the long-standing operator-allow-list gap and turns the institutional table into a true relationship intelligence console.
+
+### Security · central operator guard
+- New `apps/web/src/lib/security/operator-guard.ts` is the single source of truth for "is the caller an authorised operator?"
+- **Fail-closed semantics** (the gap this module exists to close):
+  - `AUTH_ENABLED !== "true"` → permissive (dev / showcase mode, preserves local DX)
+  - `AUTH_ENABLED === "true"` + no Supabase session → throws `OperatorDenied("no_session")` → layout redirects to `/login?next=/user/admin`
+  - `AUTH_ENABLED === "true"` + signed-in user with email NOT on the list → opaque 404 (`notFound()`) so the operator console doesn't leak its existence to drive-by traffic
+  - `AUTH_ENABLED === "true"` + **both `ADMIN_OPERATOR_EMAILS` and `INTERNAL_ALERT_RECIPIENTS` empty** → all callers denied. The prior `assertAdminContext` was fail-open in this case; this was the documented security gap.
+- `apps/web/src/app/user/admin/layout.tsx` now calls `requireOperator()` at the RSC layer — every `/user/admin/*` page inherits the gate. Server actions (`provisionCredentialsAction`, `invalidateCredentialsAction`) also call the same helper as a second-line check.
+- Smoke: `AUTH_ENABLED` unset → 200 (permissive). `AUTH_ENABLED=true` + empty allow-list → 307 to `/login` (middleware caught it before the layout).
+- Vercel env activation is the operator's responsibility — `echo "miguel.sambricio@metcub.com" | vercel env add ADMIN_OPERATOR_EMAILS production` + `echo "true" | vercel env add AUTH_ENABLED production`. The runbook is in `docs/auth.md` § Activation runbook with explicit "always flip both in the same redeploy" caveat.
+
+### Drawer · institutional relationship intelligence
+- `?selected=<contact_id>` searchParam opens a server-rendered side panel on the contacts page. Filter state is preserved on row click (`baseSearchParams` is forwarded). Close = link back without `selected`.
+- New `loadContactDetail(contactId)` in the live lib · fans out 5 parallel queries (company FK · interactions FK · labels · health · peer contacts in the same company) · composes a single chronological event timeline by joining `last_email_date`, `last_bounce_date`, all 15 Datasite stage dates, and per-label `created_at`.
+- 4-section drawer (`apps/web/src/components/admin/contacts/contact-detail-drawer.tsx`):
+  - **Header**: name + title + role + company + geography + email/phone/LinkedIn + 6 stats (strength · collab · band · email health · directionality · active threads)
+  - **Institutional context**: investor classification + subtype + tier + industry + hotel focus + fund size + ticket range + HQ + description + activity density badge (high/moderate/low/no events)
+  - **Strategic** (read-only): deterministic next-action suggestion · warm-intro potential (peer count) · inferred relationship stage · declined comments · consolidated relationship notes · derived strategic tags (institutional-priority · bidirectional · collab-priority · live-process · declined-history · email-fragile · hospitality-mandate)
+  - **Timeline**: chronological event list with source-tinted dot (Datasite emerald · Gmail amber · labels lime). Includes last touch · bounces · label attachments · NDA/IOI/LOI dates · declined event · revised bids
+  - **Peers**: up to 8 other contacts at the same firm, sorted by collab score
+- Read-only by design — no merge / promote / correct-invalid surfaces yet. Mutations stay in the Python ingester so provenance stays auditable.
+
+Smoke: `curl /user/admin/contacts?selected=<id>` → HTTP 200 · 434 KB · all 4 sections visible · 6 timeline events composed from Gmail + Datasite signals.
+
+---
+
 ## 2026-05-12 — Phase 2.C · Institutional Relationship Console live · Supabase-backed `/user/admin/contacts`
 
 The canonical Master is promoted from the local XLSM file into Supabase and the first operator-grade UI lands. The relationship graph is now queryable from the admin shell with band / investor-type / quality / recency filters, URL-driven and server-paginated.

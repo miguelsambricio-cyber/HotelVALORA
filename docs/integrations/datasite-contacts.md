@@ -278,6 +278,49 @@ table. The UI is read-only — mutations (merge / promote unmatched /
 correct invalid) still happen via the Python ingester so provenance
 stays auditable.
 
+### Phase 2.C.1 (follow-up · same day) — security gate + intelligence drawer
+
+**Operator allow-list (fail-closed).** Central guard at
+`apps/web/src/lib/security/operator-guard.ts`. The layout RSC
+(`/user/admin/layout.tsx`) calls `requireOperator()` so every admin
+page is gated, not just mutation actions. Empty `ADMIN_OPERATOR_EMAILS`
++ empty `INTERNAL_ALERT_RECIPIENTS` with `AUTH_ENABLED=true` denies all
+callers (the prior `assertAdminContext` was fail-open here — that was
+the documented gap). Non-operator signed-in users hit an opaque 404 so
+the existence of the admin section doesn't leak.
+
+**Relationship intelligence drawer.** `?selected=<contact_id>` opens a
+server-rendered side panel with 4 sections:
+
+- **Header**: name + title + role + company + geography · 3 contact
+  affordances (mailto · phone · LinkedIn) · 6 stat cells
+  (Strength / Collab / Band / Email health / Directionality / Active
+  threads)
+- **Institutional context**: investor classification + subtype + tier
+  + industry + hotel focus + fund size + ticket range + HQ +
+  description · activity-density badge (high · moderate · low ·
+  no events)
+- **Strategic** (read-only · deterministic): suggested next action
+  (correct email · re-engagement · maintain warm cadence · continue
+  active dialogue · promote to active · initiate outreach · background)
+  · warm-intro potential (peer count) · inferred relationship stage ·
+  declined comments · consolidated relationship notes · derived tags
+  (institutional-priority · bidirectional · collab-priority ·
+  live-process · declined-history · email-fragile · hospitality-mandate)
+- **Timeline**: chronological event list joining Gmail (last touch +
+  bounces) + Datasite stage dates (15 distinct stage timestamps:
+  buyer-added, initial contact, teaser sent, NDA initial/signed/executed,
+  CIM sent, IOI process letter / received, LOI process letter /
+  received, management presentation, revised bid, declined, last
+  activity) + per-label `created_at` from `relationship_labels`.
+  Source-tinted dots: Datasite emerald, Gmail amber, labels lime.
+- **Peers**: up to 8 other contacts in the same company, sorted by
+  collab score then strength.
+
+Backed by `loadContactDetail(contactId)` — 5 parallel Supabase queries
+(contact · company · interactions · labels · health · peers) composed
+into a single typed `ContactDetail` shape.
+
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's
 Full Report into `incoming/`, the dedup logic merges by email/LinkedIn

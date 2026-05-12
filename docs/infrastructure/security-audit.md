@@ -2,7 +2,7 @@
 
 Per-incident log + the standing posture review. Update after every change that touches secrets, RLS, headers or auth.
 
-**Last refreshed:** 2026-05-11
+**Last refreshed:** 2026-05-12
 
 ## Standing posture
 
@@ -15,11 +15,13 @@ Per-incident log + the standing posture review. Update after every change that t
 | `NEXT_PUBLIC_*` exposure intentional | ✅ | Mapbox token (domain-restricted) · Supabase URL (public by design) · Supabase anon key (safe with RLS) |
 | Resend `RESEND_API_KEY` server-only | ✅ | `import "server-only"` on `lib/email/client.ts` |
 | Mapbox token domain-restricted | ✅ | Restriction enforced on the Mapbox dashboard side |
-| Supabase RLS enabled (when schema applied) | ⚠ Pending | Schema proposal enables RLS on every public table — depends on schema being applied |
+| Supabase RLS enabled (when schema applied) | ✅ | All public tables (incl. `relationship_*` from Phase 2.C) RLS-enabled · anon + authenticated revoked · service-role only |
 | HTTPS-only cookies in production | ✅ | Auth.js cookie name `__Secure-hotelvalora.session-token` + `secure: process.env.NODE_ENV === "production"` |
 | Auth.js JWT signed (not encrypted) | ✅ | `session: { strategy: "jwt" }` — JWS, not JWE; `jose` warnings on Edge are unused JWE paths |
 | CSRF protection on auth endpoints | ✅ | Auth.js handles via `/api/auth/csrf` |
-| Middleware enforces protection on `/settings`, `/library`, `/report`, `/dashboard` | ⏸ Gated | `AUTH_ENABLED=false` until OAuth credentials exist — middleware is intentionally a pass-through |
+| Operator Console allow-list (`/user/admin/*`) — code | ✅ | `lib/security/operator-guard.ts` · fail-closed when allow-list empty AND `AUTH_ENABLED=true` · layout RSC + actions both consume it |
+| Operator Console allow-list — env on Vercel | ⏸ Pending | Operator must `vercel env add ADMIN_OPERATOR_EMAILS production` + `AUTH_ENABLED=true`. Until then admin runs in dev-permissive mode |
+| Middleware enforces protection on `/user/admin`, `/settings` | ⏸ Gated | `AUTH_ENABLED=false` until the env var pair lands — middleware is intentionally a pass-through |
 
 ## Known incidents
 

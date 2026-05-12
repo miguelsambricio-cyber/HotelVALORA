@@ -4,12 +4,14 @@ import { ArrowLeft } from "lucide-react";
 import {
   loadContacts,
   loadContactKpis,
+  loadContactDetail,
   loadInvestorTypes,
   type ContactsFilter,
 } from "@/lib/admin/contacts/live";
 import { ContactsKpis } from "@/components/admin/contacts/contacts-kpis";
 import { ContactsFilters } from "@/components/admin/contacts/contacts-filters";
 import { ContactsTable } from "@/components/admin/contacts/contacts-table";
+import { ContactDetailDrawer } from "@/components/admin/contacts/contact-detail-drawer";
 
 export const metadata: Metadata = {
   title: "Institutional Relationship Console · Admin · HotelVALORA",
@@ -29,6 +31,7 @@ interface PageProps {
     recently_active_only?: string;
     page?: string;
     sort?: string;
+    selected?: string;
   };
 }
 
@@ -45,11 +48,29 @@ export default async function ContactsPage({ searchParams }: PageProps) {
     sort: (searchParams.sort as ContactsFilter["sort"]) || "collab",
   };
 
-  const [kpis, { rows, total }, investorTypes] = await Promise.all([
+  const selectedId = searchParams.selected || null;
+
+  // Rebuild the "current filters" search string (without the `selected`
+  // param) so row links navigate to the same filter state with the
+  // drawer attached. Drives the close-button href too.
+  const baseParams = new URLSearchParams();
+  for (const [k, v] of Object.entries(searchParams)) {
+    if (!v || k === "selected") continue;
+    baseParams.set(k, v);
+  }
+  const baseSearchString = baseParams.toString();
+  const closeHref = baseSearchString
+    ? `/user/admin/contacts?${baseSearchString}`
+    : "/user/admin/contacts";
+
+  const [kpis, { rows, total }, investorTypes, detail] = await Promise.all([
     loadContactKpis(),
     loadContacts(filter),
     loadInvestorTypes(),
+    selectedId ? loadContactDetail(selectedId) : Promise.resolve(null),
   ]);
+
+  const hasDrawer = detail !== null;
 
   return (
     <div className="space-y-6">
@@ -95,12 +116,27 @@ export default async function ContactsPage({ searchParams }: PageProps) {
         investorTypes={investorTypes}
       />
 
-      <ContactsTable
-        rows={rows}
-        total={total}
-        page={filter.page ?? 0}
-        pageSize={filter.page_size ?? 50}
-      />
+      <div
+        className={
+          hasDrawer
+            ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]"
+            : "block"
+        }
+      >
+        <div className="min-w-0">
+          <ContactsTable
+            rows={rows}
+            total={total}
+            page={filter.page ?? 0}
+            pageSize={filter.page_size ?? 50}
+            selectedId={selectedId}
+            baseSearchParams={baseSearchString}
+          />
+        </div>
+        {hasDrawer && detail && (
+          <ContactDetailDrawer detail={detail} closeHref={closeHref} />
+        )}
+      </div>
     </div>
   );
 }

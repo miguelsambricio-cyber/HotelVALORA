@@ -117,6 +117,32 @@ echo "miguel.sambricio@metcub.com,ops@metcub.com" | vercel env add INTERNAL_ALER
 
 Used together with the `monitoring.escalate.email` tool (registered in `public.ai_tools`, integration=`resend`, `requires_human_approval=false` — escalations go to the closed env-pinned list, no per-send approval).
 
+### `ADMIN_OPERATOR_EMAILS` — Operator Console allow-list (Phase 2.C · security gate)
+
+| Where it's read | What it powers |
+|---|---|
+| `apps/web/src/lib/security/operator-guard.ts` → `requireOperator()` | The fail-closed gate guarding every `/user/admin/*` surface (layout RSC check + server actions) |
+
+Comma-separated email list (case-insensitive). Required in production when `AUTH_ENABLED=true`. Falls back to `INTERNAL_ALERT_RECIPIENTS` if unset.
+
+**Fail-closed semantics:**
+- `AUTH_ENABLED !== "true"` → guard is permissive (dev / showcase mode — preserves local DX)
+- `AUTH_ENABLED === "true"` + no Supabase session → middleware redirects to `/login`
+- `AUTH_ENABLED === "true"` + signed-in user with email NOT on the list → layout renders `notFound()` (opaque 404 · no info-leak about the admin section)
+- `AUTH_ENABLED === "true"` + **both env vars empty** → all callers denied (this was the gap before Phase 2.C)
+
+```bash
+# Set on Vercel (preview + production both):
+echo "miguel.sambricio@metcub.com" | vercel env add ADMIN_OPERATOR_EMAILS production
+echo "miguel.sambricio@metcub.com" | vercel env add ADMIN_OPERATOR_EMAILS preview
+
+# Companion flip — engages the middleware + guard:
+echo "true" | vercel env add AUTH_ENABLED production
+echo "true" | vercel env add NEXT_PUBLIC_AUTH_ENABLED production
+```
+
+Add additional operators by re-running with the full comma-separated list. The guard normalises to lowercase before compare.
+
 ### Activation summary
 
 | Var | Required for | Generate |
@@ -124,11 +150,10 @@ Used together with the `monitoring.escalate.email` tool (registered in `public.a
 | `CRON_SECRET` | Cron routes in production | `openssl rand -hex 32` |
 | `INGESTION_AUDIT_TOKEN` | Audit-sync from Python CLI | `openssl rand -hex 32` |
 | `INTERNAL_ALERT_RECIPIENTS` | QA Resend escalations to operators | Comma-separated emails |
+| `ADMIN_OPERATOR_EMAILS` | Operator Console allow-list (`/user/admin/*`) | Comma-separated emails |
+| `AUTH_ENABLED` + `NEXT_PUBLIC_AUTH_ENABLED` | Engages middleware + guard | `"true"` |
 
-All three are **pending** activation on Vercel as of 2026-05-12. The system soft-fails until they land:
-- Cron routes deny in production (defence in depth)
-- CLI audit-sync prints a recovery hint
-- QA escalations land at the hardcoded fallback inbox
+`ADMIN_OPERATOR_EMAILS` + `AUTH_ENABLED` are the load-bearing pair that closes the operator-console security gap. Until both are set on Vercel production, `/user/admin/*` runs in dev-permissive mode and any signed-in (or anonymous) visitor can reach it.
 
 ## Authenticated Intelligence Sources (Phase 2.5+)
 
