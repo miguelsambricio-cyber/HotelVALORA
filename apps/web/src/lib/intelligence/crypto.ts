@@ -1,113 +1,129 @@
 import "server-only";
-import { randomBytes, createCipheriv, createDecipheriv } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 /**
- * AES-256-GCM encryption envelope for HotelVALORA's intelligence layer.
+ * AES-256-GCM authenticated-encryption primitives for the institutional
+ * credential + session storage layer. Server-only — never importable from
+ * a client component (the `import "server-only"` directive enforces this
+ * at build time).
  *
- * Used by:
- *   - intelligence_source_credentials (T1.5 — login email + password)
- *   - intelligence_source_sessions    (T2  — Playwright storageState JSON)
+ * Contract
+ *   - 256-bit (32-byte) KEK read from INTELLIGENCE_SESSION_ENC_KEY env
+ *   - 96-bit (12-byte) random nonce per encryption — never reused
+ *   - 128-bit (16-byte) GCM authentication tag — verified on decrypt
+ *   - enc_key_id tracks which KEK wrapped the row (rotation support)
  *
- * Contract:
- *   - 32-byte KEK loaded from INTELLIGENCE_SESSION_ENC_KEY env var (base64)
- *   - 12-byte random IV per encryption (unique within KEK's lifetime)
- *   - 16-byte GCM auth tag verified on decrypt
- *   - On tamper, decrypt throws — loud failure, never silent corruption
+ * IMPORTANT — KEK lifecycle
+ *   The KEK is generated once per environment with `openssl rand -base64 32`
+ *   and stored in Vercel + .env.local. Lose it and every encrypted row
+ *   is unrecoverable (but T1 plaintext is intact in the operator's mind;
+ *   they re-provision via the admin UI).
  *
- * `server-only` guards prevent any client-side bundling. The KEK is never
- * read from a NEXT_PUBLIC_* variable; if someone tries to call this from
- * a client component, the build fails.
+ *   Rotation: introduce INTELLIGENCE_SESSION_ENC_KEY_V2, set
+ *   INTELLIGENCE_SESSION_ENC_KEY_ID=v2. New encryptions wrap with v2;
+ *   old v1 rows decrypt with the legacy key (kept in
+ *   INTELLIGENCE_SESSION_ENC_KEY_V1 until they're rotated out).
  */
 
-const ALGORITHM = "aes-256-gcm";
+const ALG = "aes-256-gcm" as const;
 const IV_BYTES = 12;
-const AUTH_TAG_BYTES = 16;
-const KEK_BYTES = 32;
+const TAG_BYTES = 16;
+const KEY_BYTES = 32;
 
-export interface EncryptedEnvelope {
+export interface EncryptedField {
   ciphertext: Buffer;
   iv: Buffer;
   authTag: Buffer;
+  encKeyId: string;
 }
 
-function loadKek(): Buffer {
-  const raw = process.env.INTELLIGENCE_SESSION_ENC_KEY;
+/**
+ * Resolve the KEK for a given enc_key_id. Defaults to the active KEK
+ * when no specific id requested (encrypt path). On decrypt, callers pass
+ * the row's enc_key_id so legacy rows continue to decrypt during rotation.
+ */
+function resolveKek(encKeyId: string): Buffer {
+  // Active KEK lives in INTELLIGENCE_SESSION_ENC_KEY when its id matches
+  // INTELLIGENCE_SESSION_ENC_KEY_ID; legacy keys live in
+  // INTELLIGENCE_SESSION_ENC_KEY_<UPPERCASE_ID>.
+  const activeId = process.env.INTELLIGENCE_SESSION_ENC_KEY_ID ?? "v1";
+  const raw =
+    encKeyId === activeId
+      ? process.env.INTELLIGENCE_SESSION_ENC_KEY
+      : process.env[`INTELLIGENCE_SESSION_ENC_KEY_${encKeyId.toUpperCase()}`];
   if (!raw) {
-    throw new Error(
-      "INTELLIGENCE_SESSION_ENC_KEY missing — generate with `openssl rand -base64 32` and set in Vercel (Production · Sensitive) + apps/web/.env.local.",
-    );
+    // Intentionally vague — the error message must not let a caller probe
+    // which key ids exist by error-message timing/content.
+    throw new Error("intelligence: encryption key unavailable");
   }
   const key = Buffer.from(raw, "base64");
-  if (key.length !== KEK_BYTES) {
+  if (key.length !== KEY_BYTES) {
     throw new Error(
-      `INTELLIGENCE_SESSION_ENC_KEY must decode to ${KEK_BYTES} bytes (got ${key.length}). Regenerate with \`openssl rand -base64 32\`.`,
+      `intelligence: KEK must decode to ${KEY_BYTES} bytes (got ${key.length})`,
     );
   }
   return key;
 }
 
+/** Return the active key id used for new encryptions. */
+export function getActiveEncKeyId(): string {
+  return process.env.INTELLIGENCE_SESSION_ENC_KEY_ID ?? "v1";
+}
+
+/** Verify that the active KEK is configured. Throws when not. */
+export function assertCryptoConfigured(): void {
+  resolveKek(getActiveEncKeyId());
+}
+
 /**
- * Encrypt a plaintext string. Returns ciphertext + iv + authTag as Buffers
- * suitable for direct insert into bytea columns via supabase-js.
- *
- * IMPORTANT: callers MUST overwrite the plaintext local after this returns.
- * V8 doesn't guarantee zeroization, but explicit reassignment is defence
- * in depth against heap-dump exfiltration.
+ * Encrypt a UTF-8 string with the active KEK. Returns ciphertext + IV +
+ * auth tag + the key id used (for storage alongside the ciphertext).
  */
-export function encryptString(plaintext: string): EncryptedEnvelope {
+export function encryptSecret(plaintext: string): EncryptedField {
   if (typeof plaintext !== "string" || plaintext.length === 0) {
-    throw new Error("encryptString: plaintext must be a non-empty string");
+    throw new Error("intelligence: encryptSecret requires non-empty plaintext");
   }
-  const kek = loadKek();
+  const encKeyId = getActiveEncKeyId();
+  const kek = resolveKek(encKeyId);
   const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv(ALGORITHM, kek, iv);
+  const cipher = createCipheriv(ALG, kek, iv);
   const ciphertext = Buffer.concat([
     cipher.update(plaintext, "utf8"),
     cipher.final(),
   ]);
   const authTag = cipher.getAuthTag();
-  if (authTag.length !== AUTH_TAG_BYTES) {
-    throw new Error("encryptString: unexpected auth tag length");
+  if (authTag.length !== TAG_BYTES) {
+    throw new Error("intelligence: unexpected GCM auth tag length");
   }
-  return { ciphertext, iv, authTag };
+  return { ciphertext, iv, authTag, encKeyId };
 }
 
 /**
- * Decrypt. Throws on tamper detection (GCM auth-tag verification).
- *
- * Callers MUST immediately overwrite the returned plaintext after use —
- * pass it directly to the consumer (e.g., Playwright `fill()`) and discard.
+ * Decrypt an EncryptedField back to UTF-8. Throws on auth-tag mismatch
+ * (tampering signal) or wrong KEK. Callers must surface "decryption_error"
+ * to the audit log when this throws.
  */
-export function decryptString(envelope: {
+export function decryptSecret(field: {
   ciphertext: Buffer | Uint8Array;
   iv: Buffer | Uint8Array;
   authTag: Buffer | Uint8Array;
+  encKeyId: string;
 }): string {
-  const ciphertext = toBuffer(envelope.ciphertext);
-  const iv = toBuffer(envelope.iv);
-  const authTag = toBuffer(envelope.authTag);
+  const kek = resolveKek(field.encKeyId);
+  const iv = Buffer.from(field.iv);
+  const authTag = Buffer.from(field.authTag);
+  const ciphertext = Buffer.from(field.ciphertext);
   if (iv.length !== IV_BYTES) {
-    throw new Error(`decryptString: iv length must be ${IV_BYTES}`);
+    throw new Error("intelligence: invalid IV length");
   }
-  if (authTag.length !== AUTH_TAG_BYTES) {
-    throw new Error(`decryptString: authTag length must be ${AUTH_TAG_BYTES}`);
+  if (authTag.length !== TAG_BYTES) {
+    throw new Error("intelligence: invalid auth tag length");
   }
-  const kek = loadKek();
-  const decipher = createDecipheriv(ALGORITHM, kek, iv);
+  const decipher = createDecipheriv(ALG, kek, iv);
   decipher.setAuthTag(authTag);
-  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  const plaintext = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]);
   return plaintext.toString("utf8");
-}
-
-function toBuffer(input: Buffer | Uint8Array): Buffer {
-  return Buffer.isBuffer(input) ? input : Buffer.from(input);
-}
-
-/**
- * Active KEK identifier. Surfaced into the encryption envelope on writes
- * so future rotations can target old rows precisely (`WHERE enc_key_id =
- * 'v1'`). Defaults to "v1" — operator bumps via env var when rotating.
- */
-export function activeKekId(): string {
-  return process.env.INTELLIGENCE_SESSION_ENC_KEY_ID ?? "v1";
 }

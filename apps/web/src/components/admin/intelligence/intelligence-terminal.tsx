@@ -8,7 +8,10 @@ import { ExtractedDealsPanel } from "./extracted-deals-panel";
 import { CategoryBreakdown } from "./category-breakdown";
 import { EntityMentionsPanel } from "./entity-mentions-panel";
 import { SourceCoveragePanel } from "./source-coverage-panel";
-import { AuthenticatedSourcesPanel } from "./authenticated-sources-panel";
+import {
+  AuthenticatedSourcesPanel,
+  type AuthenticatedSourceCard,
+} from "./authenticated-sources-panel";
 
 /**
  * Market Intelligence Terminal — the institutional hospitality intelligence
@@ -26,7 +29,13 @@ import { AuthenticatedSourcesPanel } from "./authenticated-sources-panel";
  * Bloomberg-terminal aesthetic throughout: dark forest-900 / slate-950
  * surface, lime-300 numerals, tracked-out uppercase micro-labels.
  */
-export function IntelligenceTerminal({ data }: { data: IntelligenceTerminalData }) {
+export function IntelligenceTerminal({
+  data,
+  authenticatedSources,
+}: {
+  data: IntelligenceTerminalData;
+  authenticatedSources: AuthenticatedSourceCard[];
+}) {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -60,11 +69,13 @@ export function IntelligenceTerminal({ data }: { data: IntelligenceTerminalData 
       {/* KPI strip */}
       <VolumeKpis kpis={data.volumeKpis} />
 
+      {/* Authenticated sources · institutional paid-tier access */}
+      {authenticatedSources.length > 0 && (
+        <AuthenticatedSourcesPanel cards={authenticatedSources} />
+      )}
+
       {/* Alerts */}
       <RelevanceAlertsPanel alerts={data.relevanceAlerts} />
-
-      {/* Authenticated sources — T1.5 + T2 pair per credentialed source */}
-      <AuthenticatedSourcesPanel />
 
       {/* Source coverage */}
       <SourceCoveragePanel rows={data.sourceCoverage} />

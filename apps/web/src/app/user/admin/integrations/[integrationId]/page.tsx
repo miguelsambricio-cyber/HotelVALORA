@@ -5,24 +5,20 @@ import {
   getIntegrationById,
 } from "@/lib/admin/integrations";
 import { IntegrationDetail } from "@/components/admin/integrations/integration-detail";
-import { getCredentialStatus } from "@/lib/intelligence/credentials/store.server";
+import {
+  getCredentialsAudit,
+  getCredentialsStatus,
+} from "@/lib/intelligence/credentials-store";
 
 interface Params {
   params: { integrationId: string };
 }
 
-/**
- * Force-dynamic for credentialed sources so the CredentialsPanel always
- * reflects current DB state immediately after provision / rotate /
- * invalidate. revalidatePath in the server actions also covers this, but
- * we go dynamic-by-default to keep operator UX predictable.
- *
- * Build cost is negligible: only 10 integration routes, page itself is
- * a thin server component.
- */
 export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
+  // Kept for static manifest discovery — the page itself is now dynamic
+  // (it reads credentials status server-side per request).
   return INTEGRATION_IDS.map((integrationId) => ({ integrationId }));
 }
 
@@ -39,17 +35,24 @@ export default async function IntegrationDetailPage({ params }: Params) {
   const integration = getIntegrationById(params.integrationId);
   if (!integration) notFound();
 
-  // Fetch the T1.5 credential descriptor server-side for authenticated
-  // sources. The descriptor never includes encrypted bytea — see
-  // lib/intelligence/credentials/store.server.ts.
-  const credentialDescriptor = integration.requiresAuth
-    ? await getCredentialStatus(integration.id)
-    : undefined;
+  // Server-side: fetch real credentials status + audit when authenticated.
+  // For public integrations (requiresAuth=false) we still return an empty
+  // status object so the panel can render the "No credentials required"
+  // banner without conditional logic.
+  const [credentialsStatus, credentialsAudit] = await Promise.all([
+    integration.requiresAuth
+      ? getCredentialsStatus(integration.id)
+      : Promise.resolve(undefined),
+    integration.requiresAuth
+      ? getCredentialsAudit(integration.id, 10)
+      : Promise.resolve([]),
+  ]);
 
   return (
     <IntegrationDetail
       integration={integration}
-      credentialDescriptor={credentialDescriptor}
+      credentialsStatus={credentialsStatus}
+      credentialsAudit={credentialsAudit}
     />
   );
 }

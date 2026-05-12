@@ -4,8 +4,13 @@ import { AgentDashboard } from "@/components/admin";
 import { IntelligenceTerminal } from "@/components/admin/intelligence/intelligence-terminal";
 import { AGENT_REGISTRY, ALL_AGENTS, isAgentId } from "@/lib/admin/agents";
 import { MOCK_TERMINAL_DATA } from "@/lib/admin/intelligence";
+import { INTEGRATIONS_REGISTRY } from "@/lib/admin/integrations";
+import { getCredentialsStatus } from "@/lib/intelligence/credentials-store";
 
-export const dynamicParams = false;
+// market_intelligence reads live credentials status server-side; the rest
+// of the agents are static. We flip dynamicParams to allow per-request
+// rendering when the slug demands it.
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   return ALL_AGENTS.map((a) => ({ agentId: a.id }));
@@ -43,14 +48,26 @@ export function generateMetadata({
  * Phase 3 flips MOCK_TERMINAL_DATA to a Supabase read across
  * market_news × hotel_transactions × hotel_projects × news_entities.
  */
-export default function AgentDetailPage({
+export default async function AgentDetailPage({
   params,
 }: {
   params: { agentId: string };
 }) {
   if (!isAgentId(params.agentId)) notFound();
   if (params.agentId === "market_intelligence") {
-    return <IntelligenceTerminal data={MOCK_TERMINAL_DATA} />;
+    const authenticated = INTEGRATIONS_REGISTRY.filter((i) => i.requiresAuth);
+    const cards = await Promise.all(
+      authenticated.map(async (integration) => ({
+        integration,
+        credentialsStatus: await getCredentialsStatus(integration.id),
+      })),
+    );
+    return (
+      <IntelligenceTerminal
+        data={MOCK_TERMINAL_DATA}
+        authenticatedSources={cards}
+      />
+    );
   }
   const agent = AGENT_REGISTRY[params.agentId];
   return <AgentDashboard agent={agent} />;

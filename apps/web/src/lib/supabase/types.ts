@@ -987,20 +987,71 @@ export type Database = {
           },
         ]
       }
+      intelligence_credentials_audit: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          credential_id: string | null
+          detail: Json
+          error: string | null
+          event_kind: Database["public"]["Enums"]["intelligence_credential_event_kind"]
+          id: string
+          source_id: string | null
+          source_slug: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          credential_id?: string | null
+          detail?: Json
+          error?: string | null
+          event_kind: Database["public"]["Enums"]["intelligence_credential_event_kind"]
+          id?: string
+          source_id?: string | null
+          source_slug: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          credential_id?: string | null
+          detail?: Json
+          error?: string | null
+          event_kind?: Database["public"]["Enums"]["intelligence_credential_event_kind"]
+          id?: string
+          source_id?: string | null
+          source_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intelligence_credentials_audit_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "intelligence_source_credentials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intelligence_credentials_audit_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intelligence_source_credentials: {
         Row: {
           created_at: string
           enc_key_id: string
           id: string
-          invalidated_at: string | null
-          invalidated_reason: string | null
+          last_login_at: string | null
+          last_login_error: string | null
+          last_login_status: string | null
           last_rotated_at: string
-          last_used_at: string | null
+          last_rotated_by: string | null
           meta: Json
           password_auth_tag: string
           password_encrypted: string
           password_iv: string
-          provisioned_by: string | null
           rotation_count: number
           source_id: string
           source_slug: string
@@ -1013,15 +1064,15 @@ export type Database = {
           created_at?: string
           enc_key_id?: string
           id?: string
-          invalidated_at?: string | null
-          invalidated_reason?: string | null
+          last_login_at?: string | null
+          last_login_error?: string | null
+          last_login_status?: string | null
           last_rotated_at?: string
-          last_used_at?: string | null
+          last_rotated_by?: string | null
           meta?: Json
           password_auth_tag: string
           password_encrypted: string
           password_iv: string
-          provisioned_by?: string | null
           rotation_count?: number
           source_id: string
           source_slug: string
@@ -1034,15 +1085,15 @@ export type Database = {
           created_at?: string
           enc_key_id?: string
           id?: string
-          invalidated_at?: string | null
-          invalidated_reason?: string | null
+          last_login_at?: string | null
+          last_login_error?: string | null
+          last_login_status?: string | null
           last_rotated_at?: string
-          last_used_at?: string | null
+          last_rotated_by?: string | null
           meta?: Json
           password_auth_tag?: string
           password_encrypted?: string
           password_iv?: string
-          provisioned_by?: string | null
           rotation_count?: number
           source_id?: string
           source_slug?: string
@@ -2707,6 +2758,13 @@ export type Database = {
         | "cookie_session"
         | "bearer_token"
         | "oauth2"
+      intelligence_credential_event_kind:
+        | "provisioned"
+        | "rotated"
+        | "invalidated"
+        | "auth_success"
+        | "auth_failure"
+        | "decryption_error"
       intelligence_credential_status:
         | "active"
         | "invalidated"
@@ -2979,6 +3037,14 @@ export const Constants = {
         "cookie_session",
         "bearer_token",
         "oauth2",
+      ],
+      intelligence_credential_event_kind: [
+        "provisioned",
+        "rotated",
+        "invalidated",
+        "auth_success",
+        "auth_failure",
+        "decryption_error",
       ],
       intelligence_credential_status: [
         "active",

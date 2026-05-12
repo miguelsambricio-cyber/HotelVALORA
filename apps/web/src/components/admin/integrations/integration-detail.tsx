@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import type { IntegrationDescriptor } from "@/lib/admin/integrations";
-import type { CredentialStatusDescriptor } from "@/lib/intelligence/credentials";
+import type {
+  AuditEntry,
+  CredentialsStatusView,
+} from "@/lib/intelligence/credentials-store";
 import { SessionStatusPanel } from "./session-status-panel";
 import { CredentialsPanel } from "./credentials-panel";
-import { AuthHealthStrip } from "./auth-health-strip";
 import {
   AuthStatusBadge,
   ConnectionStatusBadge,
@@ -14,17 +16,19 @@ import {
  * Per-integration detail page. Composes:
  *   - Header (name · region · tagline · connection + auth badges)
  *   - Telemetry strip (ingestion health · reliability · auth)
- *   - CredentialsPanel (T1.5 — only when requiresAuth and a descriptor is provided)
- *   - SessionStatusPanel (T2)
+ *   - CredentialsPanel  (T1 — provision/rotate/invalidate · admin only)
+ *   - SessionStatusPanel (T2 — encrypted session surface)
  *   - Ingestion health card (7d run rollup)
  *   - Notes + external links
  */
 export function IntegrationDetail({
   integration,
-  credentialDescriptor,
+  credentialsStatus,
+  credentialsAudit,
 }: {
   integration: IntegrationDescriptor;
-  credentialDescriptor?: CredentialStatusDescriptor;
+  credentialsStatus?: CredentialsStatusView;
+  credentialsAudit?: AuditEntry[];
 }) {
   return (
     <div className="space-y-6">
@@ -74,24 +78,13 @@ export function IntegrationDetail({
         </dl>
       </section>
 
-      {/* Auth Health Strip — institutional at-a-glance for authenticated
-          sources: last successful auth (T2) · last credential rotation
-          (T1.5) · session expiry · last ingestion run. */}
-      {integration.requiresAuth && (
-        <AuthHealthStrip
-          integration={integration}
-          credentialDescriptor={credentialDescriptor}
-        />
-      )}
-
-      {/* T1.5 credentials panel — surfaces above the session panel because
-          credentials are the prerequisite for sessions. Only rendered for
-          authenticated sources (public RSS sources skip this entirely). */}
-      {integration.requiresAuth && credentialDescriptor && (
+      {/* Credentials surface (authenticated integrations only) */}
+      {integration.requiresAuth && credentialsStatus && (
         <CredentialsPanel
           sourceSlug={integration.id}
           sourceName={integration.name}
-          descriptor={credentialDescriptor}
+          status={credentialsStatus}
+          audit={credentialsAudit ?? []}
         />
       )}
 

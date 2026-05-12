@@ -44,18 +44,17 @@ If Hosteltur session expires, the platform keeps ingesting headlines. Only the b
 
 ## 3 · Authentication architecture
 
-**Updated 2026-05-12** — T1 credentials moved off Vercel env vars and into encrypted Supabase storage so HotelVALORA becomes the operating console. T2 sessions remain unchanged.
+**Architecture revision · 2026-05-12 — Option B:** T1 credentials lifted from Vercel env into encrypted Supabase storage. The admin UI is now the operational console for provisioning, rotation, and invalidation. See `docs/changelog.md` for the rationale.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  T1.5 · Encrypted credentials                                        │
-│  AES-256-GCM(username) · AES-256-GCM(password)                       │
-│  Storage: public.intelligence_source_credentials                     │
-│           (service-role-only RLS · zero policies)                    │
-│  Touched by: admin UI provision/rotate · future refresh script       │
-│  KEK:    INTELLIGENCE_SESSION_ENC_KEY (env-only, never in DB)        │
+│  T1 · Encrypted credentials (Option B)                               │
+│  AES-256-GCM(username) + AES-256-GCM(password)                       │
+│  → public.intelligence_source_credentials                            │
+│  Service-role RLS · independent IV per field                         │
+│  Touched by: admin UI provisioning + refresh script reader           │
 └──────────────────────────────┬──────────────────────────────────────┘
-                               │  decrypt via KEK · Playwright login
+                               │  Playwright login flow (refresh script)
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  T2 · Encrypted session artifact                                     │
@@ -71,10 +70,6 @@ If Hosteltur session expires, the platform keeps ingesting headlines. Only the b
 │  Never touches credentials                                           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
-
-**Independent lifecycles**: T1.5 rotates quarterly via the admin UI; T2 rotates weekly via the refresh script. Invalidating T1.5 forces T2 refresh on next ingestion; invalidating T2 does NOT touch T1.5.
-
-**Operator-managed via UI**, not env vars: `/user/admin/integrations/hosteltur` exposes a Credentials panel with Provision / Rotate / Invalidate actions. The operator token (`INTELLIGENCE_REFRESH_TOKEN`) gates each action.
 
 ### Why Playwright for login, fetch for content
 
@@ -107,12 +102,12 @@ All values land in **Vercel → Project → Environment Variables → Production
 
 | Variable | Tier | Role | Generation / source |
 |---|---|---|---|
-| `INTELLIGENCE_SESSION_ENC_KEY` | KEK | 32-byte AES-256 key that wraps T1.5 credentials AND T2 sessions | `openssl rand -base64 32` |
-| `INTELLIGENCE_SESSION_ENC_KEY_ID` | KEK | Identifier of the active KEK (`v1`, `v2`, ...) | Literal string, default `v1` |
-| `INTELLIGENCE_REFRESH_TOKEN` | gate | Operator-token gate for the admin Credentials panel + future refresh API | `openssl rand -hex 32` |
-| `HOSTELTUR_USERNAME` | legacy | **No longer required.** Use the admin UI Credentials panel instead | — |
-| `HOSTELTUR_PASSWORD` | legacy | **No longer required.** Use the admin UI Credentials panel instead | — |
+| `HOSTELTUR_USERNAME` | T1 | Subscriber email | Hosteltur account |
+| `HOSTELTUR_PASSWORD` | T1 | Subscriber password | Hosteltur account |
 | `HOSTELTUR_LOGIN_URL` | T1 (optional) | Override if login URL moves | Default: `https://www.hosteltur.com/login` |
+| `INTELLIGENCE_SESSION_ENC_KEY` | T1.5 | 32-byte AES-256 KEK that wraps T2 rows | `openssl rand -base64 32` |
+| `INTELLIGENCE_SESSION_ENC_KEY_ID` | T1.5 | Identifier of the active KEK (`v1`, `v2`, ...) | Literal string, default `v1` |
+| `INTELLIGENCE_REFRESH_TOKEN` | T1 | Auth for the future `POST /api/agents/refresh-session` endpoint | `openssl rand -hex 32` |
 
 Existing variables this builds on: `SUPABASE_SERVICE_ROLE_KEY` (service-role client for session writes/reads), `CRON_SECRET` (gates the daily ingestion cron), `INTERNAL_ALERT_RECIPIENTS` (target for session-expired Resend digests).
 
