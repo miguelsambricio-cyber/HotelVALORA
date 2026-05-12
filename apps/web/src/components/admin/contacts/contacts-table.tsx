@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ExternalLink, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContactRow } from "@/lib/admin/contacts/live";
+import { SelectionCheckbox } from "@/components/admin/contacts/bulk/selection-checkbox";
 
 /**
  * Institutional relationship table · server component · displays the
@@ -47,6 +48,7 @@ export function ContactsTable({
           <table className="w-full border-collapse text-[11.5px]">
             <thead>
               <tr className="text-left text-slate-500">
+                <Th></Th>
                 <Th>Contact</Th>
                 <Th>Company</Th>
                 <Th>Type</Th>
@@ -76,7 +78,7 @@ export function ContactsTable({
   );
 }
 
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+function Th({ children, right }: { children?: React.ReactNode; right?: boolean }) {
   return (
     <th
       className={cn(
@@ -111,6 +113,9 @@ function Row({
           : "hover:bg-slate-800/30 focus-within:bg-slate-800/30",
       )}
     >
+      <td className="px-2 py-3 align-middle">
+        <SelectionCheckbox id={row.id} />
+      </td>
       <td className="px-2 py-3">
         <Link
           href={detailHref}

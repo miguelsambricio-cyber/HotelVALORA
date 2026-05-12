@@ -4,6 +4,73 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.D.3 · Bulk operational workflows on contacts · 9 actions · Resend invite send · CSV export
+
+Operator can now act on N contacts at a time. Selection model + sticky toolbar + 9 bulk actions cover the full growth-ops loop (invite · tag · owner · campaign · contacted · inactive · invalid · suppress · CSV export). All actions follow the same shape: gated by `requireOperator()`, soft-delete-aware (`deleted_at IS NULL`), and write one `activity_log` row per affected contact.
+
+### Database — migration `0018_bulk_ops_suppression_archival_and_tiers`
+- `user_tier` enum extended with `top_promote` + `comped` (used by `subscriptions.tier` and the bulk-invite tier hint)
+- `relationship_contacts.suppressed_outreach boolean default false` (partial-indexed where true · drives "exclude bounced / opt-out" logic in bulk-invite)
+- `relationship_contacts.archived_at timestamptz` (partial-indexed when NOT NULL · written by bulk mark-inactive; distinct from `deleted_at`)
+- `contact_invitations.default_subscription_tier text` (CHECK constraint over text — tier hint set at invite time, applied when contact accepts)
+
+### Server actions — `lib/admin/contacts/bulk.ts`
+9 typed actions, single `resolveSelection()` helper that re-runs the page filter server-side at action time when the operator chose "Select all filtered". Hard cap `MAX_BULK_BATCH = 500` so a runaway filter never explodes into a 5,000-row action.
+
+| Action | Verb | Effect |
+|---|---|---|
+| `bulkInviteAction` | `contact.bulk_invite_sent` / `_failed` | Resend send loop · 150 ms spacing · per-contact `contact_invitations` row + per-contact activity_log · `last_contacted_at = now()` |
+| `bulkAddTagAction` | `contact.bulk_tag_added` | Append to operator `tags` array · idempotent |
+| `bulkAssignOwnerAction` | `contact.bulk_owner_assigned` | Sets `relationship_owner_email` · empty clears |
+| `bulkAssignCampaignAction` | `contact.bulk_campaign_assigned` | Creates `contact_invitations` rows (status=pending) attaching contacts to a campaign · validates campaign exists |
+| `bulkMarkContactedAction` | `contact.bulk_marked_contacted` | Stamps `last_contacted_at = now()` |
+| `bulkMarkInactiveAction` | `contact.bulk_marked_inactive` | `bucket=dormant-archive` · `band=dormant` · `archived_at=now()` |
+| `bulkMarkInvalidAction` | `contact.bulk_invalid_marked` | Single-action semantics applied to N · optional reason captured |
+| `bulkSuppressOutreachAction` | `contact.bulk_outreach_suppressed` | `suppressed_outreach=true` · auto-excluded from future bulk-invite |
+| `bulkExportCsvAction` | (no audit · read-only) | Redirects to `/api/admin/contacts/export` which streams a CSV |
+
+### Resend integration — bulk invite
+- New template `lib/email/templates/contact-invite.ts` · institutional tone · forest header · lime CTA · campaign / promo / tier surfaced when present
+- The `contact_invitations.id` IS the invite token — the future `/invite/<id>` landing route looks it up by uuid
+- Excludes: contacts with no email · `suppressed_outreach=true` · `email_validity='invalid'` · `flagged_for_correction=true`
+- Each send: insert `contact_invitations` (pending) → call Resend → flip row to `sent`+`resend_message_id` (or `bounced` on failure) → bump `relationship_contacts.contact_invitation_status='invited'` + `last_contacted_at`
+- 150 ms spacing between sends keeps us under Resend's 10/s default cap with no exposed knobs
+
+### Selection model — `components/admin/contacts/bulk/`
+- `BulkSelectionProvider` · client context · two modes:
+  - **explicit** — operator ticked specific rows; `selectedIds: Set<string>`
+  - **filtered** — operator hit "Select all filtered"; the server re-applies the current filter at action time. Selection is not stored as IDs (avoids a 4,547-UUID URL).
+- `SelectionCheckbox` per row · disabled-checked when filtered-mode is on (visual signal that all rows are selected even when scrolled)
+- `SelectAllControls` above the table · "Select page · Select all filtered (~N) · clear"
+- `BulkActionToolbar` · sticky bottom · appears only when `count > 0` · each button opens an inline form panel above the bar with the action's specific fields (tag input, owner email, campaign picker, tier dropdown, etc.)
+
+### CSV export — `app/api/admin/contacts/export/route.ts`
+- Route handler (server-action can't stream a Response directly)
+- Same selection contract as the bulk actions (`sel_mode` + `ids` or `filter_qs`)
+- Gated by `requireOperator()`
+- 25-column canonical export · RFC 4180 quoting · ISO-8601 dates · `Content-Disposition: attachment; filename="hotelvalora-contacts-<ISO ts>.csv"`
+- Hard cap 500 rows · matches `MAX_BULK_BATCH`
+
+### Page wiring
+- Contacts page wraps everything in `BulkSelectionProvider`
+- New result banner: `?bulk_ok=N&bulk_verb=X&bulk_failed=Y` shows emerald success · `?bulk_error=<msg>` shows rose failure
+- Page filter querystring (without `selected/mode/saved/error/bulk_*`) is passed as `filter_qs` to the toolbar so "Select all filtered" preserves the operator's current view
+
+### Discipline (intentional non-features)
+- No automation engine, no sequence builder, no AI outbound generation
+- No undo (audit trail is the receipt; SEGUNDA OLA adds reversible merge)
+- Selection state is in-page only (lost on reload — matches Gmail / Notion / Linear behaviour)
+- 500-row hard cap on every bulk action (and CSV export); past that the operator narrows the filter
+
+Smoke
+- `/user/admin/contacts` → 200 · checkbox column + Select Page (50) + Select all filtered controls render
+- Synthetic banners (`?bulk_ok=12&bulk_verb=invited&bulk_failed=2`) → rendered
+- `?bulk_error=...` → rose error banner rendered
+- `/api/admin/contacts/export?sel_mode=explicit&ids=` → 200 · `Content-Disposition: attachment` · `Content-Type: text/csv`
+- Typecheck clean
+
+---
+
 ## 2026-05-12 — Phase 2.D.2 · Contact mutation workflows (PRIMERA OLA) · edit · invalid · tags · owner · status
 
 The contacts surface stops being read-only. PRIMERA OLA covers the five operational growth basics with full audit. SEGUNDA OLA (merge / delete / add manually) and bulk actions remain deferred to 2.D.3.

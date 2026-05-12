@@ -359,6 +359,54 @@ Form-wrapper actions redirect back to view mode with `?saved=1` or
 **SEGUNDA OLA (next sub-push):** merge duplicates · soft-delete action ·
 add contact manually. Bulk actions in Phase 2.D.3.
 
+### Phase 2.D.3 — Bulk operational workflows (shipped same day)
+
+Operator can act on N contacts at once. 9 actions follow the same shape:
+gated by `requireOperator()`, soft-delete-aware, one `activity_log` row
+written per affected contact, hard-capped at 500 rows per action.
+
+| Action | Server action | Audit verb |
+|---|---|---|
+| Bulk invite (Resend send loop) | `bulkInviteAction` | `contact.bulk_invite_sent` / `_failed` |
+| Bulk add tag | `bulkAddTagAction` | `contact.bulk_tag_added` |
+| Bulk assign owner | `bulkAssignOwnerAction` | `contact.bulk_owner_assigned` |
+| Bulk assign campaign | `bulkAssignCampaignAction` | `contact.bulk_campaign_assigned` |
+| Bulk mark contacted | `bulkMarkContactedAction` | `contact.bulk_marked_contacted` |
+| Bulk mark inactive | `bulkMarkInactiveAction` | `contact.bulk_marked_inactive` |
+| Bulk mark invalid | `bulkMarkInvalidAction` | `contact.bulk_invalid_marked` |
+| Bulk suppress outreach | `bulkSuppressOutreachAction` | `contact.bulk_outreach_suppressed` |
+| Bulk export CSV | `bulkExportCsvAction` → `/api/admin/contacts/export` | (read-only) |
+
+**Schema additions (migration `0018`):**
+- `user_tier` enum extended with `top_promote` + `comped`
+- `relationship_contacts.suppressed_outreach boolean` (partial-indexed)
+- `relationship_contacts.archived_at timestamptz` (partial-indexed)
+- `contact_invitations.default_subscription_tier text` (CHECK constraint
+  · tier hint applied when contact accepts the invitation)
+
+**Selection model:** client-side context with two modes — `explicit`
+(operator ticked specific rows) and `filtered` (operator selected the
+entire filter result; server re-applies the filter at action time so
+the URL stays clean). Hard cap `MAX_BULK_BATCH = 500`.
+
+**Resend bulk-invite loop:**
+- Per contact: create `contact_invitations` row → send → flip status
+  to `sent`+`resend_message_id` or `bounced` → bump
+  `relationship_contacts.contact_invitation_status='invited'` +
+  `last_contacted_at`
+- 150 ms spacing keeps the loop under Resend's 10/s default
+- Excludes contacts with no email · suppressed · invalid · flagged
+- The invitation id IS the invite token (resolves at the future
+  `/invite/<id>` landing route in Phase 2.D.5)
+
+**CSV export** — route handler `/api/admin/contacts/export` streams a
+25-column file with RFC 4180 quoting + ISO-8601 dates.
+`Content-Disposition: attachment; filename="hotelvalora-contacts-<ts>.csv"`.
+
+**Intentional non-features:** no automation engine, no sequence
+builder, no AI outbound generation. Selection is in-page only (no
+persistence across reloads). The operator pulls each trigger by hand.
+
 ### Phase 2.D · Incremental updates from additional projects
 The architecture already supports this — drop a different project's
 Full Report into `incoming/`, the dedup logic merges by email/LinkedIn

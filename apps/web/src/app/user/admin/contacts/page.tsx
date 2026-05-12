@@ -13,6 +13,10 @@ import { ContactsFilters } from "@/components/admin/contacts/contacts-filters";
 import { ContactsTable } from "@/components/admin/contacts/contacts-table";
 import { ContactDetailDrawer } from "@/components/admin/contacts/contact-detail-drawer";
 import { ContactDetailDrawerEdit } from "@/components/admin/contacts/contact-detail-drawer-edit";
+import { BulkSelectionProvider } from "@/components/admin/contacts/bulk/bulk-selection-context";
+import { SelectAllControls } from "@/components/admin/contacts/bulk/select-all-controls";
+import { BulkActionToolbar } from "@/components/admin/contacts/bulk/bulk-action-toolbar";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "Institutional Relationship Console · Admin · HotelVALORA",
@@ -36,6 +40,10 @@ interface PageProps {
     mode?: string;
     saved?: string;
     error?: string;
+    bulk_ok?: string;
+    bulk_failed?: string;
+    bulk_verb?: string;
+    bulk_error?: string;
   };
 }
 
@@ -62,10 +70,16 @@ export default async function ContactsPage({ searchParams }: PageProps) {
   // drawer attached. Drives the close-button href too.
   const baseParams = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
-    if (!v || k === "selected" || k === "mode" || k === "saved" || k === "error") continue;
+    if (!v) continue;
+    if (["selected", "mode", "saved", "error", "bulk_ok", "bulk_failed", "bulk_verb", "bulk_error"].includes(k)) continue;
     baseParams.set(k, v);
   }
   const baseSearchString = baseParams.toString();
+  // For the bulk toolbar — only the filter-shaping params (drops page so
+  // the action re-resolves the entire filter set, not just one page).
+  const filterParams = new URLSearchParams(baseParams);
+  filterParams.delete("page");
+  const filterQs = filterParams.toString();
   const closeHref = baseSearchString
     ? `/user/admin/contacts?${baseSearchString}`
     : "/user/admin/contacts";
@@ -80,12 +94,19 @@ export default async function ContactsPage({ searchParams }: PageProps) {
         : `/user/admin/contacts?selected=${selectedId}`)
     : "/user/admin/contacts";
 
-  const [kpis, { rows, total }, investorTypes, detail] = await Promise.all([
+  const sb = getSupabaseAdmin();
+  const [kpis, { rows, total }, investorTypes, detail, campaignsResult] = await Promise.all([
     loadContactKpis(),
     loadContacts(filter),
     loadInvestorTypes(),
     selectedId ? loadContactDetail(selectedId) : Promise.resolve(null),
+    sb.from("campaigns")
+      .select("id, name")
+      .in("status", ["draft", "running"])
+      .order("name", { ascending: true })
+      .limit(100),
   ]);
+  const campaigns = ((campaignsResult.data ?? []) as Array<{ id: string; name: string }>);
 
   const hasDrawer = detail !== null;
 
@@ -133,34 +154,52 @@ export default async function ContactsPage({ searchParams }: PageProps) {
         investorTypes={investorTypes}
       />
 
-      <div
-        className={
-          hasDrawer
-            ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]"
-            : "block"
-        }
-      >
-        <div className="min-w-0">
-          <ContactsTable
-            rows={rows}
-            total={total}
-            page={filter.page ?? 0}
-            pageSize={filter.page_size ?? 50}
-            selectedId={selectedId}
-            baseSearchParams={baseSearchString}
-          />
+      {searchParams.bulk_ok && (
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2.5 font-mono text-[11px] text-emerald-200">
+          Bulk {searchParams.bulk_verb ?? "action"} · {searchParams.bulk_ok} contact{searchParams.bulk_ok === "1" ? "" : "s"} affected
+          {searchParams.bulk_failed && Number(searchParams.bulk_failed) > 0 ? (
+            <span className="text-amber-200"> · {searchParams.bulk_failed} failed</span>
+          ) : null}
         </div>
-        {hasDrawer && detail && (
-          editMode
-            ? <ContactDetailDrawerEdit detail={detail} closeHref={viewHref} errorMessage={drawerError} />
-            : <ContactDetailDrawer
-                detail={detail}
-                closeHref={closeHref}
-                editHref={editHref}
-                savedFlag={savedFlag}
-              />
-        )}
-      </div>
+      )}
+      {searchParams.bulk_error && (
+        <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-2.5 font-mono text-[11px] text-rose-200">
+          Bulk action failed · {searchParams.bulk_error}
+        </div>
+      )}
+
+      <BulkSelectionProvider filteredCount={total} totalOnPage={rows.length}>
+        <div
+          className={
+            hasDrawer
+              ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]"
+              : "block"
+          }
+        >
+          <div className="min-w-0">
+            <SelectAllControls pageIds={rows.map((r) => r.id)} filteredTotal={total} />
+            <ContactsTable
+              rows={rows}
+              total={total}
+              page={filter.page ?? 0}
+              pageSize={filter.page_size ?? 50}
+              selectedId={selectedId}
+              baseSearchParams={baseSearchString}
+            />
+            <BulkActionToolbar filterQs={filterQs} campaigns={campaigns} />
+          </div>
+          {hasDrawer && detail && (
+            editMode
+              ? <ContactDetailDrawerEdit detail={detail} closeHref={viewHref} errorMessage={drawerError} />
+              : <ContactDetailDrawer
+                  detail={detail}
+                  closeHref={closeHref}
+                  editHref={editHref}
+                  savedFlag={savedFlag}
+                />
+          )}
+        </div>
+      </BulkSelectionProvider>
     </div>
   );
 }

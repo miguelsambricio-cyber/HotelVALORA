@@ -643,6 +643,7 @@ export type Database = {
           campaign_id: string | null
           contact_id: string
           created_at: string
+          default_subscription_tier: string | null
           id: string
           invited_by_email: string | null
           invited_email: string
@@ -657,6 +658,7 @@ export type Database = {
           campaign_id?: string | null
           contact_id: string
           created_at?: string
+          default_subscription_tier?: string | null
           id?: string
           invited_by_email?: string | null
           invited_email: string
@@ -671,6 +673,7 @@ export type Database = {
           campaign_id?: string | null
           contact_id?: string
           created_at?: string
+          default_subscription_tier?: string | null
           id?: string
           invited_by_email?: string | null
           invited_email?: string
@@ -2053,6 +2056,7 @@ export type Database = {
       relationship_contacts: {
         Row: {
           active_threads: number
+          archived_at: string | null
           association: string | null
           bounce_count: number
           bucket: string
@@ -2119,6 +2123,7 @@ export type Database = {
           role: string | null
           source_file: string | null
           state: string | null
+          suppressed_outreach: boolean
           tags: string[]
           tier: string | null
           title: string | null
@@ -2126,6 +2131,7 @@ export type Database = {
         }
         Insert: {
           active_threads?: number
+          archived_at?: string | null
           association?: string | null
           bounce_count?: number
           bucket?: string
@@ -2192,6 +2198,7 @@ export type Database = {
           role?: string | null
           source_file?: string | null
           state?: string | null
+          suppressed_outreach?: boolean
           tags?: string[]
           tier?: string | null
           title?: string | null
@@ -2199,6 +2206,7 @@ export type Database = {
         }
         Update: {
           active_threads?: number
+          archived_at?: string | null
           association?: string | null
           bounce_count?: number
           bucket?: string
@@ -2265,6 +2273,7 @@ export type Database = {
           role?: string | null
           source_file?: string | null
           state?: string | null
+          suppressed_outreach?: boolean
           tags?: string[]
           tier?: string | null
           title?: string | null
@@ -3481,7 +3490,14 @@ export type Database = {
         | "canceled"
         | "incomplete"
       user_role: "user" | "admin" | "owner"
-      user_tier: "free" | "pro" | "premium" | "team" | "enterprise"
+      user_tier:
+        | "free"
+        | "pro"
+        | "premium"
+        | "team"
+        | "enterprise"
+        | "top_promote"
+        | "comped"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3769,7 +3785,15 @@ export const Constants = {
         "incomplete",
       ],
       user_role: ["user", "admin", "owner"],
-      user_tier: ["free", "pro", "premium", "team", "enterprise"],
+      user_tier: [
+        "free",
+        "pro",
+        "premium",
+        "team",
+        "enterprise",
+        "top_promote",
+        "comped",
+      ],
     },
   },
 } as const
