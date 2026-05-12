@@ -4,6 +4,38 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Library: SSR-prefetch valuations + Ritz-Carlton contact seed fix
+
+**Two bug-fix entries from the same operator session — bundled here because they affect the same Library surface.**
+
+### a) SSR prefetch (commit `ea9aac4`)
+
+After Camino A activation, the four Library routes — `/library/favorites-list`, `favorites-map`, `top-list`, `top-map` — rendered empty for the signed-in operator. Hotels existed in DB, RLS allowed access, the production bundle had the right Supabase env vars baked, an anonymous-JWT curl from outside returned the 6 rows correctly. But the browser-side React Query never produced visible rows in the affected session.
+
+Fix: lift the initial valuations fetch to the server. Each library page is now an async Server Component that calls `fetchLibraryReports()` before render — the SSR'd HTML carries the actual hotel rows. The client-side React Query layer keeps running (refetch · favourite resolution · staleTime cache · search · refetch on focus). If the client fetch stalls or fails, the table still shows what the server saw.
+
+Files added: `lib/supabase/anon-server.ts` (cookie-less anon client) · `lib/library/server/fetch-library.ts`. Files modified: `lib/library/queries/use-library-reports.ts` (initialData fallback chain) · `components/library/{favorites-table, hotel-map, favorites-list-content, top-reports-list-content}.tsx` (initialReports prop) · 4 page.tsx wrappers (now async with `revalidate = 60` ISR).
+
+Pages stay `○ Static` with ISR — no Lambda per request. `pnpm typecheck` + `pnpm build` clean. Verified in production: `6/6` hotels in SSR HTML across all four routes.
+
+### b) Ritz-Carlton contact_info seed correction (migration `0011`)
+
+The institutional rule: every top-promoted report **must** expose a contact channel — that's the value the operator pays for via Top Promote (direct prospect-to-publisher reach + Resend "Schedule a Tour" CTA). The Ritz-Carlton Madrid carried an active `top_promote_reports` row but `valuations.contact_info` was null from the original seed (migration 0005). Result: flame icon visible (top-promote) but Mail icon greyed out (no contact channel) — broken promise.
+
+Applied migration `0011_ritz_carlton_contact_info_seed_correction.sql`:
+
+```
+UPDATE public.valuations
+SET contact_info = {accountManager:'James Whitman', accountManagerId:'2104',
+                    email:'james.whitman@ritzcarlton.com',
+                    phone:'(+34) 91 521 2857'}
+WHERE id = '...020001' AND contact_info IS NULL;
+```
+
+Idempotent (only writes when null), live in production. ISR revalidate window picks up the change within 60s. Both currently top-promoted hotels (Mandarin Oriental Ritz · The Ritz-Carlton Madrid) now expose a working contact channel + Schedule-a-Tour button.
+
+---
+
 ## 2026-05-12 — Camino A · Supabase Auth route protection activated for /user/admin + /settings
 
 The operator UI gate that returns `unauthorised` when nobody is signed in is now activatable in production via a single Vercel env-var flip. Closes the loop on Option B: the credential-provisioning admin form requires a real signed-in operator (not a mock Zustand session).
