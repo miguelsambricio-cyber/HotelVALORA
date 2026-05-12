@@ -20,6 +20,20 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Status semantics (global rubric — codified 2026-05-13):
+ *
+ *   LIVE     · operational end-to-end MVP · customer-visible impact
+ *   BETA     · partially connected · operational with rough edges
+ *   PLANNED  · not yet built · static affordance
+ *   INTERNAL · operator-only tooling · no public-facing counterpart
+ *
+ * A surface picks the most informative single label. INTERNAL replaces
+ * LIVE for surfaces that will never have a customer-facing counterpart
+ * (AI Operations infrastructure, Integrations data sources).
+ */
+type NavTone = "live" | "beta" | "planned" | "internal";
+
 interface NavItem {
   /** Real Next.js route. Omit for disabled / planned items — they render as
    *  static divs that never navigate (no hash anchors, no scroll-jacking). */
@@ -27,23 +41,26 @@ interface NavItem {
   label: string;
   icon: typeof Shield;
   badge?: string;
+  tone?: NavTone;
 }
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
-  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live" },
-  { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live" },
-  { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Scaffold" },
-  { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Scaffold" },
-  { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live" },
-  { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live" },
+  // Customer-visible operational surfaces · operational end-to-end → LIVE
+  { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live", tone: "live" },
+  { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live", tone: "live" },
+  { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Live", tone: "live" },
+  { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },
+  // Operator infrastructure surfaces · no public-facing counterpart → INTERNAL
+  { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Internal", tone: "internal" },
+  { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Internal", tone: "internal" },
 ];
 
 const PLANNED_NAV: NavItem[] = [
-  { label: "Workspaces", icon: Database, badge: "Phase 3" },
-  { label: "Observability", icon: Activity, badge: "Phase 3" },
-  { label: "Cost Controls", icon: Gauge, badge: "Phase 3" },
-  { label: "Audit Log", icon: ScrollText, badge: "Phase 3" },
+  { label: "Workspaces", icon: Database, badge: "Planned", tone: "planned" },
+  { label: "Observability", icon: Activity, badge: "Planned", tone: "planned" },
+  { label: "Cost Controls", icon: Gauge, badge: "Planned", tone: "planned" },
+  { label: "Audit Log", icon: ScrollText, badge: "Planned", tone: "planned" },
 ];
 
 /**
@@ -161,11 +178,9 @@ function SidebarItem({
         <span
           className={cn(
             "rounded px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-widest",
-            active
-              ? "bg-emerald-100 text-emerald-700"
-              : disabled
+            disabled
               ? "bg-slate-100 text-slate-400"
-              : "bg-slate-100 text-slate-500",
+              : badgeToneClass(item.tone, active),
           )}
         >
           {item.badge}
@@ -182,4 +197,31 @@ function SidebarItem({
       {inner}
     </Link>
   );
+}
+
+/**
+ * Map a `NavTone` to the Tailwind classes that paint the badge.
+ * Falls back to neutral slate when no tone is set (legacy items).
+ */
+function badgeToneClass(tone: NavTone | undefined, active: boolean): string {
+  switch (tone) {
+    case "live":
+      return active
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60";
+    case "beta":
+      return active
+        ? "bg-amber-100 text-amber-800"
+        : "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/60";
+    case "internal":
+      return active
+        ? "bg-forest-900 text-lime-300"
+        : "bg-slate-900 text-lime-300";
+    case "planned":
+      return "bg-slate-100 text-slate-500";
+    default:
+      return active
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-slate-100 text-slate-500";
+  }
 }

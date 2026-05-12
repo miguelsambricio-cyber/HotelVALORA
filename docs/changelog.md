@@ -4,6 +4,35 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Admin sidebar · status semantics rubric codified · Campaigns + Subscriptions promoted to LIVE
+
+Sidebar badges now follow a 4-state global rubric. Campaigns + Subscriptions flip from "Scaffold" to **LIVE** — both surfaces have operational routes, dashboards, attribution models, activation UI, entity tables and invitation-flow integration shipped. AI Operations + Integrations re-classified as **INTERNAL** (operator-only infrastructure with no customer-facing counterpart by design). Planned items use "Planned" instead of the implementation-detail "Phase 3" label.
+
+### Rubric (codified in `apps/web/src/components/admin/admin-sidebar.tsx`)
+
+| Badge | Tone | Meaning |
+|---|---|---|
+| LIVE | emerald | Operational end-to-end MVP · customer-visible impact |
+| BETA | amber | Partially connected · operational with rough edges |
+| PLANNED | slate | Not yet built · static affordance for roadmap visibility |
+| INTERNAL | forest / lime | Operator-only tooling · no public-facing counterpart by design |
+
+Sidebar assignments (post-rubric):
+- LIVE — Contacts · Users · Campaigns · Subscriptions
+- INTERNAL — AI Operations · Integrations
+- PLANNED — Workspaces · Observability · Cost Controls · Audit Log
+
+### Implementation
+- `NavItem` gains a `tone` field (`live` / `beta` / `planned` / `internal`)
+- New `badgeToneClass(tone, active)` helper maps each tone to its Tailwind palette
+- INTERNAL gets the forest/slate-900 chip with lime text — visually distinct from LIVE's emerald
+- Rubric documented in `docs/features/admin.md` § 0 as the contract that future surfaces hew to
+
+### Promotion criteria
+Promoting from BETA → LIVE requires: end-to-end happy path with audit · soft-delete posture where mutations exist · no caller-visible holes in the operator workflow. Campaigns + Subscriptions cleared this bar in 2.D.7 + 2.D.7b.
+
+---
+
 ## 2026-05-13 — Phase 2.D.7b · Product catalogue is the source of truth · bulk ops pivot off `subscription_products`
 
 The user_tier enum stops being a hardcoded picker — every bulk subscription flow now reads from `subscription_products`. Campaigns become monetization cohorts via a new FK. Product cards gain inline visibility toggle and a swipeable mobile carousel.

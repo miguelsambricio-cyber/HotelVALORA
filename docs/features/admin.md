@@ -2,10 +2,28 @@
 
 Institutional Operations Center for HOTELVALORA. The visual layer of the AI Operations Layer plus the cross-platform supervisory dashboard.
 
-**Last refreshed:** 2026-05-12
+**Last refreshed:** 2026-05-13
 **Status:** 🟢 Shipped · live-state aggregator replaces compile-time registry · interactive article drawer · curated source roster · Hosteltur + Alimarket at operational parity with placeholder T2
 
 > Institutional baseline state: `docs/SNAPSHOT_2026_05_12.md` § 3.3.
+
+## 0. Sidebar status rubric (codified 2026-05-13)
+
+The badge on every admin nav item now picks from a 4-state vocabulary. A surface picks the most informative single label; INTERNAL replaces LIVE for surfaces that will never have a customer-facing counterpart.
+
+| Badge | Tone | Meaning |
+|---|---|---|
+| **LIVE** | emerald | Operational end-to-end MVP · customer-visible impact · safe to use in production |
+| **BETA** | amber | Partially connected · operational but with rough edges or incomplete wiring · operator should expect occasional polish gaps |
+| **PLANNED** | slate | Not yet built · surface renders as a non-interactive pill for visibility into the roadmap |
+| **INTERNAL** | forest / lime | Operator-only tooling · no public-facing counterpart by design (e.g. AI Operations agents, Integrations data sources) · "internal" replaces "live" for these surfaces |
+
+Current sidebar assignments:
+- `Contacts` · `Users` · `Campaigns` · `Subscriptions` → **LIVE** (customer-visible operational data)
+- `AI Operations` · `Integrations` → **INTERNAL** (operator infrastructure)
+- `Workspaces` · `Observability` · `Cost Controls` · `Audit Log` → **PLANNED**
+
+The rubric is the contract that future surfaces must hew to. Promoting from BETA → LIVE requires: end-to-end happy path with audit · soft-delete posture (where mutations exist) · no caller-visible holes in the operator workflow.
 
 ---
 
