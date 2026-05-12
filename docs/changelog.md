@@ -4,9 +4,41 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Admin · Operational Summary footer (hierarchy rebalance)
+
+Per operator: the institutional summary was visually dominating and competing with the integration hero. Re-positioned + redesigned as a compact footer.
+
+### Hierarchy change
+- **Before**: Operational Health hero block at the very top of every integration detail page (sat above the hero card)
+- **After**: Sits *below* the Credentials / Session / Ingestion panels · reads as a consolidated diagnosis / institutional health footer · not a hero block
+
+### Visual compaction
+- Renamed "Operational Health" → "**Operational Summary**" to signal its footer role
+- Header collapsed from h2 + label stack to a single tracked-out line
+- Padding reduced (`p-6` → `px-5 py-4`)
+- Lanes flipped from a vertical 3-row stack to a **horizontal 3-col grid** (2-col for public sources) · each lane is now a single dense tile
+- Per-lane text sizes reduced (`text-[13.5px]` → `text-[12px]`)
+- Detail text clamped to 1 line (`line-clamp-1`)
+- Verdict block flattened into a single horizontal sentence (label + message inline · was stacked)
+- Severity icons shrunk (size 18 → 14)
+- CLI command appears beneath verdict only when degraded (unchanged behaviour, tighter spacing)
+
+### Preserved
+- Green/amber/rose/slate severity semantics (lane icons + verdict border + verdict label colour)
+- Verdict text content (still narrates the merged state in one sentence)
+- Worst-lane-wins escalation logic in `describeVerdict`
+- Three lane describers (`describeT1`, `describeT2`, `describeT3`) unchanged
+- Auth-source CLI command line when verdict ≠ ok
+
+### Files modified
+- `apps/web/src/components/admin/integrations/integration-detail.tsx` · `OperationalHealthHero` moved from above-hero to below the Session/Ingestion grid
+- `apps/web/src/components/admin/integrations/operational-health-hero.tsx` · compact-footer redesign (header + lane grid + verdict spacing)
+
+---
+
 ## 2026-05-12 — Phase 2.9 · Cross-source Priority Intelligence Feed (institutional command-center)
 
-Until this pass the operator had to inspect each source individually to find deal-flow signal. Phase 2.9 promotes priority-tier articles to a single executive-level cross-source feed at the top of `/admin/ai-operations`. The dashboard now reads like a market-intelligence command center · the runtime telemetry (throughput · runs · alerts) lives below the fold.
+Shipped as commit `fd3f7a9`. Until this pass the operator had to inspect each source individually to find deal-flow signal. Phase 2.9 promotes priority-tier articles to a single executive-level cross-source feed at the top of `/admin/ai-operations`. The dashboard now reads like a market-intelligence command center · the runtime telemetry (throughput · runs · alerts) lives below the fold.
 
 ### Aggregator (`lib/admin/ai-ops/live.ts`) extensions
 - **`priorityFeed[]`** · last-7d priority-tier articles · source-balanced (cap 6 per source) · ranked by a heuristic 0–100 score (signal weight + body presence + authed-fetch bonus + recency)

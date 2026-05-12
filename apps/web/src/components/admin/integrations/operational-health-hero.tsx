@@ -4,16 +4,16 @@ import type { IntegrationDescriptor } from "@/lib/admin/integrations";
 import type { CredentialsStatusView } from "@/lib/intelligence/credentials-store";
 
 /**
- * Operational Health Hero — the single-glance coherent state for an
- * integration. Synthesizes T1 (credentials) · T2 (session) · T3
- * (ingestion) into three explicit lanes plus a merged verdict.
+ * Operational Summary — institutional health footer.
  *
- * The verdict line answers the operator's first question — "is this
- * source healthy, and if not, what do I do?" — without making them
- * cross-reference three separate panels.
+ * Sits BELOW the Credentials / Session / Ingestion panels and reads as
+ * a consolidated diagnosis: "given what I just showed you in the three
+ * panels above, here's the merged verdict." Compact horizontal lanes +
+ * one verdict line. Designed to recede visually so the per-tier panels
+ * remain the operator's primary read.
  *
- * Sits at the top of the integration detail page. Replaces what used
- * to be just two pill badges in the page hero.
+ * Severity colours preserved — green/amber/red still anchor the eye to
+ * what needs attention.
  */
 
 type Tier = "T1" | "T2" | "T3";
@@ -42,37 +42,38 @@ export function OperationalHealthHero({
   const cliCommand = `node apps/web/scripts/playwright-refresh.mjs --slug=${integration.id}`;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-6 shadow-sm">
-      <header className="mb-5 flex items-baseline justify-between">
-        <div>
-          <p className="font-headline text-[9px] font-bold uppercase tracking-[0.24em] text-lime-300/80">
-            Operational Health
-          </p>
-          <h2 className="mt-1 font-headline text-xl font-extrabold tracking-tight text-white">
-            {integration.name}
-          </h2>
-        </div>
+    <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 px-5 py-4 shadow-sm">
+      {/* Compact header · institutional footer label, not a hero block */}
+      <header className="mb-3 flex items-center justify-between gap-3">
+        <p className="font-headline text-[9px] font-bold uppercase tracking-[0.24em] text-slate-400">
+          Operational Summary · {integration.name}
+        </p>
         <SeverityPill severity={verdict.severity} label={verdict.label} />
       </header>
 
-      {/* Three lanes (or two for public sources) */}
-      <ul className="space-y-3">
+      {/* Lanes · horizontal grid (denser than the original vertical stack).
+       *  3-col for authenticated sources · 2-col for public sources.
+       *  Each lane is a single compact tile. */}
+      <ul
+        className={cn(
+          "grid gap-2 border-t border-slate-800/60 pt-3",
+          integration.requiresAuth ? "sm:grid-cols-3" : "sm:grid-cols-2",
+        )}
+      >
         {lanes.map((lane) => (
-          <li key={lane.tier} className="flex items-start gap-3">
+          <li
+            key={lane.tier}
+            className="flex items-start gap-2 rounded-md bg-slate-900/40 px-3 py-2 ring-1 ring-slate-800/40"
+          >
             <SeverityIcon severity={lane.severity} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-slate-400">
-                  {lane.tier}
-                </span>
-                <span className="font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  · {lane.label}
-                </span>
-              </div>
-              <p className="mt-0.5 font-headline text-[13.5px] font-extrabold tracking-tight text-white">
+              <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                {lane.tier} · {lane.label}
+              </p>
+              <p className="mt-0.5 truncate font-headline text-[12px] font-extrabold tracking-tight text-white">
                 {lane.headline}
               </p>
-              <p className="mt-0.5 text-[12px] leading-relaxed text-slate-400">
+              <p className="mt-0.5 line-clamp-1 text-[10.5px] leading-snug text-slate-400">
                 {lane.detail}
               </p>
             </div>
@@ -80,32 +81,34 @@ export function OperationalHealthHero({
         ))}
       </ul>
 
-      {/* Merged verdict block */}
+      {/* Verdict · single sentence + optional CLI command when degraded */}
       <div
         className={cn(
-          "mt-5 rounded-lg border p-4",
+          "mt-3 rounded-md border px-3 py-2",
           verdict.severity === "ok" && "border-emerald-500/30 bg-emerald-500/5",
           verdict.severity === "warn" && "border-amber-500/40 bg-amber-500/10",
           verdict.severity === "error" && "border-rose-500/40 bg-rose-500/10",
           verdict.severity === "neutral" && "border-slate-700/40 bg-slate-900/40",
         )}
       >
-        <p
-          className={cn(
-            "font-headline text-[10px] font-bold uppercase tracking-[0.22em]",
-            verdict.severity === "ok" && "text-emerald-200",
-            verdict.severity === "warn" && "text-amber-200",
-            verdict.severity === "error" && "text-rose-200",
-            verdict.severity === "neutral" && "text-slate-400",
-          )}
-        >
-          Verdict · {verdict.label}
+        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span
+            className={cn(
+              "font-headline text-[9.5px] font-bold uppercase tracking-[0.2em]",
+              verdict.severity === "ok" && "text-emerald-300",
+              verdict.severity === "warn" && "text-amber-300",
+              verdict.severity === "error" && "text-rose-300",
+              verdict.severity === "neutral" && "text-slate-400",
+            )}
+          >
+            Verdict · {verdict.label}
+          </span>
+          <span className="text-[12px] leading-snug text-slate-200">{verdict.message}</span>
         </p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-slate-200">{verdict.message}</p>
         {integration.requiresAuth && verdict.severity !== "ok" && (
-          <p className="mt-2 text-[11.5px] leading-relaxed text-slate-300">
-            <span className="font-headline font-extrabold uppercase tracking-[0.18em] text-slate-400">Run</span>{" "}
-            <code className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[11px] text-lime-300">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-300">
+            <span className="font-headline font-extrabold uppercase tracking-[0.18em] text-slate-500">Run</span>{" "}
+            <code className="rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[10.5px] text-lime-300">
               {cliCommand}
             </code>
           </p>
@@ -330,16 +333,16 @@ function describeVerdict(
 // ── visuals ────────────────────────────────────────────────────────────────
 
 function SeverityIcon({ severity }: { severity: Severity }) {
-  const className = "mt-1 shrink-0";
+  const className = "mt-0.5 shrink-0";
   switch (severity) {
     case "ok":
-      return <CheckCircle2 size={18} className={cn(className, "text-emerald-400")} aria-hidden />;
+      return <CheckCircle2 size={14} className={cn(className, "text-emerald-400")} aria-hidden />;
     case "warn":
-      return <AlertTriangle size={18} className={cn(className, "text-amber-300")} aria-hidden />;
+      return <AlertTriangle size={14} className={cn(className, "text-amber-300")} aria-hidden />;
     case "error":
-      return <AlertCircle size={18} className={cn(className, "text-rose-400")} aria-hidden />;
+      return <AlertCircle size={14} className={cn(className, "text-rose-400")} aria-hidden />;
     case "neutral":
-      return <CircleDot size={18} className={cn(className, "text-slate-500")} aria-hidden />;
+      return <CircleDot size={14} className={cn(className, "text-slate-500")} aria-hidden />;
   }
 }
 

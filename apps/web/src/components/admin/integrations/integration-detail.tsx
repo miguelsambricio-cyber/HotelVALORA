@@ -45,12 +45,6 @@ export function IntegrationDetail({
         <ArrowLeft size={12} /> Integrations Directory
       </Link>
 
-      {/* Operational Health Hero · institutional single-glance verdict */}
-      <OperationalHealthHero
-        integration={integration}
-        credentialsStatus={credentialsStatus}
-      />
-
       {/* Header card · dark canvas (Bloomberg-terminal) */}
       <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-6 shadow-sm sm:p-8">
         <div className="flex flex-col items-start gap-6 md:flex-row md:items-center md:justify-between">
@@ -107,6 +101,14 @@ export function IntegrationDetail({
         </div>
         <IngestionHealthPanel integration={integration} />
       </div>
+
+      {/* Operational Summary · compact diagnosis footer · sits below
+       *  the per-tier panels so the operator's eye lands on the
+       *  granular state first and the verdict last. */}
+      <OperationalHealthHero
+        integration={integration}
+        credentialsStatus={credentialsStatus}
+      />
 
       {/* Notes + links · light cards on the page canvas */}
       <div className="grid gap-5 lg:grid-cols-2">
