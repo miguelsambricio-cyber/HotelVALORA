@@ -4,9 +4,99 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Phase 2.5b · Hosteltur real Playwright authentication (placeholder T2 replaced)
+
+First half of Phase 2.5b shipped. Real authenticated Playwright session capture against `hosteltur.com` replaces the placeholder T2 row. Validated end-to-end via anon-vs-authed body comparison before persistence.
+
+### Operator-side script
+**New:** `apps/web/scripts/playwright-refresh.mjs` (~330 lines). Single-attempt · no-retry · headed-by-default · validation-gated persistence. Architecture:
+
+```
+flags · --slug=<slug> [--headless] [--keep-open] [--dry-run]
+
+1. Load .env.local · resolve KEK + Supabase service-role
+2. SELECT active T1 row · AES-256-GCM decrypt (round-trip verified)
+3. Launch Chromium · headless=false · slowMo=300ms · UA Chrome/130 · es-ES locale · Madrid TZ
+4. GET <recipe.loginUrl> · wait #login selector
+5. Fill credentials · click submit (with form.submit() fallback)
+6. Failure markers FIRST · abort if .alert-danger / .invalid-feedback /
+   text fragment ("credenciales no válidas", "demasiados intentos", ...)
+7. Success markers · URL away from /login OR logged-in selector
+   OR session cookie set (any one suffices)
+8. context.storageState() capture
+9. VALIDATION · anon-vs-authed body comparison across 2 targets
+   (homepage + /premium) · verdict gated on (more authed-markers in
+   authed) OR (fewer paywall CTAs in authed)
+10. If login_ok AND validation_ok AND NOT --dry-run:
+    AES-256-GCM(storageState) · UPSERT intelligence_source_sessions
+    · status=active · 7-day TTL · meta.placeholder=false
+    · UPDATE credentials.last_login_at + status=success
+    · audit event auth_success with validation_targets_passed
+11. If login_ok BUT validation FAILS · audit auth_failure with
+    validation_report detail · placeholder row left intact
+```
+
+Source-specific config encoded as `SOURCE_RECIPES.hosteltur` · login URL · CSS selectors · success/failure markers · validation targets · paywall CTA + authed-only string lists. Alimarket recipe stub TBD.
+
+### Execution result (2026-05-12 04:50 UTC · commits `aa5d274` + earlier head)
+```
+✓ T1 decrypted · username_len=26 · password_len=19
+✓ login form present · credentials filled
+✓ post-submit URL: https://www.hosteltur.com/
+  · logged-in selector found: a[href*='/logout']
+  · URL left /login · session cookie present
+✓ login succeeded · 11 cookies captured
+→ validation · anon vs. authed comparison
+  · homepage         anon(authed=0 paywall=1 67.4kB) → authed(authed=2 paywall=1 67.9kB) · ✓
+  · premium-landing  anon(authed=0 paywall=1 51.3kB) → authed(authed=2 paywall=1 106.6kB) · ✓
+✓ validation PASSED · 2/2 target(s) confirmed authed access
+✓ REAL T2 session row inserted · id=81f57ee0-af7b-487e-bd71-5c615bbda219 · expires=2026-05-19 04:50 UTC
+✓ Placeholder row demoted to status='expired'
+```
+
+Strongest validation evidence: the `/premium` landing **doubled in size** (51.3 → 106.6 kB) when fetched with the captured cookies — the authed branch returns subscriber-only HTML that anon doesn't get. Both validation targets exceeded the (authed-markers || paywall-deltas) threshold.
+
+### Bug fix
+Initial run crashed at the summary log with `ReferenceError: validationOk is not defined` because the variable was declared inside the `try` block but used in the outer summary. Important: the persistence + audit had already completed BEFORE the crash · no DB corruption · no double-execution. Fix moved `let validationOk = false` (plus `validationReport = []`) to outer scope.
+
+### Package updates
+- `apps/web/devDependencies` · `playwright@^1.60.0` added
+- `apps/web/pnpm-lock.yaml` regenerated
+- Chromium binary downloaded locally via `npx playwright install chromium` (operator's machine · `~/AppData/Local/ms-playwright/`)
+
+### Audit chain (post-milestone)
+```
+provisioned       2026-05-12 02:31  · T1 initial provision via admin UI
+auth_success      2026-05-12 03:07  · placeholder_storage_state=true   (execute-session-refresh.mjs)
+auth_success      2026-05-12 04:50  · placeholder_storage_state=false  (playwright-refresh.mjs)
+                                       validation_targets_passed=2/2
+```
+
+### Sessions table state
+```
+81f57ee0-… · active   · 11 cookies · captured_via=playwright-refresh.mjs · meta.placeholder=false  ← canonical
+f27cd1f2-… · expired  · placeholder · captured_via=execute-session-refresh.mjs                    ← demoted
+```
+
+### Dashboard impact
+`/user/admin/integrations/hosteltur` after next render:
+- Auth Status badge: `Active Session` · 167h to expiry (now backed by real Playwright capture)
+- Session panel: `captured_via=playwright-refresh.mjs` · `placeholder=false` · cookies_count=11
+- Audit Trail disclosure: 3 lifecycle events including the `validation_targets_passed=2` detail
+
+### Phase 2.5b remaining
+Three deliverables stay open for separate sessions (per operator pause):
+1. **Premium full-body verification** — use the captured 11 cookies to fetch a specific paywalled article and confirm full body vs preview · ~10 min · 0 login attempts
+2. **Alimarket Playwright parity** — extend `SOURCE_RECIPES` + run · ~20-30 min · 1 login attempt against Alimarket
+3. **Cron operationalization** — wire `/api/cron/hospitality-intel` to call the real-session refresh + ingest path daily · 1 day
+
+No further runtime changes beyond this entry per operator directive.
+
+---
+
 ## 2026-05-12 — Documentation snapshot pass · institutional baseline before Phase 2.5b
 
-Operator paused execution to create a clean architectural baseline before continuing into real authenticated intelligence automation. No code / schema / runtime modifications · documentation only.
+Operator paused execution to create a clean architectural baseline before continuing into real authenticated intelligence automation. No code / schema / runtime modifications · documentation only. Pass landed as commit `4024542`.
 
 **Centerpiece:**
 - `docs/SNAPSHOT_2026_05_12.md` (new) — single canonical current-state document · architecture map (ASCII data-flow diagram) · 8-section operational matrix · integration-specific state · placeholder session architecture · Phase 2.5b plan · CoStar manual-first MVP · CompSet operational strategy · transaction ingestion architecture · agents roadmap · priority matrix · documentation debt
