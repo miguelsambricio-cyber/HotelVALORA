@@ -6,7 +6,7 @@ One entry per completed feature or significant task. Most recent first.
 
 ## 2026-05-12 — Phase 2.A · Google Contacts enrichment pipeline (read-only join with Datasite Master)
 
-Second relationship-intelligence ingestion lane · cross-references the operator's Google Contacts (personal/professional address book) against the canonical Datasite Master. **By design, does NOT mutate the Master** — every output lands in a separate workspace and the operator approves what to promote.
+Shipped as commit `47bdf1c`. Second relationship-intelligence ingestion lane · cross-references the operator's Google Contacts (personal/professional address book) against the canonical Datasite Master. **By design, does NOT mutate the Master** — every output lands in a separate workspace and the operator approves what to promote.
 
 ### Folder additions (`CONTACTOS DATASITE/`)
 ```
@@ -95,7 +95,7 @@ Pipeline ready · empty-state run passes · awaiting first Google CSV drop into 
 
 ## 2026-05-12 — Phase 2.10 · CONTACTOS DATASITE · institutional relationship intelligence pipeline
 
-Datasite Outreach's CRM (Companies & Contacts + Buyer Tracking) is the operator's institutional relationship graph for METCUB's sell-side outreach. The Claude Datasite MCP doesn't expose those endpoints (verified end-to-end · the connector covers Projects · Folders · Members · Q&A · Documents but NOT the Outreach CRM module). So we built an **export-driven ingestion architecture** instead, modelled on the same disciplines used for transactions + CoStar + intelligence: drop-zone workflow · provenance + lineage · audit-grade reports · re-classifiability · append-only audit log · PII never in git.
+Shipped as commit `b32ab3b`. Datasite Outreach's CRM (Companies & Contacts + Buyer Tracking) is the operator's institutional relationship graph for METCUB's sell-side outreach. The Claude Datasite MCP doesn't expose those endpoints (verified end-to-end · the connector covers Projects · Folders · Members · Q&A · Documents but NOT the Outreach CRM module). So we built an **export-driven ingestion architecture** instead, modelled on the same disciplines used for transactions + CoStar + intelligence: drop-zone workflow · provenance + lineage · audit-grade reports · re-classifiability · append-only audit log · PII never in git.
 
 ### Folder layout (`CONTACTOS DATASITE/`)
 ```
