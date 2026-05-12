@@ -4,6 +4,36 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Library demo matrix: add PRO+TopPromote and Public+TopPromote examples (migration 0012)
+
+`/library/top-list` should demo every icon combination an operator can legitimately ship: tier chip (Premium / PRO / Public / Private) × marketplace indicators (flame 🔥 top-promote · pencil ✏️ user-modified · eye-off 🙈 private). Pre-existing seed covered 6 of 8 useful combinations. Two were missing — every paid-Premium variant was over-represented and the marketplace-paying lower tiers (PRO + Public) had no flame example.
+
+Added two rows via migration `0012_seed_top_promote_matrix_examples.sql` (idempotent, on-conflict-do-nothing):
+
+| Row | Tier | Flame | Contact | Premise |
+|---|---|---|---|---|
+| Hotel Indigo Madrid · Gran Vía | PRO | ✓ | Elena Vázquez @ indigomadrid.com | PRO subscriber paid for promotion |
+| Petit Palace Plaza Madrid | Public | ✓ | Pablo Ruiz @ petitpalace.example | Free-tier publisher paid for promotion |
+
+Both rows carry a corresponding `top_promote_reports` row (promoted_until in the future · realistic impressions/clicks/boost_score). Per the institutional rule locked in by migration 0011, every flame-bearing report exposes a contact_info channel so Schedule-a-Tour is functional.
+
+Final matrix on /library/top-list (8 rows):
+
+```
+Premium · 🔥           Ritz-Carlton Madrid       (contact: James Whitman)
+Premium · 🔥 · ✏️       Mandarin Oriental Ritz    (contact: Sara Smith)
+PRO     · 🔥           Hotel Indigo Madrid       (contact: Elena Vázquez)   ← new
+Public  · 🔥           Petit Palace Plaza Madrid (contact: Pablo Ruiz)      ← new
+Premium · ✏️            Four Seasons Madrid       (user-modified Premium)
+PRO     · ✏️            Hard Rock Hotel Marbella  (user-modified PRO)
+Public                The Madrid EDITION         (plain free)
+Private · 🙈           W Barcelona               (free report flagged private)
+```
+
+ISR revalidate (60s) picks up the new rows automatically. Verified live in production HTML.
+
+---
+
 ## 2026-05-12 — Library: SSR-prefetch valuations + Ritz-Carlton contact seed fix
 
 **Two bug-fix entries from the same operator session — bundled here because they affect the same Library surface.**
