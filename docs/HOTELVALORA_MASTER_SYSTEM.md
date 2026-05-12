@@ -6,6 +6,8 @@
 
 **Last refreshed:** 2026-05-12 — keep this date current after structural updates.
 
+> 📍 **For the institutional baseline state of the platform** — what's live, placeholder, planned — read `docs/SNAPSHOT_2026_05_12.md` first. That document is the single canonical answer for cross-cutting status questions. This file points at it for anything that would otherwise drift.
+
 ---
 
 ## 1 · Vision
@@ -109,11 +111,15 @@ Full per-feature dossier: **`docs/features/library.md`**.
 
 ## 6 · Next priorities (snapshot)
 
-1. **Activate 3 env vars on Vercel** — `CRON_SECRET`, `INGESTION_AUDIT_TOKEN`, `INTERNAL_ALERT_RECIPIENTS`. See `docs/infrastructure/environment-variables.md`.
-2. **Phase 2.3.d.1 — CoStar Market Data Agent CLI** — mirror the transactions ingest pipeline across the 4 CoStar granularities. Flips `costar_market_data` → `beta`.
-3. **Phase 2.4.1 — CompSet Underwriting Agent implementation** — TS agent + cloud route + operator CLI. Flips `compset_underwriting` → `beta`.
-4. **Phase 3 prep** — pgvector enable + reactive orchestrator + CEO Agent runtime activation.
-5. **Mapbox swap** for the static grayscale library map.
+Full prioritised matrix lives in `docs/SNAPSHOT_2026_05_12.md` § 6. Compressed view:
+
+1. **Set `ADMIN_OPERATOR_EMAILS` on Vercel** (5 min · closes the admin allow-list gap)
+2. **Phase 2.5b — Real Playwright integration** — replace placeholder T2 sessions with authenticated captures for Hosteltur + Alimarket · paywall body fetch · Refresh-Session button on integration detail
+3. **Phase 2.6 — Cron-driven daily ingestion** — wire `/api/cron/hospitality-intel` to run real authenticated fetches across all 7 sources
+4. **Phase 2.3.d.1 — CoStar Market Data Agent CLI** — mirror the transactions ingest pipeline · flips `costar_market_data` → `beta`
+5. **Phase 2.4.1 — CompSet Underwriting Agent** — TS agent + cloud route + operator CLI · flips `compset_underwriting` → `beta`
+6. **Phase 3 prep** — pgvector enable + reactive orchestrator + CEO Agent runtime activation
+7. **Mapbox swap** for the static grayscale library map
 
 Open backlog: see `docs/roadmap/backlog.md`.
 

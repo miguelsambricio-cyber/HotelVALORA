@@ -3,7 +3,8 @@
 Technical architecture of the institutional Administrator surface at `/user/admin/*`.
 
 **Last refreshed:** 2026-05-12
-**Companion docs:** `docs/features/admin.md` (the feature dossier · what the operator sees) · `docs/routing.md` (route map)
+**Status:** 🟢 Live · Server Components read the live aggregator at request time (`force-dynamic`) · Bloomberg-style interactive article drawer on every integration detail · 6-state dynamic connection inference
+**Companion docs:** `docs/features/admin.md` (the feature dossier · what the operator sees) · `docs/routing.md` (route map) · `docs/SNAPSHOT_2026_05_12.md` § 3.3 (institutional baseline state)
 
 ---
 

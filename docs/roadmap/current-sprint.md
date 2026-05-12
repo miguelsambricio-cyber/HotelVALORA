@@ -49,21 +49,28 @@
 
 ## In flight
 
-- 🟡 Phase 2 observation window — 7 days of source `status=success` + ≥10 news rows/day + ≥95% agent run success
-- 🟡 First cron tick verification — `/dev/intelligence-test` + `/dev/ai-ops` after `48 7 * * *` UTC (intel) + `20 8 * * *` UTC (market-intel) + `30 9 * * *` UTC (QA · daily on Hobby plan)
-- 🟡 `INGESTION_AUDIT_TOKEN` + `CRON_SECRET` + `INTERNAL_ALERT_RECIPIENTS` env vars pending on Vercel
+- 🟢 **Documentation snapshot pass** — institutional baseline before Phase 2.5b. New `docs/SNAPSHOT_2026_05_12.md` is the single canonical source for "what's live / placeholder / planned" across the platform. See `docs/changelog.md` 2026-05-12 entry.
+- 🟡 Phase 2 observation window — `48 7 * * *` cron hasn't yet produced articles · the 16 articles ingested for Hosteltur + Alimarket came via manual operator-driven runs
+- 🟡 Placeholder T2 sessions for Hosteltur + Alimarket · expire 2026-05-19 · awaiting Phase 2.5b Playwright replacement
 
 ## Up next (rough order of pull)
 
-1. **Set 3 env vars on Vercel production + locally** — `CRON_SECRET` (cron routes deny without it), `INGESTION_AUDIT_TOKEN` (audit-sync soft-fails otherwise), `INTERNAL_ALERT_RECIPIENTS` (QA escalations default to miguel.sambricio@metcub.com). See `docs/infrastructure/environment-variables.md` for activation recipes.
-2. **Phase 2.3.d.1 — CoStar Market Data Agent CLI** — mirror `services/transactions/scripts/ingest.py` for the four CoStar granularities (PAIS / MERCADO / SUBMERCADO / CLASS). Reuses `audit_sync.py` + cloud endpoint. Activation flips `costar_market_data` → `beta`.
-3. **Phase 2.4.1 — CompSet Underwriting Agent implementation** — TS agent + cloud route + operator CLI for `services/compset/`. Cross-workspace reader: pulls market context from `services/costar/MASTER/*` + subject metadata from `public.valuations`. Activation flips `compset_underwriting` → `beta`.
-4. **Phase 2 unit + integration tests** — regex categoriser fixtures, URL canonicaliser edge cases, RSS parser against captured payloads. Deferred from Phase 2 ship.
-5. **Phase 3 prep** — pgvector enable migration, embedding back-fill cron, reactive orchestrator (Supabase Realtime subscriber on `ai_events`), CEO Agent activation.
-6. **Sign-up flow** — today the only way to create an account is Google OAuth. Add `supabase.auth.signUp` (email/password) and `supabase.auth.resetPasswordForEmail`.
-7. **Realtime Library subscription** — `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
-8. **Workspace switcher** — read `public.user_roles` joined with `public.organizations`; surface in the AppHeader.
-9. **Mapbox swap** for static grayscale library map (Phase 4).
+Full prioritised matrix lives in `docs/SNAPSHOT_2026_05_12.md` § 6.
+
+1. **Set `ADMIN_OPERATOR_EMAILS` on Vercel** — closes the admin allow-list gap (currently any signed-in Supabase user can provision credentials because both `ADMIN_OPERATOR_EMAILS` and `INTERNAL_ALERT_RECIPIENTS` are empty in Vercel env). One env-var fix · 5 minutes.
+2. **Phase 2.5b — Playwright integration for Hosteltur** — replace placeholder T2 with real authenticated capture · paywall body fetch · validate end-to-end. 2-3 days.
+3. **Phase 2.5b — Playwright integration for Alimarket** — extends the same script. 1-2 days.
+4. **Phase 2.6 — Cron-driven daily ingestion** — wire `/api/cron/hospitality-intel` to call the real refresh + ingest path for all 7 curated sources. 1 day.
+5. **Phase 2.5c — Refresh-Session button on integration detail** — operator-triggered refresh via the admin UI (replaces the CLI invocation for routine use). Half a day.
+6. **Phase 3 prep — pgvector enable** — sets up the CEO Agent's memory substrate. Half a day.
+7. **Phase 2.3.d.1 — CoStar Market Data Agent CLI** — mirror the transactions ingest pipeline across the 4 CoStar granularities (PAIS / MERCADO / SUBMERCADO / CLASS). Reuses `audit_sync.py` + cloud endpoint. Activation flips `costar_market_data` → `beta`.
+8. **Phase 2.4.1 — CompSet Underwriting Agent implementation** — TS agent + cloud route + operator CLI for `services/compset/`.
+9. **Phase 2 unit + integration tests** — regex categoriser fixtures, URL canonicaliser edge cases, RSS parser against captured payloads.
+10. **Sign-up flow** — `supabase.auth.signUp` + `resetPasswordForEmail` (Google OAuth is currently the only entry).
+11. **Realtime Library subscription** — `supabase.channel("public:valuations").on("postgres_changes", …)` invalidates `libraryKeys.all`.
+12. **Workspace switcher** — read `public.user_roles` joined with `public.organizations`.
+13. **Mapbox swap** for static grayscale library map (Phase 4).
+14. **Compress `ENTRYPOINTS.md`** to ≤ 200 lines (single warning surfaced by `scripts/docs-audit.mjs`).
 
 ## Decisions made this sprint
 

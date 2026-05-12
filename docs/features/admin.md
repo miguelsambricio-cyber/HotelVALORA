@@ -3,7 +3,9 @@
 Institutional Operations Center for HOTELVALORA. The visual layer of the AI Operations Layer plus the cross-platform supervisory dashboard.
 
 **Last refreshed:** 2026-05-12
-**Status:** 🟢 Shipped (Phase 1 of admin surface · mock data) · 🔵 Phase 3 wires realtime reads
+**Status:** 🟢 Shipped · live-state aggregator replaces compile-time registry · interactive article drawer · curated source roster · Hosteltur + Alimarket at operational parity with placeholder T2
+
+> Institutional baseline state: `docs/SNAPSHOT_2026_05_12.md` § 3.3.
 
 ---
 

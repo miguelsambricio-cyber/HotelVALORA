@@ -4,6 +4,45 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-12 — Documentation snapshot pass · institutional baseline before Phase 2.5b
+
+Operator paused execution to create a clean architectural baseline before continuing into real authenticated intelligence automation. No code / schema / runtime modifications · documentation only.
+
+**Centerpiece:**
+- `docs/SNAPSHOT_2026_05_12.md` (new) — single canonical current-state document · architecture map (ASCII data-flow diagram) · 8-section operational matrix · integration-specific state · placeholder session architecture · Phase 2.5b plan · CoStar manual-first MVP · CompSet operational strategy · transaction ingestion architecture · agents roadmap · priority matrix · documentation debt
+
+**Reference docs created:**
+- `docs/meta/documentation-strategy.md` (new) — the docs system itself · categories · update matrix · SSoT map · enforcement gate · workflow · audit cadence
+- `docs/agents/README.md` (new) — index of all 12 agents · per-agent charter status · canonical charter template
+- `docs/integrations/alimarket.md` (new) — parity dossier with `hosteltur.md` for the second authenticated source
+
+**Refreshed (status pointers only · no narrative rewrite):**
+- `docs/HOTELVALORA_MASTER_SYSTEM.md` — § 6 next priorities updated · banner pointing at snapshot
+- `docs/features/admin.md` — header status reflects live aggregator + drawer
+- `docs/architecture/admin-ui-architecture.md` — header status reflects current dynamic-state derivation
+- `docs/roadmap/current-sprint.md` — pulled "Up Next" + "In Flight" forward (Phase 2.5b lead · placeholder T2 lifecycle)
+
+**Sync debt closed.** Twelve commits previously unreferenced in the changelog body are listed here so the audit grep finds them (each has a dedicated entry further down for narrative). The cluster covers the entire Phase 2.5 / admin / library / docs work shipped on 2026-05-12:
+
+- `8a2b063` — Hospitality Intelligence Terminal + Integrations admin surface
+- `be9bd02` — T1.5 encrypted credentials + admin provisioning UI + audit chain
+- `37a636a` — AuthHealthStrip institutional at-a-glance on integration detail
+- `933de67` — Option B reconciliation · admin-provisioned encrypted-at-rest T1 + audit chain
+- `416660b` — Camino A · activate Supabase Auth route protection for /user/admin + /settings
+- `9ad3db8` — Library seed · contact_info for The Ritz-Carlton Madrid (migration 0011)
+- `f74fc05` — Library demo matrix · PRO+TopPromote and Public+TopPromote rows (migration 0012)
+- `15c31ae` — Hosteltur operational parity · session refresh + 8 RSS articles
+- `d5e19b0` — Integration state-inference fix + interactive article drawer
+- `84909b1` — Integrations header copy tightened · THP/Hotel News Now dropped
+- `51ea2ed` — CoStar News promoted into Expansion's slot · Expansion + Skift dropped
+- `aa5d274` — `Articles · Today` → `Articles · 24h` (label + rolling-window semantics)
+
+Audit run via `node scripts/docs-audit.mjs` after the pass · single remaining warning (`ENTRYPOINTS.md` 355 lines over 200-line cap · backlog item `docs/roadmap/backlog.md`).
+
+**Operating principle restated:** the documentation surface is already strong enough · the discipline is synchronisation and enforcement. This pass refreshes the baseline so future feature work has a clean starting point.
+
+---
+
 ## 2026-05-12 — Integrations · state-inference fix + interactive article drawer
 
 Two changes to the Administrator integrations surface — one bug fix, one feature evolution.
