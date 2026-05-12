@@ -142,6 +142,13 @@ BOUNCE_SNIPPET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"no longer (?:works at|with) the company", re.IGNORECASE),
     re.compile(r"ya no trabaja", re.IGNORECASE),  # "X ya no trabaja en la compañía"
     re.compile(r"no longer working for", re.IGNORECASE),
+    # Explicit "please use my new email" patterns · captures employee company-change signals
+    re.compile(r"please (?:now )?use my new email", re.IGNORECASE),
+    re.compile(r"my new (?:e-?mail|email) address", re.IGNORECASE),
+    re.compile(r"please redirect any further communication", re.IGNORECASE),
+    re.compile(r"have decided to move on", re.IGNORECASE),
+    re.compile(r"taken on a new role", re.IGNORECASE),
+    re.compile(r"baja por jubilaci", re.IGNORECASE),  # retirement
 ]
 
 
