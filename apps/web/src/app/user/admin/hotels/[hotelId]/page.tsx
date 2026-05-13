@@ -6,6 +6,7 @@ import {
   findHotelById,
   findCompsetsForHotel,
   findTransactionsForHotel,
+  findCorrectionsForHotel,
   type HotelRecord,
 } from "@/lib/admin/hotels/snapshot-reader";
 import { CorrectionForm } from "@/components/admin/hotels/correction-form";
@@ -25,9 +26,10 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
   const hotel = await findHotelById(hotelId);
   if (!hotel) notFound();
 
-  const [compsets, transactions] = await Promise.all([
+  const [compsets, transactions, correctionHistory] = await Promise.all([
     findCompsetsForHotel(hotelId),
     findTransactionsForHotel(hotelId),
+    findCorrectionsForHotel(hotelId),
   ]);
 
   return (
@@ -247,6 +249,44 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             />
           </Section>
 
+          <Section title="Correction history">
+            {correctionHistory.length === 0 ? (
+              <p className="text-[12px] leading-relaxed text-slate-500">
+                No corrections applied yet. Queue one below.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {correctionHistory.map((c) => (
+                  <li
+                    key={c.correction_id}
+                    className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-800 ring-1 ring-emerald-200">
+                        {c.field}
+                      </span>
+                      <code className="font-mono text-[10.5px] text-slate-500">
+                        {c.correction_id}
+                      </code>
+                    </div>
+                    <p className="mt-1 text-[11.5px] text-slate-700">
+                      <span className="text-slate-500 line-through">{fmtVal(c.original_value)}</span>
+                      <span className="mx-1 text-slate-400">→</span>
+                      <span className="font-semibold">{fmtVal(c.corrected_value)}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-slate-600">{c.reason}</p>
+                    <p className="mt-0.5 font-mono text-[10px] text-slate-500">
+                      {c.submitted_by} · applied {formatRel(c.applied_at)}
+                      {c.confidence_before !== null && c.confidence_before !== undefined
+                        ? ` · conf ${(c.confidence_before * 100).toFixed(0)}% → ✓`
+                        : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
           <Section title="Submit correction">
             <p className="mb-3 text-[12px] leading-relaxed text-slate-600">
               When an attribute is wrong or stale, queue a correction. The next
@@ -315,4 +355,19 @@ function Pair({ label, value, mono, wrap }: { label: string; value: string; mono
 function fmtNum(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return String(n);
+}
+
+function fmtVal(v: string | number | null): string {
+  if (v === null || v === undefined || v === "") return "(empty)";
+  return String(v);
+}
+
+function formatRel(iso: string): string {
+  const ms = new Date(iso).getTime();
+  if (!Number.isFinite(ms)) return "—";
+  const diff = Date.now() - ms;
+  if (diff < 60_000) return "just now";
+  if (diff < 3600_000) return `${Math.round(diff / 60_000)}m ago`;
+  if (diff < 86400_000) return `${Math.round(diff / 3600_000)}h ago`;
+  return `${Math.round(diff / 86400_000)}d ago`;
 }

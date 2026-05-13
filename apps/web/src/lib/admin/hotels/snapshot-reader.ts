@@ -77,7 +77,34 @@ export interface HotelMeta {
   fuzzy_matched: boolean;
 }
 
-export type HotelRecord = HotelReferenceRecord & { _meta?: HotelMeta };
+/** Per-hotel audit entry produced by `corrections.py` when a pending
+ *  correction is applied during ingestion (Phase 2.3.d.6). */
+export interface CorrectionProvenance {
+  correction_id: string;
+  applied_at: string;
+  applied_in_batch: string;
+  submitted_at: string;
+  submitted_by: string;
+  field: string;
+  original_value: string | number | null;
+  corrected_value: string | number | null;
+  reason: string;
+  confidence_before: number | null;
+}
+
+export type HotelRecord = HotelReferenceRecord & {
+  _meta?: HotelMeta;
+  _corrections?: CorrectionProvenance[];
+};
+
+/** Snapshot-level corrections summary for the post-run state of the
+ *  Institutional Correction Consumer. */
+export interface CorrectionsSummary {
+  pending_before: number;
+  applied: number;
+  rejected: number;
+  applied_total_in_master: number;
+}
 
 export interface HotelsSnapshot {
   schema_version: string;
@@ -90,6 +117,8 @@ export interface HotelsSnapshot {
     transactions: number;
     reconciliation_queue: number;
   };
+  /** Optional · older v1.2 snapshots predate this block. */
+  corrections?: CorrectionsSummary;
   markets: MarketSummary[];
   hotels: HotelRecord[];
   compsets: CompsetEntry[];
@@ -206,4 +235,12 @@ export async function findTransactionsForHotel(hotelId: string): Promise<Transac
   const snap = await loadHotelsSnapshot();
   if (!snap) return [];
   return snap.transactions.filter((t) => t.hotel_id === hotelId);
+}
+
+/** Phase 2.3.d.6 · audit-trail of applied corrections for one hotel.
+ *  Returns most-recent-first so the UI doesn't have to re-sort. */
+export async function findCorrectionsForHotel(hotelId: string): Promise<CorrectionProvenance[]> {
+  const hotel = await findHotelById(hotelId);
+  const list = hotel?._corrections ?? [];
+  return [...list].sort((a, b) => (a.applied_at < b.applied_at ? 1 : -1));
 }

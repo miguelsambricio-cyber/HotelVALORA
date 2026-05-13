@@ -67,6 +67,7 @@ from source_readers import (  # noqa: E402
     read_rows_with_aliases,
 )
 from snapshot import build_snapshot, write_snapshot  # noqa: E402
+from corrections import apply_corrections  # noqa: E402
 
 # ── Workspace layout ────────────────────────────────────────────────────────
 
@@ -462,12 +463,25 @@ def main(argv: list[str] | None = None) -> int:
     transactions, recon_tx = ingest_transactions(batch_id, hotels_by_id, logger)
     recon.extend(recon_tx)
 
+    # Phase 2.3.d.6 — apply pending operator corrections (overrides over
+    # the canonical ingest values). Mutates hotels_by_id in place. The
+    # consumer rewrites the JSONL with applied/rejected state so the next
+    # run skips them.
+    corrections_summary = apply_corrections(
+        workspace=WORKSPACE,
+        hotels_by_id=hotels_by_id,
+        batch_id=batch_id,
+        logger_event=logger.event,
+    )
+    logger.event("info", "corrections.summary", **corrections_summary)
+
     snapshot = build_snapshot(
         ingestion_batch_id=batch_id,
         hotels=hotels,
         compsets=compsets,
         transactions=transactions,
         reconciliation_queue=recon,
+        corrections_summary=corrections_summary,
     )
 
     if args.dry_run:

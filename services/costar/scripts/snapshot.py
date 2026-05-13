@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 
-SNAPSHOT_SCHEMA_VERSION = "v1.2"
+SNAPSHOT_SCHEMA_VERSION = "v1.3"  # +corrections block (Phase 2.3.d.6 · 2026-05-14)
 
 
 def build_snapshot(
@@ -41,8 +41,18 @@ def build_snapshot(
     compsets: list[dict[str, Any]],
     transactions: list[dict[str, Any]],
     reconciliation_queue: list[dict[str, Any]],
+    corrections_summary: dict[str, int] | None = None,
 ) -> dict[str, Any]:
-    """Assemble the snapshot dict. Caller writes it to disk."""
+    """Assemble the snapshot dict. Caller writes it to disk.
+
+    `corrections_summary` carries the post-run state of the
+    Institutional Correction Consumer (see `corrections.py`):
+
+        pending_before              — pending rows seen this run
+        applied                     — corrections applied this run
+        rejected                    — corrections rejected this run
+        applied_total_in_master     — cumulative across all hotel rows
+    """
     # Derive market summary
     markets: dict[tuple[str, str], dict[str, Any]] = {}
     for h in hotels:
@@ -82,6 +92,12 @@ def build_snapshot(
             "compsets": len(compsets),
             "transactions": len(transactions),
             "reconciliation_queue": len(reconciliation_queue),
+        },
+        "corrections": corrections_summary or {
+            "pending_before": 0,
+            "applied": 0,
+            "rejected": 0,
+            "applied_total_in_master": 0,
         },
         "markets": market_rows,
         "hotels": [_strip_private(h) for h in hotels],

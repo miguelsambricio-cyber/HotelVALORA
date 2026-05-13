@@ -87,11 +87,34 @@ Separate masters preserve institutional legibility for the operator and keep eve
 
 Every row carries the standard `ingestion_id`, `ingestion_ts`, `source_path`, `source_sha256`, `normalization_version`, `supersedes_id`, `is_active` block. The append-only / supersede pattern from `costar-master-dataset-architecture.md` applies identically.
 
-## 5. Operator-edit surface
+## 5. Operator-edit surface · institutional correction lifecycle (Phase 2.3.d.6)
 
-The `/user/admin/hotels` admin surface (scaffolded 2026-05-14) is the operator's read + edit window onto this dataset. When an operator corrects a hallucinated or stale attribute (e.g. wrong `rooms_count` or missing `chain_scale`), the edit lands in the audit log and supersedes the prior row in the master — never overwriting in place.
+The `/user/admin/hotels/<hotel_id>` detail page is the operator's read + edit window onto this dataset. When an operator corrects a hallucinated or stale attribute (e.g. wrong `rooms_count` or missing `chain_scale`):
 
-Until the mutation layer ships (Phase 3 / Phase 5 Supabase mirror), edits happen by reopening the XLSX master and resaving — the admin surface is read-only.
+1. The Node server action `submitHotelCorrection()` appends a pending row to `services/costar/corrections/<YYYY-MM>.jsonl`.
+2. The next `python services/costar/scripts/ingest.py` run delegates to `corrections.py` — validates the row, applies it as a supersede, pushes a provenance entry into the hotel record's `_corrections` array, and rewrites the JSONL with `status: applied | rejected`.
+3. Every applied row is also appended to `corrections-applied/<YYYY-MM>.jsonl` for the cumulative audit trail.
+
+The supersede never overwrites the original ingest in place — the canonical XLSX retains the raw row and the snapshot carries the override; the provenance array preserves both values + the operator's reason + confidence-before.
+
+### `_corrections` array (per hotel record · snapshot only)
+
+```json
+{
+  "correction_id": "corr_...",
+  "applied_at": "ISO timestamp",
+  "applied_in_batch": "batch_...",
+  "submitted_at": "ISO timestamp",
+  "submitted_by": "operator email or id",
+  "field": "chain_scale | rooms_count | ...",
+  "original_value": "midscale",
+  "corrected_value": "upscale",
+  "reason": "Operator-supplied free text",
+  "confidence_before": 0.85
+}
+```
+
+The `_corrections` array is emitted into `snapshot.json` so the admin UI can render the audit trail without re-reading the JSONL. The snapshot also carries a top-level `corrections` summary block: `{pending_before, applied, rejected, applied_total_in_master}`.
 
 ## 6. Relational links
 

@@ -4,6 +4,78 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 2.3.d.6 · Institutional Correction Consumer · data integrity layer closed
+
+Closes the correction lifecycle that Phase 2.3.d.2 only half-shipped. Today corrections were persisted as pending JSONL rows but never applied. Now they flow end-to-end: validated → applied as supersedes over the canonical ingest values → provenance preserved → audit trail emitted → UI renders correction history per hotel.
+
+### Python · new module `corrections.py`
+
+| Concern | Implementation |
+|---|---|
+| **Schema validation** | required keys present · `submitted_at` parseable · `reason` ≥ 8 chars · `field` ∈ `CORRECTABLE_FIELDS` |
+| **Operator identity** | `submitted_by` carried verbatim from `submitHotelCorrection()` (operator-guard already enforced server-side) |
+| **Hotel existence** | rejects with `hotel_id_not_in_inventory` if the hotel didn't land in the current ingest pass |
+| **Type coercion** | per-field coercers: text · int · float · year · enum (`chain_scale`, `segment_type`); rejects with `proposed_value_unparseable` or `proposed_value_out_of_enum` |
+| **State machine** | `pending` → `applied` (mutates hotel + bumps confidence) or `rejected` (rejection_reason inline); idempotent because the JSONL itself carries the state |
+| **Provenance** | every applied correction pushes a row to `hotel._corrections` with `original_value`, `corrected_value`, `submitted_by`, `submitted_at`, `applied_at`, `applied_in_batch`, `reason`, `confidence_before` |
+| **Audit log** | every applied row also appended to `services/costar/corrections-applied/<YYYY-MM>.jsonl` |
+| **Atomic writes** | the rewritten JSONL is materialised via temp file + rename — no partially-written queue files on crash |
+
+### Confidence bump on apply
+
+An applied correction implies operator review, so the consumer:
+- drops `missing_required:<field>` / `missing_recommended:<field>` from `_meta.needs_review` if present
+- bumps `_meta.confidence` by +0.05, clamped at 0.95 (we don't push to 1.0 because the rest of the row still came from the raw ingest)
+
+### `ingest.py` integration
+
+After the inventory + compset + transactions passes, `ingest.py` now calls `apply_corrections()` and includes the summary in the snapshot:
+
+```python
+corrections_summary = apply_corrections(
+    workspace=WORKSPACE,
+    hotels_by_id=hotels_by_id,
+    batch_id=batch_id,
+    logger_event=logger.event,
+)
+```
+
+### Snapshot · schema bumped v1.2 → v1.3
+
+`snapshot.json` gains:
+- a top-level `corrections` block: `{pending_before, applied, rejected, applied_total_in_master}`
+- a `_corrections[]` array on every hotel that has accumulated provenance
+
+The reader on the Node side tolerates pre-v1.3 snapshots — the block is optional.
+
+### Node UI
+
+| File | Change |
+|---|---|
+| `lib/admin/hotels/snapshot-reader.ts` | `CorrectionProvenance` type · `CorrectionsSummary` type · `findCorrectionsForHotel()` helper |
+| `app/user/admin/hotels/page.tsx` | New 6th KPI **Corrections** with hint (`X applied · Y rejected · Z pending (this run)`) · grid expanded `lg:grid-cols-5` → `lg:grid-cols-6` |
+| `app/user/admin/hotels/[hotelId]/page.tsx` | New "Correction history" section in the sidebar above the submission form · renders provenance entries with original→corrected diff · submitter · applied-when · confidence delta |
+
+### Docs
+
+- `docs/intelligence/costar-hotels-by-market-schema.md` — § 5 rewritten with the institutional correction lifecycle + `_corrections` array schema
+- `services/costar/scripts/README.md` — full lifecycle diagram (steps 1-5) + rejection-reason table
+- `docs/intelligence/hospitality-intelligence-roadmap.md` — 2.3.d.6 marked ✅
+
+### Smoke
+
+- Python: `corrections.py` syntax clean + end-to-end fixture test: 3 pending → 1 applied + 2 rejected (one out-of-enum, one orphan hotel_id) · hotel mutated correctly · `_corrections` populated · confidence 0.85 → 0.90 · `needs_review` cleaned · JSONL rewritten with `status="applied"|"rejected"` · audit log appended
+- Node: `/user/admin/hotels` → 200 · 55.9 KB · Corrections KPI present · grid-cols-6 confirmed · empty-state path still clean
+- Typecheck clean
+
+### Honest gaps
+
+- **`ingest.py` still has not been run against the Madrid drop**, so the snapshot is empty and the consumer has no hotels to apply corrections against until the operator runs the pipeline.
+- The "trigger rebuild from UI" affordance was deferred again — operators rebuild via CLI. A server action spawning `python ingest.py` is straightforward but stays out of scope.
+- The correction-history view is read-only — no "revert this correction" action yet. Reverts would queue a new correction with the original value, which is the right design but the UI affordance isn't wired.
+
+---
+
 ## 2026-05-14 — Phase 2.3.d.2 · COSTAR v1.2 Master Inventory Engine + operational `/user/admin/hotels`
 
 Implements the multi-stream ingestion pipeline that turns the conceptual two-dataset architecture (committed earlier today as `a7859e1`) into a working data plane. The hotel-reference backbone now has stable IDs, fuzzy dedup, a reconciliation queue, compset cross-validation, transaction linkage with provenance, and a real Node admin UI fed by a JSON snapshot.

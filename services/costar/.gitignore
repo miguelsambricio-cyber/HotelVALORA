@@ -51,9 +51,11 @@ MASTER/*.bak
 MASTER/*~
 MASTER/.~lock.*
 
-# v1.2 outputs — snapshot.json + operator corrections queue stay local
+# v1.2/v1.3 outputs — snapshot.json + operator corrections + applied audit log
+# all stay local (same posture as INPUT files).
 MASTER/snapshot.json
 corrections/*.jsonl
+corrections-applied/*.jsonl
 
 # Python pipeline runtime artefacts
 scripts/__pycache__/

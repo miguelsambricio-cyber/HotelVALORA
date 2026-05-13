@@ -72,7 +72,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
       </header>
 
       {/* KPI strip */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Kpi label="Hotels" value={snap?.totals.hotels ?? 0} tone="emerald" />
         <Kpi label="Markets" value={snap?.totals.markets ?? 0} />
         <Kpi label="Compsets" value={snap?.totals.compsets ?? 0} />
@@ -82,6 +82,16 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           value={snap?.totals.reconciliation_queue ?? 0}
           tone={(snap?.totals.reconciliation_queue ?? 0) > 0 ? "amber" : "slate"}
           href="#reconciliation-queue"
+        />
+        <Kpi
+          label="Corrections"
+          value={snap?.corrections?.applied_total_in_master ?? 0}
+          tone="emerald"
+          hint={
+            snap?.corrections
+              ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending (this run)`
+              : undefined
+          }
         />
       </section>
 
@@ -387,11 +397,13 @@ function Kpi({
   value,
   tone = "slate",
   href,
+  hint,
 }: {
   label: string;
   value: number;
   tone?: "slate" | "emerald" | "amber";
   href?: string;
+  hint?: string;
 }) {
   const toneClass =
     tone === "emerald" ? "text-emerald-700" : tone === "amber" ? "text-amber-700" : "text-forest-900";
@@ -401,6 +413,9 @@ function Kpi({
         {label}
       </p>
       <p className={`mt-1 font-headline text-2xl font-extrabold ${toneClass}`}>{value}</p>
+      {hint && (
+        <p className="mt-1 font-mono text-[10px] leading-snug text-slate-500">{hint}</p>
+      )}
     </div>
   );
   if (!href) return inner;
