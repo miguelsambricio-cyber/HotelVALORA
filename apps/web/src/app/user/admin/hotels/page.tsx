@@ -500,13 +500,13 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             </p>
           ) : (
             <div
-              className="max-h-[620px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 ring-1 ring-inset ring-slate-100"
+              className="max-h-[360px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 ring-1 ring-inset ring-slate-100"
               tabIndex={0}
               aria-label={`Hotel results · ${sorted.length} matches · scroll within this list`}
             >
-              {/* single column inside the scroll · "showing 6 of N"
-                  is literal across viewports */}
-              <ul className="grid gap-2">
+              {/* 2-cols on sm+ inside the scroll · 3 rows × 2 = 6
+                  visible at a glance; single column on mobile. */}
+              <ul className="grid gap-2 sm:grid-cols-2">
                 {filtered.map((h) => (
                   <li key={h.hotel_id}>
                     <HotelRow hotel={h} />
