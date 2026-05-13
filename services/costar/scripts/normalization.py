@@ -92,17 +92,58 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
 
 
 MARKET_HEADER_ALIASES: dict[str, str] = {
+    # Geo + identification
     "country": "country", "pais": "country",
     "market": "market_name", "market_name": "market_name", "mercado": "market_name",
+    "submarket": "submarket_name", "submarket_name": "submarket_name", "submercado": "submarket_name",
+    # Time axis (CoStar time-series files carry Periodo)
     "period": "period", "periodo": "period",
     "period_kind": "period_kind",
-    "occupancy": "occupancy", "ocupacion": "occupancy", "occ": "occupancy",
-    "adr": "adr", "adr_eur": "adr",
-    "revpar": "revpar", "revpar_eur": "revpar",
-    "supply": "supply", "rooms_available": "supply",
-    "demand": "demand", "rooms_sold": "demand", "room_nights": "demand",
+    # CoStar ES KPI columns (the "12 m." suffix becomes "_12m" → space-stripped)
+    "ocupacion_12_m": "occupancy_12m", "ocupacion": "occupancy_12m",
+    "occupancy": "occupancy_12m", "occ": "occupancy_12m",
+    "adr_12_m": "adr_12m", "adr": "adr_12m", "adr_eur": "adr_12m",
+    "revpar_12_m": "revpar_12m", "revpar": "revpar_12m", "revpar_eur": "revpar_12m",
+    "habitaciones_inventario": "rooms_inventory",
+    "habitaciones_construccion": "rooms_under_construction",
+    "habitaciones_entregadas_12_m": "rooms_delivered_12m",
+    "edificios_construidos": "buildings_built",
+    "edificios_construccion": "buildings_under_construction",
+    "media_habitaciones_por_edificio": "avg_rooms_per_building",
+    "crecimiento_inventario_12_m": "inventory_growth_12m",
+    "habitaciones_abiertas_12_m": "rooms_opened_12m",
+    "edificios_abiertos_12_m": "buildings_opened_12m",
+    "oferta_12_m": "supply_12m", "supply": "supply_12m",
+    "demanda_12_m": "demand_12m", "demand": "demand_12m",
+    "ingresos_12_m": "revenue_12m",
+    # YoY change columns (Camb. ... 12 m.)
+    "camb_ocupacion_12_m": "occupancy_yoy_12m",
+    "camb_adr_12_m": "adr_yoy_12m",
+    "camb_revpar_12_m": "revpar_yoy_12m",
+    "camb_oferta_12_m": "supply_yoy_12m",
+    "camb_demanda_12_m": "demand_yoy_12m",
+    "camb_ingresos_12_m": "revenue_yoy_12m",
+    # Pipeline (forward-looking)
     "pipeline": "pipeline", "pipeline_rooms": "pipeline",
     "absorption": "absorption",
+}
+
+
+PROJECT_HEADER_ALIASES: dict[str, str] = {
+    # CoStar pipeline export (ENGLISH headers — different file than market data)
+    "project_name": "project_name", "nombre_del_proyecto": "project_name", "proyecto": "project_name",
+    "street": "street", "calle": "street",
+    "postcode": "postal_code", "postal_code": "postal_code", "codigo_postal": "postal_code",
+    "city": "city", "ciudad": "city",
+    "state": "state_province", "provincia": "state_province", "estado_o_provincia": "state_province",
+    "country": "country", "pais": "country",
+    "phase": "phase", "fase": "phase",
+    "status": "status", "estado": "status",
+    "opening_date": "opening_date", "fecha_apertura": "opening_date",
+    "construction_type": "construction_type", "tipo_de_construccion": "construction_type",
+    "stars": "stars", "estrellas": "stars", "categoria": "stars",
+    "rooms": "rooms_count", "habitaciones": "rooms_count", "tbi": "tbi",
+    "office_role": "office_role", "office_company": "office_company", "office_name": "office_name",
 }
 
 

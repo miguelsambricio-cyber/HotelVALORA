@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 
-SNAPSHOT_SCHEMA_VERSION = "v1.6"  # stateful merge across runs (Phase 2.3.d.6d · 2026-05-14)
+SNAPSHOT_SCHEMA_VERSION = "v1.7"  # +market_snapshots/timeseries + projects (Phase 2.3.d.6f · 2026-05-14)
 
 
 def load_existing_snapshot(path: Path) -> dict[str, Any] | None:
@@ -80,6 +80,9 @@ def build_snapshot(
     batch_summary: dict[str, Any] | None = None,
     compset_performance: list[dict[str, Any]] | None = None,
     synthetic_compsets: list[dict[str, Any]] | None = None,
+    market_snapshots: list[dict[str, Any]] | None = None,
+    market_timeseries: list[dict[str, Any]] | None = None,
+    projects: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Assemble the snapshot dict. Caller writes it to disk.
 
@@ -138,6 +141,10 @@ def build_snapshot(
             "compsets": len(compsets),
             "transactions": len(transactions),
             "reconciliation_queue": len(reconciliation_queue),
+            # Phase 2.3.d.6f · market data + projects
+            "market_snapshots": len(market_snapshots or []),
+            "market_timeseries": len(market_timeseries or []),
+            "projects": len(projects or []),
         },
         "corrections": corrections_summary or {
             "pending_before": 0,
@@ -156,6 +163,11 @@ def build_snapshot(
         "compsets": compsets,
         "transactions": transactions,
         "reconciliation_queue": reconciliation_queue,
+        # Phase 2.3.d.6f · market data + projects (replace-per-run · the
+        # CoStar export is the source of truth · no merge with previous)
+        "market_snapshots": market_snapshots or [],
+        "market_timeseries": market_timeseries or [],
+        "projects": projects or [],
     }
 
 

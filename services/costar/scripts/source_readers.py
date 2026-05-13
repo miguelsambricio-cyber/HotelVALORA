@@ -74,14 +74,29 @@ def iter_input_files(root: Path) -> Iterable[Path]:
 
 
 def read_xlsx_rows(path: Path, sheet: str | None = None) -> list[list[Any]]:
+    """Read xlsx rows, ALWAYS closing the workbook on the way out.
+
+    openpyxl in read_only mode keeps the underlying file handle open
+    (the xlsx is a ZIP archive memory-mapped lazily). On Windows that
+    handle blocks any subsequent rename — which is exactly the
+    `archive_failed: WinError 32` symptom we were seeing on every
+    file the pipeline read.
+
+    `try/finally wb.close()` guarantees the handle is released before
+    the orchestrator tries to move INPUT → OLD.
+    """
     if load_workbook is None:
         print("✗ openpyxl not installed — `pip install -r services/costar/scripts/requirements.txt`", file=sys.stderr)
         return []
     wb = load_workbook(path, read_only=True, data_only=True)
-    ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
-    if ws is None:
-        return []
-    return [list(row) for row in ws.iter_rows(values_only=True)]
+    try:
+        ws = wb[sheet] if sheet and sheet in wb.sheetnames else wb.active
+        if ws is None:
+            return []
+        # Materialise the entire iterator BEFORE closing the workbook.
+        return [list(row) for row in ws.iter_rows(values_only=True)]
+    finally:
+        wb.close()
 
 
 def read_csv_rows(path: Path) -> list[list[Any]]:

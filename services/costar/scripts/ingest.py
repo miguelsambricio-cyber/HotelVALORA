@@ -74,7 +74,9 @@ def _rehydrate_match_fields(hotel: dict[str, Any]) -> dict[str, Any]:
 from normalization import (  # noqa: E402
     DEFAULT_COUNTRY,
     HOTEL_HEADER_ALIASES,
+    MARKET_HEADER_ALIASES,
     NORMALIZATION_VERSION,
+    PROJECT_HEADER_ALIASES,
     normalise_country,
     normalise_hotel_row,
     normalise_numeric,
@@ -122,6 +124,8 @@ ARCHIVE_COMPSET = COMPSET_WORKSPACE / "OLD"
 TRANSACTIONS_WORKSPACE = REPO_ROOT / "services" / "transactions"
 TRANSACTIONS_INPUT = TRANSACTIONS_WORKSPACE / "INPUT_TRANSACCIONES"
 ARCHIVE_TRANSACTIONS = TRANSACTIONS_WORKSPACE / "INPUT_TRANSACCIONES" / "OLD"
+PROJECTS_INPUT = TRANSACTIONS_WORKSPACE / "INPUT_PROYECTOS"
+ARCHIVE_PROJECTS = TRANSACTIONS_WORKSPACE / "INPUT_PROYECTOS" / "OLD"
 
 # (workspace_path, archive_path) registry — single source of truth for the
 # `archive_files()` step. Keep in sync with the INPUT_* / ARCHIVE_* constants.
@@ -132,6 +136,7 @@ ARCHIVE_REGISTRY: dict[Path, Path] = {
     INPUT_SUBMERCADO: ARCHIVE_SUBMERCADO,
     COMPSET_INPUT: ARCHIVE_COMPSET,
     TRANSACTIONS_INPUT: ARCHIVE_TRANSACTIONS,
+    PROJECTS_INPUT: ARCHIVE_PROJECTS,
 }
 
 MASTER_DIR = WORKSPACE / "MASTER"
@@ -478,6 +483,187 @@ def ingest_transactions(
     return transactions, extra_recon, processed, failed
 
 
+# ── Market-data ingest (Phase 2.3.d.6f · 2026-05-14) ────────────────────────
+#
+# CoStar market-data exports come in two shapes per granularity:
+#   (a) GeographyList   — current-snapshot KPIs · one row per market or
+#                          submarket · no `Periodo` column
+#   (b) DataTable       — time-series · one row per (geography, period)
+#
+# Each stream lands in its own snapshot key so downstream report-engine
+# code can pull the latest snapshot or the full time-series independently.
+
+
+def _read_market_rows(
+    path: Path,
+    *,
+    default_country: str,
+    granularity: str,
+    batch_id: str,
+    logger: RunLogger,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Read a CoStar market-data XLSX. Returns (rows, read_ok)."""
+    try:
+        raw_rows = read_rows_with_aliases(path, MARKET_HEADER_ALIASES)
+    except Exception as e:  # noqa: BLE001
+        logger.event("error", "market.read_failed", file=str(path), granularity=granularity, err=str(e))
+        return [], False
+
+    out: list[dict[str, Any]] = []
+    for raw in raw_rows:
+        market = (raw.get("market_name") or "").strip() or None
+        submarket = (raw.get("submarket_name") or "").strip() or None
+        period = (str(raw.get("period") or "").strip()) or None
+        # Numeric fields — pass through `normalise_numeric` for forgiveness
+        def num(k: str) -> float | None:
+            v, _ = normalise_numeric(raw.get(k))
+            return v
+        # Skip rows that have neither market/submarket nor period — they're
+        # blank lines or schema artefacts at the bottom of the export.
+        if not (market or submarket or period):
+            continue
+        out.append({
+            "country": default_country,
+            "market_name": market,
+            "submarket_name": submarket,
+            "period": period,
+            "granularity": granularity,
+            "rooms_inventory": num("rooms_inventory"),
+            "rooms_under_construction": num("rooms_under_construction"),
+            "rooms_delivered_12m": num("rooms_delivered_12m"),
+            "occupancy_12m": num("occupancy_12m"),
+            "occupancy_yoy_12m": num("occupancy_yoy_12m"),
+            "adr_12m": num("adr_12m"),
+            "adr_yoy_12m": num("adr_yoy_12m"),
+            "revpar_12m": num("revpar_12m"),
+            "revpar_yoy_12m": num("revpar_yoy_12m"),
+            "supply_12m": num("supply_12m"),
+            "supply_yoy_12m": num("supply_yoy_12m"),
+            "demand_12m": num("demand_12m"),
+            "demand_yoy_12m": num("demand_yoy_12m"),
+            "revenue_12m": num("revenue_12m"),
+            "revenue_yoy_12m": num("revenue_yoy_12m"),
+            "_meta": {
+                "ingestion_batch_id": batch_id,
+                "source_path": str(path.relative_to(REPO_ROOT)),
+                "granularity": granularity,
+            },
+        })
+    logger.event("info", "market.file_read", file=str(path.relative_to(REPO_ROOT)), granularity=granularity, rows=len(out))
+    return out, True
+
+
+def ingest_market_data(batch_id: str, logger: RunLogger) -> tuple[
+    list[dict[str, Any]],  # snapshots (geo lists · current KPIs)
+    list[dict[str, Any]],  # timeseries (DataTable · per-period KPIs)
+    list[Path],            # processed files (eligible for archive)
+    list[Path],            # failed files
+]:
+    """Ingest PAIS / MERCADO / SUBMERCADO INPUT folders.
+
+    Files whose name contains "DataTable" are treated as time-series;
+    everything else lands in the current-snapshot list. Granularity is
+    derived from the parent INPUT folder.
+    """
+    snapshots: list[dict[str, Any]] = []
+    timeseries: list[dict[str, Any]] = []
+    processed: list[Path] = []
+    failed: list[Path] = []
+
+    streams = [
+        (INPUT_PAIS, "country_listing"),
+        (INPUT_MERCADO, "market"),
+        (INPUT_SUBMERCADO, "submarket"),
+    ]
+    for input_root, granularity in streams:
+        files = list(iter_input_files(input_root))
+        if not files:
+            logger.event("info", f"market.no_input.{granularity}")
+            continue
+        for path in files:
+            rows, ok = _read_market_rows(
+                path,
+                default_country=DEFAULT_COUNTRY,
+                granularity=granularity,
+                batch_id=batch_id,
+                logger=logger,
+            )
+            if not ok:
+                failed.append(path)
+                continue
+            # Time-series files (CoStar DataTable export) have a "Periodo"
+            # column → those rows go to the timeseries bucket; the rest
+            # are current-snapshot listings.
+            is_timeseries = "datatable" in path.name.lower() or any(r.get("period") for r in rows)
+            if is_timeseries:
+                timeseries.extend(rows)
+            else:
+                snapshots.extend(rows)
+            processed.append(path)
+
+    return snapshots, timeseries, processed, failed
+
+
+# ── Projects ingest (CoStar hotel pipeline export) ──────────────────────────
+
+
+def ingest_projects(batch_id: str, logger: RunLogger) -> tuple[
+    list[dict[str, Any]],  # project rows
+    list[Path],            # processed
+    list[Path],            # failed
+]:
+    """Read `services/transactions/INPUT_PROYECTOS/*.xlsx` as the hotel
+    pipeline · english headers · 1 row per planned/under-construction
+    property."""
+    projects: list[dict[str, Any]] = []
+    processed: list[Path] = []
+    failed: list[Path] = []
+
+    files = list(iter_input_files(PROJECTS_INPUT))
+    if not files:
+        logger.event("info", "projects.no_input")
+        return projects, processed, failed
+
+    for path in files:
+        try:
+            raw_rows = read_rows_with_aliases(path, PROJECT_HEADER_ALIASES)
+        except Exception as e:  # noqa: BLE001
+            logger.event("error", "projects.read_failed", file=str(path), err=str(e))
+            failed.append(path)
+            continue
+
+        for raw in raw_rows:
+            name = (raw.get("project_name") or "").strip()
+            if not name:
+                continue
+            country_norm, _ = normalise_country(raw.get("country"))
+            rooms, _ = normalise_numeric(raw.get("rooms_count"), kind="integer")
+            stars, _ = normalise_numeric(raw.get("stars"), kind="integer")
+            projects.append({
+                "project_id": f"proj_{name.replace(' ', '_').lower()[:32]}_{batch_id[-6:]}",
+                "project_name": name,
+                "city": (raw.get("city") or None) or None,
+                "country": country_norm or DEFAULT_COUNTRY,
+                "state_province": (raw.get("state_province") or None) or None,
+                "phase": (raw.get("phase") or None) or None,
+                "status": (raw.get("status") or None) or None,
+                "opening_date": (str(raw.get("opening_date") or "").strip()) or None,
+                "construction_type": (raw.get("construction_type") or None) or None,
+                "stars": stars,
+                "rooms_count": rooms,
+                "street": (raw.get("street") or None) or None,
+                "postal_code": (raw.get("postal_code") or None) or None,
+                "_meta": {
+                    "ingestion_batch_id": batch_id,
+                    "source_path": str(path.relative_to(REPO_ROOT)),
+                },
+            })
+        processed.append(path)
+        logger.event("info", "projects.file_read", file=str(path.relative_to(REPO_ROOT)), rows=len(raw_rows))
+
+    return projects, processed, failed
+
+
 # ── Archive ─────────────────────────────────────────────────────────────────
 
 
@@ -639,6 +825,10 @@ def main(argv: list[str] | None = None) -> int:
     if previous:
         transactions = merge_by_id(transactions, previous.get("transactions", []), "transaction_id")
 
+    # Phase 2.3.d.6f · market-data + projects streams
+    market_snapshots, market_timeseries, processed_market, failed_market = ingest_market_data(batch_id, logger)
+    projects, processed_projects, failed_projects = ingest_projects(batch_id, logger)
+
     # Phase 2.3.d.6c · Synthetic compset inference — generates a top-4
     # compset per hotel when the operator-confirmed membership isn't
     # available yet (PDF 3.1 not parsed). Every synthetic compset is
@@ -672,8 +862,14 @@ def main(argv: list[str] | None = None) -> int:
 
     # Aggregate per-source-kind counts for the batch summary
     duplicate_recon = sum(1 for r in recon if r.get("kind") == "suspected_duplicate")
-    all_processed_files = processed_hotels + processed_compset + processed_tx
-    all_failed_files = failed_hotels + failed_compset + failed_tx
+    all_processed_files = (
+        processed_hotels + processed_compset + processed_tx
+        + processed_market + processed_projects
+    )
+    all_failed_files = (
+        failed_hotels + failed_compset + failed_tx
+        + failed_market + failed_projects
+    )
 
     batch_summary = {
         "batch_id": batch_id,
@@ -690,6 +886,9 @@ def main(argv: list[str] | None = None) -> int:
             "hotels_ingested": len(hotels),
             "compsets_built": len(compsets),
             "transactions_linked": len(transactions),
+            "market_snapshots": len(market_snapshots),
+            "market_timeseries": len(market_timeseries),
+            "projects": len(projects),
             "reconciliation_required": len(recon),
             "duplicate_suspected": duplicate_recon,
         },
@@ -698,6 +897,8 @@ def main(argv: list[str] | None = None) -> int:
             "hotels": {"processed": len(processed_hotels), "failed": len(failed_hotels)},
             "compset": {"processed": len(processed_compset), "failed": len(failed_compset)},
             "transactions": {"processed": len(processed_tx), "failed": len(failed_tx)},
+            "market_data": {"processed": len(processed_market), "failed": len(failed_market)},
+            "projects": {"processed": len(processed_projects), "failed": len(failed_projects)},
         },
     }
 
@@ -711,6 +912,9 @@ def main(argv: list[str] | None = None) -> int:
         reconciliation_queue=recon,
         corrections_summary=corrections_summary,
         batch_summary=batch_summary,
+        market_snapshots=market_snapshots,
+        market_timeseries=market_timeseries,
+        projects=projects,
     )
 
     # Archive successful files BEFORE writing the snapshot so the
@@ -738,6 +942,9 @@ def main(argv: list[str] | None = None) -> int:
         reconciliation_queue=recon,
         corrections_summary=corrections_summary,
         batch_summary=batch_summary,
+        market_snapshots=market_snapshots,
+        market_timeseries=market_timeseries,
+        projects=projects,
     )
 
     if args.dry_run:

@@ -73,8 +73,8 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </p>
       </header>
 
-      {/* KPI strip */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      {/* KPI strip · 9 cards: inventory · compsets · transactions · market · projects · governance */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-9">
         <Kpi label="Hotels" value={snap?.totals.hotels ?? 0} tone="emerald" />
         <Kpi label="Markets" value={snap?.totals.markets ?? 0} />
         <Kpi
@@ -84,6 +84,19 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           hint="pending PDF parse"
         />
         <Kpi label="Transactions" value={snap?.totals.transactions ?? 0} />
+        <Kpi
+          label="Market snapshots"
+          value={snap?.totals.market_snapshots ?? 0}
+          tone="emerald"
+          hint="PAIS · MERCADO · SUBMERCADO"
+        />
+        <Kpi
+          label="Market time-series"
+          value={snap?.totals.market_timeseries ?? 0}
+          tone="emerald"
+          hint="periodic KPIs"
+        />
+        <Kpi label="Projects" value={snap?.totals.projects ?? 0} hint="pipeline" />
         <Kpi
           label="To reconcile"
           value={snap?.totals.reconciliation_queue ?? 0}
@@ -96,7 +109,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           tone="emerald"
           hint={
             snap?.corrections
-              ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending (this run)`
+              ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending`
               : undefined
           }
         />

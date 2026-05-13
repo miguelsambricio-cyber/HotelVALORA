@@ -218,6 +218,12 @@ export interface HotelsSnapshot {
     compsets: number;
     transactions: number;
     reconciliation_queue: number;
+    /** Phase 2.3.d.6f · current-snapshot market KPIs (PAIS + MERCADO geo + SUBMERCADO geo). */
+    market_snapshots?: number;
+    /** Phase 2.3.d.6f · MERCADO / SUBMERCADO DataTable rows (period-indexed time series). */
+    market_timeseries?: number;
+    /** Phase 2.3.d.6f · CoStar pipeline rows (INPUT_PROYECTOS). */
+    projects?: number;
   };
   /** Optional · older v1.2 snapshots predate this block. */
   corrections?: CorrectionsSummary;
