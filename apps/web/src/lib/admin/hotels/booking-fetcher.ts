@@ -249,6 +249,39 @@ export async function getHotelFacilities(booking_hotel_id: number): Promise<Faci
   }).catch(() => ({} as FacilitiesRaw));
 }
 
+/**
+ * Step 4b · hotel policies · check-in/out times · pets · cancellation
+ * · smoking · children · internet · parking. Many hotels expose this
+ * via a dedicated endpoint that `/getHotelDetails` doesn't return.
+ *
+ * Response shape is loose · Booking returns one of:
+ *   - `data.policies: Array<{ type, name, content?, rules?: [{title, content}] }>`
+ *   - `data.policies: Array<{ policy_type, descriptions: [...] }>`
+ *   - `data: { check_in: {...}, check_out: {...}, pets: {...} }` (rare)
+ * The mapper in this file probes ALL of these so we don't get bitten
+ * by per-property variance.
+ */
+export interface HotelPoliciesRaw {
+  hotel_id?: number;
+  policies?: Array<{
+    type?: string;
+    name?: string;
+    content?: string;
+    rules?: Array<{ title?: string; content?: string; pattern?: string }>;
+    policy_type?: string;
+    descriptions?: Array<{ description?: string; title?: string }>;
+  }>;
+  check_in?: { from?: string; until?: string };
+  check_out?: { from?: string; until?: string };
+}
+
+export async function getHotelPolicies(booking_hotel_id: number): Promise<HotelPoliciesRaw> {
+  return await _rapid<HotelPoliciesRaw>("/api/v1/hotels/getHotelPolicies", {
+    hotel_id: String(booking_hotel_id),
+    languagecode: "en-us",
+  }).catch(() => ({} as HotelPoliciesRaw));
+}
+
 /** Step 5 (optional) · room list. */
 export async function getHotelRooms(booking_hotel_id: number): Promise<RoomsRaw> {
   const today = new Date();
@@ -368,10 +401,84 @@ function _probeFacilities(names: string[]): FacilityProbeOutput {
  * change between API versions. We populate what we can and leave
  * the rest empty so the completeness score reflects reality.
  */
+/**
+ * Extract canonical policy fields from the loose `HotelPoliciesRaw`
+ * shape Booking returns. Probes every known structure · returns null
+ * for fields the endpoint didn't surface.
+ */
+export function extractPolicies(raw: HotelPoliciesRaw | undefined | null): {
+  check_in_time?: string;
+  check_out_time?: string;
+  pet_policy?: string;
+  cancellation_policy?: string;
+  smoking_policy?: string;
+  internet_policy?: string;
+  children_policy?: string;
+  parking_policy?: string;
+} {
+  const out: ReturnType<typeof extractPolicies> = {};
+  if (!raw) return out;
+
+  // Variant A · `data.check_in: { from, until }` direct
+  if (raw.check_in?.from) out.check_in_time = raw.check_in.from;
+  if (raw.check_out?.until) out.check_out_time = raw.check_out.until;
+
+  // Variant B · iterate `data.policies[]` with mixed shapes
+  const policies = Array.isArray(raw.policies) ? raw.policies : [];
+  for (const p of policies) {
+    const kind = (p.type ?? p.policy_type ?? p.name ?? "").toLowerCase();
+    const flatContent =
+      p.content ??
+      (Array.isArray(p.descriptions)
+        ? p.descriptions.map((d) => d.description ?? d.title ?? "").filter(Boolean).join(" · ")
+        : "");
+
+    // Rule-list shape · pull `From / Until` rule pair
+    if (Array.isArray(p.rules)) {
+      const ruleFrom = p.rules.find((r) => /^from$/i.test(r.title ?? ""))?.content;
+      const ruleUntil = p.rules.find((r) => /^until$/i.test(r.title ?? "") || /^to$/i.test(r.title ?? ""))?.content;
+      if (kind.includes("check") && kind.includes("in")) {
+        if (!out.check_in_time && ruleFrom) out.check_in_time = ruleFrom;
+        if (!out.check_in_time && ruleUntil) out.check_in_time = ruleUntil;
+      }
+      if (kind.includes("check") && kind.includes("out")) {
+        if (!out.check_out_time && ruleUntil) out.check_out_time = ruleUntil;
+        if (!out.check_out_time && ruleFrom) out.check_out_time = ruleFrom;
+      }
+    }
+
+    // Free-text content fall-throughs
+    if (flatContent) {
+      if (kind.includes("pet") && !out.pet_policy) out.pet_policy = flatContent;
+      if ((kind.includes("cancel") || kind.includes("prepay")) && !out.cancellation_policy) {
+        out.cancellation_policy = flatContent;
+      }
+      if (kind.includes("smok") && !out.smoking_policy) out.smoking_policy = flatContent;
+      if (kind.includes("internet") && !out.internet_policy) out.internet_policy = flatContent;
+      if ((kind.includes("child") || kind.includes("bed")) && !out.children_policy) {
+        out.children_policy = flatContent;
+      }
+      if (kind.includes("parking") && !out.parking_policy) out.parking_policy = flatContent;
+
+      // When only free-text is available, try to extract HH:MM windows
+      // from the content (e.g. "Check-in: From 15:00 until 22:00")
+      const timeMatch = flatContent.match(/(\d{1,2}:\d{2})\s*[-–to]+\s*(\d{1,2}:\d{2})/);
+      if (kind.includes("check") && kind.includes("in") && timeMatch) {
+        if (!out.check_in_time) out.check_in_time = timeMatch[1];
+      }
+      if (kind.includes("check") && kind.includes("out") && timeMatch) {
+        if (!out.check_out_time) out.check_out_time = timeMatch[2];
+      }
+    }
+  }
+  return out;
+}
+
 export function mapBookingToProfile(opts: {
   details: HotelDetailsRaw;
   facilities?: FacilitiesRaw;
   rooms?: RoomsRaw;
+  policies?: HotelPoliciesRaw;
   searchHit?: HotelSearchHit;
 }): { profile: HotelProfile; booking_url: string | null; latitude: number | null; longitude: number | null } {
   const d = opts.details ?? ({} as HotelDetailsRaw);
@@ -443,10 +550,16 @@ export function mapBookingToProfile(opts: {
     }
   }
 
-  // Check-in / check-out times — Booking has them in multiple places
+  // Check-in / check-out times — policies endpoint is the richest
+  // source · fall back to details/arrival_time if not called or empty
+  const pol = extractPolicies(opts.policies);
   const check_in_time =
-    d.checkin?.from ?? d.checkin_from ?? (d.arrival_time?.trim() || undefined);
-  const check_out_time = d.checkout?.until ?? d.checkout_from ?? undefined;
+    pol.check_in_time ??
+    d.checkin?.from ??
+    d.checkin_from ??
+    (d.arrival_time?.trim() || undefined);
+  const check_out_time =
+    pol.check_out_time ?? d.checkout?.until ?? d.checkout_from ?? undefined;
 
   // Booking returns review fields in EITHER the search hit OR the details
   // response · seldom both. Prefer search hit when present (more reliable).
@@ -487,11 +600,11 @@ export function mapBookingToProfile(opts: {
     booking_url: d.url ?? undefined,
     check_in_time,
     check_out_time,
-    pet_policy: d.pets ?? undefined,
+    pet_policy: pol.pet_policy ?? d.pets ?? undefined,
+    cancellation_policy: pol.cancellation_policy ?? undefined,
     smoking_policy:
-      d.is_smoking_allowed === 0
-        ? "No smoking allowed"
-        : d.is_smoking_policy ?? undefined,
+      pol.smoking_policy ??
+      (d.is_smoking_allowed === 0 ? "No smoking allowed" : d.is_smoking_policy ?? undefined),
   };
 
   return {

@@ -9,6 +9,7 @@ import { computeProfileCompleteness } from "./profile-completeness";
 import {
   getHotelDetails,
   getHotelFacilities,
+  getHotelPolicies,
   getHotelRooms,
   mapBookingToProfile,
   matchConfidence,
@@ -142,14 +143,15 @@ export async function runBookingEnrichment(
     };
   }
 
-  // ── Step 2 · fetch details + facilities + rooms by booking_hotel_id ──
+  // ── Step 2 · fetch details + facilities + rooms + policies in parallel ──
   const bookingHotelId = parseInt(top.dest.dest_id, 10);
-  let details, facilities, rooms;
+  let details, facilities, rooms, policies;
   try {
-    [details, facilities, rooms] = await Promise.all([
+    [details, facilities, rooms, policies] = await Promise.all([
       getHotelDetails(bookingHotelId),
       getHotelFacilities(bookingHotelId),
       getHotelRooms(bookingHotelId),
+      getHotelPolicies(bookingHotelId),
     ]);
   } catch (err) {
     return {
@@ -158,7 +160,7 @@ export async function runBookingEnrichment(
     };
   }
 
-  const { profile } = mapBookingToProfile({ details, facilities, rooms });
+  const { profile } = mapBookingToProfile({ details, facilities, rooms, policies });
 
   // ── Step 4 · upsert to Storage with rapidapi_booking provenance ──
   const cleaned = _stripEmpty(profile) as HotelProfile;

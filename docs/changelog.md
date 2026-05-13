@@ -4,6 +4,41 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 3.f.next 3 · getHotelPolicies integration · check-in/out + pet + cancellation + smoking
+
+Operator-chosen sequencing: probe `getHotelPolicies` and patch the 9 already-enriched hotels with policies BEFORE doing the bulk run · so the institutional contract is complete before scaling to 364 (saves ~1k duplicate calls when tier is upgraded).
+
+Cabling (RapidAPI quota was already exhausted at probe time · code shipped untested; will validate on first call after tier upgrade)
+
+- `booking-fetcher.ts::getHotelPolicies(booking_hotel_id)` · new endpoint wrapper · returns the loose `HotelPoliciesRaw` shape (Booking returns 3+ possible structures across properties)
+- `booking-fetcher.ts::extractPolicies(raw)` · pure function · defensive parsing across all known shapes:
+  1. `data.check_in: { from, until }` / `data.check_out: { ... }` (direct)
+  2. `data.policies[]` with `{ type, name, rules: [{ title: "From", content: "15:00" }] }`
+  3. `data.policies[]` with `{ type, content: "Check-in: From 15:00 until 22:00" }` (free-text · regex-extracted HH:MM)
+- Mapper extension · `mapBookingToProfile()` now accepts `policies` · fills `check_in_time` / `check_out_time` / `pet_policy` / `cancellation_policy` / `smoking_policy` with priority over the `details` endpoint fallbacks
+- Server action · `runBookingEnrichment` now calls 4 endpoints in parallel (details + facilities + rooms + policies)
+- Bulk runner CLI · same · `enrich-all-hotels.mjs` adds call #6 (policies) in deep mode
+
+Patcher · `apps/web/scripts/patch-enrichment-policies.mjs`
+- Reads every `manual_enrichment/<hotel_id>.json` from Supabase Storage
+- Pulls `booking_hotel_id` from `_enrichment_meta`
+- Calls ONLY `getHotelPolicies` for each · merges into existing profile · re-uploads
+- Cost: ~9 RapidAPI calls (one per already-enriched hotel)
+- Operator-side · `cd apps/web && node --env-file=.env.local scripts/patch-enrichment-policies.mjs`
+- Idempotent · re-running just refreshes policies · existing operator manual edits preserved (the patcher only fills empty slots, never overwrites)
+
+Quota status (2026-05-14)
+- BASIC tier exhausted at hotel 10 of validation run
+- All endpoints (including `getHotelPolicies`) return 429 until tier upgrade
+
+Operator action sequence (when tier is upgraded)
+1. `cd apps/web && node --env-file=.env.local scripts/patch-enrichment-policies.mjs` · 9 calls · backfills policies on the 9 hotels enriched today
+2. `cd apps/web && node --env-file=.env.local scripts/enrich-all-hotels.mjs --skip-enriched` · ~1820 calls deep / ~728 basic · covers the remaining 355 hotels with full contract (details + facilities + rooms + reviews + policies)
+
+typecheck clean.
+
+---
+
 ## 2026-05-14 — Phase 3.f.next 2 · canonical 10-facility icon grid (report-aligned)
 
 Operator feedback: the noisy chip list of raw Booking facility strings (15+ "Wifi in all areas · Air conditioning · Heating · Non-smoking rooms · …") isn't what the final asset-analysis report consumes. The report uses a fixed 10-facility checklist with icons. Re-aligned the enrichment view to that institutional contract.

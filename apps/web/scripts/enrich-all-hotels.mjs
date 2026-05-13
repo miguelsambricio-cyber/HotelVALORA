@@ -184,7 +184,34 @@ function reviewScoreFromDistribution(distribution) {
   return totalWeighted / totalCount;
 }
 
-function mapToProfile({ details: d = {}, facilities: f = {}, rooms: r = {}, reviews: rv = null }) {
+function extractPolicies(raw) {
+  const out = {};
+  if (!raw) return out;
+  if (raw.check_in?.from) out.check_in_time = raw.check_in.from;
+  if (raw.check_out?.until) out.check_out_time = raw.check_out.until;
+  const policies = Array.isArray(raw.policies) ? raw.policies : [];
+  for (const p of policies) {
+    const kind = (p.type ?? p.policy_type ?? p.name ?? "").toLowerCase();
+    const flatContent = p.content ?? (Array.isArray(p.descriptions) ? p.descriptions.map((d) => d.description ?? d.title ?? "").filter(Boolean).join(" · ") : "");
+    if (Array.isArray(p.rules)) {
+      const ruleFrom = p.rules.find((r) => /^from$/i.test(r.title ?? ""))?.content;
+      const ruleUntil = p.rules.find((r) => /^until$/i.test(r.title ?? "") || /^to$/i.test(r.title ?? ""))?.content;
+      if (kind.includes("check") && kind.includes("in") && !out.check_in_time) out.check_in_time = ruleFrom ?? ruleUntil;
+      if (kind.includes("check") && kind.includes("out") && !out.check_out_time) out.check_out_time = ruleUntil ?? ruleFrom;
+    }
+    if (flatContent) {
+      if (kind.includes("pet") && !out.pet_policy) out.pet_policy = flatContent;
+      if ((kind.includes("cancel") || kind.includes("prepay")) && !out.cancellation_policy) out.cancellation_policy = flatContent;
+      if (kind.includes("smok") && !out.smoking_policy) out.smoking_policy = flatContent;
+      const tm = flatContent.match(/(\d{1,2}:\d{2})\s*[-–to]+\s*(\d{1,2}:\d{2})/);
+      if (kind.includes("check") && kind.includes("in") && tm && !out.check_in_time) out.check_in_time = tm[1];
+      if (kind.includes("check") && kind.includes("out") && tm && !out.check_out_time) out.check_out_time = tm[2];
+    }
+  }
+  return out;
+}
+
+function mapToProfile({ details: d = {}, facilities: f = {}, rooms: r = {}, reviews: rv = null, policies: pol = null }) {
   // Collect facility names from every shape Booking returns
   const facilityNames = [];
   const collectBlock = (block) => {
@@ -266,8 +293,9 @@ function mapToProfile({ details: d = {}, facilities: f = {}, rooms: r = {}, revi
   if (review_score == null && typeof d.review_score === "number") review_score = d.review_score;
   if (review_count == null && typeof d.review_nr === "number") review_count = d.review_nr;
 
-  const check_in_time = d.checkin?.from ?? d.checkin_from ?? (typeof d.arrival_time === "string" && d.arrival_time.trim()) ?? undefined;
-  const check_out_time = d.checkout?.until ?? d.checkout_from ?? undefined;
+  const polx = extractPolicies(pol);
+  const check_in_time = polx.check_in_time ?? d.checkin?.from ?? d.checkin_from ?? (typeof d.arrival_time === "string" && d.arrival_time.trim()) ?? undefined;
+  const check_out_time = polx.check_out_time ?? d.checkout?.until ?? d.checkout_from ?? undefined;
 
   const profile = {
     facilities_detailed,
@@ -293,8 +321,9 @@ function mapToProfile({ details: d = {}, facilities: f = {}, rooms: r = {}, revi
     booking_url: d.url ?? undefined,
     check_in_time,
     check_out_time,
-    pet_policy: d.pets ?? undefined,
-    smoking_policy: d.is_smoking_allowed === 0 ? "No smoking allowed" : d.is_smoking_policy ?? undefined,
+    pet_policy: polx.pet_policy ?? d.pets ?? undefined,
+    cancellation_policy: polx.cancellation_policy ?? undefined,
+    smoking_policy: polx.smoking_policy ?? (d.is_smoking_allowed === 0 ? "No smoking allowed" : d.is_smoking_policy ?? undefined),
   };
 
   // Strip empty
@@ -405,7 +434,7 @@ for (let i = 0; i < hotels.length; i++) {
     const details = await rapid("/api/v1/hotels/getHotelDetails", DETAIL_PARAMS(bookingHotelId));
     await sleep(THROTTLE_MS);
 
-    let facilities, rooms, reviews;
+    let facilities, rooms, reviews, policies;
     if (!BASIC) {
       // 3. getHotelFacilities
       try { facilities = await rapid("/api/v1/hotels/getHotelFacilities", { hotel_id: String(bookingHotelId), languagecode: "en-us" }); } catch {}
@@ -416,9 +445,12 @@ for (let i = 0; i < hotels.length; i++) {
       // 5. getHotelReviewScores
       try { reviews = await rapid("/api/v1/hotels/getHotelReviewScores", { hotel_id: String(bookingHotelId), languagecode: "en-us" }); } catch {}
       await sleep(THROTTLE_MS);
+      // 6. getHotelPolicies — check-in/out + pet + cancellation + smoking
+      try { policies = await rapid("/api/v1/hotels/getHotelPolicies", { hotel_id: String(bookingHotelId), languagecode: "en-us" }); } catch {}
+      await sleep(THROTTLE_MS);
     }
 
-    const profile = mapToProfile({ details, facilities, rooms, reviews });
+    const profile = mapToProfile({ details, facilities, rooms, reviews, policies });
     const score = completeness(profile);
 
     const payload = {
