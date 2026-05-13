@@ -66,6 +66,138 @@ export interface HotelReferenceRecord {
   competitive_set_ids: string[];
   transactions_history_ref: string | null;
   notes: string | null;
+
+  // Phase 3.e · enrichment layer (Booking / manual operator / etc.)
+  // Optional · canonical CoStar fields above always win institutionally;
+  // enrichment fills the operator-experience gap.
+  profile?: HotelProfile;
+  _enrichment_meta?: EnrichmentMeta;
+}
+
+/**
+ * Phase 3.e · canonical institutional hotel profile.
+ *
+ * Sourced from Booking + manual operator entry + (future) other public
+ * providers. NOT a replacement for the CoStar institutional fields on
+ * the parent record — those still own ownership, operator, rooms,
+ * year_opened, owner. This layer carries the operational + guest-
+ * experience attributes that COSTAR doesn't track.
+ */
+export interface HotelProfile {
+  /** Detailed facility codes (e.g. "outdoor_pool", "indoor_pool",
+   *  "kosher_kitchen") · superset of the basic `facilities` on the
+   *  parent record. */
+  facilities_detailed?: string[];
+  /** Amenities (free-text · less structured than facilities). */
+  amenities?: string[];
+  /** Room mix · [{name: "Deluxe King", count: 24, ...}, ...] */
+  room_types?: Array<{
+    name: string;
+    count?: number | null;
+    sqm?: number | null;
+    max_occupancy?: number | null;
+  }>;
+  /** Services offered (concierge · laundry · 24h reception ...). */
+  services?: string[];
+  /** Food & beverage outlets. */
+  fnb?: {
+    restaurants_count?: number | null;
+    bars_count?: number | null;
+    cuisines?: string[];
+    breakfast_included?: boolean | null;
+    michelin_stars?: number | null;
+  };
+  spa?: {
+    has_spa?: boolean | null;
+    treatments?: string[];
+    sqm?: number | null;
+  };
+  gym?: {
+    has_gym?: boolean | null;
+    equipment?: string[];
+    sqm?: number | null;
+    open_24h?: boolean | null;
+  };
+  coworking?: {
+    has_coworking?: boolean | null;
+    seats?: number | null;
+  };
+  parking?: {
+    has_parking?: boolean | null;
+    spaces?: number | null;
+    price_eur?: number | null;
+    valet?: boolean | null;
+    ev_charging?: boolean | null;
+  };
+  meeting_rooms?: {
+    count?: number | null;
+    total_sqm?: number | null;
+    max_capacity?: number | null;
+  };
+  rooftop?: {
+    has_rooftop?: boolean | null;
+    views?: string[];
+  };
+  pool?: {
+    has_pool?: boolean | null;
+    indoor?: boolean | null;
+    outdoor?: boolean | null;
+    heated?: boolean | null;
+  };
+  /** Sustainability certifications · BREEAM, LEED, Green Key, EarthCheck */
+  sustainability?: string[];
+  /** Accessibility features · wheelchair, hearing-impaired, vision-impaired, etc. */
+  accessibility?: string[];
+  /** Family-oriented features. */
+  family_features?: string[];
+
+  // ── Guest experience ────────────────────────────────────────────
+  /** Review score (0-10 Booking scale typical; normalise upstream). */
+  review_score?: number | null;
+  review_count?: number | null;
+  review_source?: "booking" | "tripadvisor" | "google" | "aggregated" | string;
+
+  // ── External references ─────────────────────────────────────────
+  booking_url?: string | null;
+  website_url?: string | null;
+  image_refs?: string[];
+
+  // ── Location intelligence ───────────────────────────────────────
+  geo_context?: {
+    nearby_poi?: Array<{
+      name: string;
+      type: string; // "metro" | "airport" | "monument" | "convention_center"
+      distance_m?: number | null;
+    }>;
+    transport_score?: number | null; // 0-100 composite walk/transit access
+    walkscore?: number | null;
+  };
+
+  // ── Policies ────────────────────────────────────────────────────
+  check_in_time?: string | null;  // "15:00"
+  check_out_time?: string | null; // "12:00"
+  pet_policy?: string | null;     // free-text
+  cancellation_policy?: string | null;
+  smoking_policy?: string | null;
+}
+
+/** Provenance + freshness for the enrichment layer. */
+export interface EnrichmentMeta {
+  /** Which sources contributed to this hotel's profile. */
+  enrichment_sources?: Array<"manual_operator" | "booking" | "tripadvisor" | string>;
+  /** Per-source priority (higher = wins on conflict). Manual operator
+   *  defaults to 100 (highest) so operator corrections never get
+   *  overwritten by an automated re-scrape. */
+  source_priority?: Record<string, number>;
+  /** 0–1 composite confidence across the enrichment fields. */
+  enrichment_confidence?: number | null;
+  /** ISO timestamp of the most recent scrape / manual edit. */
+  last_scraped_at?: string | null;
+  /** 0–100 percent of priority enrichment fields populated. */
+  profile_completeness_score?: number | null;
+  /** Operator who submitted the last manual enrichment. */
+  submitted_by?: string;
+  submitted_at?: string;
 }
 
 export type HotelDatasetStatus =

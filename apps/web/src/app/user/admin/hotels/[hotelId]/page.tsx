@@ -14,6 +14,8 @@ import {
   type HotelRecord,
 } from "@/lib/admin/hotels/snapshot-reader";
 import { CorrectionForm } from "@/components/admin/hotels/correction-form";
+import { EnrichmentModal } from "@/components/admin/hotels/enrichment-modal";
+import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 
 export const dynamic = "force-dynamic";
 
@@ -171,6 +173,9 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
               <Pair label="Parking spaces" value={fmtNum(hotel.parking_spaces)} />
             </div>
           </Section>
+
+          {/* Phase 3.e · Hotel profile enrichment (Booking-style fields) */}
+          <ProfileEnrichmentSection hotel={hotel} />
 
           {/* Market context (Phase 3 · 2026-05-14) */}
           <Section title="Market context">
@@ -496,6 +501,264 @@ const CORRECTABLE_FIELDS = [
   "neighborhood",
   "score_costar",
 ] as const;
+
+// ── Phase 3.e · Hotel profile enrichment section ────────────────────────────
+
+function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
+  const profile = hotel.profile;
+  const meta = hotel._enrichment_meta;
+  const completeness = computeProfileCompleteness(profile);
+  const isEnriched = !!profile;
+  const headerHint = isEnriched
+    ? `Last updated ${meta?.submitted_at ? formatRel(meta.submitted_at) : "—"} by ${meta?.submitted_by ?? "operator"}`
+    : "Not yet enriched · CoStar fields above are institutional · this layer adds operational depth";
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+            Hotel profile · enrichment
+          </h2>
+          <p className="mt-0.5 text-[11px] text-slate-500">{headerHint}</p>
+        </div>
+        <EnrichmentModal hotelId={hotel.hotel_id} initialProfile={profile ?? undefined} />
+      </div>
+
+      {/* Completeness bar */}
+      <div className="mb-4">
+        <div className="mb-1 flex items-baseline justify-between">
+          <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+            Profile completeness
+          </span>
+          <span className="font-headline text-base font-extrabold tabular-nums text-forest-900">
+            {completeness.score}%
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full transition-all ${
+              completeness.score >= 80
+                ? "bg-emerald-500"
+                : completeness.score >= 50
+                  ? "bg-amber-500"
+                  : "bg-rose-500"
+            }`}
+            style={{ width: `${completeness.score}%` }}
+            aria-hidden
+          />
+        </div>
+        <p className="mt-1 font-mono text-[10.5px] text-slate-500">
+          {completeness.populated_weight} / {completeness.total_weight} weighted ·
+          {" "}
+          {completeness.populated_fields.length} filled ·{" "}
+          {completeness.missing_fields.length} missing
+        </p>
+      </div>
+
+      {/* Missing fields list */}
+      {completeness.missing_fields.length > 0 && (
+        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+          <p className="mb-1 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-amber-900">
+            Missing · biggest gaps first
+          </p>
+          <ul className="space-y-0.5 text-[11.5px] leading-snug text-amber-900">
+            {completeness.missing_fields.slice(0, 8).map((f) => (
+              <li key={f}>· {f}</li>
+            ))}
+            {completeness.missing_fields.length > 8 && (
+              <li className="font-mono text-[10px] text-amber-700">
+                + {completeness.missing_fields.length - 8} more
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      {/* Populated categories */}
+      {profile && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {profile.review_score !== null && profile.review_score !== undefined && (
+            <ProfileCard label="Review score">
+              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+                {profile.review_score?.toFixed(1)} / 10
+              </p>
+              {profile.review_count && (
+                <p className="font-mono text-[10.5px] text-slate-500">
+                  {profile.review_count.toLocaleString()} reviews · {profile.review_source ?? "—"}
+                </p>
+              )}
+            </ProfileCard>
+          )}
+          {(profile.room_types?.length ?? 0) > 0 && (
+            <ProfileCard label="Room types">
+              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+                {profile.room_types?.length}
+              </p>
+              <p className="font-mono text-[10.5px] text-slate-500">
+                {profile.room_types?.slice(0, 2).map((r) => `${r.name}${r.count ? ` (${r.count})` : ""}`).join(" · ")}
+                {(profile.room_types?.length ?? 0) > 2 ? ` · +${(profile.room_types?.length ?? 0) - 2}` : ""}
+              </p>
+            </ProfileCard>
+          )}
+          {profile.fnb && (
+            <ProfileCard label="F&B">
+              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+                {(profile.fnb.restaurants_count ?? 0)}R · {(profile.fnb.bars_count ?? 0)}B
+              </p>
+              <p className="font-mono text-[10.5px] text-slate-500">
+                {profile.fnb.breakfast_included ? "breakfast incl. · " : ""}
+                {profile.fnb.michelin_stars ? `${profile.fnb.michelin_stars}★ Michelin` : ""}
+              </p>
+            </ProfileCard>
+          )}
+          {profile.spa?.has_spa && (
+            <ProfileCard label="Spa">
+              <p className="font-headline text-lg font-extrabold text-forest-900">Yes</p>
+              {profile.spa.sqm && <p className="font-mono text-[10.5px] text-slate-500">{profile.spa.sqm} sqm</p>}
+            </ProfileCard>
+          )}
+          {profile.gym?.has_gym && (
+            <ProfileCard label="Gym">
+              <p className="font-headline text-lg font-extrabold text-forest-900">Yes</p>
+              {profile.gym.open_24h && <p className="font-mono text-[10.5px] text-slate-500">24h</p>}
+            </ProfileCard>
+          )}
+          {profile.pool?.has_pool && (
+            <ProfileCard label="Pool">
+              <p className="font-headline text-lg font-extrabold text-forest-900">
+                {[profile.pool.indoor && "indoor", profile.pool.outdoor && "outdoor"].filter(Boolean).join(" + ") || "Yes"}
+              </p>
+            </ProfileCard>
+          )}
+          {profile.parking?.has_parking && (
+            <ProfileCard label="Parking">
+              <p className="font-headline text-lg font-extrabold text-forest-900">
+                {profile.parking.spaces ? `${profile.parking.spaces} spaces` : "Yes"}
+              </p>
+              <p className="font-mono text-[10.5px] text-slate-500">
+                {profile.parking.price_eur ? `€${profile.parking.price_eur}/night · ` : ""}
+                {profile.parking.valet ? "valet · " : ""}
+                {profile.parking.ev_charging ? "EV" : ""}
+              </p>
+            </ProfileCard>
+          )}
+          {profile.meeting_rooms && (profile.meeting_rooms.count ?? 0) > 0 && (
+            <ProfileCard label="Meeting rooms">
+              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+                {profile.meeting_rooms.count}
+              </p>
+              <p className="font-mono text-[10.5px] text-slate-500">
+                {profile.meeting_rooms.total_sqm ? `${profile.meeting_rooms.total_sqm} sqm` : ""}
+                {profile.meeting_rooms.max_capacity ? ` · max ${profile.meeting_rooms.max_capacity}` : ""}
+              </p>
+            </ProfileCard>
+          )}
+          {(profile.sustainability?.length ?? 0) > 0 && (
+            <ProfileCard label="Sustainability">
+              <p className="font-headline text-[12px] font-extrabold text-emerald-700">
+                {profile.sustainability?.slice(0, 2).join(" · ")}
+                {(profile.sustainability?.length ?? 0) > 2 ? ` +${(profile.sustainability?.length ?? 0) - 2}` : ""}
+              </p>
+            </ProfileCard>
+          )}
+          {(profile.accessibility?.length ?? 0) > 0 && (
+            <ProfileCard label="Accessibility">
+              <p className="font-headline text-[12px] font-extrabold text-forest-900">
+                {profile.accessibility?.length} feature{(profile.accessibility?.length ?? 0) === 1 ? "" : "s"}
+              </p>
+            </ProfileCard>
+          )}
+          {profile.booking_url && (
+            <ProfileCard label="External">
+              <a
+                href={profile.booking_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-mono text-[11px] text-forest-900 hover:underline"
+              >
+                Booking ↗
+              </a>
+            </ProfileCard>
+          )}
+        </div>
+      )}
+
+      {/* Lists below the cards */}
+      {profile && (
+        <div className="mt-4 space-y-3">
+          {(profile.facilities_detailed?.length ?? 0) > 0 && (
+            <Chips label="Facilities" items={profile.facilities_detailed ?? []} />
+          )}
+          {(profile.amenities?.length ?? 0) > 0 && (
+            <Chips label="Amenities" items={profile.amenities ?? []} />
+          )}
+          {(profile.services?.length ?? 0) > 0 && (
+            <Chips label="Services" items={profile.services ?? []} />
+          )}
+          {profile.check_in_time || profile.check_out_time ? (
+            <div className="grid grid-cols-2 gap-3 text-[11.5px]">
+              <Pair label="Check-in" value={profile.check_in_time ?? "—"} />
+              <Pair label="Check-out" value={profile.check_out_time ?? "—"} />
+            </div>
+          ) : null}
+          {profile.cancellation_policy && (
+            <div>
+              <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">Cancellation</p>
+              <p className="mt-0.5 text-[11.5px] text-slate-700">{profile.cancellation_policy}</p>
+            </div>
+          )}
+          {profile.pet_policy && (
+            <div>
+              <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">Pet policy</p>
+              <p className="mt-0.5 text-[11.5px] text-slate-700">{profile.pet_policy}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Provenance footer */}
+      {meta && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3 font-mono text-[10.5px] text-slate-500">
+          <span>sources:</span>
+          {(meta.enrichment_sources ?? []).map((s) => (
+            <span key={s} className="rounded bg-slate-100 px-1.5 py-0.5">{s}</span>
+          ))}
+          {meta.enrichment_confidence !== null && meta.enrichment_confidence !== undefined && (
+            <span>confidence {(meta.enrichment_confidence * 100).toFixed(0)}%</span>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProfileCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-3">
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+      <div className="mt-0.5">{children}</div>
+    </div>
+  );
+}
+
+function Chips({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div>
+      <p className="mb-1 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+      <ul className="flex flex-wrap gap-1.5">
+        {items.map((it) => (
+          <li
+            key={it}
+            className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] text-slate-700 ring-1 ring-slate-200"
+          >
+            {it.replace(/_/g, " ")}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function Section({
   title,

@@ -346,6 +346,7 @@ const STORAGE_CACHE_TTL_MS = 60 * 1000; // 60s — short enough to feel fresh af
 const MANUAL_HOTELS_PREFIX = "manual_hotels"; // Phase 3 · operator-added hotels live here
 const MANUAL_TX_PREFIX = "manual_transactions"; // Phase 3.c · operator-added transactions
 const MANUAL_PROJECTS_PREFIX = "manual_projects"; // Phase 3.c · operator-added projects
+const MANUAL_ENRICHMENT_PREFIX = "manual_enrichment"; // Phase 3.e · Booking-style enrichment per hotel
 const MANUAL_CACHE_TTL_MS = 30 * 1000; // 30s — operator just submitted; show within half a minute
 
 type Source = "fs" | "supabase_storage" | "none";
@@ -354,6 +355,8 @@ let storageCache: { fetchedAtMs: number; snapshot: HotelsSnapshot | null } | nul
 let manualHotelsCache: { fetchedAtMs: number; rows: HotelRecord[] } | null = null;
 let manualTransactionsCache: { fetchedAtMs: number; rows: TransactionEntry[] } | null = null;
 let manualProjectsCache: { fetchedAtMs: number; rows: unknown[] } | null = null;
+type EnrichmentRow = { hotel_id: string; profile: HotelRecord["profile"]; _enrichment_meta: HotelRecord["_enrichment_meta"] };
+let manualEnrichmentCache: { fetchedAtMs: number; rows: EnrichmentRow[] } | null = null;
 
 /**
  * Load the snapshot. Two-tier resolution:
@@ -496,12 +499,55 @@ async function loadManualProjects(): Promise<unknown[]> {
   return rows;
 }
 
+/**
+ * Phase 3.e · operator-side manual enrichment.
+ *
+ * Storage layout differs from the other manual_* prefixes: enrichment
+ * uses a flat `manual_enrichment/<hotel_id>.json` (no monthly bucketing)
+ * because each hotel has at most one enrichment record · operator
+ * re-submits to update via upsert.
+ */
+async function loadManualEnrichment(): Promise<EnrichmentRow[]> {
+  if (manualEnrichmentCache && Date.now() - manualEnrichmentCache.fetchedAtMs < MANUAL_CACHE_TTL_MS) {
+    return manualEnrichmentCache.rows;
+  }
+  try {
+    const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
+    const client = getSupabaseAdmin();
+    const { data: files, error } = await client.storage
+      .from(STORAGE_BUCKET)
+      .list(MANUAL_ENRICHMENT_PREFIX, { limit: 5000 });
+    if (error) throw new Error(error.message);
+    const rows: EnrichmentRow[] = [];
+    for (const f of files ?? []) {
+      if (!f.name?.endsWith(".json")) continue;
+      const { data: dl, error: dlErr } = await client.storage
+        .from(STORAGE_BUCKET)
+        .download(`${MANUAL_ENRICHMENT_PREFIX}/${f.name}`);
+      if (dlErr || !dl) continue;
+      try {
+        rows.push(JSON.parse(await dl.text()) as EnrichmentRow);
+      } catch {
+        // skip malformed entries
+      }
+    }
+    manualEnrichmentCache = { fetchedAtMs: Date.now(), rows };
+    return rows;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[hotels.enrichment] failed to load · ${msg}`);
+    manualEnrichmentCache = { fetchedAtMs: Date.now(), rows: [] };
+    return [];
+  }
+}
+
 async function _mergeAllManual(snapshot: HotelsSnapshot): Promise<HotelsSnapshot> {
-  // Load all three operator write-paths in parallel
-  const [manualHotels, manualTransactions, manualProjects] = await Promise.all([
+  // Load all four operator write-paths in parallel
+  const [manualHotels, manualTransactions, manualProjects, manualEnrichment] = await Promise.all([
     loadManualHotels(),
     loadManualTransactions(),
     loadManualProjects(),
+    loadManualEnrichment(),
   ]);
 
   // Hotels · canonical wins on hotel_id collision
@@ -529,13 +575,33 @@ async function _mergeAllManual(snapshot: HotelsSnapshot): Promise<HotelsSnapshot
       !canonicalProjectIds.has((p as { project_id: string }).project_id),
   );
 
-  if (extraHotels.length === 0 && extraTxs.length === 0 && extraProjects.length === 0) {
+  // Phase 3.e · attach enrichment onto each hotel (canonical + manual_hotel
+  // rows). Looked up by hotel_id. Enrichment NEVER overrides institutional
+  // CoStar fields on the parent record — it only fills the .profile slot.
+  const enrichmentByHotel = new Map<string, EnrichmentRow>(
+    manualEnrichment.map((e) => [e.hotel_id, e]),
+  );
+  const mergedHotels =
+    extraHotels.length > 0 || enrichmentByHotel.size > 0
+      ? [...snapshot.hotels, ...extraHotels].map((h) => {
+          const e = enrichmentByHotel.get(h.hotel_id);
+          if (!e) return h;
+          return { ...h, profile: e.profile, _enrichment_meta: e._enrichment_meta };
+        })
+      : snapshot.hotels;
+
+  if (
+    extraHotels.length === 0 &&
+    extraTxs.length === 0 &&
+    extraProjects.length === 0 &&
+    enrichmentByHotel.size === 0
+  ) {
     return snapshot;
   }
 
   return {
     ...snapshot,
-    hotels: extraHotels.length > 0 ? [...snapshot.hotels, ...extraHotels] : snapshot.hotels,
+    hotels: mergedHotels,
     transactions: extraTxs.length > 0 ? [...snapshot.transactions, ...extraTxs] : snapshot.transactions,
     // projects is optional on the type; spread back as unknown[]
     ...(extraProjects.length > 0
