@@ -4,6 +4,33 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Integrations surface · 5-layer operational map (Connected Platform Ecosystem)
+
+`/user/admin/integrations` evolves from a news-feed directory into the full operational map of HotelVALORA's connected ecosystem. The integrations surface now renders five layers in operational order:
+
+1. **Intelligence Sources** — existing 6 (Hosteltur · Alimarket · HospitalityNet · Reuters Hospitality · HVS · CoStar News) · keeps the rich `IntegrationCard` with credentials + session telemetry intact.
+2. **Infrastructure** — Supabase Database · Supabase Auth · Supabase Storage · Vercel Platform · Vercel Cron · Mapbox GL.
+3. **Communications** — Resend (LIVE) · Gmail Signals (LIVE, operator-managed) · Slack (PLANNED) · Twilio SMS (PLANNED).
+4. **Relationship Intelligence** — Datasite Outreach · Google Contacts · Gmail Relationship Intelligence.
+5. **Commercial / Monetization** — Subscription Engine (LIVE) · Campaign Attribution System (LIVE) · Stripe (PLANNED, schema-ready).
+
+### New modules
+- `lib/admin/integrations/platform-registry.ts` — declarative platform-integration registry (Layers 2–5). Each entry carries: provider · status · purpose · auth method · env vars · DB tables · cron dependencies · admin surfaces consumed · operator-managed flag · external links · operational notes · next-milestone (for BETA / PLANNED).
+- `components/admin/integrations/platform-integration-card.tsx` — simpler sibling of `IntegrationCard` (no session telemetry). Shows status badge · purpose · next-milestone (when applicable) · auth · env vars · schema · cron · surfaces · operator-managed flag · external links.
+- `components/admin/integrations/layer-section.tsx` — section wrapper with numbered eyebrow + count + subtitle.
+
+### Page refactor
+- Header re-titled "Connected Platform Ecosystem" · subhead summarises total integrations across the five layers.
+- Layer 1 keeps its sub-groupings (Authenticated · Spain · Public · Global · Deferred) inside the new `LayerSection` wrapper · existing card unchanged · session telemetry preserved.
+- Layers 2–5 use the new platform card · same dark forest-900 / lime-300 visual contract · responsive grid (1 → 2 → 3 col).
+- Summary strip extended with "Platform Layers 2-5" + "Intelligence sources" totem counts.
+
+### Telemetry contract (carried forward)
+- **Layer 1** (Intelligence) retains the full T1/T2 credential + session lifecycle telemetry · the existing `getIntegrationsLive` aggregator was untouched.
+- **Layers 2-5** carry a static descriptor today · a follow-up will wire live signals (Supabase health, Resend send count, Mapbox quota) once we add per-integration probes.
+
+---
+
 ## 2026-05-13 — Admin sidebar reordered to operational hierarchy
 
 Sidebar items now flow top-to-bottom along the institutional value chain — core intelligence first, contacts last — instead of being grouped by "growth funnel surfaces vs operator infrastructure". This puts the dense, high-frequency operator surfaces (AI Operations, Integrations) at the top of the rail where they belong.

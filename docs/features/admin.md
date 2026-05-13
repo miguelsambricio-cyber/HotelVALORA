@@ -7,6 +7,24 @@ Institutional Operations Center for HOTELVALORA. The visual layer of the AI Oper
 
 > Institutional baseline state: `docs/SNAPSHOT_2026_05_12.md` § 3.3.
 
+## A. `/user/admin/integrations` taxonomy (5-layer operational map · 2026-05-13)
+
+The integrations surface evolved from "news/feed directory" to "connected platform ecosystem". Five layers, rendered in operational order:
+
+| # | Layer | Drives | Source-of-truth registry |
+|---|---|---|---|
+| 1 | **Intelligence Sources** | Market Intelligence Agent · daily ingestion | `lib/admin/integrations/registry.ts` + live merge via `lib/admin/integrations/live.ts` (sessions, credentials, ingestion health) |
+| 2 | **Infrastructure** | Hosting · auth · storage · cron · maps | `lib/admin/integrations/platform-registry.ts` § INFRASTRUCTURE |
+| 3 | **Communications** | Outbound channels — Resend (live), Gmail (live, operator-managed), Slack + Twilio (planned) | `platform-registry.ts` § COMMUNICATIONS |
+| 4 | **Relationship Intelligence** | Datasite + Google Contacts + Gmail signals feeding the contacts graph | `platform-registry.ts` § RELATIONSHIP_INTELLIGENCE |
+| 5 | **Commercial / Monetization** | Subscription Engine · Campaign Attribution · Stripe (planned) | `platform-registry.ts` § COMMERCIAL |
+
+Layer 1 keeps the rich `IntegrationCard` with T1/T2 credential + session telemetry. Layers 2–5 use the simpler `PlatformIntegrationCard` (descriptor-only — status, auth, env vars, schema, cron, consumed-by surfaces, operator-managed flag, next milestone for BETA/PLANNED).
+
+Adding a new integration:
+- **Intelligence source** → extend `INTEGRATIONS_REGISTRY` in `registry.ts` (gets full session/credentials lifecycle for free).
+- **Platform integration** (any other layer) → add a descriptor to the layer array in `platform-registry.ts`. The page auto-renders.
+
 ## 0. Status semantics — sidebar vs page header (codified 2026-05-13)
 
 The sidebar carries **operational maturity only**. Access scope ("operator only", "internal infrastructure") is page-header secondary metadata, not a sidebar badge. The two concerns are deliberately split so the sidebar reads as a clean operational map.
