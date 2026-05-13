@@ -152,19 +152,6 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             <Pair label="Floors" value={fmtNum(hotel.total_floors)} />
             <Pair label="Year opened" value={fmtNum(hotel.year_opened)} />
             <Pair label="Year last renovated" value={fmtNum(hotel.year_last_renovated)} />
-            {(() => {
-              const hv = computeHotelVALORAScore(hotel);
-              return (
-                <Pair
-                  label="HotelVALORA score"
-                  value={
-                    hv.score !== null
-                      ? `${hv.score.toFixed(2)} / 10`
-                      : "—"
-                  }
-                />
-              );
-            })()}
           </Section>
 
           <Section title="Location" icon={<MapPin size={14} />}>
@@ -703,26 +690,46 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
       )}
 
       {/* Room mix · canonical 7-bucket institutional distribution.
-            Derived from profile.room_types[] via summariseRoomMix() ·
-            avg_sqm sourced from Booking when available. Renders before
-            facilities to match the asset-analysis report flow. */}
-      {profile && (() => {
-        const mix = summariseRoomMix(profile);
-        if (mix.type_count_total === 0) return null;
+            Always rendered (operator may need to manually edit even
+            when Booking returned nothing). Source resolution:
+              - Booking room_types[] when present
+              - 5/90/5 institutional default × rooms_count when empty
+              - all-zero when neither (still all 7 buckets visible) */}
+      {(() => {
+        const mix = summariseRoomMix(hotel.profile, hotel.rooms_count);
+        const sourceLabel =
+          mix.source === "booking"
+            ? `${mix.type_count_total} Booking room type${mix.type_count_total === 1 ? "" : "s"} classified`
+            : mix.source === "estimated"
+              ? `Estimated · 5/90/5 default × ${hotel.rooms_count ?? "?"} rooms`
+              : mix.source === "manual"
+                ? "Manual override"
+                : "No data";
+        const sourceBadge =
+          mix.source === "booking"
+            ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+            : mix.source === "estimated"
+              ? "bg-amber-100 text-amber-800 ring-amber-200"
+              : "bg-slate-100 text-slate-600 ring-slate-200";
         return (
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/40 p-4">
-            <div className="mb-3 flex items-baseline justify-between">
+            <div className="mb-3 flex items-baseline justify-between gap-2">
               <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
                 Room mix
               </p>
-              <p className="font-mono text-[10.5px] tabular-nums text-slate-500">
-                {mix.type_count_total} Booking room type{mix.type_count_total === 1 ? "" : "s"} classified
-                {mix.total_units != null ? ` · ${mix.total_units} units` : ""}
-              </p>
+              <div className="flex items-center gap-2">
+                <span className={`rounded px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] ring-1 ${sourceBadge}`}>
+                  {mix.source}
+                </span>
+                <p className="font-mono text-[10.5px] tabular-nums text-slate-500">
+                  {sourceLabel}
+                  {mix.total_units != null ? ` · ${mix.total_units} units` : ""}
+                </p>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
               {mix.rows.map((row) => {
-                const present = row.type_count > 0;
+                const present = (row.total_units ?? 0) > 0 || row.type_count > 0;
                 return (
                   <div
                     key={row.bucket}
@@ -738,9 +745,11 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
                         {row.label}
                       </p>
                       <p className={`font-mono text-[9.5px] ${present ? "text-slate-500" : "text-slate-300"}`}>
-                        {present
-                          ? `${row.type_count} type${row.type_count === 1 ? "" : "s"}${row.total_units != null ? ` · ${row.total_units}u` : ""}`
-                          : "—"}
+                        {row.total_units != null && row.total_units > 0
+                          ? `${row.total_units}u`
+                          : row.type_count > 0
+                            ? `${row.type_count} type${row.type_count === 1 ? "" : "s"}`
+                            : "—"}
                       </p>
                     </div>
                     <p className={`font-headline text-[13px] font-extrabold tabular-nums ${present ? "text-forest-900" : "text-slate-300"}`}>
@@ -752,7 +761,11 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               })}
             </div>
             <p className="mt-2 font-mono text-[10px] text-slate-400">
-              avg m² sourced from Booking when available · canonical buckets · individuales · doble · junior suite · suite · estudio · 1/2 dormitorio
+              {mix.source === "booking"
+                ? "avg m² sourced from Booking room_surface_in_m2 · per-bucket means"
+                : mix.source === "estimated"
+                  ? "5% individuales · 90% doble · 5% suite · institutional default · sqm: 18/25/45 · operator can override via Run enrichment"
+                  : "no data yet · use Run enrichment or Fetch from Booking to populate"}
             </p>
           </div>
         );

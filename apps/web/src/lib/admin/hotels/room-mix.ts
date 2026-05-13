@@ -76,10 +76,51 @@ export interface RoomMixSummary {
   type_count_total: number;
   /** Total units when count data is available. */
   total_units: number | null;
+  /** How the values in `rows` were sourced:
+   *   - "booking"   : real per-type data from Booking
+   *   - "estimated" : operator-default formula (5/90/5) applied to
+   *                   the canonical rooms_count when Booking had nothing
+   *   - "manual"    : operator manually edited (future · not used yet)
+   *   - "empty"     : no data and no rooms_count to derive from */
+  source: "booking" | "estimated" | "manual" | "empty";
 }
 
-/** Aggregate `profile.room_types[]` into the 7-bucket canonical mix. */
-export function summariseRoomMix(profile: HotelProfile | null | undefined): RoomMixSummary {
+/**
+ * Institutional baseline distribution applied when Booking returns no
+ * room-type data. Set by operator directive 2026-05-14:
+ *
+ *   Individuales : 5% of total rooms · avg 18 m²
+ *   Doble        : 90% of total rooms · avg 25 m²
+ *   Suite        : 5% of total rooms · avg 45 m²
+ *
+ * Other buckets default to zero count. Operator edits override.
+ */
+export const DEFAULT_DISTRIBUTION: Record<RoomBucket, { pct: number; default_sqm: number }> = {
+  individuales: { pct: 0.05, default_sqm: 18 },
+  doble:        { pct: 0.90, default_sqm: 25 },
+  junior_suite: { pct: 0.00, default_sqm: 35 },
+  suite:        { pct: 0.05, default_sqm: 45 },
+  estudio:      { pct: 0.00, default_sqm: 30 },
+  dorm_1:       { pct: 0.00, default_sqm: 45 },
+  dorm_2:       { pct: 0.00, default_sqm: 70 },
+};
+
+/**
+ * Aggregate `profile.room_types[]` into the 7-bucket canonical mix.
+ *
+ * Resolution order:
+ *   1. If Booking returned real per-type data → aggregate from it (source="booking")
+ *   2. Else if `rooms_count_fallback` is provided → distribute 5/90/5 per
+ *      DEFAULT_DISTRIBUTION across the canonical rooms_count (source="estimated")
+ *   3. Else all buckets render at 0 with no sqm (source="empty")
+ *
+ * The card is meant to ALWAYS render · 7 rows · so the operator can
+ * manually override counts and sqm via the enrichment form (future).
+ */
+export function summariseRoomMix(
+  profile: HotelProfile | null | undefined,
+  rooms_count_fallback?: number | null,
+): RoomMixSummary {
   const rows: RoomMixSummaryRow[] = ROOM_BUCKETS.map((b) => ({
     bucket: b.key,
     label: b.label,
@@ -89,7 +130,6 @@ export function summariseRoomMix(profile: HotelProfile | null | undefined): Room
     example: null,
   }));
   const rowByKey = new Map<RoomBucket, RoomMixSummaryRow>(rows.map((r) => [r.bucket, r]));
-  // Working sums for averaging
   const sumByKey = new Map<RoomBucket, { sqmSum: number; sqmN: number; unitsSum: number; unitsHas: boolean }>();
 
   const room_types = profile?.room_types ?? [];
@@ -123,5 +163,38 @@ export function summariseRoomMix(profile: HotelProfile | null | undefined): Room
   for (const r of rows) {
     if (r.total_units != null) total_units = (total_units ?? 0) + r.total_units;
   }
-  return { rows, type_count_total, total_units };
+
+  // Source resolution
+  let source: RoomMixSummary["source"] = "booking";
+  if (type_count_total === 0) {
+    if (typeof rooms_count_fallback === "number" && rooms_count_fallback > 0) {
+      // Apply 5/90/5 institutional default
+      source = "estimated";
+      const total = rooms_count_fallback;
+      let allocated = 0;
+      const bucketsOrder: RoomBucket[] = ["individuales", "doble", "suite"];
+      // First two by rounding their pct · last bucket gets the remainder
+      // so the total exactly matches rooms_count (no rounding drift).
+      for (let i = 0; i < bucketsOrder.length - 1; i++) {
+        const key = bucketsOrder[i];
+        const def = DEFAULT_DISTRIBUTION[key];
+        const units = Math.round(total * def.pct);
+        const row = rowByKey.get(key)!;
+        row.total_units = units;
+        row.avg_sqm = def.default_sqm;
+        allocated += units;
+      }
+      // Suite (last in the formula) absorbs the rounding remainder
+      const tail = bucketsOrder[bucketsOrder.length - 1];
+      const tailRow = rowByKey.get(tail)!;
+      const tailDef = DEFAULT_DISTRIBUTION[tail];
+      tailRow.total_units = Math.max(0, total - allocated);
+      tailRow.avg_sqm = tailDef.default_sqm;
+      total_units = total;
+    } else {
+      source = "empty";
+    }
+  }
+
+  return { rows, type_count_total, total_units, source };
 }

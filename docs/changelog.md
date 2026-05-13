@@ -4,6 +4,32 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Hotel detail · Room Mix always visible + 5/90/5 default formula
+
+Operator feedback after the UX overhaul: (1) HotelVALORA score appearing in both Property characteristics and the enrichment cards is redundant · keep only the enrichment card · (2) the Room Mix card was hidden when Booking returned 0 rooms · but the operator may need to MANUALLY EDIT it later for hotels where Booking has no data · (3) when Booking data is missing, fall back to an institutional default distribution: 5% individuales · 90% doble · 5% suite · over `rooms_count`.
+
+Changes:
+- Removed HotelVALORA score line from Property characteristics section (it remains as the highlighted card in the enrichment section)
+- Room Mix card now ALWAYS renders · all 7 buckets visible · operator can see zero-value buckets they may want to populate
+- New `DEFAULT_DISTRIBUTION` in `room-mix.ts`:
+  - Individuales : 5% of rooms · default 18 m²
+  - Doble        : 90% of rooms · default 25 m²
+  - Suite        : 5% of rooms · default 45 m²
+  - Other buckets : 0% (Junior Suite · Estudio · 1 dorm · 2 dorm)
+- `summariseRoomMix(profile, rooms_count_fallback?)` resolution order:
+  1. Booking real per-type data (source = "booking")
+  2. 5/90/5 default × rooms_count (source = "estimated")
+  3. All zeros (source = "empty")
+- Source badge on the card header (emerald · amber · slate)
+- Footer text explains the source · for estimated: "5% individuales · 90% doble · 5% suite · institutional default · sqm: 18/25/45 · operator can override via Run enrichment"
+
+Validation
+- AC Hotel (h_204efabe95397fff) · 144 rooms · estimated: Individuales 7 (18m²) · Doble 130 (25m²) · Suite 7 (45m²) · rounding remainder absorbed by suite
+- Novotel Madrid Center (h_4ff39b1bb2774f1d) · 28 Booking room types · source="booking" · per-bucket means from Booking surface_in_m2
+- typecheck clean · HTTP 200 · 147 KB detail page
+
+---
+
 ## 2026-05-14 — Hotel detail UX overhaul · scores · room mix · Google Maps fallback
 
 Operator review of `/user/admin/hotels/<id>` surfaced a list of fixes against the institutional contract. All shipped in one pass:
