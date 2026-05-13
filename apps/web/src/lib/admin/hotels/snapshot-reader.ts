@@ -166,14 +166,18 @@ export interface BatchSummary {
 }
 
 /** Diagnostics surfaced on the admin page so the operator can verify
- *  the exact path the Node side just tried to read. Critical when the
- *  page says "No snapshot found" — tells you whether the dev server's
- *  cwd is sending the resolver outside the repo. */
+ *  exactly which source the Node side just tried to read.
+ *
+ *  Two-tier reporting:
+ *    - `fs.*` — local filesystem at SNAPSHOT_PATH
+ *    - `storage.*` — Supabase Storage costar-master/snapshot.json
+ *
+ *  Critical when the page says "No snapshot found" — tells the operator
+ *  whether (a) the local file was missing, (b) Storage was missing,
+ *  (c) Storage download failed (network/auth/etc.), or (d) both. */
 export function getSnapshotDiagnostics(): {
-  resolvedPath: string;
-  resolvedFrom: string;
-  exists: boolean;
-  sizeBytes: number | null;
+  fs: { path: string; resolvedFrom: string; exists: boolean; sizeBytes: number | null };
+  storage: { bucket: string; key: string; lastFetchedAtMs: number | null; cached: boolean };
 } {
   let sizeBytes: number | null = null;
   let exists = false;
@@ -189,10 +193,18 @@ export function getSnapshotDiagnostics(): {
     // ignore — diagnostics never throw
   }
   return {
-    resolvedPath: SNAPSHOT_PATH,
-    resolvedFrom: SNAPSHOT_RESOLVED_FROM,
-    exists,
-    sizeBytes,
+    fs: {
+      path: SNAPSHOT_PATH,
+      resolvedFrom: SNAPSHOT_RESOLVED_FROM,
+      exists,
+      sizeBytes,
+    },
+    storage: {
+      bucket: STORAGE_BUCKET,
+      key: STORAGE_KEY,
+      lastFetchedAtMs: storageCache?.fetchedAtMs ?? null,
+      cached: storageCache !== null,
+    },
   };
 }
 
@@ -266,7 +278,27 @@ let cache: { mtime: number; snapshot: HotelsSnapshot | null } | null = null;
  * responsive when several components on the same render call this in
  * parallel without re-parsing the JSON for each.
  */
+const STORAGE_BUCKET = "costar-master";
+const STORAGE_KEY = "snapshot.json";
+const STORAGE_CACHE_TTL_MS = 60 * 1000; // 60s — short enough to feel fresh after each upload-snapshot run
+
+type Source = "fs" | "supabase_storage" | "none";
+let storageSourceLogged = false;
+let storageCache: { fetchedAtMs: number; snapshot: HotelsSnapshot | null } | null = null;
+
+/**
+ * Load the snapshot. Two-tier resolution:
+ *   1. Local filesystem at `SNAPSHOT_PATH` — fast path · dev workflow ·
+ *      also production when the build embeds the snapshot.
+ *   2. Supabase Storage `costar-master/snapshot.json` — production
+ *      fallback so the operator can publish a snapshot without
+ *      committing it to git.
+ *
+ * Returns `null` only when BOTH sources fail. The empty-state banner
+ * surfaces the resolved path + source via `getSnapshotDiagnostics()`.
+ */
 export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
+  // 1) Try filesystem
   try {
     const { promises: fs } = await import("node:fs");
     const stat = await fs.stat(SNAPSHOT_PATH);
@@ -276,31 +308,76 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
     const raw = await readFile(SNAPSHOT_PATH, "utf-8");
     const parsed = JSON.parse(raw) as HotelsSnapshot;
     cache = { mtime: stat.mtimeMs, snapshot: parsed };
-    if (!resolvedPathLogged) {
-      // Single-line diagnostic on first successful load. Surfaces the
-      // exact path + how it was resolved + parsed counts so the operator
-      // can confirm UI is reading what `ingest.py` just wrote.
-      console.info(
-        `[hotels.snapshot] loaded path=${SNAPSHOT_PATH} resolved_from=${SNAPSHOT_RESOLVED_FROM} ` +
-          `size=${stat.size}B hotels=${parsed.hotels?.length ?? 0} ` +
-          `transactions=${parsed.transactions?.length ?? 0} ` +
-          `synthetic_compsets=${parsed.synthetic_compsets?.length ?? 0} ` +
-          `batch=${parsed.ingestion_batch_id}`,
-      );
-      resolvedPathLogged = true;
+    logFirstLoad("fs", SNAPSHOT_PATH, stat.size, parsed);
+    return parsed;
+  } catch {
+    /* fall through to Storage */
+  }
+
+  // 2) Try Supabase Storage (production path)
+  if (
+    storageCache &&
+    Date.now() - storageCache.fetchedAtMs < STORAGE_CACHE_TTL_MS
+  ) {
+    return storageCache.snapshot;
+  }
+  try {
+    const parsed = await downloadFromStorage();
+    storageCache = { fetchedAtMs: Date.now(), snapshot: parsed };
+    if (parsed) {
+      logFirstLoad("supabase_storage", `${STORAGE_BUCKET}/${STORAGE_KEY}`, null, parsed);
     }
     return parsed;
   } catch (err: unknown) {
-    if (!resolvedPathLogged) {
-      const msg = err instanceof Error ? err.message : String(err);
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!storageSourceLogged) {
       console.warn(
-        `[hotels.snapshot] EMPTY · path=${SNAPSHOT_PATH} resolved_from=${SNAPSHOT_RESOLVED_FROM} cwd=${process.cwd()} reason=${msg}`,
+        `[hotels.snapshot] EMPTY · fs=${SNAPSHOT_PATH} (missing) · ` +
+          `storage=${STORAGE_BUCKET}/${STORAGE_KEY} reason=${msg} cwd=${process.cwd()}`,
       );
-      resolvedPathLogged = true;
+      storageSourceLogged = true;
     }
+    storageCache = { fetchedAtMs: Date.now(), snapshot: null };
     cache = { mtime: 0, snapshot: null };
     return null;
   }
+}
+
+async function downloadFromStorage(): Promise<HotelsSnapshot | null> {
+  // Lazy-import to avoid pulling Supabase deps when filesystem path wins
+  const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
+  const client = getSupabaseAdmin();
+  const { data, error } = await client.storage
+    .from(STORAGE_BUCKET)
+    .download(STORAGE_KEY);
+  if (error) {
+    // PostgrestError or StorageError — surface to caller; logged once above
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+  const text = await data.text();
+  return JSON.parse(text) as HotelsSnapshot;
+}
+
+function logFirstLoad(
+  source: Source,
+  origin: string,
+  sizeBytes: number | null,
+  parsed: HotelsSnapshot,
+): void {
+  if (resolvedPathLogged && storageSourceLogged) return;
+  if (source === "fs" && resolvedPathLogged) return;
+  if (source === "supabase_storage" && storageSourceLogged) return;
+  console.info(
+    `[hotels.snapshot] loaded source=${source} origin=${origin} ` +
+      `${sizeBytes !== null ? `size=${sizeBytes}B ` : ""}` +
+      `hotels=${parsed.hotels?.length ?? 0} ` +
+      `transactions=${parsed.transactions?.length ?? 0} ` +
+      `synthetic_compsets=${parsed.synthetic_compsets?.length ?? 0} ` +
+      `batch=${parsed.ingestion_batch_id}`,
+  );
+  if (source === "fs") resolvedPathLogged = true;
+  if (source === "supabase_storage") storageSourceLogged = true;
 }
 
 export async function loadHotelsRegistryStatusFromSnapshot(): Promise<HotelsRegistryStatus> {

@@ -186,28 +186,37 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         ) : (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
             <p>
-              <strong>No snapshot found.</strong> Run{" "}
+              <strong>No snapshot found.</strong> Tried filesystem first, then Supabase Storage.
+            </p>
+            <div className="mt-2 space-y-0.5 font-mono text-[10.5px] text-amber-800">
+              <p>
+                <strong>fs</strong> · {diag.fs.path}
+              </p>
+              <p className="pl-3">
+                resolved via · {diag.fs.resolvedFrom} · exists · {String(diag.fs.exists)} · size ·{" "}
+                {diag.fs.sizeBytes !== null ? `${diag.fs.sizeBytes} bytes` : "n/a"}
+              </p>
+              <p>
+                <strong>storage</strong> · {diag.storage.bucket}/{diag.storage.key}
+              </p>
+              <p className="pl-3">
+                last fetch ·{" "}
+                {diag.storage.lastFetchedAtMs
+                  ? new Date(diag.storage.lastFetchedAtMs).toISOString()
+                  : "never"}{" "}
+                · cached · {String(diag.storage.cached)}
+              </p>
+            </div>
+            <p className="mt-2">
+              Operator workflow:{" "}
               <code className="rounded bg-amber-100 px-1 font-mono text-[10.5px]">
                 python services/costar/scripts/ingest.py
               </code>{" "}
-              to generate it.
+              then{" "}
+              <code className="rounded bg-amber-100 px-1 font-mono text-[10.5px]">
+                cd apps/web && node --env-file=.env.local scripts/upload-snapshot.mjs
+              </code>
             </p>
-            <div className="mt-2 space-y-0.5 font-mono text-[10.5px] text-amber-800">
-              <p>resolved path · {diag.resolvedPath}</p>
-              <p>
-                resolved via · {diag.resolvedFrom} · file exists ·{" "}
-                {String(diag.exists)} · size ·{" "}
-                {diag.sizeBytes !== null ? `${diag.sizeBytes} bytes` : "n/a"}
-              </p>
-              {!diag.exists && (
-                <p className="mt-1 text-amber-900">
-                  ⚠ If the file does exist on disk but `exists=false` here, the
-                  Node dev server cwd is wrong. Start with{" "}
-                  <code className="rounded bg-amber-100 px-1">cd apps/web && npm run dev</code>{" "}
-                  (NOT from repo root).
-                </p>
-              )}
-            </div>
           </div>
         )}
       </section>
