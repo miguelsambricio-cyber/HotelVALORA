@@ -4,6 +4,75 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Integrations · compact monitoring tiles + click-to-expand detail sheet
+
+The integrations registry switches from documentation-style cards to monitoring-dashboard tiles. The canonical reference is now `/user/admin` Section 05 (`InfraIndicator`) — same proportions, same density, same grid. Click any tile → full technical audit opens in a responsive sheet (bottom-sheet on mobile, right-side drawer on desktop).
+
+### New components
+
+| File | Role |
+|---|---|
+| `components/admin/integrations/integration-tile.tsx` | Server component · compact tile · infra-indicator visual contract |
+| `components/admin/integrations/integration-detail-sheet.tsx` | Client component · Radix Dialog · bottom-sheet ↔ right-drawer |
+| `components/admin/integrations/platform-integration-tile.tsx` | Adapter for `PlatformIntegrationDescriptor` (8 of 9 layers) |
+| `components/admin/integrations/intelligence-source-tile.tsx` | Adapter for `IntegrationDescriptor` (intelligence layer) |
+
+### Tile visual contract (canonical parity with Section 05)
+
+| Property | Tile (new) | `InfraIndicator` reference |
+|---|---|---|
+| Container | `flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4` | identical |
+| Status dot | `h-2.5 w-2.5` · pulses on ok/error | identical |
+| Title | `text-[13px] font-extrabold tracking-tight text-white` | identical |
+| Status badge | `rounded px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-widest ring-1` | identical |
+| Region/provider pill | `ml-auto rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[9.5px]` | identical |
+| Description | `mt-1 text-[11px] leading-snug text-slate-400 line-clamp-1` | identical (minus the clamp) |
+| Metadata line | `mt-1.5 font-mono text-[10.5px] text-slate-500 truncate` | identical |
+| Grid | `grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3` | identical |
+
+### Compact-by-default content
+
+The tile shows: provider/name · status badge (Live · Partial · Not wired · Fail · Planned) · region or provider chip · 1-line description · one mono metadata line (e.g. "OAuth · 1 cron · 3 tables · operator-managed" for platform · "RSS · 142 · 7d · reliability 97%" for intelligence).
+
+### Click-to-expand interaction model
+
+- Each tile is a `<button>` (full-width, focusable, keyboard-accessible). The whole card is the click target.
+- Triggers a Radix Dialog with responsive positioning:
+  - **Mobile (`<sm`)**: bottom-anchored sheet · `inset-x-0 bottom-0 max-h-[92vh] rounded-t-2xl` · slides up
+  - **Desktop (`sm+`)**: right-side drawer · `sm:right-0 sm:top-0 sm:h-full sm:w-[30rem] sm:rounded-l-2xl` · slides in from the right
+- Focus management, ESC-to-close, overlay-click dismiss handled by Radix.
+
+### Sheet content (full dossier)
+
+- Platform integrations: provider · purpose · next-milestone callout · auth method · env-var chips · schema tables · cron jobs · consumed-by surfaces · operational notes · operator-managed badge · external links
+- Intelligence sources: tier · tagline · region/language/kind · connection + auth badges · Articles Today/7d/30d grid · last-sync · reliability · operational notes · external links · "Open full dossier" → `/user/admin/integrations/[id]`
+
+### Architecture preserved
+
+Section grouping · operational layer ordering (9 layers in operational order) · integration taxonomy · status badges + classifier logic · telemetry labels — all unchanged. Only the default visual density was compressed.
+
+### Smoke
+
+- `/user/admin/integrations` → 200 · 429 KB (was 463 KB)
+- 33 clickable trigger buttons (1 per integration · all 33 integrations across both registries surface as compact tiles)
+- 21 `grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3` containers (matches Section 05 grid exactly)
+- Tile signatures all present · old large-card signatures all absent
+- Hero density pass (previous commit) still intact
+- Typecheck clean
+- Lint: project's `next lint` is uninitialised (interactive prompt), unrelated to this change
+
+### Files
+
+- `apps/web/src/components/admin/integrations/integration-tile.tsx` (new)
+- `apps/web/src/components/admin/integrations/integration-detail-sheet.tsx` (new)
+- `apps/web/src/components/admin/integrations/platform-integration-tile.tsx` (new)
+- `apps/web/src/components/admin/integrations/intelligence-source-tile.tsx` (new)
+- `apps/web/src/app/user/admin/integrations/page.tsx` (rewired)
+
+The previous large cards (`IntegrationCard`, `PlatformIntegrationCard`) remain in place — `IntegrationCard` is still used inside the Executive Control Room's "Intelligence Sources" section on `/user/admin`. They are no longer imported on `/user/admin/integrations`.
+
+---
+
 ## 2026-05-13 — Integrations hero · density pass · compact executive control room
 
 The first hero pass landed as a marketing-scale showcase. This pass reduces vertical footprint by ~25% so the hero behaves like an institutional control panel, not a SaaS pricing page.

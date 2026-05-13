@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Radio, Server, Send, UsersRound, BadgeDollarSign, Lock, BrainCircuit, LineChart, GitBranch } from "lucide-react";
 import { getIntegrationsLive } from "@/lib/admin/integrations/live";
-import { IntegrationCard } from "@/components/admin/integrations/integration-card";
+import { IntelligenceSourceTile } from "@/components/admin/integrations/intelligence-source-tile";
 import {
   platformIntegrationsByLayer,
   PLATFORM_LAYER_META,
   PLATFORM_INTEGRATIONS,
 } from "@/lib/admin/integrations/platform-registry";
-import { PlatformIntegrationCard } from "@/components/admin/integrations/platform-integration-card";
+import { PlatformIntegrationTile } from "@/components/admin/integrations/platform-integration-tile";
 import { LayerSection } from "@/components/admin/integrations/layer-section";
 import { computeUnifiedCounts } from "@/lib/admin/integrations/unified-status";
 import { HeroKPIs } from "@/components/admin/integrations/hero-kpis";
@@ -25,10 +25,12 @@ export const dynamic = "force-dynamic";
  * /user/admin/integrations — full operational map of HotelVALORA's
  * connected ecosystem (Phase 2.D.8 architecture).
  *
- * Five operational layers rendered in order. Layer 1 (Intelligence
- * Sources) uses the existing rich IntegrationCard with credentials +
- * session telemetry. Layers 2-5 use the simpler PlatformIntegrationCard
- * driven by lib/admin/integrations/platform-registry.ts.
+ * Nine operational layers rendered in operational order. Every
+ * integration is now a compact tile (`IntegrationTile`) matching the
+ * canonical infra-indicator visual contract from /user/admin Section 05
+ * (Infrastructure Monitoring). Clicking a tile opens the full technical
+ * dossier in a responsive sheet — bottom sheet on mobile, right-side
+ * drawer on desktop.
  *
  * Bloomberg-terminal aesthetic: dark forest-900 / slate-950 cards on
  * the lighter page canvas, lime-300 numerals, tracked-out micro-labels.
@@ -131,9 +133,9 @@ export default async function IntegrationsPage() {
                 <p className="mb-2 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
                   {g.label} · {String(g.rows.length).padStart(2, "0")}
                 </p>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                   {g.rows.map((i) => (
-                    <IntegrationCard key={i.id} integration={i} />
+                    <IntelligenceSourceTile key={i.id} integration={i} />
                   ))}
                 </div>
               </div>
@@ -169,9 +171,9 @@ function PlatformLayer({
           No integrations registered in this layer yet.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {layer.rows.map((i) => (
-            <PlatformIntegrationCard key={i.id} integration={i} />
+            <PlatformIntegrationTile key={i.id} integration={i} />
           ))}
         </div>
       )}

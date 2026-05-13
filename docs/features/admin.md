@@ -23,7 +23,9 @@ The integrations surface reconciled against the operator account inventory. Nine
 | 8 | **Commercial / Monetization** | `platform-registry.ts` § COMMERCIAL (Subscription Engine · Campaign Attribution · Stripe) |
 | 9 | **Developer Infrastructure** | `platform-registry.ts` § DEVELOPER_INFRASTRUCTURE (GitHub · Google Developer Program · Apple Developer) |
 
-Layer 6 keeps the rich `IntegrationCard` with T1/T2 credential + session telemetry. Other layers use the simpler `PlatformIntegrationCard`.
+Every layer renders the same compact `IntegrationTile` (canonical visual contract = the `InfraIndicator` row in `/user/admin` Section 05 Infrastructure Monitoring). The tile is wrapped in `IntegrationDetailSheet` so a click opens the full technical dossier in a responsive Radix Dialog: bottom-sheet on mobile, right-side drawer on desktop. Two adapter components feed the tile + sheet pair: `PlatformIntegrationTile` for platform integrations (8 of 9 layers), `IntelligenceSourceTile` for the intelligence layer (T1 + T2 credential + session telemetry preserved inside the sheet, with an "Open full dossier" link to `/user/admin/integrations/[id]` for deeper drill-down).
+
+The previous large card components (`IntegrationCard`, `PlatformIntegrationCard`) are no longer imported on this surface, but `IntegrationCard` still renders inside the Executive Control Room's Intelligence Sources section on `/user/admin`.
 
 ### Hero KPI buckets (executive control room · codified 2026-05-13)
 
@@ -60,6 +62,24 @@ Full classifier pseudocode + worked examples in `docs/integrations/account-inven
 - **Intelligence source** → extend `INTEGRATIONS_REGISTRY` in `registry.ts` (gets full session/credentials lifecycle for free).
 - **Platform integration** (any other layer) → add a descriptor to the layer array in `platform-registry.ts`. The page auto-renders.
 - **New operator account** → also update `memory/project_operator_accounts.md` and the reconciliation matrix in `docs/integrations/account-inventory.md`.
+
+### Compact-tile + click-to-expand contract (codified 2026-05-13)
+
+The integrations registry visually mirrors `/user/admin` Section 05 (Infrastructure Monitoring). The canonical sizing reference for **any new integration card** on this page is `components/admin/dashboard/infra-indicator.tsx`. Don't introduce a heavier card here; if a new piece of information doesn't fit one mono metadata line, put it inside the expanded detail sheet.
+
+**Tile (default state) shows only:**
+- provider/name (`text-[13px]` extrabold)
+- status badge (Live · Partial · Not wired · Fail · Planned)
+- region or provider chip (`text-[9.5px]` mono)
+- 1-line truncated description
+- one mono metadata line
+
+**Sheet (click-to-expand) shows full dossier:** purpose paragraph, auth method, env vars, schema tables, cron jobs, consumed-by surfaces, operational notes, external links, next milestone, operator-managed flag. For intelligence sources also: Articles Today/7d/30d, reliability, last sync, connection + auth badges, "Open full dossier" link to `/user/admin/integrations/[id]`.
+
+**Interaction:**
+- Tile is a `<button>` (whole tile is the click target · keyboard-accessible · focus ring on lime-300)
+- Radix Dialog with responsive positioning: mobile → bottom sheet (`inset-x-0 bottom-0 max-h-[92vh] rounded-t-2xl`) · desktop → right-side drawer (`sm:right-0 sm:top-0 sm:h-full sm:w-[30rem] sm:rounded-l-2xl`)
+- ESC / overlay-click / close button dismiss
 
 ## 0. Status semantics — sidebar vs page header (codified 2026-05-13)
 
