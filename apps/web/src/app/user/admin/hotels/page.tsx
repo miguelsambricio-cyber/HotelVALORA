@@ -35,11 +35,15 @@ interface PageProps {
     affiliation?: string;
     needs_review?: string;
     sort?: string;
-    page?: string;
   };
 }
 
-const PAGE_SIZE = 50;
+// Density model · "top-N above the fold + scrollable rest" matches the
+// pattern used by the Priority Intelligence Feed on /user/admin/agents.
+// Operator gets a tight summary; expand by scrolling within the panel
+// without losing access to the sections below (reconciliation queue, etc.)
+const HOTELS_VISIBLE_ABOVE_FOLD = 6;
+const RECON_VISIBLE_ABOVE_FOLD = 3;
 
 type SortKey =
   | "name_asc"
@@ -115,7 +119,6 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const sortKey: SortKey =
     (SORT_OPTIONS.find((o) => o.value === searchParams.sort)?.value as SortKey | undefined) ??
     "name_asc";
-  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
   const filteredAll = snap
     ? snap.hotels.filter((h) =>
@@ -123,29 +126,8 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
       )
     : [];
   const sorted = sortHotels(filteredAll, sortKey);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const sliceStart = (safePage - 1) * PAGE_SIZE;
-  const filtered = sorted.slice(sliceStart, sliceStart + PAGE_SIZE);
-
-  // Helper to build URLs preserving current filters
-  const buildHref = (overrides: Record<string, string | undefined>) => {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (marketFilter) params.set("market", marketFilter);
-    if (countryFilter) params.set("country", countryFilter);
-    if (chainFilter) params.set("chain", chainFilter);
-    if (affiliationFilter) params.set("affiliation", affiliationFilter);
-    if (needsReviewOnly) params.set("needs_review", "1");
-    if (sortKey && sortKey !== "name_asc") params.set("sort", sortKey);
-    if (safePage > 1) params.set("page", String(safePage));
-    for (const [k, v] of Object.entries(overrides)) {
-      if (v === undefined || v === "" || v === "1" && k === "page") params.delete(k);
-      else params.set(k, v);
-    }
-    const qs = params.toString();
-    return qs ? `/user/admin/hotels?${qs}` : "/user/admin/hotels";
-  };
+  const hotelsAbove = sorted.slice(0, HOTELS_VISIBLE_ABOVE_FOLD);
+  const hotelsBelow = sorted.slice(HOTELS_VISIBLE_ABOVE_FOLD);
 
   return (
     <div className="space-y-6">
@@ -490,21 +472,13 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </form>
 
         <div className="mt-4">
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <p className="font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
-              {sorted.length} result{sorted.length === 1 ? "" : "s"}
-              {sorted.length > PAGE_SIZE && (
-                <span className="ml-1 text-slate-400">
-                  · showing {sliceStart + 1}–{Math.min(sliceStart + PAGE_SIZE, sorted.length)}
-                </span>
-              )}
-            </p>
-            {totalPages > 1 && (
-              <p className="font-mono text-[10.5px] text-slate-500">
-                page {safePage} of {totalPages}
-              </p>
-            )}
-          </div>
+          <p className="mb-2 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+            {sorted.length === 0
+              ? "0 results"
+              : sorted.length <= HOTELS_VISIBLE_ABOVE_FOLD
+                ? `${sorted.length} result${sorted.length === 1 ? "" : "s"}`
+                : `showing ${HOTELS_VISIBLE_ABOVE_FOLD} of ${sorted.length} · scroll for the rest`}
+          </p>
           {sorted.length === 0 ? (
             <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[12px] text-slate-500">
               {snap
@@ -512,50 +486,31 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 : "Snapshot is empty — see the data-plane card above."}
             </p>
           ) : (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {filtered.map((h) => (
-                <li key={h.hotel_id}>
-                  <HotelRow hotel={h} />
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {totalPages > 1 && (
-            <nav
-              aria-label="Pagination"
-              className="mt-3 flex items-center justify-between gap-2 border-t border-slate-200 pt-3"
-            >
-              {safePage > 1 ? (
-                <Link
-                  href={buildHref({ page: String(safePage - 1) })}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
-                >
-                  ← Prev
-                </Link>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-100 px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300">
-                  ← Prev
-                </span>
+            <>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {hotelsAbove.map((h) => (
+                  <li key={h.hotel_id}>
+                    <HotelRow hotel={h} />
+                  </li>
+                ))}
+              </ul>
+              {hotelsBelow.length > 0 && (
+                <div className="mt-3 border-t border-slate-200 pt-3">
+                  <p className="mb-2 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                    Backlog · {hotelsBelow.length} more · scroll
+                  </p>
+                  <div className="max-h-[42rem] overflow-y-auto rounded-md bg-slate-50/40 p-2 ring-1 ring-inset ring-slate-200">
+                    <ul className="grid gap-2 sm:grid-cols-2">
+                      {hotelsBelow.map((h) => (
+                        <li key={h.hotel_id}>
+                          <HotelRow hotel={h} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               )}
-
-              <span className="font-mono text-[10.5px] text-slate-500">
-                {sliceStart + 1}–{Math.min(sliceStart + PAGE_SIZE, sorted.length)} of {sorted.length}
-              </span>
-
-              {safePage < totalPages ? (
-                <Link
-                  href={buildHref({ page: String(safePage + 1) })}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
-                >
-                  Next →
-                </Link>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-100 px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300">
-                  Next →
-                </span>
-              )}
-            </nav>
+            </>
           )}
         </div>
       </section>
@@ -573,18 +528,38 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             No entries — clean queue.
           </p>
         ) : (
-          <ul className="space-y-2">
-            {snap.reconciliation_queue.slice(0, 20).map((e) => (
-              <li key={e.id}>
-                <ReconRow entry={e} />
-              </li>
-            ))}
-            {snap.reconciliation_queue.length > 20 && (
-              <li className="font-mono text-[10.5px] text-slate-500">
-                showing 20 of {snap.reconciliation_queue.length} entries
-              </li>
+          <>
+            <p className="mb-2 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+              {snap.reconciliation_queue.length <= RECON_VISIBLE_ABOVE_FOLD
+                ? `${snap.reconciliation_queue.length} entr${
+                    snap.reconciliation_queue.length === 1 ? "y" : "ies"
+                  }`
+                : `showing ${RECON_VISIBLE_ABOVE_FOLD} of ${snap.reconciliation_queue.length} entries · scroll for the rest`}
+            </p>
+            <ul className="space-y-2">
+              {snap.reconciliation_queue.slice(0, RECON_VISIBLE_ABOVE_FOLD).map((e) => (
+                <li key={e.id}>
+                  <ReconRow entry={e} />
+                </li>
+              ))}
+            </ul>
+            {snap.reconciliation_queue.length > RECON_VISIBLE_ABOVE_FOLD && (
+              <div className="mt-3 border-t border-slate-200 pt-3">
+                <p className="mb-2 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                  Backlog · {snap.reconciliation_queue.length - RECON_VISIBLE_ABOVE_FOLD} more · scroll
+                </p>
+                <div className="max-h-[36rem] overflow-y-auto rounded-md bg-slate-50/40 p-2 ring-1 ring-inset ring-slate-200">
+                  <ul className="space-y-2">
+                    {snap.reconciliation_queue.slice(RECON_VISIBLE_ABOVE_FOLD).map((e) => (
+                      <li key={e.id}>
+                        <ReconRow entry={e} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             )}
-          </ul>
+          </>
         )}
       </section>
 
