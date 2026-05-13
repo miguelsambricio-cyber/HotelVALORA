@@ -2,9 +2,16 @@ import type { Metadata } from "next";
 import { Radio, Server, Send, UsersRound, BadgeDollarSign, Lock, BrainCircuit, LineChart, GitBranch } from "lucide-react";
 import { getIntegrationsLive } from "@/lib/admin/integrations/live";
 import { IntegrationCard } from "@/components/admin/integrations/integration-card";
-import { platformIntegrationsByLayer, PLATFORM_LAYER_META } from "@/lib/admin/integrations/platform-registry";
+import {
+  platformIntegrationsByLayer,
+  PLATFORM_LAYER_META,
+  PLATFORM_INTEGRATIONS,
+} from "@/lib/admin/integrations/platform-registry";
 import { PlatformIntegrationCard } from "@/components/admin/integrations/platform-integration-card";
 import { LayerSection } from "@/components/admin/integrations/layer-section";
+import { computeUnifiedCounts } from "@/lib/admin/integrations/unified-status";
+import { HeroKPIs } from "@/components/admin/integrations/hero-kpis";
+import { OperationalStrip } from "@/components/admin/integrations/operational-strip";
 
 export const metadata: Metadata = {
   title: "Administrator · Integrations · HotelVALORA",
@@ -63,12 +70,13 @@ export default async function IntegrationsPage() {
 
   const totalPlatformRows = platformLayers.reduce((n, l) => n + l.rows.length, 0);
   const totalRows = live.length + totalPlatformRows;
+  const counts = computeUnifiedCounts(live, PLATFORM_INTEGRATIONS);
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-7 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Hero — institutional infrastructure observability dashboard */}
+      <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm sm:p-7">
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="font-headline text-[9px] font-bold uppercase tracking-[0.24em] text-lime-300/80">
               Administrator · Integrations
@@ -77,11 +85,8 @@ export default async function IntegrationsPage() {
               Connected Platform Ecosystem
             </h1>
             <p className="mt-2 max-w-3xl text-[13.5px] leading-relaxed text-slate-300/90">
-              The full operational map — intelligence feeds, infrastructure dependencies,
-              communications wiring, relationship-intelligence upstream sources, and the
-              commercial / monetization stack.{" "}
-              <span className="font-mono text-lime-300/80">{totalRows}</span> integrations across
-              five layers.
+              Institutional infrastructure observability — every vendor, every layer, real-time
+              health across the nine operational tiers of HotelVALORA.
             </p>
             <span
               title="Operator-only · internal infrastructure with no customer-facing counterpart by design"
@@ -90,7 +95,12 @@ export default async function IntegrationsPage() {
               Operator only · internal infrastructure
             </span>
           </div>
-          <SummaryStrip live={live} platformCount={totalPlatformRows} />
+        </div>
+
+        <HeroKPIs counts={counts} />
+
+        <div className="mt-4">
+          <OperationalStrip totalIntegrations={counts.total} totalLayers={9} />
         </div>
       </section>
 
@@ -195,50 +205,3 @@ function layerIcon(layer: string): React.ReactNode {
   }
 }
 
-function SummaryStrip({
-  live,
-  platformCount,
-}: {
-  live: Awaited<ReturnType<typeof getIntegrationsLive>>;
-  platformCount: number;
-}) {
-  const ok = live.filter((i) => i.signal === "ok").length;
-  const warn = live.filter((i) => i.signal === "warn").length;
-  const error = live.filter((i) => i.signal === "error").length;
-  const totalInt = live.length;
-  return (
-    <dl className="grid grid-cols-2 gap-3 text-right md:grid-cols-4">
-      <Cell label="Intel · OK" value={ok} dot="emerald" />
-      <Cell label="Intel · Warn" value={warn} dot="amber" />
-      <Cell label="Intel · Fail" value={error} dot="rose" />
-      <Cell label="Platform Layers 2-5" value={platformCount} dot="slate" />
-      <Cell label="Intelligence sources" value={totalInt} dot="slate" />
-    </dl>
-  );
-}
-
-function Cell({
-  label,
-  value,
-  dot,
-}: {
-  label: string;
-  value: number;
-  dot: "emerald" | "amber" | "rose" | "slate";
-}) {
-  const dotClass = {
-    emerald: "bg-emerald-400",
-    amber: "bg-amber-400",
-    rose: "bg-rose-500",
-    slate: "bg-slate-500",
-  }[dot];
-  return (
-    <div className="rounded-lg border border-slate-800/60 bg-slate-900/40 px-3 py-2">
-      <dt className="flex items-center justify-end gap-1.5 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-400">
-        <span aria-hidden className={`inline-block h-1.5 w-1.5 rounded-full ${dotClass}`} />
-        {label}
-      </dt>
-      <dd className="mt-1 font-headline text-2xl font-extrabold text-lime-300">{value}</dd>
-    </div>
-  );
-}

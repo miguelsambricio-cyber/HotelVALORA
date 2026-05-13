@@ -18,6 +18,61 @@ Canonical reconciliation between the **operator-provisioned accounts** and the *
 
 ---
 
+## Hero KPI counting logic (2026-05-13 PM)
+
+The hero strip on `/user/admin/integrations` shows six executive-control-room counters derived from both the intelligence registry (`lib/admin/integrations/registry.ts`) and the platform registry (`lib/admin/integrations/platform-registry.ts`). The counting helper lives in `lib/admin/integrations/unified-status.ts`.
+
+### Bucket definitions
+
+| Bucket | Counted when |
+|---|---|
+| **TOTAL** | Every integration in either registry — the denominator |
+| **LIVE** | Fully operational + autonomous · code path active · no manual workflow |
+| **PARTIAL** | Works end-to-end but depends on manual workflows, exports, placeholders, BETA paths, or incomplete automation. Includes operator-managed integrations that have no cron / scheduled refresh |
+| **NOT WIRED** | Operator account exists or env scaffolded · no active code path |
+| **FAIL** | Currently failing health checks (`signal === "error"` or `connection === "failing"`) |
+| **PLANNED** | Roadmap only · no account or no env |
+
+### Intelligence-source classifier (`classifyIntelligenceSource`)
+
+```
+if (signal === "error" OR connection === "failing")  → FAIL
+if (!enabled)                                        → PLANNED
+if (signal === "warn")                               → PARTIAL
+if (connection ∈ {awaiting_credentials, session_expired, degraded}) → PARTIAL
+if (connection === "not_configured")                 → NOT WIRED
+if (connection === "operational" AND has_runs)       → LIVE
+otherwise                                            → PARTIAL
+```
+
+Where `has_runs = lastRunStatus === "success" OR runsSuccess7d > 0`.
+
+### Platform-integration classifier (`classifyPlatformIntegration`)
+
+```
+if (signal === "error")                              → FAIL
+if (status === "planned")                            → PLANNED
+if (status === "configured_not_wired")               → NOT WIRED
+if (status === "partial")                            → PARTIAL
+if (status === "live" AND operatorManaged AND no cron) → PARTIAL  (manual-workflow override)
+otherwise                                            → LIVE
+```
+
+The `operator-managed + no cron → PARTIAL` rule is the load-bearing edge: it picks up Datasite, Google Contacts, Gmail Signals, Gmail Relationship Intelligence, Google Cloud OAuth, Namecheap, and Google Developer Program — integrations where the per-card status is `live` but the operator still has to do something for them to keep working. The executive hero classifies them as PARTIAL; the per-card detail in the layer sections still says LIVE (the right granularity for each surface).
+
+### Operational strip (under the hero)
+
+Five static cells reinforce governance posture:
+- **Platform layers** · 9
+- **Total integrations** · same as hero TOTAL
+- **Operator controlled** · 100%
+- **Access** · Internal · restricted
+- **Monitoring** · 24 / 7
+
+These never animate — they're institutional context, not a changing dashboard.
+
+---
+
 ## A · Full reconciliation matrix
 
 | # | Integration | Layer | Account exists | Env configured | SDK installed | DB schema ready | Backend wired | Frontend surface | Cron usage | Production active | Visible on /admin/integrations | **Status** |
