@@ -4,6 +4,51 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Block A · Snapshot path resolver hardened · UI hydration unblocked
+
+`/user/admin/hotels` rendered "No snapshot found" with all KPIs at 0 despite a healthy 1.75 MB snapshot on disk with 364 hotels. The Node-side resolver was `path.resolve(process.cwd(), "..", "..")` — works only when cwd is `apps/web/`. From repo root (e.g. `pnpm --filter web dev` spawned from there) the path went two levels ABOVE the repo and missed every snapshot.
+
+### Robust resolver
+
+`resolveSnapshotPath()` walks up from `process.cwd()` (up to 8 levels) looking for `services/costar/MASTER/snapshot.json`. Falls back to the legacy two-up if nothing matches. Resilient against any reasonable cwd a dev server might be launched from.
+
+### First-load diagnostic
+
+```
+[hotels.snapshot] loaded path=<abs> resolved_from=walkup_depth_2 size=1755763B
+                  hotels=364 transactions=661 synthetic_compsets=364 batch=batch_...
+```
+
+On failure, a clear console warning identifies the path attempted and the failure reason — no more silent empty-state.
+
+### `getSnapshotDiagnostics()` for the UI
+
+The empty-state banner now surfaces the exact resolved path + whether it exists + size + an explicit hint:
+
+> ⚠ If the file does exist on disk but `exists=false` here, the Node dev server cwd is wrong. Start with `cd apps/web && npm run dev` (NOT from repo root).
+
+This turns the previous mystery state into self-diagnosing UI.
+
+### Validation
+
+| cwd | Before | After |
+|---|---|---|
+| `apps/web/` (canonical) | ✓ worked | ✓ works |
+| Repo root (`pnpm --filter web dev`) | ✗ "No snapshot found" | ✓ HTTP 200 · 270 KB · 364 hotels |
+
+### Files
+
+- `apps/web/src/lib/admin/hotels/snapshot-reader.ts` · robust `resolveSnapshotPath()` · first-load `console.info`/`console.warn` · new `getSnapshotDiagnostics()` export
+- `apps/web/src/app/user/admin/hotels/page.tsx` · empty-state banner now shows resolved path · `exists` · `sizeBytes` · cwd-hint
+
+### Honest follow-ups (Block B/C/D still pending)
+
+- **Block B**: Add `ingest_pais()`, `ingest_mercado()`, `ingest_submercado()`, `ingest_proyectos()` so the other INPUT folders actually drain to OLD on each run. Today they correctly sit in INPUT because the pipeline never reads them.
+- **Block C**: Implement copy+fsync+verify+delete fallback in `_move_to_archive()` so locked files (Excel, scanners, sync agents) still end up archived rather than blocking forever.
+- **Block D**: End-to-end smoke `validate_e2e.py` that asserts the round trip INPUT → snapshot → UI HTTP count.
+
+---
+
 ## 2026-05-14 — Phase 2.3.d.6d · Stateful snapshot merge (load + merge + write) · fixes wholesale-overwrite bug
 
 Critical bug discovered during a re-run of `ingest.py`: a run with an empty INPUT folder **wiped the snapshot wholesale** (364 hotels → 0 hotels). The pipeline was stateless — each run reconstructed the snapshot from whatever happened to be in INPUT that moment. This breaks the institutional governance model where INPUT is the "pending queue" (transient) and the snapshot is the persistent read path.

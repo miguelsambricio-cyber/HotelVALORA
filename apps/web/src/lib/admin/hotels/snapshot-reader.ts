@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import type {
   HotelReferenceRecord,
@@ -164,6 +165,37 @@ export interface BatchSummary {
   };
 }
 
+/** Diagnostics surfaced on the admin page so the operator can verify
+ *  the exact path the Node side just tried to read. Critical when the
+ *  page says "No snapshot found" — tells you whether the dev server's
+ *  cwd is sending the resolver outside the repo. */
+export function getSnapshotDiagnostics(): {
+  resolvedPath: string;
+  resolvedFrom: string;
+  exists: boolean;
+  sizeBytes: number | null;
+} {
+  let sizeBytes: number | null = null;
+  let exists = false;
+  try {
+    if (existsSync(SNAPSHOT_PATH)) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { statSync } = require("node:fs") as typeof import("node:fs");
+      const st = statSync(SNAPSHOT_PATH);
+      exists = true;
+      sizeBytes = st.size;
+    }
+  } catch {
+    // ignore — diagnostics never throw
+  }
+  return {
+    resolvedPath: SNAPSHOT_PATH,
+    resolvedFrom: SNAPSHOT_RESOLVED_FROM,
+    exists,
+    sizeBytes,
+  };
+}
+
 export interface HotelsSnapshot {
   schema_version: string;
   generated_at: string;
@@ -190,14 +222,39 @@ export interface HotelsSnapshot {
   reconciliation_queue: ReconciliationEntry[];
 }
 
-const REPO_ROOT_FROM_WEB = path.resolve(process.cwd(), "..", "..");
-const SNAPSHOT_PATH = path.join(
-  REPO_ROOT_FROM_WEB,
-  "services",
-  "costar",
-  "MASTER",
-  "snapshot.json",
-);
+/**
+ * Resolve the canonical snapshot path regardless of `process.cwd()`.
+ *
+ * `path.resolve(process.cwd(), "..", "..")` only works when the dev
+ * server is started from `apps/web/`. If the operator starts it from
+ * the repo root or via `pnpm --filter web dev` from somewhere else,
+ * the legacy resolver lands outside the repo and the page renders
+ * "No snapshot found" despite a healthy snapshot on disk.
+ *
+ * The robust resolver walks up from `process.cwd()` until it finds a
+ * directory containing `services/costar/MASTER/` — the canonical
+ * anchor. Falls back to the legacy two-up if nothing matches.
+ */
+function resolveSnapshotPath(): { path: string; resolvedFrom: string } {
+  const target = path.join("services", "costar", "MASTER", "snapshot.json");
+  // Prefer walking up from cwd
+  let cur = process.cwd();
+  for (let depth = 0; depth < 8; depth++) {
+    const candidate = path.join(cur, target);
+    if (existsSync(candidate)) {
+      return { path: candidate, resolvedFrom: `walkup_depth_${depth}` };
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) break;
+    cur = parent;
+  }
+  // Legacy two-up fallback (cwd === apps/web)
+  const legacy = path.join(process.cwd(), "..", "..", target);
+  return { path: path.resolve(legacy), resolvedFrom: "legacy_two_up" };
+}
+
+const { path: SNAPSHOT_PATH, resolvedFrom: SNAPSHOT_RESOLVED_FROM } = resolveSnapshotPath();
+let resolvedPathLogged = false;
 
 let cache: { mtime: number; snapshot: HotelsSnapshot | null } | null = null;
 
@@ -219,9 +276,28 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
     const raw = await readFile(SNAPSHOT_PATH, "utf-8");
     const parsed = JSON.parse(raw) as HotelsSnapshot;
     cache = { mtime: stat.mtimeMs, snapshot: parsed };
+    if (!resolvedPathLogged) {
+      // Single-line diagnostic on first successful load. Surfaces the
+      // exact path + how it was resolved + parsed counts so the operator
+      // can confirm UI is reading what `ingest.py` just wrote.
+      console.info(
+        `[hotels.snapshot] loaded path=${SNAPSHOT_PATH} resolved_from=${SNAPSHOT_RESOLVED_FROM} ` +
+          `size=${stat.size}B hotels=${parsed.hotels?.length ?? 0} ` +
+          `transactions=${parsed.transactions?.length ?? 0} ` +
+          `synthetic_compsets=${parsed.synthetic_compsets?.length ?? 0} ` +
+          `batch=${parsed.ingestion_batch_id}`,
+      );
+      resolvedPathLogged = true;
+    }
     return parsed;
   } catch (err: unknown) {
-    // ENOENT or parse error — both render the same empty state
+    if (!resolvedPathLogged) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[hotels.snapshot] EMPTY · path=${SNAPSHOT_PATH} resolved_from=${SNAPSHOT_RESOLVED_FROM} cwd=${process.cwd()} reason=${msg}`,
+      );
+      resolvedPathLogged = true;
+    }
     cache = { mtime: 0, snapshot: null };
     return null;
   }
