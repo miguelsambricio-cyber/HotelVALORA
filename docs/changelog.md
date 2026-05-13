@@ -4,6 +4,83 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 2.3.d.2 · COSTAR v1.2 Master Inventory Engine + operational `/user/admin/hotels`
+
+Implements the multi-stream ingestion pipeline that turns the conceptual two-dataset architecture (committed earlier today as `a7859e1`) into a working data plane. The hotel-reference backbone now has stable IDs, fuzzy dedup, a reconciliation queue, compset cross-validation, transaction linkage with provenance, and a real Node admin UI fed by a JSON snapshot.
+
+### Python pipeline · `services/costar/scripts/` (v1.2)
+
+| Module | Role |
+|---|---|
+| `dedup.py` (new) | Stable IDs (`hotel_id`, `compset_id`, `transaction_id`, `ingestion_batch_id`) · name + address normalisation · rapidfuzz composite scoring · confidence + needs-review classifier |
+| `normalization.py` (new) | Header alias maps (HOTEL · MARKET) · enum normalisers (chain_scale · segment_type · facilities · country) · numeric / year parsers · per-row `normalise_hotel_row()` |
+| `source_readers.py` (new) | `iter_input_files()` (recursive, excludes `old.*` archives) · xlsx + csv readers · `read_rows_with_aliases()` |
+| `snapshot.py` (new) | Assembles + writes `MASTER/snapshot.json` (the Node-side bridge) |
+| `ingest.py` (new) | CLI orchestrator — sweeps 6 INPUT folders (PAIS · MERCADO · SUBMERCADO · HOTELES POR MERCADO · compset · transactions), builds hotel inventory + compset graph + transaction layer, archives `INPUT → OLD`, writes audit log + snapshot |
+| `build_masters.py` (updated) | v1.2: retires `COSTAR_MASTER_CLASS.xlsx` regeneration · adds `COSTAR_MASTER_HOTELES_POR_MERCADO` schema |
+| `requirements.txt` (new) | `openpyxl>=3.1,<4`, `rapidfuzz>=3.5,<4` |
+| `README.md` (new) | Pipeline reference · identity model · reconciliation queue kinds · extension guide |
+
+### Identity model
+
+| Family | Format | Stability |
+|---|---|---|
+| `hotel_id` | `costar_<PROPERTY_ID>` when source has it, else `h_<sha256[:16]>(country|market|name)` | Stable across re-ingests · `hotel_id_synthetic` flag when computed |
+| `compset_id` | `cs_<sha256[:16]>(target|sorted_members)` | Order-insensitive over members |
+| `transaction_id` | `tx_<sha256[:16]>(source|asset|closed_at|price)` | Stable across re-runs |
+| `ingestion_batch_id` | `batch_<uuid[:16]>` | Fresh per pipeline run · written into every row's `_meta` |
+
+### Reconciliation queue kinds (surfaced in `/user/admin/hotels`)
+
+- `unrecoverable_row` — missing PK inputs (country / market / name)
+- `suspected_duplicate` — fuzzy match against another hotel in the same batch ≥ 88 (rapidfuzz composite)
+- `low_confidence` — confidence < 0.7 after missing-field + range checks
+- `compset_orphan_target` / `compset_orphan_member` — compset rows referencing hotels not in inventory
+- `transaction_orphan` — transaction asset not resolved to any hotel
+
+### Node admin UI · `/user/admin/hotels`
+
+| File | Role |
+|---|---|
+| `lib/admin/hotels/snapshot-reader.ts` (new) | Server-only reader for `services/costar/MASTER/snapshot.json` · in-memory cache keyed on mtime · `loadHotelsSnapshot()` · `searchHotelsFromSnapshot()` · `findHotelById()` · `findCompsetsForHotel()` · `findTransactionsForHotel()` |
+| `lib/admin/hotels/registry.ts` (updated) | Stable contract surface — switches implementation from stub to snapshot reader |
+| `lib/admin/hotels/corrections.ts` (new) | Server action `submitHotelCorrection()` appends to `services/costar/corrections/<YYYY-MM>.jsonl` after operator-guard check |
+| `app/user/admin/hotels/page.tsx` (rewritten) | KPI strip (5) · data-plane status with snapshot age · search form with filters (q · market · country · chain_scale · needs_review) · result grid (capped at 50) · reconciliation queue (top 20) · reference links |
+| `app/user/admin/hotels/[hotelId]/page.tsx` (new) | Detail view — identification · property · location · facilities · compset memberships (as target + as member) · transaction history · provenance sidebar · correction form |
+| `components/admin/hotels/correction-form.tsx` (new) | Client form: field picker · proposed value · required reason (min 8 chars) · queues to corrections.jsonl |
+
+The snapshot reader degrades gracefully — when no `snapshot.json` exists yet, the page renders an empty state with a clear "run `python services/costar/scripts/ingest.py`" affordance.
+
+### Operator workflow (end-to-end)
+
+1. Drop files into the appropriate INPUT folder (hotel inventory · market data · compset · transactions)
+2. `pip install -r services/costar/scripts/requirements.txt` (one-time)
+3. `python services/costar/scripts/ingest.py` — sweeps INPUTs, emits `snapshot.json`, archives sources to `OLD/`
+4. Open `/user/admin/hotels` — KPIs, search, reconciliation queue all reflect the new data
+5. For any wrong attribute, open the hotel detail and queue a correction
+6. On the next ingest run, corrections will apply (Python consumer is the only remaining piece)
+
+### Gitignore updates
+
+`services/costar/MASTER/snapshot.json` and `services/costar/corrections/*.jsonl` are local-only — same posture as INPUT files.
+
+### Smoke
+
+- `/user/admin/hotels` → 200 · 55 KB (empty-state path · no snapshot yet)
+- All KPI labels render · search form posts via GET · reconciliation-queue anchor present
+- Empty-state banner correctly displays `python services/costar/scripts/ingest.py` command
+- Typecheck clean
+- All 6 Python modules pass `py_compile` syntax check
+
+### Honest gaps
+
+- **`ingest.py` has not been run against the Madrid drop yet** — that's the operator step. When you run it the snapshot will materialise and the page will start showing real data.
+- **Correction queue Python consumer is a stub.** Today corrections accumulate in `services/costar/corrections/<YYYY-MM>.jsonl` but the next `ingest.py` does not apply them as supersedes — that's Phase 2.3.d.6 work.
+- **Compset / transaction column aliases are minimal** in `ingest.py` — when the operator drops files with unfamiliar header names the row may be dropped silently. Extend the alias maps in `normalization.py` as new column names appear.
+- **No "trigger rebuild from the UI" button yet.** Rebuilds are CLI-only. Adding a server action that spawns `python ingest.py` is straightforward but deferred.
+
+---
+
 ## 2026-05-14 — COSTAR architecture · two-dataset split · `/user/admin/hotels` scaffold · agent expanded scope
 
 Operator dropped Madrid + Madrid Centro CoStar files into `services/costar/`, renamed the `CLASS/` folder to `HOTELES POR MERCADO/`, uploaded private transactions alongside the COSTAR transactions export into `services/transactions/`, and uploaded the COMPSET file into `services/compset/`. This commit persists the architectural shift these uploads imply.

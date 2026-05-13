@@ -1,0 +1,10 @@
+# COSTAR v1.2 ingestion engine dependencies
+#
+# Install:
+#   python -m pip install -r services/costar/scripts/requirements.txt
+#
+# openpyxl   — read/write XLSX (no Excel needed)
+# rapidfuzz  — pure-Python (C-extension) fuzzy string matching for dedup
+#
+openpyxl>=3.1,<4
+rapidfuzz>=3.5,<4

@@ -1,17 +1,27 @@
-"""Reproducible builder for the four canonical HOTELVALORA CoStar masters.
+"""Reproducible builder for the canonical HOTELVALORA CoStar masters.
 
 Run from repo root:
     python services/costar/scripts/build_masters.py
 
-Produces:
+Produces (v1.2 · 2026-05-14):
     services/costar/MASTER/COSTAR_MASTER_PAIS.xlsx
     services/costar/MASTER/COSTAR_MASTER_MERCADOS.xlsx
     services/costar/MASTER/COSTAR_MASTER_SUBMERCADOS.xlsx
-    services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx
+    services/costar/MASTER/COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx
 
-CompSet datasets moved to services/compset/ in v1.1 — that workspace is
-operationally distinct (hotel-specific underwriting workflows, not warehouse
-ingestion). See docs/architecture/market-vs-underwriting-separation.md.
+Retired in v1.2:
+    services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx — chain-scale aggregates
+    are no longer a separate granularity. chain_scale becomes an attribute
+    on each hotel record in HOTELES POR MERCADO. The legacy file stays in
+    MASTER/ for archival but is no longer regenerated.
+
+CompSet datasets live in services/compset/ — operationally distinct
+(hotel-specific underwriting workflows, not warehouse ingestion). See
+docs/architecture/market-vs-underwriting-separation.md.
+
+For per-file ingestion (sweep INPUT/, normalise, dedup, emit snapshot.json),
+use `ingest.py` not this script. `build_masters.py` regenerates the empty
+template workbooks with the canonical schema in DICTIONARY sheets.
 
 Each workbook contains five sheets:
     1. DATA              — the canonical row table (one per granularity)
@@ -44,7 +54,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-NORMALIZATION_VERSION = "v1.1"
+NORMALIZATION_VERSION = "v1.2"
 BUILT_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 HERE = Path(__file__).resolve().parent
@@ -213,6 +223,51 @@ CLASS_COLUMNS: list[tuple[str, str, bool, str]] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Hotel-by-market inventory schema (COSTAR_MASTER_HOTELES_POR_MERCADO · v1.2)
+# ---------------------------------------------------------------------------
+# Mirrors the schema doc at docs/intelligence/costar-hotels-by-market-schema.md.
+# This is Dataset B (slowly-changing hotel inventory) — NOT a time series.
+# Primary key: (country, market_name, hotel_id).
+HOTELS_BY_MARKET_COLUMNS: list[tuple[str, str, bool, str]] = [
+    # Identification
+    ("country", "text", True, "ISO-3166-1 alpha-2 uppercase."),
+    ("market_name", "text", True, "Canonical market — matches COSTAR_MASTER_MERCADOS.market_name."),
+    ("submarket_name", "text", False, "Optional submarket — canonical neighborhood where the hotel sits."),
+    ("hotel_id", "text", True, "Canonical hotel identifier. costar_<PROPERTY_ID> when present; otherwise h_<sha256[:16]>(country|market|name)."),
+    ("hotel_id_synthetic", "boolean", True, "True when hotel_id was computed because the export lacked a CoStar PROPERTY ID."),
+    ("name", "text", True, "Hotel display name."),
+    ("brand", "text", False, "Brand affiliation. null for independent."),
+    ("operator", "text", False, "Operating company. May differ from brand (white-label management)."),
+    ("owner", "text", False, "Ownership entity when disclosed in the CoStar export."),
+    # Property characteristics
+    ("chain_scale", "enum", False, "luxury | upper_upscale | upscale | upper_midscale | midscale | economy | independent"),
+    ("category", "text", False, "Star rating or local equivalent (e.g. '5-star', '4-star superior')."),
+    ("segment_type", "enum", False, "business | leisure | extended_stay | resort | convention"),
+    ("rooms_count", "int", False, "Total guest rooms."),
+    ("year_opened", "int", False, "Original opening year."),
+    ("year_last_renovated", "int", False, "Most recent renovation year."),
+    ("total_floors", "int", False, "Building floors."),
+    # Location
+    ("address_line", "text", False, "Street + number."),
+    ("postal_code", "text", False, "Local postal code."),
+    ("latitude", "numeric", False, "Decimal degrees."),
+    ("longitude", "numeric", False, "Decimal degrees."),
+    ("neighborhood", "text", False, "Free-text neighborhood when finer than submarket."),
+    # Facilities · amenities · scoring
+    ("facilities", "text[]", False, "Normalised facility codes — meeting_space · pool · spa · fitness · restaurant · bar · parking · pet_friendly · business_center · accessibility · kids_club."),
+    ("amenities", "text[]", False, "Free-text amenities not in the canonical facility enum."),
+    ("meeting_space_sqm", "numeric", False, "Total meeting/event space when reported."),
+    ("parking_spaces", "int", False, "Total parking spaces."),
+    ("score_costar", "numeric", False, "CoStar property score when present (0–5 scale)."),
+    ("score_external", "jsonb", False, "External-platform scores (Booking · Tripadvisor) keyed by source."),
+    # Commercial context
+    ("competitive_set_ids", "text[]", False, "Sibling hotel_ids in the property's competitive set."),
+    ("transactions_history_ref", "text", False, "Foreign key into HOTEL_TRANSACCIONES_MASTER when the hotel has known transaction history."),
+    ("notes", "text", False, "Operator-curated free-text notes."),
+]
+
+
 SOURCES_REGISTRY = [
     ("costar", "CoStar Hospitality Export", "A", "Authoritative — institutional, paid product. The canonical source."),
     ("str", "STR (CoStar subsidiary)", "A", "STR-direct exports — same provenance as CoStar; preserve attribution."),
@@ -306,10 +361,11 @@ def build_readme_sheet(wb, dataset_label: str, domain_label: str, schema_doc: st
         f"Built {BUILT_AT}. Normalization version: {NORMALIZATION_VERSION}.",
         "",
         "Sister workbooks (services/costar/MASTER/):",
-        "  • COSTAR_MASTER_PAIS.xlsx        — country aggregates",
-        "  • COSTAR_MASTER_MERCADOS.xlsx    — market aggregates",
-        "  • COSTAR_MASTER_SUBMERCADOS.xlsx — submarket aggregates",
-        "  • COSTAR_MASTER_CLASS.xlsx       — chain-scale time series (country or market level)",
+        "  • COSTAR_MASTER_PAIS.xlsx                  — country aggregates (Dataset A)",
+        "  • COSTAR_MASTER_MERCADOS.xlsx              — market aggregates (Dataset A)",
+        "  • COSTAR_MASTER_SUBMERCADOS.xlsx           — submarket aggregates (Dataset A)",
+        "  • COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx   — hotel inventory (Dataset B · v1.2)",
+        "  • COSTAR_MASTER_CLASS.xlsx                 — LEGACY (chain-scale aggregates · retired v1.2)",
         "",
         "  CompSet workbooks now live in the OPERATIONAL workspace at services/compset/",
         "  (different purpose — hotel-specific underwriting outputs, not warehouse ingestion).",
@@ -378,12 +434,16 @@ def main():
         schema_doc="docs/intelligence/costar-submarket-schema.md",
         output_path=MASTER_DIR / "COSTAR_MASTER_SUBMERCADOS.xlsx",
     )
+    # COSTAR_MASTER_CLASS retired in v1.2 — chain-scale is now an attribute
+    # on each hotel record in HOTELES POR MERCADO, not a separate master.
+    # The legacy COSTAR_MASTER_CLASS.xlsx stays in MASTER/ for archival.
+    # See docs/intelligence/costar-class-schema.md for the deprecation note.
     build_workbook(
-        dataset_label="COSTAR_MASTER_CLASS",
-        domain_columns=CLASS_COLUMNS,
-        data_sheet_title="CLASS",
-        schema_doc="docs/intelligence/costar-class-schema.md",
-        output_path=MASTER_DIR / "COSTAR_MASTER_CLASS.xlsx",
+        dataset_label="COSTAR_MASTER_HOTELES_POR_MERCADO",
+        domain_columns=HOTELS_BY_MARKET_COLUMNS,
+        data_sheet_title="HOTELS",
+        schema_doc="docs/intelligence/costar-hotels-by-market-schema.md",
+        output_path=MASTER_DIR / "COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx",
     )
 
 
