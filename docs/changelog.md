@@ -4,6 +4,56 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Integrations hero redesign · executive control room · 6 glow KPI cards
+
+`/user/admin/integrations` opens with a redesigned hero. The old engineering-jargon counters (Intel OK / Warn / Fail · Platform Layers 2-5 · Intelligence sources) are replaced by **six glow KPI cards**: TOTAL · LIVE · PARTIAL · NOT WIRED · FAIL · PLANNED. A compact slate operational strip sits below: Platform layers · Total integrations · Operator controlled = 100% · Access: Internal · restricted · Monitoring 24/7.
+
+### Unified status classifier (single source-of-truth)
+
+`lib/admin/integrations/unified-status.ts` is now the single classifier mapping both registries onto the 5 executive buckets:
+
+- `classifyIntelligenceSource(s)` — uses `signal` + `connection` + `health` (last-run + 7d success count)
+- `classifyPlatformIntegration(p)` — uses `signal` + `status`
+- `computeUnifiedCounts(intel, platform)` — returns the 6 numerals the hero renders
+
+**Manual-workflow override**: an `operatorManaged` integration with no `cronDependencies` rolls up to **PARTIAL** even when its per-card status says `live`. Captures the institutional truth that Datasite exports, Google Contacts CSVs, and Gmail JSONL drops are operational but operator-refreshed by hand.
+
+### Bucket definitions
+
+| Bucket | Meaning |
+|---|---|
+| **LIVE** | Fully operational + autonomous · refreshes without operator intervention |
+| **PARTIAL** | Works end-to-end but depends on manual workflows, exports, BETA paths, or incomplete automation |
+| **NOT WIRED** | Operator account or env scaffolded · no active code path calls |
+| **FAIL** | `signal === "error"` or `connection === "failing"` right now |
+| **PLANNED** | Roadmap only · no account or no env |
+
+`TOTAL` is the sum, not a separate bucket.
+
+### Visual language
+
+Each glow card carries: tracked-out label · large tabular numeral in semantic accent · one-line description in slate · subtle radial glow blob (top-right, hover opacity bump) · per-status ring + gradient + shadow · `hover:-translate-y-0.5` lift. Mobile-first: 2-col → 3-col tablet → 6-col desktop. Semantic palette: emerald (LIVE) · amber (PARTIAL) · sky (NOT WIRED) · rose (FAIL) · violet (PLANNED) · lime (TOTAL).
+
+### Smoke
+
+- `/user/admin/integrations` → 200 · 462 KB
+- 6 hero labels + 6 descriptions + 5 operational strip cells present
+- Zero remnants of old "Intel · OK / Warn / Fail · Platform Layers 2-5 · Intelligence sources"
+- All 6 semantic shadow classes present in rendered HTML
+- Typecheck clean
+
+### Files
+
+- `apps/web/src/lib/admin/integrations/unified-status.ts` (new)
+- `apps/web/src/components/admin/integrations/hero-kpis.tsx` (new)
+- `apps/web/src/components/admin/integrations/operational-strip.tsx` (new)
+- `apps/web/src/app/user/admin/integrations/page.tsx` (refactored hero slot)
+- `docs/integrations/account-inventory.md` (hero KPI counting logic section)
+
+Commit: `52b5408`. Follow-up commit (this changelog + feature-doc patches): see next commit.
+
+---
+
 ## 2026-05-13 — Integrations · second-pass reconciliation against operator account inventory · 9 layers
 
 The morning's 5-layer architecture under-represented the real ecosystem because it didn't reconcile against the provisioned operator accounts. This evening's pass corrects that: the integrations surface now renders **9 operational layers** with **33 integrations** total (27 in the platform registry + 6 in the intelligence-sources registry).

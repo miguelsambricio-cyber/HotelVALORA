@@ -25,6 +25,25 @@ The integrations surface reconciled against the operator account inventory. Nine
 
 Layer 6 keeps the rich `IntegrationCard` with T1/T2 credential + session telemetry. Other layers use the simpler `PlatformIntegrationCard`.
 
+### Hero KPI buckets (executive control room · codified 2026-05-13)
+
+The page opens with six glow KPI cards backed by `lib/admin/integrations/unified-status.ts`. The classifier rolls up **both** registries (intelligence + platform) onto one taxonomy so operators see one number per state — not two divergent counters.
+
+| Bucket | Definition | Tone |
+|---|---|---|
+| **TOTAL** | All integrations across both registries · denominator for the hero | lime |
+| **LIVE** | Fully operational + autonomous · refreshes without operator intervention | emerald |
+| **PARTIAL** | Works end-to-end but depends on manual workflows, exports, BETA paths, or incomplete automation. Includes operator-managed integrations with no cron | amber |
+| **NOT WIRED** | Operator account or env scaffolded · no active code path calls | sky |
+| **FAIL** | `signal === "error"` or `connection === "failing"` | rose |
+| **PLANNED** | Roadmap only · no account or no env | violet |
+
+**Manual-workflow override** (single load-bearing rule): a platform integration with `operatorManaged: true` and no `cronDependencies` rolls up to **PARTIAL** even if its per-card status is `live`. Lives centrally in `classifyPlatformIntegration()` so the per-card label can keep saying "live" (correct for the layer detail) while the hero shows it as PARTIAL (correct for the executive read).
+
+Underneath the hero, a compact slate strip (`OperationalStrip`) carries five static governance cells: platform layers · total integrations · operator controlled (100%) · access (Internal · restricted) · monitoring (24/7).
+
+Full classifier pseudocode + worked examples in `docs/integrations/account-inventory.md` § Hero KPI counting logic.
+
 ### Status taxonomy
 
 | Status | Meaning | Examples today |
