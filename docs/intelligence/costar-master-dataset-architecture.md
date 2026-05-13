@@ -7,7 +7,7 @@ Why four canonical .xlsx workbooks today, and how they evolve into Supabase tabl
 > **2026-05-14 — Two datasets, not one.** The COSTAR workspace now models **two genuinely distinct datasets** both sourced from CoStar exports:
 >
 > - **Dataset A · Market Performance** — aggregated KPIs by period (occupancy · ADR · RevPAR · room nights · supply · demand · pipeline). Granularities: country (`PAIS`), market (`MERCADO`), submarket (`SUBMERCADO`).
-> - **Dataset B · Hotel-by-Market Inventory** — individual property records with slowly-changing attributes (name · brand · operator · facilities · score · category · rooms · geo). Granularity: hotel-by-hotel within a market (`HOTELES POR MERCADO`).
+> - **Dataset B · Hotel-by-Market Inventory** — individual property records with slowly-changing attributes (name · brand · operator · facilities · score · category · rooms · geo). Granularity: hotel-by-hotel within a market (`HOTELESperMARKET`).
 >
 > The legacy CLASS master (chain-scale aggregates) is retired — `chain_scale` is now an attribute on each hotel record in Dataset B. See `costar-hotels-by-market-schema.md`.
 
@@ -44,7 +44,7 @@ Same rationale as the transactions workspace:
 
 The four granularities diverge on multiple axes — collapsing them forces nullable columns everywhere and ambiguous primary keys. Each workbook stands on its own:
 
-| Dimension | Country (PAIS) | Market (MERCADOS) | Submarket (SUBMERCADOS) | Hotels by Market (HOTELES POR MERCADO) |
+| Dimension | Country (PAIS) | Market (MERCADOS) | Submarket (SUBMERCADOS) | Hotels by Market (HOTELESperMARKET) |
 |---|---|---|---|---|
 | **Dataset** | A · market performance | A · market performance | A · market performance | B · hotel inventory |
 | **Primary key** | (country, period, period_kind) | (country, market_name, period, period_kind) | (country, market_name, submarket_name, period, period_kind) | (country, market_name, hotel_id) |

@@ -4,6 +4,117 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 2.3.d.6b · INPUT → OLD governance + `HOTELESperMARKET` rename + batch summary
+
+Fixes the operational-governance gap operator flagged: source files were staying in `/INPUT` after successful ingestion, breaking the "INPUT = pending queue" contract. Also rolls in the folder rename `HOTELES POR MERCADO` → `HOTELESperMARKET` and adds the institutional batch-summary surface.
+
+### Bugs fixed
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| **Only hotel files were being archived** | `ingest_compsets()` / `ingest_transactions()` didn't return their processed-file lists, so `archive_files()` only ever saw `processed_hotels`. Compset + transactions stayed in INPUT. | Both functions now return `(rows, recon, processed_files, failed_files)`. `main()` concatenates and archives the union. |
+| **Stale workspace paths** | `INPUT_HOTELS = WORKSPACE / "HOTELES POR MERCADO" / "INPUT"` — folder was renamed on disk to `HOTELESperMARKET`. | All path constants point at `HOTELESperMARKET` now. |
+| **Inconsistent archive naming** | `old.class/`, `old.pais/`, `old.transacciones/` — every workspace had its own convention. | Standardised on `/OLD/` per workspace, governed by `ARCHIVE_REGISTRY`. Legacy `old.*/` folders kept for historical audit. |
+| **Silent rename failures** | `OSError` was logged but not counted, no operator signal. | `_move_to_archive()` falls back to `shutil.move()`, surfaces a clear "file probably open in Excel" hint, counts failures, and the page renders a rose alert when `archive_failed > 0`. |
+| **Always-timestamp filename collision** | Even non-colliding moves got timestamp prefixed. | Preserve original filename. Only on collision: append `<stem>.<YYYYMMDDTHHMMSS><ext>`; if that collides too, add a counter. |
+
+### Folder rename · `HOTELES POR MERCADO` → `HOTELESperMARKET`
+
+Operator renamed the folder on disk (note: `HOTELESperMARKET` keeps the Spanish "ES" plural; the directive said `HOTELSperMARKET` without the E but the disk is the source of truth — flag if you want it changed). Every reference updated:
+
+- `services/costar/scripts/{ingest,build_masters}.py` · path constants + docstrings
+- `services/costar/scripts/README.md`
+- `services/costar/README.md`
+- `services/costar/.gitignore` (legacy `HOTELES POR MERCADO/old.class/*` rules retired; new `HOTELESperMARKET/{INPUT,OLD}/` rules added)
+- `apps/web/src/lib/admin/agents/registry.ts` · COSTAR & Hotel Reference Agent integrations + kpis + mock logs
+- `apps/web/src/lib/admin/hotels/types.ts` · doc comment
+- `docs/HOTELVALORA_MASTER_SYSTEM.md`
+- `docs/intelligence/costar-{class,hotels-by-market,master-dataset-architecture}-schema.md`
+- `docs/intelligence/hospitality-intelligence-roadmap.md`
+
+### Governance · `INPUT` and `OLD` are the contract
+
+Every workspace now has exactly ONE pair:
+
+```
+<workspace>/INPUT/  → files pending ingestion (operational queue)
+<workspace>/OLD/    → files successfully merged into the master (audit trail)
+```
+
+`ARCHIVE_REGISTRY` in `ingest.py` is the single source of truth — six entries today:
+
+| Stream | INPUT | OLD |
+|---|---|---|
+| Hotels | `services/costar/HOTELESperMARKET/INPUT` | `…/OLD` |
+| Country market data | `services/costar/PAIS/INPUT` | `…/OLD` |
+| Market market data | `services/costar/MERCADO/INPUT` | `…/OLD` |
+| Submarket market data | `services/costar/SUBMERCADO/INPUT` | `…/OLD` |
+| Compset | `services/compset/INPUT` | `services/compset/OLD` |
+| Transactions | `services/transactions/INPUT_TRANSACCIONES` | `…/OLD` |
+
+`.gitkeep` files seeded in all six new `OLD/` directories so the pipeline finds the destination on first run.
+
+### New `batch_summary` block (snapshot v1.4)
+
+`snapshot.json` now carries a top-level `batch` object — the institutional audit object emitted by every successful `ingest.py` run:
+
+```jsonc
+{
+  "batch_id": "batch_...",
+  "normalization_version": "v1.2",
+  "files": {
+    "processed": 4,         // read from INPUT
+    "failed": 0,            // unparseable
+    "archived": 4,          // moved to OLD
+    "archive_failed": 0,    // rename failed (file open in Excel)
+    "unknown_root": 0,      // outside ARCHIVE_REGISTRY
+    "skipped_dry_run": 0
+  },
+  "rows": {
+    "hotels_ingested": 47,
+    "compsets_built": 3,
+    "transactions_linked": 12,
+    "reconciliation_required": 5,
+    "duplicate_suspected": 2
+  },
+  "corrections": { /* from corrections.py */ },
+  "per_stream": {
+    "hotels":       {"processed": 1, "failed": 0},
+    "compset":      {"processed": 1, "failed": 0},
+    "transactions": {"processed": 2, "failed": 0}
+  }
+}
+```
+
+The CLI now ends with a human-readable executive summary in stdout:
+
+```
+BATCH batch_...
+  files       processed=4 archived=4 archive_failed=0 failed=0
+  rows        hotels=47 compsets=3 transactions=12
+  recon       total=5 duplicate_suspected=2
+  corrections applied=0 rejected=0 pending_before=0
+```
+
+### Admin UI · "Last ingestion batch" card
+
+`/user/admin/hotels` gains a governance card under the header showing the six file/row counts as `BatchStat` cells. When `archive_failed > 0` the card renders a rose alert with the most likely root cause (Excel locking the file) and the recovery path (close Excel, re-run — ingestion is idempotent).
+
+### Smoke
+
+- Python `archive_files()` end-to-end fixture: 3 files in INPUT (2 hotels, 1 mercado) + a pre-existing `list1.xlsx` in OLD/ as a collision → all 3 archived (`archived: 3, archive_failed: 0`), INPUT empty, collision resolved as `list1.20260513T163628.xlsx`, non-colliding files kept original name (`list2.xlsx`, `madrid-Q1.xlsx`).
+- `ingest.py`, `snapshot.py`, `corrections.py` all pass `py_compile`.
+- `/user/admin/hotels` → 200 · 55.9 KB · empty-state path clean.
+- Node typecheck clean.
+
+### Honest gaps
+
+- **Operator still needs to run `ingest.py`** for the snapshot + batch block to populate. The card is invisible until then (gated by `snap?.batch`).
+- The transactions workspace's own ingest pipeline (`services/transactions/scripts/ingest.py`) is **untouched** — it still uses `old.transacciones/`. Only the COSTAR-orchestrator-side archive goes to `OLD/`. If we ever want full platform-wide consistency, that pipeline also needs the same treatment.
+- The `HOTELS` vs `HOTELES` naming: disk is `HOTELESperMARKET` (with E), directive said `HOTELSperMARKET` (without). I went with disk. Renaming again is a single replace_all.
+
+---
+
 ## 2026-05-14 — Phase 2.3.d.6 · Institutional Correction Consumer · data integrity layer closed
 
 Closes the correction lifecycle that Phase 2.3.d.2 only half-shipped. Today corrections were persisted as pending JSONL rows but never applied. Now they flow end-to-end: validated → applied as supersedes over the canonical ingest values → provenance preserved → audit trail emitted → UI renders correction history per hotel.

@@ -6,7 +6,7 @@
 
 **Last refreshed:** 2026-05-14 — keep this date current after structural updates.
 
-> **2026-05-14 · COSTAR ingestion architecture shift.** Two distinct datasets now flow through `services/costar/`: **Market Performance** (PAIS/MERCADO/SUBMERCADO KPIs) and **Hotel-by-Market Inventory** (HOTELES POR MERCADO — replaces the retired CLASS granularity). Madrid + Madrid Centro drops landed alongside private transactions + COMPSET. New admin surface `/user/admin/hotels` scaffolds the hotel registry; COSTAR Admin Agent renamed to **COSTAR & Hotel Reference Agent** with reconciliation-queue duties. See `docs/intelligence/costar-hotels-by-market-schema.md` for the new schema and `services/costar/README.md` for the workspace contract.
+> **2026-05-14 · COSTAR ingestion architecture shift.** Two distinct datasets now flow through `services/costar/`: **Market Performance** (PAIS/MERCADO/SUBMERCADO KPIs) and **Hotel-by-Market Inventory** (HOTELESperMARKET — replaces the retired CLASS granularity). Madrid + Madrid Centro drops landed alongside private transactions + COMPSET. New admin surface `/user/admin/hotels` scaffolds the hotel registry; COSTAR Admin Agent renamed to **COSTAR & Hotel Reference Agent** with reconciliation-queue duties. See `docs/intelligence/costar-hotels-by-market-schema.md` for the new schema and `services/costar/README.md` for the workspace contract.
 
 > 📍 **For the institutional baseline state of the platform** — what's live, placeholder, planned — read `docs/SNAPSHOT_2026_05_12.md` first. That document is the single canonical answer for cross-cutting status questions. This file points at it for anything that would otherwise drift.
 

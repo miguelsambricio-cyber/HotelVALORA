@@ -6,31 +6,43 @@
 # artefacts and run logs stay local + auditable but never travel through
 # commits.
 
-# Inbound raw imports (operator drops these — never commit)
+# Inbound raw imports (operator drops these — never commit).
+# Governance rule (2026-05-14): every workspace has exactly ONE pair —
+#   INPUT/  → files pending ingestion (operational queue)
+#   OLD/    → files successfully merged into the master (audit trail)
+# Legacy `old.<workspace>/` folders are kept around for historical audit
+# but the pipeline only writes to OLD/.
 PAIS/INPUT/*
 !PAIS/INPUT/.gitkeep
+PAIS/OLD/*
+!PAIS/OLD/.gitkeep
 PAIS/old.pais/*
 !PAIS/old.pais/.gitkeep
 
 MERCADO/INPUT/*
 !MERCADO/INPUT/.gitkeep
+MERCADO/OLD/*
+!MERCADO/OLD/.gitkeep
 MERCADO/old.mercado/*
 !MERCADO/old.mercado/.gitkeep
 
 SUBMERCADO/INPUT/*
 !SUBMERCADO/INPUT/.gitkeep
+SUBMERCADO/OLD/*
+!SUBMERCADO/OLD/.gitkeep
 SUBMERCADO/old.submercado/*
 !SUBMERCADO/old.submercado/.gitkeep
 
-# HOTELES POR MERCADO replaces the retired CLASS folder (2026-05-14).
+# HOTELESperMARKET replaces the retired CLASS folder (renamed on disk 2026-05-14).
 # Operator-dropped hotel-inventory exports stay local + auditable but never commit.
-# Path contains spaces — gitignore handles them natively without quoting.
-HOTELES POR MERCADO/INPUT/*
-!HOTELES POR MERCADO/INPUT/.gitkeep
-HOTELES POR MERCADO/INPUT/**/*
-!HOTELES POR MERCADO/INPUT/**/.gitkeep
-HOTELES POR MERCADO/old.class/*
-!HOTELES POR MERCADO/old.class/.gitkeep
+HOTELESperMARKET/INPUT/*
+!HOTELESperMARKET/INPUT/.gitkeep
+HOTELESperMARKET/INPUT/**/*
+!HOTELESperMARKET/INPUT/**/.gitkeep
+HOTELESperMARKET/OLD/*
+!HOTELESperMARKET/OLD/.gitkeep
+HOTELESperMARKET/old.hotelspermarket/*
+!HOTELESperMARKET/old.hotelspermarket/.gitkeep
 
 # Staging — failed parses, manual-review queue, temp normalisation files
 staging/failed/*

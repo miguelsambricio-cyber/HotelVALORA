@@ -95,6 +95,62 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         />
       </section>
 
+      {/* Last ingestion batch · governance summary */}
+      {snap?.batch && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <Database size={14} className="text-slate-400" aria-hidden />
+            <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+              Last ingestion batch
+            </h2>
+            <span className="ml-auto font-mono text-[10.5px] text-slate-500">
+              {snap.batch.normalization_version} · {snap.batch.batch_id}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <BatchStat
+              label="Files processed"
+              value={snap.batch.files.processed}
+            />
+            <BatchStat
+              label="Files archived"
+              value={snap.batch.files.archived}
+              tone={snap.batch.files.archived === snap.batch.files.processed ? "emerald" : "amber"}
+              hint={`INPUT → OLD`}
+            />
+            <BatchStat
+              label="Archive failed"
+              value={snap.batch.files.archive_failed}
+              tone={snap.batch.files.archive_failed > 0 ? "rose" : "slate"}
+              hint={snap.batch.files.archive_failed > 0 ? "stayed in INPUT" : undefined}
+            />
+            <BatchStat
+              label="Files failed"
+              value={snap.batch.files.failed}
+              tone={snap.batch.files.failed > 0 ? "rose" : "slate"}
+              hint={snap.batch.files.failed > 0 ? "unparseable" : undefined}
+            />
+            <BatchStat
+              label="Duplicate suspect"
+              value={snap.batch.rows.duplicate_suspected}
+              tone={snap.batch.rows.duplicate_suspected > 0 ? "amber" : "slate"}
+            />
+            <BatchStat
+              label="To reconcile"
+              value={snap.batch.rows.reconciliation_required}
+              tone={snap.batch.rows.reconciliation_required > 0 ? "amber" : "slate"}
+            />
+          </div>
+          {snap.batch.files.archive_failed > 0 && (
+            <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2.5 text-[11.5px] leading-relaxed text-rose-900">
+              <strong>{snap.batch.files.archive_failed}</strong> file{snap.batch.files.archive_failed === 1 ? "" : "s"} could not be moved from INPUT → OLD.
+              The most common cause on Windows is the file being open in Excel. Close it and re-run{" "}
+              <code className="rounded bg-rose-100 px-1 font-mono text-[10.5px]">python services/costar/scripts/ingest.py</code> — the pipeline is idempotent.
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Data-plane status */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
@@ -423,6 +479,40 @@ function Kpi({
     <Link href={href} className="block">
       {inner}
     </Link>
+  );
+}
+
+function BatchStat({
+  label,
+  value,
+  tone = "slate",
+  hint,
+}: {
+  label: string;
+  value: number;
+  tone?: "slate" | "emerald" | "amber" | "rose";
+  hint?: string;
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-700"
+      : tone === "amber"
+        ? "text-amber-700"
+        : tone === "rose"
+          ? "text-rose-700"
+          : "text-forest-900";
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-2.5">
+      <p className="font-headline text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-0.5 font-headline text-xl font-extrabold tabular-nums ${toneClass}`}>
+        {value}
+      </p>
+      {hint && (
+        <p className="mt-0.5 font-mono text-[10px] leading-snug text-slate-500">{hint}</p>
+      )}
+    </div>
   );
 }
 

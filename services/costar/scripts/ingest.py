@@ -19,8 +19,10 @@ Outputs:
       Per-run audit log (one JSON line per pipeline event).
   services/costar/staging/{failed,review}/<batch_id>/
       Operator triage when rows can't land cleanly.
-  services/costar/HOTELES POR MERCADO/INPUT/.../  → old.class/.../
-      Processed files archived after success.
+  services/costar/HOTELESperMARKET/INPUT/<file>  → HOTELESperMARKET/OLD/<file>
+      Processed files moved from INPUT → OLD after successful merge into
+      the master. INPUT MUST only contain files pending ingestion. Failed
+      ingests stay in INPUT for the operator to inspect.
 
 Usage:
     python services/costar/scripts/ingest.py
@@ -70,21 +72,46 @@ from snapshot import build_snapshot, write_snapshot  # noqa: E402
 from corrections import apply_corrections  # noqa: E402
 
 # ── Workspace layout ────────────────────────────────────────────────────────
+#
+# Governance rule: every workspace has exactly ONE pair —
+#   INPUT/  → files pending ingestion (operational queue)
+#   OLD/    → files successfully merged into the master (audit trail)
+#
+# Successful ingest MOVES the file from INPUT to OLD. Failed ingest LEAVES
+# the file in INPUT for the operator to inspect. The pre-2026-05-14
+# `old.<workspace>/` naming is retired — operators may keep those legacy
+# folders for historical audit but the pipeline only writes to OLD/.
 
 WORKSPACE = HERE.parent  # services/costar
 REPO_ROOT = WORKSPACE.parent.parent
 
-INPUT_HOTELS = WORKSPACE / "HOTELES POR MERCADO" / "INPUT"
-ARCHIVE_HOTELS = WORKSPACE / "HOTELES POR MERCADO" / "old.class"
+INPUT_HOTELS = WORKSPACE / "HOTELESperMARKET" / "INPUT"
+ARCHIVE_HOTELS = WORKSPACE / "HOTELESperMARKET" / "OLD"
 INPUT_PAIS = WORKSPACE / "PAIS" / "INPUT"
+ARCHIVE_PAIS = WORKSPACE / "PAIS" / "OLD"
 INPUT_MERCADO = WORKSPACE / "MERCADO" / "INPUT"
+ARCHIVE_MERCADO = WORKSPACE / "MERCADO" / "OLD"
 INPUT_SUBMERCADO = WORKSPACE / "SUBMERCADO" / "INPUT"
+ARCHIVE_SUBMERCADO = WORKSPACE / "SUBMERCADO" / "OLD"
 
 COMPSET_WORKSPACE = REPO_ROOT / "services" / "compset"
 COMPSET_INPUT = COMPSET_WORKSPACE / "INPUT"
+ARCHIVE_COMPSET = COMPSET_WORKSPACE / "OLD"
 
 TRANSACTIONS_WORKSPACE = REPO_ROOT / "services" / "transactions"
 TRANSACTIONS_INPUT = TRANSACTIONS_WORKSPACE / "INPUT_TRANSACCIONES"
+ARCHIVE_TRANSACTIONS = TRANSACTIONS_WORKSPACE / "INPUT_TRANSACCIONES" / "OLD"
+
+# (workspace_path, archive_path) registry — single source of truth for the
+# `archive_files()` step. Keep in sync with the INPUT_* / ARCHIVE_* constants.
+ARCHIVE_REGISTRY: dict[Path, Path] = {
+    INPUT_HOTELS: ARCHIVE_HOTELS,
+    INPUT_PAIS: ARCHIVE_PAIS,
+    INPUT_MERCADO: ARCHIVE_MERCADO,
+    INPUT_SUBMERCADO: ARCHIVE_SUBMERCADO,
+    COMPSET_INPUT: ARCHIVE_COMPSET,
+    TRANSACTIONS_INPUT: ARCHIVE_TRANSACTIONS,
+}
 
 MASTER_DIR = WORKSPACE / "MASTER"
 SNAPSHOT_PATH = MASTER_DIR / "snapshot.json"
@@ -237,15 +264,22 @@ def ingest_compsets(
     batch_id: str,
     hotels_by_id: dict[str, dict[str, Any]],
     logger: RunLogger,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Build compset rows + reconciliation entries for orphan member refs."""
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[Path], list[Path]]:
+    """Build compset rows + reconciliation entries for orphan member refs.
+
+    Returns (compsets, reconciliation_entries, processed_files, failed_files).
+    `processed_files` is the subset of input files that read successfully —
+    eligible for archival to ARCHIVE_COMPSET.
+    """
     compsets: list[dict[str, Any]] = []
     extra_recon: list[dict[str, Any]] = []
+    processed: list[Path] = []
+    failed: list[Path] = []
 
     files = list(iter_input_files(COMPSET_INPUT))
     if not files:
         logger.event("info", "compset.no_input")
-        return compsets, extra_recon
+        return compsets, extra_recon, processed, failed
 
     # Group rows by target_hotel into a member graph
     by_target: dict[str, dict[str, Any]] = {}
@@ -255,7 +289,9 @@ def ingest_compsets(
             rows = read_rows_with_aliases(path, COMPSET_HEADER_ALIASES)
         except Exception as e:  # noqa: BLE001
             logger.event("error", "compset.read_failed", file=str(path), err=str(e))
+            failed.append(path)
             continue
+        processed.append(path)
 
         for raw in rows:
             target_name = (raw.get("target_hotel_name") or "").strip()
@@ -306,7 +342,7 @@ def ingest_compsets(
         if target_row:
             target_row["competitive_set_ids"] = sorted(set(target_row.get("competitive_set_ids", []) + member_ids))
 
-    return compsets, extra_recon
+    return compsets, extra_recon, processed, failed
 
 
 def _resolve_hotel_by_name(
@@ -333,7 +369,7 @@ def ingest_transactions(
     batch_id: str,
     hotels_by_id: dict[str, dict[str, Any]],
     logger: RunLogger,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[Path], list[Path]]:
     """Build transaction reconciliation layer.
 
     Reads both the COSTAR official export and the operator's private
@@ -341,14 +377,18 @@ def ingest_transactions(
     Provenance (`source` = "costar" | "private") is preserved per row.
     Orphan transactions (no matching hotel in inventory) surface in the
     reconciliation queue.
+
+    Returns (transactions, reconciliation_entries, processed_files, failed_files).
     """
     transactions: list[dict[str, Any]] = []
     extra_recon: list[dict[str, Any]] = []
+    processed: list[Path] = []
+    failed: list[Path] = []
 
     files = list(iter_input_files(TRANSACTIONS_INPUT))
     if not files:
         logger.event("info", "transactions.no_input")
-        return transactions, extra_recon
+        return transactions, extra_recon, processed, failed
 
     for path in files:
         # Classify the source by filename
@@ -358,7 +398,9 @@ def ingest_transactions(
             rows = read_rows_with_aliases(path, TRANSACTION_HEADER_ALIASES)
         except Exception as e:  # noqa: BLE001
             logger.event("error", "transactions.read_failed", file=str(path), err=str(e))
+            failed.append(path)
             continue
+        processed.append(path)
 
         for raw in rows:
             asset_name = (raw.get("asset_name") or "").strip()
@@ -404,36 +446,108 @@ def ingest_transactions(
                 if hotel and hotel.get("transactions_history_ref") is None:
                     hotel["transactions_history_ref"] = tx_id
 
-    return transactions, extra_recon
+    return transactions, extra_recon, processed, failed
 
 
 # ── Archive ─────────────────────────────────────────────────────────────────
 
 
-def archive_files(files: list[Path], logger: RunLogger, *, dry_run: bool) -> None:
-    """Move processed source files into their workspace's `old.*/` archive."""
+def _resolve_archive_root(file_path: Path) -> Path | None:
+    """Look up the destination OLD/ folder for a source file via
+    `ARCHIVE_REGISTRY`. Returns `None` for files outside any known
+    INPUT root — they are skipped with a warning rather than moved
+    somewhere unsafe."""
+    for input_root, archive_root in ARCHIVE_REGISTRY.items():
+        try:
+            if input_root in file_path.parents:
+                return archive_root
+        except ValueError:
+            continue
+    return None
+
+
+def _move_to_archive(source: Path, archive_root: Path, logger: RunLogger) -> bool:
+    """Move `source` into `archive_root`.
+
+    Governance rule: preserve original filename. Only if the destination
+    already exists, insert a timestamp before the extension so the
+    historical artefact isn't overwritten.
+
+    Falls back to `shutil.move` when `Path.rename` raises (cross-volume
+    moves on Windows, file held open by Excel, etc.). On hard failure
+    the source stays in INPUT — caller treats that as `archive_failed`
+    in the batch summary.
+    """
+    import shutil
+    archive_root.mkdir(parents=True, exist_ok=True)
+    target = archive_root / source.name
+    if target.exists():
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        target = archive_root / f"{source.stem}.{ts}{source.suffix}"
+        # If somehow the timestamp collides too (sub-second double-run),
+        # add a small counter.
+        counter = 1
+        while target.exists():
+            target = archive_root / f"{source.stem}.{ts}.{counter}{source.suffix}"
+            counter += 1
+
+    try:
+        source.rename(target)
+        return True
+    except OSError:
+        try:
+            shutil.move(str(source), str(target))
+            return True
+        except OSError as e2:
+            logger.event(
+                "error",
+                "archive.move_failed",
+                file=str(source.relative_to(REPO_ROOT)),
+                target=str(target.relative_to(REPO_ROOT)),
+                err=str(e2),
+                hint="file may be open in Excel or held by another process — close it and re-run",
+            )
+            return False
+
+
+def archive_files(files: list[Path], logger: RunLogger, *, dry_run: bool) -> dict[str, int]:
+    """Move every successfully-processed source file from INPUT → OLD.
+
+    Returns a counters dict suitable for inclusion in the batch summary:
+
+        {archived, archive_failed, unknown_root, skipped_dry_run}
+
+    Failure modes are explicit by design — the user mandate is that
+    INPUT must only contain files pending ingestion. A locked-file
+    archive failure must NOT be silent.
+    """
+    counters = {"archived": 0, "archive_failed": 0, "unknown_root": 0, "skipped_dry_run": 0}
+
     if dry_run:
         for f in files:
             logger.event("info", "archive.skipped_dry_run", file=str(f.relative_to(REPO_ROOT)))
-        return
+            counters["skipped_dry_run"] += 1
+        return counters
+
     for f in files:
-        # Choose the archive root based on the file's location
-        if INPUT_HOTELS in f.parents:
-            archive_root = ARCHIVE_HOTELS
-        elif COMPSET_INPUT in f.parents:
-            archive_root = COMPSET_WORKSPACE / "OLD"
-        elif TRANSACTIONS_INPUT in f.parents:
-            archive_root = TRANSACTIONS_WORKSPACE / "INPUT_TRANSACCIONES" / "old.transacciones"
-        else:
+        archive_root = _resolve_archive_root(f)
+        if archive_root is None:
             logger.event("warn", "archive.unknown_root", file=str(f.relative_to(REPO_ROOT)))
+            counters["unknown_root"] += 1
             continue
-        archive_root.mkdir(parents=True, exist_ok=True)
-        target = archive_root / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}_{f.name}"
-        try:
-            f.rename(target)
-            logger.event("info", "archive.moved", file=str(f.relative_to(REPO_ROOT)), to=str(target.relative_to(REPO_ROOT)))
-        except OSError as e:
-            logger.event("error", "archive.failed", file=str(f.relative_to(REPO_ROOT)), err=str(e))
+
+        if _move_to_archive(f, archive_root, logger):
+            counters["archived"] += 1
+            logger.event(
+                "info",
+                "archive.moved",
+                file=str(f.relative_to(REPO_ROOT)),
+                to=str(archive_root.relative_to(REPO_ROOT)),
+            )
+        else:
+            counters["archive_failed"] += 1
+
+    return counters
 
 
 # ── CLI ─────────────────────────────────────────────────────────────────────
@@ -457,10 +571,10 @@ def main(argv: list[str] | None = None) -> int:
     hotels, recon, processed_hotels, failed_hotels = ingest_hotels(batch_id, logger)
     hotels_by_id = {h["hotel_id"]: h for h in hotels}
 
-    compsets, recon_compset = ingest_compsets(batch_id, hotels_by_id, logger)
+    compsets, recon_compset, processed_compset, failed_compset = ingest_compsets(batch_id, hotels_by_id, logger)
     recon.extend(recon_compset)
 
-    transactions, recon_tx = ingest_transactions(batch_id, hotels_by_id, logger)
+    transactions, recon_tx, processed_tx, failed_tx = ingest_transactions(batch_id, hotels_by_id, logger)
     recon.extend(recon_tx)
 
     # Phase 2.3.d.6 — apply pending operator corrections (overrides over
@@ -475,6 +589,37 @@ def main(argv: list[str] | None = None) -> int:
     )
     logger.event("info", "corrections.summary", **corrections_summary)
 
+    # Aggregate per-source-kind counts for the batch summary
+    duplicate_recon = sum(1 for r in recon if r.get("kind") == "suspected_duplicate")
+    all_processed_files = processed_hotels + processed_compset + processed_tx
+    all_failed_files = failed_hotels + failed_compset + failed_tx
+
+    batch_summary = {
+        "batch_id": batch_id,
+        "normalization_version": NORMALIZATION_VERSION,
+        "files": {
+            "processed": len(all_processed_files),
+            "failed": len(all_failed_files),
+            "archived": 0,            # populated by archive_files()
+            "archive_failed": 0,      # populated by archive_files()
+            "unknown_root": 0,        # populated by archive_files()
+            "skipped_dry_run": 0,     # populated by archive_files()
+        },
+        "rows": {
+            "hotels_ingested": len(hotels),
+            "compsets_built": len(compsets),
+            "transactions_linked": len(transactions),
+            "reconciliation_required": len(recon),
+            "duplicate_suspected": duplicate_recon,
+        },
+        "corrections": corrections_summary,
+        "per_stream": {
+            "hotels": {"processed": len(processed_hotels), "failed": len(failed_hotels)},
+            "compset": {"processed": len(processed_compset), "failed": len(failed_compset)},
+            "transactions": {"processed": len(processed_tx), "failed": len(failed_tx)},
+        },
+    }
+
     snapshot = build_snapshot(
         ingestion_batch_id=batch_id,
         hotels=hotels,
@@ -482,22 +627,69 @@ def main(argv: list[str] | None = None) -> int:
         transactions=transactions,
         reconciliation_queue=recon,
         corrections_summary=corrections_summary,
+        batch_summary=batch_summary,
+    )
+
+    # Archive successful files BEFORE writing the snapshot so the
+    # snapshot reflects the final operational state. archive_files()
+    # handles --dry-run internally (returns counters with skipped_dry_run).
+    if args.no_archive:
+        logger.event("info", "archive.disabled_by_flag")
+    else:
+        archive_counters = archive_files(
+            all_processed_files,
+            logger,
+            dry_run=args.dry_run,
+        )
+        batch_summary["files"].update(archive_counters)
+        logger.event("info", "archive.summary", **archive_counters)
+
+    # Re-snapshot so the persisted batch_summary reflects archive outcomes.
+    snapshot = build_snapshot(
+        ingestion_batch_id=batch_id,
+        hotels=hotels,
+        compsets=compsets,
+        transactions=transactions,
+        reconciliation_queue=recon,
+        corrections_summary=corrections_summary,
+        batch_summary=batch_summary,
     )
 
     if args.dry_run:
         logger.event("info", "snapshot.skipped_dry_run", totals=snapshot["totals"])
     else:
         write_snapshot(snapshot, SNAPSHOT_PATH)
-        logger.event("info", "snapshot.written", path=str(SNAPSHOT_PATH.relative_to(REPO_ROOT)), totals=snapshot["totals"])
-
-    if not args.no_archive and not args.dry_run:
-        archive_files(processed_hotels, logger, dry_run=args.dry_run)
+        logger.event(
+            "info",
+            "snapshot.written",
+            path=str(SNAPSHOT_PATH.relative_to(REPO_ROOT)),
+            totals=snapshot["totals"],
+        )
 
     log_path = logger.flush()
     if log_path:
-        print(f"✓ run log → {log_path.relative_to(REPO_ROOT)}")
+        print(f"[OK] run log -> {log_path.relative_to(REPO_ROOT)}")
 
-    print(json.dumps(snapshot["totals"], indent=2))
+    # Executive summary to stdout (the line a human reads first)
+    print()
+    print(f"BATCH {batch_id}")
+    print(f"  files       processed={batch_summary['files']['processed']} "
+          f"archived={batch_summary['files']['archived']} "
+          f"archive_failed={batch_summary['files']['archive_failed']} "
+          f"failed={batch_summary['files']['failed']}")
+    print(f"  rows        hotels={batch_summary['rows']['hotels_ingested']} "
+          f"compsets={batch_summary['rows']['compsets_built']} "
+          f"transactions={batch_summary['rows']['transactions_linked']}")
+    print(f"  recon       total={batch_summary['rows']['reconciliation_required']} "
+          f"duplicate_suspected={batch_summary['rows']['duplicate_suspected']}")
+    print(f"  corrections applied={corrections_summary['applied']} "
+          f"rejected={corrections_summary['rejected']} "
+          f"pending_before={corrections_summary['pending_before']}")
+    if batch_summary["files"]["archive_failed"] > 0:
+        print()
+        print("[WARN] Some files could not be moved INPUT -> OLD. They remain in INPUT.")
+        print("       Most likely cause on Windows: the file is open in Excel.")
+        print("       Close it and re-run; ingestion is idempotent.")
     return 0
 
 

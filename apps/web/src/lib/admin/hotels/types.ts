@@ -2,7 +2,7 @@
  * Canonical hotel-reference record — mirrors the planned schema in
  * `docs/intelligence/costar-hotels-by-market-schema.md`. Today this
  * type only describes the shape; the data plane lives in the XLSX
- * masters at `services/costar/HOTELES POR MERCADO/`. The
+ * masters at `services/costar/HOTELESperMARKET/`. The
  * `/user/admin/hotels` admin surface reads no live data yet — it
  * renders the registry as a read-only scaffold until the Phase-5
  * Supabase mirror lands.

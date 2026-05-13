@@ -5,13 +5,21 @@
 # processed archives, staging artefacts and run logs stay local + auditable
 # but never travel through commits.
 
-# Inbound raw imports (operator drops these — never commit)
+# Inbound raw imports (operator drops these — never commit).
+# Governance rule (2026-05-14): every workspace has exactly ONE pair —
+#   INPUT/  → files pending ingestion (operational queue)
+#   OLD/    → files successfully merged into the master (audit trail)
+# Legacy `old.<workspace>/` folders are kept for historical audit but the
+# COSTAR pipeline (services/costar/scripts/ingest.py) only writes to OLD/.
 INPUT_TRANSACCIONES/*
 !INPUT_TRANSACCIONES/.gitkeep
 !INPUT_TRANSACCIONES/old.transacciones/
+!INPUT_TRANSACCIONES/OLD/
 
 INPUT_TRANSACCIONES/old.transacciones/*
 !INPUT_TRANSACCIONES/old.transacciones/.gitkeep
+INPUT_TRANSACCIONES/OLD/*
+!INPUT_TRANSACCIONES/OLD/.gitkeep
 
 INPUT_PROYECTOS/*
 !INPUT_PROYECTOS/.gitkeep

@@ -194,7 +194,7 @@ export const AGENT_REGISTRY: Record<AgentId, AgentDescriptor> = {
       "STR Global (Tier A)",
       "Kalibri Labs (Tier B)",
       "services/costar/{PAIS,MERCADO,SUBMERCADO}/INPUT/ (Dataset A)",
-      "services/costar/HOTELES POR MERCADO/INPUT/ (Dataset B)",
+      "services/costar/HOTELESperMARKET/INPUT/ (Dataset B)",
       "services/costar/MASTER/* (4 XLSX workbooks · hotels master ships in v1.2)",
       "/user/admin/hotels — operator read + edit surface (scaffolded 2026-05-14)",
     ],
@@ -226,12 +226,12 @@ export const AGENT_REGISTRY: Record<AgentId, AgentDescriptor> = {
     ],
     kpis: [
       { label: "Datasets", value: "2", hint: "Market Performance + Hotel Inventory" },
-      { label: "Streams", value: "4", hint: "PAIS · MERCADO · SUBMERCADO · HOTELES POR MERCADO" },
+      { label: "Streams", value: "4", hint: "PAIS · MERCADO · SUBMERCADO · HOTELESperMARKET" },
       { label: "Rows in MASTER", value: "—", hint: "Madrid drop ingested 2026-05-14 · waiting build_masters v1.2" },
       { label: "Cost cap (planned)", value: "$0.10/d", hint: "Per ai_agents.config" },
     ],
     mockLogs: [
-      { ts: NOW, level: "info", message: "2026-05-14 · Madrid drop received: market-data (PAIS/MERCADO/SUBMERCADO) + hotel-inventory (HOTELES POR MERCADO) + compset + transactions" },
+      { ts: NOW, level: "info", message: "2026-05-14 · Madrid drop received: market-data (PAIS/MERCADO/SUBMERCADO) + hotel-inventory (HOTELESperMARKET) + compset + transactions" },
       { ts: NOW, level: "info", message: "CLASS granularity retired — chain_scale becomes attribute on hotel records" },
       { ts: HOUR_AGO, level: "info", message: "Reconciliation queue: 0 entries · awaiting build_masters v1.2 to populate" },
       { ts: TWO_HOURS_AGO, level: "info", message: "Workspace at services/costar/ — 4 streams active · hotels master pending generator bump" },
@@ -239,7 +239,7 @@ export const AGENT_REGISTRY: Record<AgentId, AgentDescriptor> = {
     roadmap: [
       { phase: "Phase 2.3.d.0", description: "Workspace + masters + schemas + 7 docs (substrate)", status: "shipped" },
       { phase: "Phase 2.3.d.1", description: "Python CLI pipeline (parser · normaliser · dedup · audit-sync)", status: "planned" },
-      { phase: "Phase 2.3.d.2", description: "build_masters v1.2 · retire CLASS · add HOTELES POR MERCADO master", status: "planned" },
+      { phase: "Phase 2.3.d.2", description: "build_masters v1.2 · retire CLASS · add HOTELESperMARKET master", status: "planned" },
       { phase: "Phase 2.3.d.3", description: "Reconciliation queue surface in /user/admin/hotels", status: "planned" },
       { phase: "Phase 2.3.d.4", description: "Monthly Vercel Cron sweeping operator inbox", status: "planned" },
       { phase: "Phase 4", description: "LLM-assisted normalisation + FX conversion via ECB rates", status: "planned" },

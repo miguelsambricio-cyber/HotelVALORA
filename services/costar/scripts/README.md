@@ -2,7 +2,7 @@
 
 Reproducible Python toolchain owned by the **COSTAR & Hotel Reference Agent**.
 v1.2 (2026-05-14) replaces the chain-scale `CLASS` master with the new
-`HOTELES POR MERCADO` hotel-inventory pipeline and adds cross-references
+`HOTELESperMARKET` hotel-inventory pipeline and adds cross-references
 to the compset and transactions workspaces.
 
 ## Quick start
@@ -35,7 +35,7 @@ The orchestrator writes:
 | File | Role |
 |---|---|
 | `ingest.py` | CLI orchestrator — sweeps INPUTs, builds the snapshot, archives sources |
-| `build_masters.py` | Generates the canonical XLSX masters (PAIS · MERCADO · SUBMERCADO · HOTELES POR MERCADO) |
+| `build_masters.py` | Generates the canonical XLSX masters (PAIS · MERCADO · SUBMERCADO · HOTELESperMARKET) |
 | `dedup.py` | Stable IDs (`hotel_id`, `compset_id`, `transaction_id`, `ingestion_batch_id`), fuzzy matching, confidence scoring |
 | `normalization.py` | Header alias maps + per-field normalisers (chain_scale, segment, facilities, country, year, numeric) |
 | `source_readers.py` | XLSX/CSV reading + alias-folding |
@@ -122,6 +122,6 @@ themselves AND in the appended `corrections-applied/` audit log.
 ## v1.1 → v1.2 migration
 
 - `COSTAR_MASTER_CLASS.xlsx` is no longer regenerated. The file stays in `MASTER/` for archival.
-- The `CLASS/` folder was renamed to `HOTELES POR MERCADO/` (legacy archive lives at `HOTELES POR MERCADO/old.class/`).
+- The `CLASS/` folder was renamed to `HOTELESperMARKET/` (legacy archive lives at `HOTELESperMARKET/old.class/`).
 - `chain_scale` becomes an attribute on each hotel record in the new inventory rather than its own granularity.
 - See `docs/intelligence/costar-hotels-by-market-schema.md` for the canonical column reference.

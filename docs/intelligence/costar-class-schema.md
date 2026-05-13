@@ -4,7 +4,7 @@
 >
 > **Why retired:** an operator question like "How does Spanish luxury compare to Spanish midscale this quarter?" is now answered by `GROUP BY chain_scale` over the hotels-by-market inventory joined to the period KPIs in `COSTAR_MASTER_MERCADOS` — not by maintaining a parallel aggregate master with its own dedup keys.
 >
-> **What happens to the workbook:** `services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx` stays in `MASTER/` for archival but is no longer regenerated. The `CLASS/` ingest folder was renamed to `HOTELES POR MERCADO/` on 2026-05-14. The legacy archive lives at `HOTELES POR MERCADO/old.class/`.
+> **What happens to the workbook:** `services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx` stays in `MASTER/` for archival but is no longer regenerated. The `CLASS/` ingest folder was renamed to `HOTELESperMARKET/` on 2026-05-14 and the legacy `old.class/` archive was renamed to `old.hotelspermarket/`. New ingestion artefacts go to `HOTELESperMARKET/OLD/` per the 2026-05-14 governance rule.
 >
 > **If you came here from a link:** see the new schema (`costar-hotels-by-market-schema.md`) for the hotel-by-hotel reference data. For chain-scale comparison queries, group the new inventory by `chain_scale` and join to the market KPIs.
 

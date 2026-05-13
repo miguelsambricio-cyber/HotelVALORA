@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 
-SNAPSHOT_SCHEMA_VERSION = "v1.3"  # +corrections block (Phase 2.3.d.6 · 2026-05-14)
+SNAPSHOT_SCHEMA_VERSION = "v1.4"  # +batch_summary block (governance · 2026-05-14)
 
 
 def build_snapshot(
@@ -42,6 +42,7 @@ def build_snapshot(
     transactions: list[dict[str, Any]],
     reconciliation_queue: list[dict[str, Any]],
     corrections_summary: dict[str, int] | None = None,
+    batch_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble the snapshot dict. Caller writes it to disk.
 
@@ -99,6 +100,7 @@ def build_snapshot(
             "rejected": 0,
             "applied_total_in_master": 0,
         },
+        "batch": batch_summary or {},
         "markets": market_rows,
         "hotels": [_strip_private(h) for h in hotels],
         "compsets": compsets,

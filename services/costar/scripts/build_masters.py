@@ -12,7 +12,7 @@ Produces (v1.2 · 2026-05-14):
 Retired in v1.2:
     services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx — chain-scale aggregates
     are no longer a separate granularity. chain_scale becomes an attribute
-    on each hotel record in HOTELES POR MERCADO. The legacy file stays in
+    on each hotel record in HOTELESperMARKET. The legacy file stays in
     MASTER/ for archival but is no longer regenerated.
 
 CompSet datasets live in services/compset/ — operationally distinct
@@ -435,7 +435,7 @@ def main():
         output_path=MASTER_DIR / "COSTAR_MASTER_SUBMERCADOS.xlsx",
     )
     # COSTAR_MASTER_CLASS retired in v1.2 — chain-scale is now an attribute
-    # on each hotel record in HOTELES POR MERCADO, not a separate master.
+    # on each hotel record in HOTELESperMARKET, not a separate master.
     # The legacy COSTAR_MASTER_CLASS.xlsx stays in MASTER/ for archival.
     # See docs/intelligence/costar-class-schema.md for the deprecation note.
     build_workbook(

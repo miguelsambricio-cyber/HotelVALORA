@@ -106,6 +106,34 @@ export interface CorrectionsSummary {
   applied_total_in_master: number;
 }
 
+/** Snapshot-level batch summary — the institutional audit object emitted
+ *  by every successful `ingest.py` run (governance rule · 2026-05-14). */
+export interface BatchSummary {
+  batch_id: string;
+  normalization_version: string;
+  files: {
+    processed: number;
+    failed: number;
+    archived: number;
+    archive_failed: number;
+    unknown_root: number;
+    skipped_dry_run: number;
+  };
+  rows: {
+    hotels_ingested: number;
+    compsets_built: number;
+    transactions_linked: number;
+    reconciliation_required: number;
+    duplicate_suspected: number;
+  };
+  corrections: CorrectionsSummary;
+  per_stream: {
+    hotels: { processed: number; failed: number };
+    compset: { processed: number; failed: number };
+    transactions: { processed: number; failed: number };
+  };
+}
+
 export interface HotelsSnapshot {
   schema_version: string;
   generated_at: string;
@@ -119,6 +147,8 @@ export interface HotelsSnapshot {
   };
   /** Optional · older v1.2 snapshots predate this block. */
   corrections?: CorrectionsSummary;
+  /** Optional · v1.4+ batch governance summary. */
+  batch?: BatchSummary;
   markets: MarketSummary[];
   hotels: HotelRecord[];
   compsets: CompsetEntry[];

@@ -1,6 +1,6 @@
 # CoStar Hotels-by-Market Schema (Dataset B · Hotel Reference Inventory)
 
-Full column reference for `services/costar/HOTELES POR MERCADO/` ingest stream and the planned `COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx` master.
+Full column reference for `services/costar/HOTELESperMARKET/` ingest stream and the planned `COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx` master.
 
 **Last refreshed:** 2026-05-14
 **Status:** Provisional — schema captures the institutional intent before the build_masters generator materialises the workbook. Column finalisation lands once the v1.2 normalisation version of `services/costar/scripts/build_masters.py` ships against the first Madrid drop.

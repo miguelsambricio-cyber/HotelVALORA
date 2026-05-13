@@ -3,9 +3,9 @@
 Phased delivery plan for the HotelVALORA Hospitality Intelligence Engine.
 
 **Last refreshed:** 2026-05-14
-**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing** · 🟢 **Phase 2.3.d.0 substrate live** · 🟢 **Phase 2.3.d.2 v1.2 Master Inventory Engine shipped (2026-05-14)** · 🟢 **Phase 2.3.d.3-5 surfaces + cross-refs landed** · 🟢 **Phase 2.3.d.6 Institutional Correction Consumer shipped (2026-05-14) — institutional data integrity layer closed** · 🟡 **Phase 3 underwriting engine awaiting first real `ingest.py` run**
+**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing** · 🟢 **Phase 2.3.d.0 substrate live** · 🟢 **Phase 2.3.d.2 v1.2 Master Inventory Engine shipped (2026-05-14)** · 🟢 **Phase 2.3.d.3-5 surfaces + cross-refs landed** · 🟢 **Phase 2.3.d.6 Institutional Correction Consumer shipped (2026-05-14)** · 🟢 **Phase 2.3.d.6b INPUT → OLD governance + HOTELESperMARKET rename + batch summary shipped (2026-05-14)** · 🟡 **Phase 3 underwriting engine awaiting first real `ingest.py` run**
 
-> **2026-05-14 · COSTAR dataset split.** The COSTAR workspace now ships **two datasets**: Market Performance (PAIS / MERCADO / SUBMERCADO) and Hotel-by-Market Inventory (HOTELES POR MERCADO, replaces retired CLASS). Madrid + Madrid Centro CoStar exports + a private transactions file + COMPSET file have landed under `services/{costar,transactions,compset}/INPUT/`. These are the building blocks that turn HotelVALORA from "platform scaffolding" into a real institutional underwriting engine.
+> **2026-05-14 · COSTAR dataset split.** The COSTAR workspace now ships **two datasets**: Market Performance (PAIS / MERCADO / SUBMERCADO) and Hotel-by-Market Inventory (HOTELESperMARKET, replaces retired CLASS). Madrid + Madrid Centro CoStar exports + a private transactions file + COMPSET file have landed under `services/{costar,transactions,compset}/INPUT/`. These are the building blocks that turn HotelVALORA from "platform scaffolding" into a real institutional underwriting engine.
 
 ---
 
@@ -180,7 +180,7 @@ The COSTAR workspace splits cleanly into two datasets. The hotel-by-market inven
 |---|---|---|
 | 2.3.d.0 | Workspace + masters + 7 schema docs (substrate) | ✅ 2026-05-11 |
 | 2.3.d.1 | Python CLI pipeline (parser · normaliser · dedup · audit-sync) | ✅ 2026-05-14 (merged into 2.3.d.2) |
-| 2.3.d.2 | `build_masters.py` v1.2 + multi-stream `ingest.py` — retire CLASS · add HOTELES POR MERCADO master · sweep 6 INPUT folders · stable IDs · fuzzy dedup · reconciliation queue · snapshot.json bridge | ✅ 2026-05-14 |
+| 2.3.d.2 | `build_masters.py` v1.2 + multi-stream `ingest.py` — retire CLASS · add HOTELESperMARKET master · sweep 6 INPUT folders · stable IDs · fuzzy dedup · reconciliation queue · snapshot.json bridge | ✅ 2026-05-14 |
 | 2.3.d.3 | Reconciliation queue surface in `/user/admin/hotels` — dedup detection · missing fields · orphan compset refs (reads snapshot.json) | ✅ 2026-05-14 |
 | 2.3.d.4 | Compset cross-reference validator — every compset target hotel_id must resolve in the inventory | ✅ 2026-05-14 (in `ingest.py` · emits `compset_orphan_*` reconciliation entries) |
 | 2.3.d.5 | Transactions merge strategy — official COSTAR transactions + private dataset → master with provenance tagging (`source: "costar" | "private"`) | ✅ 2026-05-14 (in `ingest.py` · orphan transactions surface in reconciliation queue) |

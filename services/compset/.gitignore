@@ -4,9 +4,14 @@
 # CONTRACT (directory structure + canonical masters + templates + schemas +
 # scripts), NOT the operator-supplied data or run artefacts.
 
-# Inbound raw imports (operator drops these — never commit)
+# Inbound raw imports (operator drops these — never commit).
+# Governance rule (2026-05-14): INPUT/ for pending · OLD/ for archived.
+# Legacy `old/` folder kept for historical audit.
 INPUT/*
 !INPUT/.gitkeep
+
+OLD/*
+!OLD/.gitkeep
 
 old/*
 !old/.gitkeep

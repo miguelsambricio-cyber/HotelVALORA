@@ -11,7 +11,7 @@ The operational substrate for HOTELVALORA's institutional hospitality market int
 
 **Status** — Phase 1 directory + schemas + workflow live. Madrid · Madrid Centro · COSTAR market-data + hotel-inventory files dropped 2026-05-14. Phase 2.3.d.1 wires the CLI ingestion pipeline. No autonomous ingestion yet.
 
-> **2026-05-14 conceptual shift:** the previous CLASS granularity (chain-scale aggregates) is retired. `chain_scale` becomes an attribute on each hotel record in the new HOTELES POR MERCADO inventory, not its own master. The legacy `COSTAR_MASTER_CLASS.xlsx` stays in `MASTER/` for archival but is no longer the source of truth for chain-scale positioning.
+> **2026-05-14 conceptual shift:** the previous CLASS granularity (chain-scale aggregates) is retired. `chain_scale` becomes an attribute on each hotel record in the new HOTELESperMARKET inventory, not its own master. The legacy `COSTAR_MASTER_CLASS.xlsx` stays in `MASTER/` for archival but is no longer the source of truth for chain-scale positioning.
 
 ---
 
@@ -38,20 +38,20 @@ services/costar/
 │
 ├── PAIS/
 │   ├── INPUT/                               ← operator drops raw country market-data files here
-│   └── old.pais/                            ← processed archive
+│   └── OLD/                                 ← processed archive (governance · 2026-05-14)
 │
 ├── MERCADO/
 │   ├── INPUT/                               ← operator drops raw market-data files here
-│   └── old.mercado/                         ← processed archive
+│   └── OLD/                                 ← processed archive
 │
 ├── SUBMERCADO/
 │   ├── INPUT/                               ← operator drops raw submarket-data files here
-│   └── old.submercado/                      ← processed archive
+│   └── OLD/                                 ← processed archive
 │
-├── HOTELES POR MERCADO/                     ← NEW · 2026-05-14 (replaces CLASS folder)
+├── HOTELESperMARKET/                        ← renamed from "HOTELES POR MERCADO" (2026-05-14)
 │   ├── INPUT/                               ← operator drops hotel-inventory exports here
 │   │   └── LISTA HOTELES FROM MARKET - <CITY>/
-│   └── old.class/                           ← legacy archive (kept for audit)
+│   └── OLD/                                 ← processed archive
 │
 ├── staging/
 │   ├── failed/                              ← unparseable / corrupted imports
@@ -77,7 +77,7 @@ Dataset **A** (market performance) flows through three strictly separated parall
 | **Country** (`PAIS`) | A | ISO-3166-1 alpha-2 | yes | Macro context |
 | **Market** (`MERCADO`) | A | (country, market_name) | yes | Asset-level positioning anchor |
 | **Submarket** (`SUBMERCADO`) | A | (country, market, submarket) | yes | Comp neighborhood reference |
-| **Hotels by Market** (`HOTELES POR MERCADO`) | B | (country, market, hotel_id) | no — slowly-changing dimension | **Reference data backbone** · powers compsets · valuations · benchmarking |
+| **Hotels by Market** (`HOTELESperMARKET`) | B | (country, market, hotel_id) | no — slowly-changing dimension | **Reference data backbone** · powers compsets · valuations · benchmarking |
 
 The four streams share infrastructure (ingestion-meta block, SOURCES_REGISTRY) but never share a DATA sheet — schemas, granularity, KPIs, aggregation logic, and underwriting relevance all differ. See `docs/intelligence/costar-master-dataset-architecture.md` for the detailed rationale.
 
