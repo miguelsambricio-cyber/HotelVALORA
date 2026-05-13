@@ -478,3 +478,134 @@ export async function findSyntheticCompsetForHotel(
   if (!snap?.synthetic_compsets) return null;
   return snap.synthetic_compsets.find((c) => c.target_hotel_id === hotelId) ?? null;
 }
+
+// ── Phase 3 · Market context + transaction comparables ────────────────────
+
+export interface MarketSnapshot {
+  country: string;
+  market_name: string | null;
+  submarket_name: string | null;
+  granularity: "country_listing" | "market" | "submarket" | string;
+  rooms_inventory: number | null;
+  rooms_under_construction: number | null;
+  rooms_delivered_12m: number | null;
+  occupancy_12m: number | null;
+  occupancy_yoy_12m: number | null;
+  adr_12m: number | null;
+  adr_yoy_12m: number | null;
+  revpar_12m: number | null;
+  revpar_yoy_12m: number | null;
+}
+
+export interface MarketTimeseriesRow {
+  market_name: string | null;
+  submarket_name: string | null;
+  period: string | null;
+  occupancy_12m: number | null;
+  adr_12m: number | null;
+  revpar_12m: number | null;
+  supply_12m: number | null;
+  demand_12m: number | null;
+}
+
+/** Best-match market snapshot for a hotel — picks market granularity first,
+ *  falls back to submarket if available. Returns the most recently
+ *  ingested row for the hotel's `market_name`. */
+export async function findMarketSnapshotForHotel(
+  hotelId: string,
+): Promise<{ market: MarketSnapshot | null; submarket: MarketSnapshot | null }> {
+  const snap = await loadHotelsSnapshot();
+  if (!snap) return { market: null, submarket: null };
+  const hotel = snap.hotels.find((h) => h.hotel_id === hotelId);
+  if (!hotel) return { market: null, submarket: null };
+  const allMarketSnaps = (snap as unknown as { market_snapshots?: MarketSnapshot[] }).market_snapshots ?? [];
+  const market =
+    allMarketSnaps.find(
+      (r) =>
+        (r.granularity === "market" || r.granularity === "country_listing") &&
+        r.market_name === hotel.market_name &&
+        !r.submarket_name,
+    ) ?? null;
+  const submarket =
+    allMarketSnaps.find(
+      (r) =>
+        r.granularity === "submarket" &&
+        r.submarket_name === hotel.submarket_name,
+    ) ?? null;
+  return { market, submarket };
+}
+
+/** Last N periods of market time-series for a hotel's market. Madrid
+ *  drop today: all timeseries rows are Madrid, so this returns the
+ *  tail-N regardless of market filter. When more cities land we filter
+ *  by `market_name === hotel.market_name`. */
+export async function findMarketTimeseriesForHotel(
+  hotelId: string,
+  n = 12,
+): Promise<MarketTimeseriesRow[]> {
+  const snap = await loadHotelsSnapshot();
+  if (!snap) return [];
+  const all = (snap as unknown as { market_timeseries?: MarketTimeseriesRow[] }).market_timeseries ?? [];
+  if (all.length === 0) return [];
+  // Period strings look like "Ago 2025" / "Sep 2025" — order in the file is
+  // typically chronological. Take the last N entries as a proxy for "latest".
+  // Future-proof: when files carry explicit dates we sort by them.
+  return all.slice(-n);
+}
+
+/** Transaction comparables for a hotel — pulls transactions in the same
+ *  market (and submarket when possible) sorted by closed_at desc.
+ *  Computes price-per-key when both price_eur and rooms_count are
+ *  resolvable (rooms_count comes from the hotel record when the
+ *  transaction is linked, otherwise from the transaction's own field). */
+export interface TransactionComparable extends TransactionEntry {
+  price_per_key_eur: number | null;
+  matched_via: "same_hotel" | "same_submarket" | "same_market" | "unmatched";
+}
+
+export async function findTransactionComparables(
+  hotelId: string,
+  limit = 8,
+): Promise<TransactionComparable[]> {
+  const snap = await loadHotelsSnapshot();
+  if (!snap) return [];
+  const hotel = snap.hotels.find((h) => h.hotel_id === hotelId);
+  if (!hotel) return [];
+  const hotelsByName = new Map(snap.hotels.map((h) => [h.hotel_id, h]));
+
+  const candidates: TransactionComparable[] = [];
+  for (const t of snap.transactions) {
+    const linkedHotel = t.hotel_id ? hotelsByName.get(t.hotel_id) : null;
+    let matched: TransactionComparable["matched_via"];
+    if (t.hotel_id === hotel.hotel_id) matched = "same_hotel";
+    else if (linkedHotel?.submarket_name && linkedHotel.submarket_name === hotel.submarket_name) matched = "same_submarket";
+    else if (linkedHotel?.market_name === hotel.market_name) matched = "same_market";
+    else if (t.market_name && t.market_name.toLowerCase() === (hotel.market_name ?? "").toLowerCase()) matched = "same_market";
+    else continue;
+
+    // Price-per-key: use linked hotel rooms when available; otherwise the
+    // transaction's own rooms_count field (often absent on private rows).
+    let rooms: number | null = null;
+    if (linkedHotel?.rooms_count) rooms = linkedHotel.rooms_count;
+    const price = typeof t.price_eur === "number" ? t.price_eur : null;
+    const ppk = price && rooms ? Math.round(price / rooms) : null;
+    candidates.push({ ...t, price_per_key_eur: ppk, matched_via: matched });
+  }
+
+  // Sort: same_hotel > same_submarket > same_market, then by closed_at desc
+  const matchRank: Record<TransactionComparable["matched_via"], number> = {
+    same_hotel: 0,
+    same_submarket: 1,
+    same_market: 2,
+    unmatched: 3,
+  };
+  candidates.sort((a, b) => {
+    const r = matchRank[a.matched_via] - matchRank[b.matched_via];
+    if (r !== 0) return r;
+    if (a.closed_at && b.closed_at) return a.closed_at < b.closed_at ? 1 : -1;
+    if (a.closed_at && !b.closed_at) return -1;
+    if (!a.closed_at && b.closed_at) return 1;
+    return 0;
+  });
+  return candidates.slice(0, limit);
+}

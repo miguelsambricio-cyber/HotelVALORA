@@ -8,6 +8,9 @@ import {
   findTransactionsForHotel,
   findCorrectionsForHotel,
   findSyntheticCompsetForHotel,
+  findMarketSnapshotForHotel,
+  findMarketTimeseriesForHotel,
+  findTransactionComparables,
   type HotelRecord,
 } from "@/lib/admin/hotels/snapshot-reader";
 import { CorrectionForm } from "@/components/admin/hotels/correction-form";
@@ -27,11 +30,22 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
   const hotel = await findHotelById(hotelId);
   if (!hotel) notFound();
 
-  const [compsets, transactions, correctionHistory, syntheticCompset] = await Promise.all([
+  const [
+    compsets,
+    transactions,
+    correctionHistory,
+    syntheticCompset,
+    marketContext,
+    marketTimeseries,
+    txComparables,
+  ] = await Promise.all([
     findCompsetsForHotel(hotelId),
     findTransactionsForHotel(hotelId),
     findCorrectionsForHotel(hotelId),
     findSyntheticCompsetForHotel(hotelId),
+    findMarketSnapshotForHotel(hotelId),
+    findMarketTimeseriesForHotel(hotelId, 12),
+    findTransactionComparables(hotelId, 8),
   ]);
 
   return (
@@ -147,6 +161,101 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
               <Pair label="Meeting space (sqm)" value={fmtNum(hotel.meeting_space_sqm)} />
               <Pair label="Parking spaces" value={fmtNum(hotel.parking_spaces)} />
             </div>
+          </Section>
+
+          {/* Market context (Phase 3 · 2026-05-14) */}
+          <Section title="Market context">
+            {marketContext.market || marketContext.submarket ? (
+              <div className="space-y-4">
+                {marketContext.market && (
+                  <MarketKpiBlock label={`${marketContext.market.market_name} · market`} ms={marketContext.market} />
+                )}
+                {marketContext.submarket && (
+                  <MarketKpiBlock label={`${marketContext.submarket.submarket_name} · submarket`} ms={marketContext.submarket} />
+                )}
+              </div>
+            ) : (
+              <p className="text-[12px] text-slate-500">
+                No market snapshot found for {hotel.market_name}. Run{" "}
+                <code className="rounded bg-slate-100 px-1 font-mono text-[10.5px]">
+                  python services/costar/scripts/ingest.py
+                </code>{" "}
+                after dropping the PAIS/MERCADO/SUBMERCADO xlsx exports.
+              </p>
+            )}
+
+            {marketTimeseries.length > 0 && (
+              <div className="mt-4 border-t border-slate-200 pt-3">
+                <p className="mb-2 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+                  Last {marketTimeseries.length} periods · Madrid time-series
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                  <MarketTrendCell
+                    label="Occupancy"
+                    series={marketTimeseries.map((r) => r.occupancy_12m)}
+                    format={(v) => `${(v * 100).toFixed(1)}%`}
+                  />
+                  <MarketTrendCell
+                    label="ADR"
+                    series={marketTimeseries.map((r) => r.adr_12m)}
+                    format={(v) => `€${v.toFixed(0)}`}
+                  />
+                  <MarketTrendCell
+                    label="RevPAR"
+                    series={marketTimeseries.map((r) => r.revpar_12m)}
+                    format={(v) => `€${v.toFixed(0)}`}
+                  />
+                </div>
+              </div>
+            )}
+          </Section>
+
+          {/* Transaction comparables (Phase 3 · 2026-05-14) */}
+          <Section title="Transaction comparables">
+            {txComparables.length === 0 ? (
+              <p className="text-[12px] text-slate-500">
+                No comparable transactions found. The matcher looks for: same
+                hotel · same submarket · same market.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {txComparables.map((t) => (
+                  <li key={t.transaction_id} className="rounded-lg border border-slate-200 bg-slate-50/40 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] ring-1 ${matchToneCls(t.matched_via)}`}>
+                        {t.matched_via.replace(/_/g, " ")}
+                      </span>
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-slate-700 ring-1 ring-slate-200">
+                        {t.source}
+                      </span>
+                      <code className="font-mono text-[10.5px] text-slate-500">{t.transaction_id}</code>
+                      {t.closed_at && (
+                        <span className="font-mono text-[10.5px] text-slate-500">closed {t.closed_at}</span>
+                      )}
+                      <span className="ml-auto flex items-center gap-3">
+                        {t.price_eur !== null && (
+                          <span className="font-headline text-[13px] font-extrabold text-forest-900">
+                            €{(t.price_eur / 1_000_000).toFixed(1)}M
+                          </span>
+                        )}
+                        {t.price_per_key_eur !== null && (
+                          <span className="font-mono text-[10.5px] text-slate-600">
+                            €{t.price_per_key_eur.toLocaleString()}/key
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[12px] text-slate-700">{t.asset_name}</p>
+                    {(t.buyer || t.seller) && (
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {t.buyer ? `${t.buyer} ← ` : ""}
+                        {t.seller ?? "—"}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
 
           {/* Compsets */}
@@ -408,6 +517,130 @@ function Pair({ label, value, mono, wrap }: { label: string; value: string; mono
 function fmtNum(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return String(n);
+}
+
+// ── Phase 3 helpers ─────────────────────────────────────────────────────────
+
+interface MarketSnap {
+  occupancy_12m: number | null;
+  occupancy_yoy_12m: number | null;
+  adr_12m: number | null;
+  adr_yoy_12m: number | null;
+  revpar_12m: number | null;
+  revpar_yoy_12m: number | null;
+  rooms_inventory: number | null;
+  rooms_under_construction: number | null;
+}
+
+function MarketKpiBlock({ label, ms }: { label: string; ms: MarketSnap }) {
+  return (
+    <div>
+      <p className="mb-2 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <MarketKpi
+          label="Occupancy 12m"
+          value={ms.occupancy_12m !== null ? `${(ms.occupancy_12m * 100).toFixed(1)}%` : "—"}
+          yoy={ms.occupancy_yoy_12m}
+          yoyFormat={(v) => `${(v * 100).toFixed(1)}pp`}
+        />
+        <MarketKpi
+          label="ADR 12m"
+          value={ms.adr_12m !== null ? `€${ms.adr_12m.toFixed(0)}` : "—"}
+          yoy={ms.adr_yoy_12m}
+          yoyFormat={(v) => `${(v * 100).toFixed(1)}%`}
+        />
+        <MarketKpi
+          label="RevPAR 12m"
+          value={ms.revpar_12m !== null ? `€${ms.revpar_12m.toFixed(0)}` : "—"}
+          yoy={ms.revpar_yoy_12m}
+          yoyFormat={(v) => `${(v * 100).toFixed(1)}%`}
+        />
+        <MarketKpi
+          label="Inventory"
+          value={ms.rooms_inventory !== null ? ms.rooms_inventory.toLocaleString() : "—"}
+          hint={ms.rooms_under_construction ? `+${ms.rooms_under_construction.toLocaleString()} in construction` : undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MarketKpi({
+  label,
+  value,
+  yoy,
+  yoyFormat,
+  hint,
+}: {
+  label: string;
+  value: string;
+  yoy?: number | null;
+  yoyFormat?: (v: number) => string;
+  hint?: string;
+}) {
+  const yoyTone =
+    yoy === null || yoy === undefined ? "" : yoy > 0 ? "text-emerald-700" : yoy < 0 ? "text-rose-700" : "text-slate-500";
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-2.5">
+      <p className="font-headline text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-0.5 font-headline text-base font-extrabold tabular-nums text-forest-900">{value}</p>
+      {yoy !== null && yoy !== undefined && yoyFormat && (
+        <p className={`mt-0.5 font-mono text-[10.5px] ${yoyTone}`}>
+          {yoy > 0 ? "▲" : yoy < 0 ? "▼" : "·"} {yoyFormat(Math.abs(yoy))} YoY
+        </p>
+      )}
+      {hint && <p className="mt-0.5 font-mono text-[10px] text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
+function MarketTrendCell({
+  label,
+  series,
+  format,
+}: {
+  label: string;
+  series: (number | null)[];
+  format: (v: number) => string;
+}) {
+  const nums = series.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (nums.length === 0) {
+    return (
+      <div className="rounded bg-slate-50 p-2">
+        <p className="font-headline text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+        <p className="font-mono text-[10.5px] text-slate-400">—</p>
+      </div>
+    );
+  }
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  const first = nums[0];
+  const last = nums[nums.length - 1];
+  const delta = first === 0 ? 0 : (last - first) / first;
+  const deltaTone = delta > 0 ? "text-emerald-700" : delta < 0 ? "text-rose-700" : "text-slate-500";
+  return (
+    <div className="rounded bg-slate-50 p-2">
+      <p className="font-headline text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+      <p className="mt-0.5 font-headline text-[13px] font-extrabold tabular-nums text-forest-900">{format(last)}</p>
+      <p className={`mt-0.5 font-mono text-[10px] ${deltaTone}`}>
+        {delta > 0 ? "▲" : delta < 0 ? "▼" : "·"} {(Math.abs(delta) * 100).toFixed(1)}% vs {nums.length}p ago
+      </p>
+      <p className="mt-0.5 font-mono text-[9.5px] text-slate-400">
+        {format(min)} – {format(max)}
+      </p>
+    </div>
+  );
+}
+
+function matchToneCls(matched: string): string {
+  if (matched === "same_hotel") return "bg-emerald-100 text-emerald-800 ring-emerald-200";
+  if (matched === "same_submarket") return "bg-sky-100 text-sky-800 ring-sky-200";
+  if (matched === "same_market") return "bg-slate-100 text-slate-700 ring-slate-200";
+  return "bg-slate-100 text-slate-500 ring-slate-200";
 }
 
 function fmtVal(v: string | number | null): string {
