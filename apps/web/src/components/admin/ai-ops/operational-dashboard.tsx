@@ -5,25 +5,24 @@ import type { AiOpsLive, RecentRunRow, ThroughputBucket, DegradedSource, AlertEn
 import { PriorityIntelligenceFeed, TopSignalsSummary } from "./priority-intelligence-feed";
 
 /**
- * AI Operations Center · live operational dashboard. Sits at the top of
- * /user/admin/agents above the orbital diagram. Every panel reads from
- * the `loadAiOpsLive` aggregator · zero mock data.
+ * AI Operations Center primitives.
  *
- * Panels
- *   1. Totals strip · 7d aggregates (runs / successes / failures /
- *      articles / sources active / sources degraded)
- *   2. Throughput sparkline · 7d articles-per-day bars
- *   3. Degraded sources panel · what needs attention right now
- *   4. Recent runs table · last 20 ingestion runs with status pill
- *   5. Alerts feed · audit-driven failure entries
+ * Each named export below is a self-contained section card. The page
+ * (`/user/admin/agents`) composes them in the operational hierarchy:
+ *   1. Command Center  (orbital · separate component)
+ *   2. Agent Roster    (separate component)
+ *   3. Operational Metrics  → TotalsStrip
+ *   4. Priority Intelligence Feed  → IntelligenceFeedCapped
+ *   5. Ingestion Monitoring        → ThroughputCard + RecentRunsTable
+ *   6. Alerts & Failures           → DegradedPanel + AlertsFeed
+ *
+ * `OperationalDashboard` is retained as a convenience wrapper for any
+ * legacy caller that wants the original single-block layout.
  */
 export function OperationalDashboard({ data }: { data: AiOpsLive }) {
   return (
     <section className="space-y-5">
       <TotalsStrip data={data} />
-      {/* Institutional command-center band · top signals strip + cross-source
-       *  priority feed. Sits ABOVE the runtime telemetry so the operator's
-       *  first read is the deal-flow, not the cron health. */}
       <TopSignalsSummary signals={data.topSignals} />
       <PriorityIntelligenceFeed items={data.priorityFeed} totalPriority7d={data.totals.priorityArticles7d} />
       <div className="grid gap-5 lg:grid-cols-3">
@@ -44,7 +43,7 @@ export function OperationalDashboard({ data }: { data: AiOpsLive }) {
 
 // ── totals strip ────────────────────────────────────────────────────────────
 
-function TotalsStrip({ data }: { data: AiOpsLive }) {
+export function TotalsStrip({ data }: { data: AiOpsLive }) {
   const successRate =
     data.totals.runs7d > 0
       ? Math.round((data.totals.successes7d / data.totals.runs7d) * 100)
@@ -60,25 +59,46 @@ function TotalsStrip({ data }: { data: AiOpsLive }) {
         </p>
       </header>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-7">
-        <Totem label="Runs · 7d" value={String(data.totals.runs7d)} />
+        <Totem
+          label="Runs · 7d"
+          value={String(data.totals.runs7d)}
+          href="#ingestion-monitoring"
+        />
         <Totem
           label="Success Rate"
           value={`${successRate}%`}
           severity={successRate >= 80 ? "ok" : successRate >= 60 ? "warn" : "error"}
+          href="#ingestion-monitoring"
         />
-        <Totem label="Successful" value={String(data.totals.successes7d)} severity="ok" />
+        <Totem
+          label="Successful"
+          value={String(data.totals.successes7d)}
+          severity="ok"
+          href="#ingestion-monitoring"
+        />
         <Totem
           label="Partial"
           value={String(data.totals.partials7d)}
           severity={data.totals.partials7d > 0 ? "warn" : "neutral"}
+          href="#alerts-failures"
         />
         <Totem
           label="Failed"
           value={String(data.totals.failures7d)}
           severity={data.totals.failures7d > 0 ? "error" : "neutral"}
+          href="#alerts-failures"
         />
-        <Totem label="Articles · 7d" value={String(data.totals.articlesInserted7d)} />
-        <Totem label="Priority · 7d" value={String(data.totals.priorityArticles7d)} severity="ok" />
+        <Totem
+          label="Articles · 7d"
+          value={String(data.totals.articlesInserted7d)}
+          href="/library"
+        />
+        <Totem
+          label="Priority · 7d"
+          value={String(data.totals.priorityArticles7d)}
+          severity="ok"
+          href="#priority-intel-feed"
+        />
       </dl>
     </section>
   );
@@ -88,10 +108,14 @@ function Totem({
   label,
   value,
   severity,
+  href,
 }: {
   label: string;
   value: string;
   severity?: "ok" | "warn" | "error" | "neutral";
+  /** Drilldown target (in-page anchor or route). When set, the totem is
+   *  a clickable link with a lime-300 hover affordance. */
+  href?: string;
 }) {
   const tone =
     severity === "ok"
@@ -101,19 +125,32 @@ function Totem({
         : severity === "error"
           ? "text-rose-300"
           : "text-lime-300";
-  return (
-    <div>
+  const body = (
+    <>
       <dt className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
         {label}
       </dt>
       <dd className={cn("mt-1 font-headline text-2xl font-extrabold", tone)}>{value}</dd>
-    </div>
+    </>
+  );
+  if (!href) return <div>{body}</div>;
+  return (
+    <Link
+      href={href}
+      className="group block rounded-md p-1 -m-1 transition-colors hover:bg-slate-900/50 focus:outline-none focus-visible:ring-1 focus-visible:ring-lime-300/40"
+      aria-label={`Drill down on ${label}`}
+    >
+      {body}
+      <span className="mt-0.5 block font-mono text-[9px] uppercase tracking-[0.18em] text-slate-500 opacity-0 transition-opacity group-hover:opacity-100">
+        drill ↓
+      </span>
+    </Link>
   );
 }
 
 // ── throughput sparkline ────────────────────────────────────────────────────
 
-function ThroughputCard({ buckets, articlesTotal }: { buckets: ThroughputBucket[]; articlesTotal: number }) {
+export function ThroughputCard({ buckets, articlesTotal }: { buckets: ThroughputBucket[]; articlesTotal: number }) {
   const peak = buckets.reduce((max, b) => Math.max(max, b.articles), 1);
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
@@ -157,7 +194,7 @@ function ThroughputCard({ buckets, articlesTotal }: { buckets: ThroughputBucket[
 
 // ── degraded sources ────────────────────────────────────────────────────────
 
-function DegradedPanel({ sources }: { sources: DegradedSource[] }) {
+export function DegradedPanel({ sources }: { sources: DegradedSource[] }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
       <header className="mb-3 flex items-center gap-2">
@@ -214,7 +251,7 @@ function reasonLabel(reason: DegradedSource["reason"]): string {
 
 // ── recent runs table ───────────────────────────────────────────────────────
 
-function RecentRunsTable({ runs }: { runs: RecentRunRow[] }) {
+export function RecentRunsTable({ runs }: { runs: RecentRunRow[] }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
       <header className="mb-3 flex items-center gap-2">
@@ -325,7 +362,7 @@ function AuthPill({ health }: { health: RecentRunRow["session_health"] }) {
 
 // ── alerts feed ─────────────────────────────────────────────────────────────
 
-function AlertsFeed({ alerts }: { alerts: AlertEntry[] }) {
+export function AlertsFeed({ alerts }: { alerts: AlertEntry[] }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
       <header className="mb-3 flex items-center gap-2">

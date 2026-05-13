@@ -124,6 +124,42 @@ Access scope is *additive context*. It never replaces the operational badge in n
 
 ---
 
+## B. `/user/admin/agents` · Executive AI Command Center · six-section hierarchy (codified 2026-05-13)
+
+The agents surface is the institutional control room for HotelVALORA's autonomous intelligence infrastructure. Top-down, the page renders six sections — every one a separately anchored `<section>` so the drillable totems in §03 can jump to the right place without navigating away.
+
+| # | Section | Anchor | Source / component |
+|---|---|---|---|
+| 01 | **AI Operation Center** (primary surface) | `#command-center` | `components/admin/agents/agent-orbit.tsx` — CEO + 9 orbital nodes |
+| 02 | **Agent Roster by Tier** (operator management) | `#agent-roster` | `components/admin/ai-ops/agent-roster.tsx` — per-agent CTAs |
+| 03 | **Operational Metrics** (drillable) | `#operational-metrics` | `TotalsStrip` + `TopSignalsSummary` re-exported from `operational-dashboard.tsx` |
+| 04 | **Priority Intelligence Feed** (capped 5 + scroll) | `#priority-intel-feed` | `intelligence-feed-capped.tsx` |
+| 05 | **Ingestion Monitoring** (compact) | `#ingestion-monitoring` | `RecentRunsTable` + `ThroughputCard` |
+| 06 | **Alerts & Failures** (anchored bottom) | `#alerts-failures` | `DegradedPanel` + `AlertsFeed` |
+
+The shared section header atom is `components/admin/ai-ops/section-shell.tsx` — numbered eyebrow + forest-900 title + slate subline + optional trailing badge, with `scroll-mt-20` so anchor drilldowns land below the sticky header.
+
+### Drillable KPI contract
+
+`TotalsStrip` totems accept an optional `href`. When set, the totem renders as a `<Link>` with a `drill ↓` hover reveal. Today's wiring:
+
+| Totem | Target |
+|---|---|
+| Runs · 7d · Success Rate · Successful | `#ingestion-monitoring` |
+| Partial · Failed | `#alerts-failures` |
+| Articles · 7d | `/library` |
+| Priority · 7d | `#priority-intel-feed` |
+
+### Agent Roster CTAs
+
+Each row carries four operator controls: **Open dashboard** + **View activity** (active links to `/user/admin/agents/<id>` and `…#runs`), **Edit** + **Pause/Resume** (rendered with `aria-disabled="true"` and explanatory tooltips because the `ai_agents` write surface is Phase-3 work). The disabled affordance is intentional — when the mutation layer lands, swap the `<button disabled>` for the server action.
+
+### Priority feed cap
+
+`IntelligenceFeedCapped` shows the top 5 ranked items above the fold (source-balanced + signal-ranked upstream by `loadAiOpsLive`), then a `max-h-[28rem] overflow-y-auto` panel labelled "Backlog · N more · scroll" for the remainder. Each row gains an agent-attribution chip ("Market Intelligence Agent") alongside the existing source / premium / authed / score / time chips.
+
+---
+
 ## 1. What lives here
 
 `/user/admin/*` is the operator-facing institutional operations center. It is NOT a customer-facing surface, NOT a chat UI, NOT a generic SaaS admin panel. The visual direction is Bloomberg Terminal × Palantir × MSCI Real Assets — dense, monospaced, tracked-out, dark canvas with lime-300 accents.
@@ -131,7 +167,7 @@ Access scope is *additive context*. It never replaces the operational badge in n
 | Route | Surface | Build mode |
 |---|---|---|
 | `/user/admin` | Executive Control Room (6-section dashboard) | Static |
-| `/user/admin/agents` | AI Operations Center (orbital + agent directory) | Static |
+| `/user/admin/agents` | **Executive AI Command Center** · six-section operational hierarchy (orbital → roster → metrics → priority intel → ingestion → alerts) | Dynamic (`force-dynamic` · live aggregator) |
 | `/user/admin/agents/[agentId]` | Per-agent dashboard · `market_intelligence` renders the **Intelligence Terminal** | SSG · 11 pre-rendered paths |
 | `/user/admin/integrations` | Integrations directory (10 hospitality intelligence sources · grouped by category) | Static |
 | `/user/admin/integrations/[integrationId]` | Per-integration detail (connection · session · ingestion health) | SSG · 10 pre-rendered paths |

@@ -4,6 +4,89 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Agents page · Executive AI Command Center · 6-section operational hierarchy
+
+`/user/admin/agents` becomes the institutional control room for the autonomous intelligence infrastructure. The previous "OperationalDashboard then orbital then roster" stack is replaced by a six-section hierarchy with the orbital command center on top.
+
+### Section order
+
+| # | Title | What it is | Anchor |
+|---|---|---|---|
+| 01 | **AI Operation Center** | CEO Agent at the center · 9 specialised departments orbiting · primary visual surface | `#command-center` |
+| 02 | **Agent Roster by Tier** | Operator management · per-agent CTAs · responsibilities · schedules · linked dashboards | `#agent-roster` |
+| 03 | **Operational Metrics** | Drillable totem strip + Top Signals · KPIs link to in-page anchors or `/library` | `#operational-metrics` |
+| 04 | **Priority Intelligence Feed** | Cross-source dealflow · top 5 above the fold · backlog scrolls below | `#priority-intel-feed` |
+| 05 | **Ingestion Monitoring** | Compact: recent runs table (2/3 width) + throughput sparkline (1/3 width) | `#ingestion-monitoring` |
+| 06 | **Alerts & Failures** | Degraded sources + audit-driven alert entries · anchored at the bottom | `#alerts-failures` |
+
+### New components
+
+| File | Role |
+|---|---|
+| `components/admin/ai-ops/section-shell.tsx` | Numbered section atom: eyebrow `Section NN` + forest-900 title + slate subline + optional trailing badge · `scroll-mt-20` for anchor drilldowns |
+| `components/admin/ai-ops/agent-roster.tsx` | Tier-grouped roster · per-row CTAs: Open dashboard · View activity · Edit · Pause/Resume · top-2 responsibilities · schedule + success-rate strip |
+| `components/admin/ai-ops/intelligence-feed-capped.tsx` | 5-row top + scrollable backlog · adds Market-Intelligence-Agent attribution chip to each item |
+
+### Operational dashboard refactor
+
+`OperationalDashboard` keeps its single-block export for legacy callers, but the five primitives (`TotalsStrip`, `ThroughputCard`, `DegradedPanel`, `RecentRunsTable`, `AlertsFeed`) are now individually exported so the page can compose them in the new operational order.
+
+### Drillable KPIs
+
+The `TotalsStrip` totem rows accept an optional `href` and render as `<Link>` when set, with a slate-900 hover background and a `drill ↓` reveal on hover. Wired targets today:
+
+| Totem | href |
+|---|---|
+| Runs · 7d | `#ingestion-monitoring` |
+| Success Rate | `#ingestion-monitoring` |
+| Successful | `#ingestion-monitoring` |
+| Partial | `#alerts-failures` |
+| Failed | `#alerts-failures` |
+| Articles · 7d | `/library` |
+| Priority · 7d | `#priority-intel-feed` |
+
+### Agent roster CTAs
+
+Each agent row now carries four operator controls:
+
+| CTA | State today | Target |
+|---|---|---|
+| Open dashboard | Active link | `/user/admin/agents/<id>` |
+| View activity | Active link | `/user/admin/agents/<id>#runs` |
+| Edit | Disabled + tooltip | Phase-3 mutation layer |
+| Pause / Resume | Disabled + tooltip | Phase-3 mutation layer |
+
+The Edit + Pause buttons render as `aria-disabled="true"` with explanatory tooltips so the gate is honest — they wire to a real server action once the `ai_agents` write surface lands.
+
+### Priority feed visibility cap
+
+The new wrapper takes the source-balanced + signal-ranked feed from `loadAiOpsLive()` and renders the top 5 above the fold, then a `max-h-[28rem] overflow-y-auto` panel for the remainder labelled "Backlog · N more · scroll". Each row gains an agent-attribution chip ("Market Intelligence Agent") alongside the existing source / premium / authed / score / time chips.
+
+### Smoke
+
+- `/user/admin/agents` → 200 · 301 KB
+- All 6 section anchors render in document order (`command-center` → `alerts-failures`)
+- 6 `aria-labelledby="<section>-h"` matches confirm SectionShell structure
+- 10 "Open dashboard" buttons · 10 "View activity" buttons · 10 disabled Edit · 10 disabled Pause/Resume (one per agent)
+- 7 drillable totem links wired to in-page anchors / `/library`
+- Typecheck clean
+- Lint: project's `next lint` is uninitialised (unrelated)
+
+### Files
+
+- `apps/web/src/components/admin/ai-ops/section-shell.tsx` (new)
+- `apps/web/src/components/admin/ai-ops/agent-roster.tsx` (new)
+- `apps/web/src/components/admin/ai-ops/intelligence-feed-capped.tsx` (new)
+- `apps/web/src/components/admin/ai-ops/operational-dashboard.tsx` (primitives re-exported · totems gain `href` prop)
+- `apps/web/src/app/user/admin/agents/page.tsx` (six-section composition)
+
+### Honest gaps
+
+- "Pause agent" and "Edit agent" mutations need a server-action layer against `ai_agents` (Phase-3 work). Today the affordance is rendered + visibly gated.
+- The priority feed's agent-attribution chip is currently a static "Market Intelligence Agent" because every `market_news` row is owned by that agent. When more writers land, attribution should come from a `source_id → owning_agent` lookup or a column on `market_news`.
+
+---
+
 ## 2026-05-13 — Integrations · compact monitoring tiles + click-to-expand detail sheet
 
 The integrations registry switches from documentation-style cards to monitoring-dashboard tiles. The canonical reference is now `/user/admin` Section 05 (`InfraIndicator`) — same proportions, same density, same grid. Click any tile → full technical audit opens in a responsive sheet (bottom-sheet on mobile, right-side drawer on desktop).
