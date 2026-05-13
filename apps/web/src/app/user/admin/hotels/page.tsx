@@ -35,15 +35,16 @@ interface PageProps {
     affiliation?: string;
     needs_review?: string;
     sort?: string;
+    page?: string;
   };
 }
 
-// Density model · "top-N above the fold + scrollable rest" matches the
-// pattern used by the Priority Intelligence Feed on /user/admin/agents.
-// Operator gets a tight summary; expand by scrolling within the panel
-// without losing access to the sections below (reconciliation queue, etc.)
-const HOTELS_VISIBLE_ABOVE_FOLD = 6;
-const RECON_VISIBLE_ABOVE_FOLD = 3;
+// "Visible at a glance" count — operator sees 6 in the scrollable
+// container, the rest is one finger-scroll away (no pagination
+// boundary cut). The number doubles as the value shown in
+// "showing 6 of N".
+const VISIBLE_HOTELS = 6;
+const VISIBLE_RECON = 3;
 
 type SortKey =
   | "name_asc"
@@ -119,6 +120,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const sortKey: SortKey =
     (SORT_OPTIONS.find((o) => o.value === searchParams.sort)?.value as SortKey | undefined) ??
     "name_asc";
+  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
   const filteredAll = snap
     ? snap.hotels.filter((h) =>
@@ -126,8 +128,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
       )
     : [];
   const sorted = sortHotels(filteredAll, sortKey);
-  const hotelsAbove = sorted.slice(0, HOTELS_VISIBLE_ABOVE_FOLD);
-  const hotelsBelow = sorted.slice(HOTELS_VISIBLE_ABOVE_FOLD);
+  // No pagination — operator scrolls within the fixed-height container
+  // to browse all matches. Renders every filtered hotel into the DOM
+  // (acceptable up to ~5k rows; revisit with virtual scroll later).
+  const filtered = sorted;
+  void page; // legacy param preserved for backward compat with shared URLs
 
   return (
     <div className="space-y-6">
@@ -472,13 +477,21 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </form>
 
         <div className="mt-4">
-          <p className="mb-2 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
-            {sorted.length === 0
-              ? "0 results"
-              : sorted.length <= HOTELS_VISIBLE_ABOVE_FOLD
-                ? `${sorted.length} result${sorted.length === 1 ? "" : "s"}`
-                : `showing ${HOTELS_VISIBLE_ABOVE_FOLD} of ${sorted.length} · scroll for the rest`}
-          </p>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <p className="font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+              {sorted.length} result{sorted.length === 1 ? "" : "s"}
+              {sorted.length > VISIBLE_HOTELS && (
+                <span className="ml-1 text-slate-400">
+                  · showing {VISIBLE_HOTELS} of {sorted.length}
+                </span>
+              )}
+            </p>
+            {sorted.length > VISIBLE_HOTELS && (
+              <p className="font-mono text-[10px] text-slate-400">
+                scroll for the rest ↓
+              </p>
+            )}
+          </div>
           {sorted.length === 0 ? (
             <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[12px] text-slate-500">
               {snap
@@ -486,80 +499,61 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 : "Snapshot is empty — see the data-plane card above."}
             </p>
           ) : (
-            <>
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {hotelsAbove.map((h) => (
+            <div
+              className="max-h-[620px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 ring-1 ring-inset ring-slate-100"
+              tabIndex={0}
+              aria-label={`Hotel results · ${sorted.length} matches · scroll within this list`}
+            >
+              {/* single column inside the scroll · "showing 6 of N"
+                  is literal across viewports */}
+              <ul className="grid gap-2">
+                {filtered.map((h) => (
                   <li key={h.hotel_id}>
                     <HotelRow hotel={h} />
                   </li>
                 ))}
               </ul>
-              {hotelsBelow.length > 0 && (
-                <div className="mt-3 border-t border-slate-200 pt-3">
-                  <p className="mb-2 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
-                    Backlog · {hotelsBelow.length} more · scroll
-                  </p>
-                  <div className="max-h-[42rem] overflow-y-auto rounded-md bg-slate-50/40 p-2 ring-1 ring-inset ring-slate-200">
-                    <ul className="grid gap-2 sm:grid-cols-2">
-                      {hotelsBelow.map((h) => (
-                        <li key={h.hotel_id}>
-                          <HotelRow hotel={h} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </>
+            </div>
           )}
         </div>
       </section>
 
       {/* Reconciliation queue */}
       <section id="reconciliation-queue" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <AlertTriangle size={14} className="text-amber-400" aria-hidden />
-          <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
-            Reconciliation queue · {snap?.totals.reconciliation_queue ?? 0}
-          </h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={14} className="text-amber-400" aria-hidden />
+            <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+              Reconciliation queue · {snap?.totals.reconciliation_queue ?? 0}
+            </h2>
+          </div>
+          {snap && snap.reconciliation_queue.length > VISIBLE_RECON && (
+            <p className="font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+              showing {VISIBLE_RECON} of {snap.reconciliation_queue.length} entries
+              <span className="ml-1 font-mono text-[10px] font-normal text-slate-400">
+                scroll ↓
+              </span>
+            </p>
+          )}
         </div>
         {!snap || snap.reconciliation_queue.length === 0 ? (
           <p className="rounded-lg border border-emerald-500/30 bg-emerald-50/60 p-3 text-[12px] leading-relaxed text-emerald-900">
             No entries — clean queue.
           </p>
         ) : (
-          <>
-            <p className="mb-2 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
-              {snap.reconciliation_queue.length <= RECON_VISIBLE_ABOVE_FOLD
-                ? `${snap.reconciliation_queue.length} entr${
-                    snap.reconciliation_queue.length === 1 ? "y" : "ies"
-                  }`
-                : `showing ${RECON_VISIBLE_ABOVE_FOLD} of ${snap.reconciliation_queue.length} entries · scroll for the rest`}
-            </p>
+          <div
+            className="max-h-[280px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 ring-1 ring-inset ring-slate-100"
+            tabIndex={0}
+            aria-label={`Reconciliation queue · ${snap.reconciliation_queue.length} entries · scroll within this list`}
+          >
             <ul className="space-y-2">
-              {snap.reconciliation_queue.slice(0, RECON_VISIBLE_ABOVE_FOLD).map((e) => (
+              {snap.reconciliation_queue.map((e) => (
                 <li key={e.id}>
                   <ReconRow entry={e} />
                 </li>
               ))}
             </ul>
-            {snap.reconciliation_queue.length > RECON_VISIBLE_ABOVE_FOLD && (
-              <div className="mt-3 border-t border-slate-200 pt-3">
-                <p className="mb-2 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
-                  Backlog · {snap.reconciliation_queue.length - RECON_VISIBLE_ABOVE_FOLD} more · scroll
-                </p>
-                <div className="max-h-[36rem] overflow-y-auto rounded-md bg-slate-50/40 p-2 ring-1 ring-inset ring-slate-200">
-                  <ul className="space-y-2">
-                    {snap.reconciliation_queue.slice(RECON_VISIBLE_ABOVE_FOLD).map((e) => (
-                      <li key={e.id}>
-                        <ReconRow entry={e} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </>
+          </div>
         )}
       </section>
 
