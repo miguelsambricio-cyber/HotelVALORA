@@ -74,32 +74,35 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Hero — institutional infrastructure observability dashboard */}
-      <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm sm:p-7">
-        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      {/* Hero — institutional infrastructure observability dashboard
+            (compact density · ~25% tighter than the original showcase pass) */}
+      <section className="overflow-hidden rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="font-headline text-[9px] font-bold uppercase tracking-[0.24em] text-lime-300/80">
-              Administrator · Integrations
-            </p>
-            <h1 className="mt-2 font-headline text-3xl font-extrabold tracking-tighter text-white sm:text-4xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-headline text-[9px] font-bold uppercase tracking-[0.24em] text-lime-300/80">
+                Administrator · Integrations
+              </p>
+              <span
+                title="Operator-only · internal infrastructure with no customer-facing counterpart by design"
+                className="inline-flex items-center rounded-md bg-slate-900/60 px-1.5 py-0.5 font-headline text-[8.5px] font-extrabold uppercase tracking-[0.22em] text-slate-300 ring-1 ring-inset ring-slate-700/60"
+              >
+                Operator only · internal
+              </span>
+            </div>
+            <h1 className="mt-1.5 font-headline text-2xl font-extrabold tracking-tighter text-white sm:text-3xl">
               Connected Platform Ecosystem
             </h1>
-            <p className="mt-2 max-w-3xl text-[13.5px] leading-relaxed text-slate-300/90">
+            <p className="mt-1 max-w-3xl text-[12px] leading-snug text-slate-400">
               Institutional infrastructure observability — every vendor, every layer, real-time
               health across the nine operational tiers of HotelVALORA.
             </p>
-            <span
-              title="Operator-only · internal infrastructure with no customer-facing counterpart by design"
-              className="mt-3 inline-flex items-center rounded-md bg-slate-900/60 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-slate-300 ring-1 ring-inset ring-slate-700/60"
-            >
-              Operator only · internal infrastructure
-            </span>
           </div>
         </div>
 
         <HeroKPIs counts={counts} />
 
-        <div className="mt-4">
+        <div className="mt-2.5">
           <OperationalStrip totalIntegrations={counts.total} totalLayers={9} />
         </div>
       </section>

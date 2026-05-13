@@ -4,6 +4,58 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Integrations hero · density pass · compact executive control room
+
+The first hero pass landed as a marketing-scale showcase. This pass reduces vertical footprint by ~25% so the hero behaves like an institutional control panel, not a SaaS pricing page.
+
+### KPI card adjustments
+
+| Property | Before | After |
+|---|---|---|
+| Padding | `p-4 sm:p-5` | `p-2.5 sm:p-3` |
+| Border radius | `rounded-2xl` | `rounded-xl` |
+| Icon size | 14 | 11 |
+| Numeral | `text-4xl sm:text-5xl` | `text-2xl sm:text-3xl` |
+| Label | `text-[9.5px] tracking-[0.25em]` | `text-[8.5px] tracking-[0.22em]` |
+| Description | `text-[11.5px]` · `mt-2` · `leading-snug` | `text-[10px]` · `mt-1` · `leading-tight` |
+| Glow blob | `h-32 w-32 blur-3xl` opacity 50/80 | `h-20 w-20 blur-2xl` opacity 40/70 |
+| Shadow | `shadow-lg /10 → /30` | `shadow-md /10 → /25` |
+| Grid gap | `gap-3` | `gap-2` |
+
+Card-row layout (2-col mobile → 3-col tablet → 6-col desktop) and per-status semantic palette are unchanged.
+
+### Hero section adjustments
+
+- Outer `p-5 sm:p-7` → `p-3 sm:p-4` · `mb-5` block-spacer → `mb-3`
+- Title `text-3xl sm:text-4xl` → `text-2xl sm:text-3xl` · `mt-2` → `mt-1.5`
+- Description `text-[13.5px] leading-relaxed text-slate-300/90` → `text-[12px] leading-snug text-slate-400` · `mt-2` → `mt-1`
+- "Operator only · internal" chip moved inline alongside the eyebrow label (no longer occupies its own line)
+- KPI → strip spacer `mt-4` → `mt-2.5`
+
+### Operational strip → telemetry ribbon
+
+The strip becomes a single horizontal status bar at lg+: hairline `divide-x` between cells, label and value baseline-aligned inline (`label · value`), transparent inner cells, no per-cell ring. Tablet/mobile keep the 2/3-col rounded-cell grid for legibility. Icon 12→10 · label `text-[9px]` → `text-[8px]` · value `text-[11px]` → `text-[10px]` · padding `px-3 py-2` → `px-2 py-1`. All 5 cells (Platform layers · Total integrations · Operator controlled · Access · Monitoring) preserved verbatim.
+
+### Counts / colors / classifier untouched
+
+`unified-status.ts` and `computeUnifiedCounts()` are unmodified. The 6 buckets (TOTAL · LIVE · PARTIAL · NOT WIRED · FAIL · PLANNED) and the manual-workflow override rule are unchanged. Pure visual-density pass.
+
+### Smoke
+
+- `/user/admin/integrations` → 200 · 463 KB · ~14.9s cold compile
+- 6 KPI labels + 5 operational-strip cells render
+- Zero remnants of the old large-density signatures (`p-4 sm:p-5` · `text-4xl sm:text-5xl` · `h-32 w-32 blur-3xl` · `p-5 ... sm:p-7` outer · `px-3 py-2 ring-inset` strip cells)
+- All 6 new compact-density signatures present
+- Typecheck clean
+
+### Files
+
+- `apps/web/src/components/admin/integrations/hero-kpis.tsx`
+- `apps/web/src/components/admin/integrations/operational-strip.tsx`
+- `apps/web/src/app/user/admin/integrations/page.tsx`
+
+---
+
 ## 2026-05-13 — Integrations hero redesign · executive control room · 6 glow KPI cards
 
 `/user/admin/integrations` opens with a redesigned hero. The old engineering-jargon counters (Intel OK / Warn / Fail · Platform Layers 2-5 · Intelligence sources) are replaced by **six glow KPI cards**: TOTAL · LIVE · PARTIAL · NOT WIRED · FAIL · PLANNED. A compact slate operational strip sits below: Platform layers · Total integrations · Operator controlled = 100% · Access: Internal · restricted · Monitoring 24/7.

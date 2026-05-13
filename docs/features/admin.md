@@ -40,7 +40,9 @@ The page opens with six glow KPI cards backed by `lib/admin/integrations/unified
 
 **Manual-workflow override** (single load-bearing rule): a platform integration with `operatorManaged: true` and no `cronDependencies` rolls up to **PARTIAL** even if its per-card status is `live`. Lives centrally in `classifyPlatformIntegration()` so the per-card label can keep saying "live" (correct for the layer detail) while the hero shows it as PARTIAL (correct for the executive read).
 
-Underneath the hero, a compact slate strip (`OperationalStrip`) carries five static governance cells: platform layers · total integrations · operator controlled (100%) · access (Internal · restricted) · monitoring (24/7).
+Underneath the hero, a slim telemetry ribbon (`OperationalStrip`) carries five static governance cells: platform layers · total integrations · operator controlled (100%) · access (Internal · restricted) · monitoring (24/7). On lg+ the ribbon collapses to a single horizontal status bar with hairline dividers between cells; on tablet/mobile it stacks as a tight 2/3-col rounded-cell grid.
+
+**Density (post-2026-05-13 tightening):** the hero footprint is ~25% smaller than the first showcase pass. Cards use `rounded-xl` (not `2xl`), `p-2.5 sm:p-3` padding, `text-2xl sm:text-3xl` numerals, 11-px icons, `text-[8.5px]` labels, and a smaller `h-20 w-20 blur-2xl` glow. The outer hero is `p-3 sm:p-4` with `mb-3` between header block and KPI grid. Target feeling: Bloomberg terminal × Apple system dashboard × institutional observability panel — *not* a SaaS pricing page.
 
 Full classifier pseudocode + worked examples in `docs/integrations/account-inventory.md` § Hero KPI counting logic.
 

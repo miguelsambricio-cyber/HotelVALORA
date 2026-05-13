@@ -5,12 +5,11 @@ import type { UnifiedCounts } from "@/lib/admin/integrations/unified-status";
 /**
  * Executive-control-room hero KPIs for /user/admin/integrations.
  *
- * Six glow cards, semantic colors, large bold numerals. Mobile-first
- * responsive grid (2-col → 3 → 6). Each card carries:
- *   - tracked-out label (TOTAL / LIVE / etc.)
- *   - large numeral in the semantic accent color
- *   - one-line description in slate
- *   - subtle radial glow + per-status ring · hover lifts the card
+ * Six compact glow cards · tightened ~25% vs the original showcase pass
+ * (smaller padding + numeral, tighter radius, smaller glow blob). The
+ * density target is Bloomberg-terminal × Apple-system-dashboard, not a
+ * marketing landing page. Responsive: 2-col mobile → 3-col tablet → 6
+ * cards on one row at lg+.
  */
 export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
   const cards: Array<{
@@ -27,7 +26,7 @@ export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
       description: "All integrations",
       value: counts.total,
       tone: "lime",
-      icon: <Activity size={14} aria-hidden />,
+      icon: <Activity size={11} aria-hidden />,
     },
     {
       key: "live",
@@ -35,7 +34,7 @@ export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
       description: "Fully operational",
       value: counts.live,
       tone: "emerald",
-      icon: <CheckCircle2 size={14} aria-hidden />,
+      icon: <CheckCircle2 size={11} aria-hidden />,
     },
     {
       key: "partial",
@@ -43,7 +42,7 @@ export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
       description: "Partially wired",
       value: counts.partial,
       tone: "amber",
-      icon: <AlertTriangle size={14} aria-hidden />,
+      icon: <AlertTriangle size={11} aria-hidden />,
     },
     {
       key: "not_wired",
@@ -51,7 +50,7 @@ export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
       description: "Configured · not connected",
       value: counts.not_wired,
       tone: "blue",
-      icon: <Plug size={14} aria-hidden />,
+      icon: <Plug size={11} aria-hidden />,
     },
     {
       key: "fail",
@@ -59,7 +58,7 @@ export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
       description: "Error · failing",
       value: counts.fail,
       tone: "rose",
-      icon: <XCircle size={14} aria-hidden />,
+      icon: <XCircle size={11} aria-hidden />,
     },
     {
       key: "planned",
@@ -67,14 +66,14 @@ export function HeroKPIs({ counts }: { counts: UnifiedCounts }) {
       description: "Planned · not built",
       value: counts.planned,
       tone: "violet",
-      icon: <MoonStar size={14} aria-hidden />,
+      icon: <MoonStar size={11} aria-hidden />,
     },
   ];
 
   return (
     <section
       aria-label="Integration health overview"
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+      className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
     >
       {cards.map((c) => (
         <HeroCard
@@ -107,7 +106,7 @@ function HeroCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 transition-all duration-200 sm:p-5",
+        "group relative overflow-hidden rounded-xl border bg-gradient-to-br p-2.5 transition-all duration-200 sm:p-3",
         "hover:-translate-y-0.5",
         t.border,
         t.gradient,
@@ -118,26 +117,26 @@ function HeroCard({
       <span
         aria-hidden
         className={cn(
-          "pointer-events-none absolute -top-12 -right-12 h-32 w-32 rounded-full blur-3xl transition-opacity duration-300 opacity-50 group-hover:opacity-80",
+          "pointer-events-none absolute -top-8 -right-8 h-20 w-20 rounded-full blur-2xl transition-opacity duration-300 opacity-40 group-hover:opacity-70",
           t.glow,
         )}
       />
 
       <div className="relative">
-        <div className={cn("flex items-center gap-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.25em]", t.label)}>
+        <div className={cn("flex items-center gap-1 font-headline text-[8.5px] font-extrabold uppercase tracking-[0.22em]", t.label)}>
           <span className={cn("opacity-80", t.iconColor)}>{icon}</span>
           {label}
         </div>
         <p
           className={cn(
-            "mt-2 font-headline font-extrabold tracking-tighter tabular-nums leading-none",
-            "text-4xl sm:text-5xl",
+            "mt-1 font-headline font-extrabold tracking-tighter tabular-nums leading-none",
+            "text-2xl sm:text-3xl",
             t.value,
           )}
         >
           {value}
         </p>
-        <p className="mt-2 text-[11.5px] leading-snug text-slate-400">{description}</p>
+        <p className="mt-1 text-[10px] leading-tight text-slate-400">{description}</p>
       </div>
     </div>
   );
@@ -157,7 +156,7 @@ function tonePalette(tone: "lime" | "emerald" | "amber" | "blue" | "rose" | "vio
       return {
         border: "border-emerald-500/30",
         gradient: "from-emerald-500/15 via-slate-900 to-slate-950",
-        shadow: "shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/30",
+        shadow: "shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/25",
         glow: "bg-emerald-500/40",
         label: "text-emerald-200/90",
         iconColor: "text-emerald-300",
@@ -167,7 +166,7 @@ function tonePalette(tone: "lime" | "emerald" | "amber" | "blue" | "rose" | "vio
       return {
         border: "border-amber-500/30",
         gradient: "from-amber-500/15 via-slate-900 to-slate-950",
-        shadow: "shadow-lg shadow-amber-500/10 hover:shadow-amber-500/30",
+        shadow: "shadow-md shadow-amber-500/10 hover:shadow-amber-500/25",
         glow: "bg-amber-500/40",
         label: "text-amber-200/90",
         iconColor: "text-amber-300",
@@ -177,7 +176,7 @@ function tonePalette(tone: "lime" | "emerald" | "amber" | "blue" | "rose" | "vio
       return {
         border: "border-sky-500/30",
         gradient: "from-sky-500/15 via-slate-900 to-slate-950",
-        shadow: "shadow-lg shadow-sky-500/10 hover:shadow-sky-500/30",
+        shadow: "shadow-md shadow-sky-500/10 hover:shadow-sky-500/25",
         glow: "bg-sky-500/40",
         label: "text-sky-200/90",
         iconColor: "text-sky-300",
@@ -187,7 +186,7 @@ function tonePalette(tone: "lime" | "emerald" | "amber" | "blue" | "rose" | "vio
       return {
         border: "border-rose-500/30",
         gradient: "from-rose-500/15 via-slate-900 to-slate-950",
-        shadow: "shadow-lg shadow-rose-500/10 hover:shadow-rose-500/30",
+        shadow: "shadow-md shadow-rose-500/10 hover:shadow-rose-500/25",
         glow: "bg-rose-500/40",
         label: "text-rose-200/90",
         iconColor: "text-rose-300",
@@ -197,7 +196,7 @@ function tonePalette(tone: "lime" | "emerald" | "amber" | "blue" | "rose" | "vio
       return {
         border: "border-violet-500/30",
         gradient: "from-violet-500/15 via-slate-900 to-slate-950",
-        shadow: "shadow-lg shadow-violet-500/10 hover:shadow-violet-500/30",
+        shadow: "shadow-md shadow-violet-500/10 hover:shadow-violet-500/25",
         glow: "bg-violet-500/40",
         label: "text-violet-200/90",
         iconColor: "text-violet-300",
@@ -208,7 +207,7 @@ function tonePalette(tone: "lime" | "emerald" | "amber" | "blue" | "rose" | "vio
       return {
         border: "border-lime-300/30",
         gradient: "from-lime-300/15 via-slate-900 to-slate-950",
-        shadow: "shadow-lg shadow-lime-300/10 hover:shadow-lime-300/30",
+        shadow: "shadow-md shadow-lime-300/10 hover:shadow-lime-300/25",
         glow: "bg-lime-300/40",
         label: "text-lime-200/90",
         iconColor: "text-lime-300",
