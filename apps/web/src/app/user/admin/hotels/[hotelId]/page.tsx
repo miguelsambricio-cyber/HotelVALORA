@@ -15,6 +15,7 @@ import {
 } from "@/lib/admin/hotels/snapshot-reader";
 import { CorrectionForm } from "@/components/admin/hotels/correction-form";
 import { EnrichmentModal } from "@/components/admin/hotels/enrichment-modal";
+import { BookingEnrichButton } from "@/components/admin/hotels/booking-enrich-button";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 
 export const dynamic = "force-dynamic";
@@ -522,7 +523,12 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
           </h2>
           <p className="mt-0.5 text-[11px] text-slate-500">{headerHint}</p>
         </div>
-        <EnrichmentModal hotelId={hotel.hotel_id} initialProfile={profile ?? undefined} />
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <BookingEnrichButton hotelId={hotel.hotel_id} />
+            <EnrichmentModal hotelId={hotel.hotel_id} initialProfile={profile ?? undefined} />
+          </div>
+        </div>
       </div>
 
       {/* Completeness bar */}

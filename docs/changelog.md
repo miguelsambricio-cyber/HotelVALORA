@@ -4,6 +4,47 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 3.f.real-booking · RapidAPI booking-com15 enrichment wired
+
+Operator picked RapidAPI booking-com15 as the Booking data source. Wired server-side end-to-end: search → details → mapper → upsert with provenance, plus a UI button on the hotel detail page.
+
+- `apps/web/src/lib/admin/hotels/booking-fetcher.ts` · typed client wrapper
+  - `searchDestination(query)` · resolves city name → dest_id
+  - `searchHotels({ dest_id, query_filter })` · finds candidates · auto-fallback without name filter when narrow search returns 0
+  - `getHotelDetails(booking_hotel_id)` · full property data
+  - `getHotelFacilities` + `getHotelRooms` · optional richer fields
+  - `matchConfidence(candidate, canonical)` · 0..1 score · exact / substring / token-overlap
+  - `mapBookingToProfile()` · pure mapper · Booking raw shapes → `HotelProfile` · falls back from `details` to `searchHit.property` for review_score / lat / lng when details endpoint omits them
+- `apps/web/src/lib/admin/hotels/booking-enrich.ts` · server action `runBookingEnrichment(hotel_id)`
+  - Refuses to overwrite `manual_operator` enrichment (operator edits at priority 100 always win)
+  - Auto-pick threshold = 80% match confidence · below that returns `needs_disambiguation` with top-5 candidate preview so operator picks manually
+  - Provenance: `enrichment_sources = ["rapidapi_booking"]` · `source_priority = { rapidapi_booking: 80 }` · `booking_hotel_id` saved in `_enrichment_meta`
+  - Upserts to `costar-master/manual_enrichment/<hotel_id>.json` (same Storage path as manual entries · single merge layer)
+- `apps/web/src/components/admin/hotels/booking-enrich-button.tsx` · client component
+  - "Fetch from Booking" button next to "Run enrichment" in detail page header
+  - Success panel · match confidence + completeness % + booking name
+  - Disambiguation panel · top-5 candidates with review score + match%
+  - Error panel for fetch failures
+- `apps/web/scripts/smoke-booking.mjs` · one-shot validation script · runs search → details against a real hotel · prints facility names + review score · costs ~3 RapidAPI calls
+
+Env vars (server-only):
+- `BOOKING_RAPIDAPI_HOST=booking-com15.p.rapidapi.com`
+- `BOOKING_RAPIDAPI_KEY=<per-operator>`
+
+Smoke: `node --env-file=.env.local scripts/smoke-booking.mjs` → SMOKE OK · 3 calls succeeded · 15 facility names returned for a real Madrid hotel · UI button renders alongside manual enrichment in `/user/admin/hotels/<id>` detail page · typecheck clean.
+
+Security: `.mcp.json` added to `.gitignore` so MCP server configs carrying API keys don't leak to the public repo. Each operator regenerates locally.
+
+Deferred (Phase 3.f.next):
+- Bulk enrichment ("enrich all 364" or "enrich filtered selection")
+- Disambiguation UI that lets operator pick a specific candidate (today: operator manually edits the CoStar name + re-runs)
+- Image refs · upload Booking photo URLs to a public Supabase bucket
+- Geo-context · run lat/lng through Mapbox Isochrone for transport_score
+- Freshness cron · re-fetch hotels with `last_scraped_at` older than N days
+- Rate-limit / quota dashboard
+
+---
+
 ## 2026-05-14 — Phase 3.f · Enrichment prioritization workflow surfaced in hotel registry list
 
 The Phase 3.e enrichment system was only visible inside the hotel detail page — the operator had to open each of the 364 hotels to know which ones had profiles. This shipped the prioritization surface into the list view:

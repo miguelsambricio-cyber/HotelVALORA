@@ -71,6 +71,9 @@ junit.xml
 *.cert
 *.p12
 secrets/
+# MCP server config carries per-operator API keys (RapidAPI, etc).
+# Each operator regenerates locally · never commit.
+.mcp.json
 
 # ─── Uploads / Exports ────────────────────────────────────────────────────────
 uploads/
