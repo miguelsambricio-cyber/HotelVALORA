@@ -19,6 +19,7 @@ import {
 } from "@/lib/admin/hotels/snapshot-reader";
 import { AddHotelModal } from "@/components/admin/hotels/add-hotel-modal";
 import { AddDealModal } from "@/components/admin/hotels/add-deal-modal";
+import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,7 @@ interface PageProps {
     country?: string;
     chain?: string;
     affiliation?: string;
+    enrichment?: string;
     needs_review?: string;
     sort?: string;
     page?: string;
@@ -78,7 +80,9 @@ type SortKey =
   | "year_desc"
   | "year_asc"
   | "chain_scale"
-  | "brand";
+  | "brand"
+  | "completeness_asc"
+  | "completeness_desc";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "name_asc", label: "Name · A → Z" },
@@ -89,6 +93,8 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "year_asc", label: "Year opened · oldest" },
   { value: "chain_scale", label: "Class · luxury → economy" },
   { value: "brand", label: "Brand · A → Z" },
+  { value: "completeness_asc", label: "Completeness · lowest first (prioritize)" },
+  { value: "completeness_desc", label: "Completeness · highest first" },
 ];
 
 const CHAIN_SCALE_ORDER: Record<string, number> = {
@@ -128,8 +134,29 @@ function sortHotels(rows: HotelRecord[], key: SortKey): HotelRecord[] {
         return cmpStr(a.name, b.name, 1);
       });
     case "brand": return arr.sort((a, b) => cmpStr(a.brand, b.brand, 1));
+    case "completeness_asc":
+      return arr.sort((a, b) => {
+        const sa = computeProfileCompleteness(a.profile).score;
+        const sb = computeProfileCompleteness(b.profile).score;
+        if (sa !== sb) return sa - sb;
+        return cmpStr(a.name, b.name, 1);
+      });
+    case "completeness_desc":
+      return arr.sort((a, b) => {
+        const sa = computeProfileCompleteness(a.profile).score;
+        const sb = computeProfileCompleteness(b.profile).score;
+        if (sa !== sb) return sb - sa;
+        return cmpStr(a.name, b.name, 1);
+      });
     default: return arr;
   }
+}
+
+function classifyEnrichment(hotel: HotelRecord): "enriched" | "partial" | "empty" {
+  const score = computeProfileCompleteness(hotel.profile).score;
+  if (score >= 80) return "enriched";
+  if (score > 0) return "partial";
+  return "empty";
 }
 
 export default async function HotelsPage({ searchParams = {} }: PageProps) {
@@ -142,6 +169,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const countryFilter = (searchParams.country ?? "").trim().toUpperCase();
   const chainFilter = (searchParams.chain ?? "").trim();
   const affiliationFilter = (searchParams.affiliation ?? "").trim();
+  const enrichmentFilter = (searchParams.enrichment ?? "").trim();
   const needsReviewOnly = searchParams.needs_review === "1";
   const sortKey: SortKey =
     (SORT_OPTIONS.find((o) => o.value === searchParams.sort)?.value as SortKey | undefined) ??
@@ -150,7 +178,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
 
   const filteredAll = snap
     ? snap.hotels.filter((h) =>
-        matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, needsReviewOnly }),
+        matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, enrichmentFilter, needsReviewOnly }),
       )
     : [];
   const sorted = sortHotels(filteredAll, sortKey);
@@ -316,6 +344,23 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             : syntheticCount > 0
               ? `synthetic-applied to ${syntheticCount} hotels · pending CoStar PDF`
               : "no compset data yet";
+        // Enrichment coverage — how many of the hotels have at least
+        // partial Booking-grade profile data. 80%+ = "enriched"; any
+        // partial profile counts as "in progress"; zero = "empty".
+        const enrichedCount = hotels.filter((h) => {
+          const s = computeProfileCompleteness(h.profile).score;
+          return s >= 80;
+        }).length;
+        const partialCount = hotels.filter((h) => {
+          const s = computeProfileCompleteness(h.profile).score;
+          return s > 0 && s < 80;
+        }).length;
+        const enrichedTone: "emerald" | "amber" | "slate" =
+          hotels.length === 0
+            ? "slate"
+            : enrichedCount === hotels.length
+              ? "emerald"
+              : "amber";
         return (
           <>
             <section
@@ -397,6 +442,45 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                     ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending`
                     : undefined
                 }
+              />
+            </section>
+
+            <section
+              aria-label="Profile enrichment coverage"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+            >
+              <Kpi
+                label="Enriched"
+                value={enrichedCount}
+                tone={enrichedTone}
+                hint={
+                  hotels.length > 0
+                    ? `${Math.round((enrichedCount / hotels.length) * 100)}% of ${hotels.length} · profile ≥80%`
+                    : undefined
+                }
+                href="/user/admin/hotels?tab=hotels&enrichment=enriched"
+              />
+              <Kpi
+                label="Partial"
+                value={partialCount}
+                tone={partialCount > 0 ? "amber" : "slate"}
+                hint={
+                  hotels.length > 0
+                    ? "profile 1–79% · operator-in-progress"
+                    : undefined
+                }
+                href="/user/admin/hotels?tab=hotels&enrichment=partial"
+              />
+              <Kpi
+                label="Empty profile"
+                value={Math.max(0, hotels.length - enrichedCount - partialCount)}
+                tone={hotels.length - enrichedCount - partialCount > 0 ? "amber" : "emerald"}
+                hint={
+                  hotels.length > 0
+                    ? "no Booking-grade data · prioritize"
+                    : undefined
+                }
+                href="/user/admin/hotels?tab=hotels&enrichment=empty&sort=completeness_asc"
               />
             </section>
           </>
@@ -612,6 +696,12 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
               label="Affiliation"
               current={affiliationFilter}
               options={["chain", "independent"]}
+            />
+            <SelectControl
+              name="enrichment"
+              label="Enrichment"
+              current={enrichmentFilter}
+              options={["empty", "partial", "enriched"]}
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">
@@ -910,6 +1000,7 @@ function matchesQuery(
     countryFilter: string;
     chainFilter: string;
     affiliationFilter: string;
+    enrichmentFilter: string;
     needsReviewOnly: boolean;
   },
 ): boolean {
@@ -921,6 +1012,9 @@ function matchesQuery(
   if (f.countryFilter && h.country !== f.countryFilter) return false;
   if (f.chainFilter && (h.chain_scale ?? "") !== f.chainFilter) return false;
   if (f.affiliationFilter && (h.affiliation_type ?? "") !== f.affiliationFilter) return false;
+  if (f.enrichmentFilter) {
+    if (classifyEnrichment(h) !== f.enrichmentFilter) return false;
+  }
   if (f.needsReviewOnly && (h._meta?.needs_review.length ?? 0) === 0) return false;
   return true;
 }
@@ -930,6 +1024,15 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
   const needsReview = (hotel._meta?.needs_review.length ?? 0) > 0;
   const isManualNew =
     hotel._meta?.source === "manual_entry" && hotel._meta?.review_status === "new";
+  const completeness = computeProfileCompleteness(hotel.profile);
+  const enrichTone =
+    completeness.score >= 80
+      ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+      : completeness.score >= 50
+        ? "bg-amber-100 text-amber-800 ring-amber-200"
+        : completeness.score > 0
+          ? "bg-orange-100 text-orange-800 ring-orange-200"
+          : "bg-slate-100 text-slate-600 ring-slate-200";
   return (
     <Link
       href={`/user/admin/hotels/${encodeURIComponent(hotel.hotel_id)}`}
@@ -957,6 +1060,16 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
               {hotel.chain_scale.replace(/_/g, " ")}
             </span>
           )}
+          <span
+            title={
+              completeness.score === 0
+                ? "Not enriched · Booking-grade profile not yet captured"
+                : `Profile ${completeness.score}% complete · ${completeness.missing_fields.length} fields missing`
+            }
+            className={`inline-flex items-center rounded px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] ring-1 ${enrichTone}`}
+          >
+            {completeness.score === 0 ? "empty" : `${completeness.score}% profile`}
+          </span>
           {needsReview && !isManualNew && (
             <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
               Review

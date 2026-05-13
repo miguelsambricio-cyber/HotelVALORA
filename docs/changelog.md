@@ -4,6 +4,36 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 3.f · Enrichment prioritization workflow surfaced in hotel registry list
+
+The Phase 3.e enrichment system was only visible inside the hotel detail page — the operator had to open each of the 364 hotels to know which ones had profiles. This shipped the prioritization surface into the list view:
+
+- Coverage row · 3 new KPIs: **Enriched** (≥80%), **Partial** (1–79%), **Empty profile** (0%) · each clicks through to the pre-filtered list
+- Per-hotel chip · `XX% profile` color-coded (emerald ≥80 / amber ≥50 / orange >0 / slate empty) with hover-tooltip listing missing-field count
+- Filter · `enrichment=empty|partial|enriched` dropdown alongside Class + Affiliation
+- Sort · two new options · "Completeness · lowest first (prioritize)" and "Completeness · highest first"
+- Empty-profile KPI deep-links to `?tab=hotels&enrichment=empty&sort=completeness_asc` so one click puts the operator on the worst-first worklist
+
+Smoke: HTTP 200 · 1.55 MB list page · all chip + KPI + sort signatures rendered. typecheck clean.
+
+---
+
+## 2026-05-14 — Phase 3.e · Canonical hotel profile enrichment layer (manual bootstrap)
+
+Hotel registry had a critical institutional gap — CoStar-only ficha (rooms · brand · operator · year_opened · class) is not enough for compsets · underwriting · benchmarking. Missing fields: facilities · amenities · room mix · F&B · spa · gym · pool · parking · meeting · sustainability · accessibility · review metrics · policies. Shipped schema + manual bootstrap. Booking scraping deferred (legal / rate-limit / provider TBD).
+
+- `HotelProfile` interface in `lib/admin/hotels/types.ts` · 25+ optional fields
+- `EnrichmentMeta` provenance · `manual_operator` priority = 100 (never overwritten by future scrapers)
+- `profile-completeness.ts` · 17 weighted fields · score 0–100 · missing list sorted by weight
+- `submitManualEnrichment` server action · writes `costar-master/manual_enrichment/<hotel_id>.json` · flat path · upsert
+- Snapshot reader · `loadManualEnrichment()` · attaches `.profile` + `._enrichment_meta` onto each hotel
+- Hotel detail page · new "Hotel profile · enrichment" section · completeness bar · missing-fields list · 11 populated category cards · chips · policies · provenance footer
+- `EnrichmentModal` · 8-group form (Operational · Room mix · F&B · Wellness · Sports · Compliance · Guest experience · Policies)
+
+Deferred: real Booking scraper · LLM normalization · image refs / photo CDN · geo-context auto · freshness cron · Python consumer of `manual_enrichment/` → canonical master XLSX.
+
+---
+
 ## 2026-05-14 — Block A · Snapshot path resolver hardened · UI hydration unblocked
 
 `/user/admin/hotels` rendered "No snapshot found" with all KPIs at 0 despite a healthy 1.75 MB snapshot on disk with 364 hotels. The Node-side resolver was `path.resolve(process.cwd(), "..", "..")` — works only when cwd is `apps/web/`. From repo root (e.g. `pnpm --filter web dev` spawned from there) the path went two levels ABOVE the repo and missed every snapshot.
