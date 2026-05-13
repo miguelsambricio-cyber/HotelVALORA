@@ -75,7 +75,12 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Kpi label="Hotels" value={snap?.totals.hotels ?? 0} tone="emerald" />
         <Kpi label="Markets" value={snap?.totals.markets ?? 0} />
-        <Kpi label="Compsets" value={snap?.totals.compsets ?? 0} />
+        <Kpi
+          label="Synthetic compsets"
+          value={(snap?.synthetic_compsets ?? []).length}
+          tone="amber"
+          hint="pending PDF parse"
+        />
         <Kpi label="Transactions" value={snap?.totals.transactions ?? 0} />
         <Kpi
           label="To reconcile"

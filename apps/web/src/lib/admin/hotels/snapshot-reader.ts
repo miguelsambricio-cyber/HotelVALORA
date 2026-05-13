@@ -49,6 +49,36 @@ export interface CompsetEntry {
   warnings: string[];
 }
 
+/** Phase 2.3.d.6c · synthetic compset inference (transitional · pending
+ *  the operator-confirmed membership from the 3.1 PDF). Every entry is
+ *  tagged `provenance: "synthetic_inference"` so the UI can clearly
+ *  distinguish synthetic from real. */
+export interface SyntheticCompset {
+  compset_id: string;
+  target_hotel_id: string;
+  target_name: string | null;
+  market_name: string | null;
+  submarket_name: string | null;
+  member_hotel_ids: string[];
+  members: Array<{
+    hotel_id: string;
+    name: string | null;
+    chain_scale: string | null;
+    rooms_count: number | null;
+    submarket_name: string | null;
+    similarity_score: number;
+  }>;
+  provenance: "synthetic_inference";
+  algorithm: {
+    version: string;
+    weights: Record<string, number>;
+    top_n: number;
+    geo_normaliser_km: number;
+  };
+  ingestion_batch_id: string | null;
+  needs_operator_confirmation: boolean;
+}
+
 export interface TransactionEntry {
   transaction_id: string;
   source: "costar" | "private" | string;
@@ -150,6 +180,10 @@ export interface HotelsSnapshot {
   /** Optional · v1.4+ batch governance summary. */
   batch?: BatchSummary;
   markets: MarketSummary[];
+  /** Phase 2.3.d.6c · two-entity compset model (v1.5+). Older snapshots
+   *  carry only `compsets` (= compset_membership). */
+  compset_performance?: unknown[];
+  synthetic_compsets?: SyntheticCompset[];
   hotels: HotelRecord[];
   compsets: CompsetEntry[];
   transactions: TransactionEntry[];
@@ -273,4 +307,15 @@ export async function findCorrectionsForHotel(hotelId: string): Promise<Correcti
   const hotel = await findHotelById(hotelId);
   const list = hotel?._corrections ?? [];
   return [...list].sort((a, b) => (a.applied_at < b.applied_at ? 1 : -1));
+}
+
+/** Phase 2.3.d.6c · the synthetic compset for one target hotel.
+ *  Returns null when no synthetic compset exists (e.g. the target
+ *  is the only hotel in its market, or the snapshot predates v1.5). */
+export async function findSyntheticCompsetForHotel(
+  hotelId: string,
+): Promise<SyntheticCompset | null> {
+  const snap = await loadHotelsSnapshot();
+  if (!snap?.synthetic_compsets) return null;
+  return snap.synthetic_compsets.find((c) => c.target_hotel_id === hotelId) ?? null;
 }

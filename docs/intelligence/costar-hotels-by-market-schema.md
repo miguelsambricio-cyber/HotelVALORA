@@ -8,6 +8,39 @@ Full column reference for `services/costar/HOTELESperMARKET/` ingest stream and 
 
 ---
 
+## 0. Spanish-language CoStar export headers (Phase 2.3.d.6c · 2026-05-14)
+
+Real CoStar "Inmuebles" exports for ES markets ship Spanish headers without a `country` column. Our normalisation layer maps each source header through a case-insensitive, diacritic-stripped, underscore-folded key. The canonical aliases:
+
+| Source column (CoStar ES) | Folded key | Canonical field |
+|---|---|---|
+| `Nombre del edificio` | `nombre_del_edificio` | `name` |
+| `Operador del hotel` | `operador_del_hotel` | `operator` |
+| `Propietario real` | `propietario_real` | `owner` |
+| `Empresa matriz` | `empresa_matriz` | `owner` (fallback) |
+| `Marca` | `marca` | `brand` |
+| `Mercado` | `mercado` | `market_name` |
+| `Submercado` | `submercado` | `submarket_name` |
+| `Ciudad` | `ciudad` | `city_es_costar` → fallback for `market_name` |
+| `Dirección` | `direccion` | `address_line` |
+| `Código postal` | `codigo_postal` | `postal_code` |
+| `Clase` | `clase` | `chain_scale` (canonical tier: Luxury / Upscale / …) |
+| `Escala` | `escala` | `chain_scale` = `independent` when value is "Independiente" (affiliation axis) |
+| `Habitaciones` | `habitaciones` | `rooms_count` |
+| `Año de construcción` | `ano_de_construccion` | `year_opened` |
+| `Año de reform.` | `ano_de_reform` | `year_last_renovated` |
+| `Fecha de apertura del hotel` | `fecha_de_apertura_del_hotel` | `year_opened` (fallback) |
+| `Espacio de reunión total` | `espacio_de_reunion_total` | `meeting_space_sqm` |
+| `Tipo de ubicación del hotel` / `Tipo secundario` | `tipo_de_ubicacion_del_hotel` / `tipo_secundario` | `segment_type` (CoStar values like "Hotel" / "Urbano" not in our canonical enum — surface as `segment_type_unrecognised` in `_meta.needs_review`) |
+
+### `country` fallback
+
+CoStar ES "Inmuebles" / "Transacciones" exports have no `country` column. The normaliser defaults to `DEFAULT_COUNTRY = "ES"` and tags the row with `country_defaulted:ES` in `_meta.needs_review`. Override by adding an explicit `country` column to the source XLSX. Widen `DEFAULT_COUNTRY` if/when the pipeline expands beyond Spain.
+
+### `market_name` fallback
+
+When `Mercado` is empty but `Ciudad` is set, the city is promoted to `market_name`. Tagged `market_defaulted_from_city`.
+
 ## 1. Why this is its own dataset (not part of MERCADO)
 
 The market-data masters (`PAIS` · `MERCADO` · `SUBMERCADO`) carry **aggregated time-series KPIs** — occupancy / ADR / RevPAR / room nights / pipeline — that change every period. The hotel inventory carries **slowly-changing dimensional facts** about each property — name, brand, operator, facilities, rooms, score. The two share a market-name foreign key but never share a row shape.
@@ -115,6 +148,46 @@ The supersede never overwrites the original ingest in place — the canonical XL
 ```
 
 The `_corrections` array is emitted into `snapshot.json` so the admin UI can render the audit trail without re-reading the JSONL. The snapshot also carries a top-level `corrections` summary block: `{pending_before, applied, rejected, applied_total_in_master}`.
+
+## 7. Compset modelling — two distinct entities (Phase 2.3.d.6c · 2026-05-14)
+
+After ingesting the operator's Madrid drop we discovered that the CoStar export labelled "INMUEBLES COMPSET DATOS" (file 3.2) is **not a membership list** — it is aggregated time-series KPIs for a set of competitor hotels (period · supply · demand · ADR · RevPAR · …). The actual membership (which 4 hotels make up the compset) lives in the print-template PDF (file 3.1) which has not been parsed yet.
+
+To model this correctly we split the compset concept into three snapshot entities:
+
+| Entity | What it carries | Source | Status (2026-05-14) |
+|---|---|---|---|
+| `compset_membership` | Operator-confirmed list of `{target_hotel_id, member_hotel_ids[]}` | 3.1 Costar Analytics Print Template Service · PDF | 🟡 **pending source** — PDF parser not yet shipped |
+| `compset_performance` | Aggregated time-series KPIs (period · ADR · RevPAR · occupancy · supply · demand) for the operator's compset | 3.2 INMUEBLES COMPSET DATOS · XLSX | 🟡 **deferred** — dedicated ingestion path planned for Phase 2.3.d.8 |
+| `synthetic_compsets` | Algorithmic top-4 inference per hotel based on similarity | `compset_inference.py` v1 | 🟢 **shipped** — populates today, replaced by real membership when it lands |
+
+### Synthetic compset inference algorithm (transitional)
+
+While real membership is missing, the pipeline generates one synthetic compset per hotel:
+
+| Factor | Weight | Logic |
+|---|---|---|
+| `submarket` | 0.30 | 0 same · 1 different · 0.5 unknown |
+| `chain_scale` | 0.30 | 0 same · 0.33/0.67/1.0 by tier distance · 0.5 unknown |
+| `rooms` | 0.20 | abs(Δrooms) / max(rooms_a, 200), clamped 0..1 |
+| `segment` | 0.10 | 0 same · 1 different · 0.5 unknown |
+| `geo` | 0.10 | Haversine(km) / 5km, clamped 0..1 (0.5 when lat/lon missing) |
+
+Lower composite score = more similar. Top-4 candidates within the same `(country, market)` win.
+
+Every synthetic compset is tagged:
+- `provenance: "synthetic_inference"`
+- `needs_operator_confirmation: true`
+- `algorithm: { version, weights, top_n, geo_normaliser_km }`
+
+The admin UI surfaces synthetic compsets on `/user/admin/hotels/<id>` with an explicit amber banner clarifying they are inferred and will be replaced once the 3.1 PDF is parsed.
+
+### Validation on the Madrid drop (2026-05-14)
+
+- 364 synthetic compsets generated (one per hotel)
+- Members restricted to same market (Madrid)
+- Score distribution typical: 0.10 – 0.35 (lower = strongly similar)
+- Sample target "Edificio Eurobuilding 2" → AC Aitana (0.104), Sercotel Togumar (0.133), NH Paseo Habana (0.149), Barceló Imagine (0.150)
 
 ## 6. Relational links
 

@@ -3,7 +3,7 @@
 Phased delivery plan for the HotelVALORA Hospitality Intelligence Engine.
 
 **Last refreshed:** 2026-05-14
-**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing** · 🟢 **Phase 2.3.d.0 substrate live** · 🟢 **Phase 2.3.d.2 v1.2 Master Inventory Engine shipped (2026-05-14)** · 🟢 **Phase 2.3.d.3-5 surfaces + cross-refs landed** · 🟢 **Phase 2.3.d.6 Institutional Correction Consumer shipped (2026-05-14)** · 🟢 **Phase 2.3.d.6b INPUT → OLD governance + HOTELESperMARKET rename + batch summary shipped (2026-05-14)** · 🟡 **Phase 3 underwriting engine awaiting first real `ingest.py` run**
+**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing** · 🟢 **Phase 2.3.d.0 substrate live** · 🟢 **Phase 2.3.d.2-.6b all shipped (2026-05-14)** · 🟢 **Phase 2.3.d.6c Spanish CoStar aliases + ES country fallback + two-entity compset model + synthetic inference shipped (2026-05-14)** · 🟢 **First real Madrid ingest validated — 364 hotels, 661 transactions, 364 synthetic compsets, mean confidence 0.90** · 🟡 **Phase 3 underwriting engine ready to start**
 
 > **2026-05-14 · COSTAR dataset split.** The COSTAR workspace now ships **two datasets**: Market Performance (PAIS / MERCADO / SUBMERCADO) and Hotel-by-Market Inventory (HOTELESperMARKET, replaces retired CLASS). Madrid + Madrid Centro CoStar exports + a private transactions file + COMPSET file have landed under `services/{costar,transactions,compset}/INPUT/`. These are the building blocks that turn HotelVALORA from "platform scaffolding" into a real institutional underwriting engine.
 
@@ -185,6 +185,8 @@ The COSTAR workspace splits cleanly into two datasets. The hotel-by-market inven
 | 2.3.d.4 | Compset cross-reference validator — every compset target hotel_id must resolve in the inventory | ✅ 2026-05-14 (in `ingest.py` · emits `compset_orphan_*` reconciliation entries) |
 | 2.3.d.5 | Transactions merge strategy — official COSTAR transactions + private dataset → master with provenance tagging (`source: "costar" | "private"`) | ✅ 2026-05-14 (in `ingest.py` · orphan transactions surface in reconciliation queue) |
 | 2.3.d.6 | Institutional Correction Consumer — `corrections.py` validates pending JSONL rows · applies valid ones as supersedes · pushes provenance to hotel `_corrections` · rewrites JSONL with applied/rejected state · audit-appends to `corrections-applied/<YYYY-MM>.jsonl` · UI renders correction history on the hotel detail page | ✅ 2026-05-14 |
+| 2.3.d.6b | INPUT → OLD governance + HOTELESperMARKET rename + batch summary | ✅ 2026-05-14 |
+| 2.3.d.6c | Spanish CoStar header aliases (`Nombre del edificio`, `Operador del hotel`, `Clase`, `Año de construcción`, …) · `DEFAULT_COUNTRY="ES"` fallback · Escala→`independent` promotion · two-entity compset model (`compset_membership` + `compset_performance` + `synthetic_compsets`) · `compset_inference.py` v1 algorithm | ✅ 2026-05-14 |
 | 2.3.d.7 | Monthly Vercel Cron sweeping operator inbox | 🟡 planned |
 | 2.3.d.8 | Persist masters into Supabase mirror (`hotels_by_market` + `compsets` + `transactions_master` tables) | 🟡 Phase 5 |
 

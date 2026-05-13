@@ -18,7 +18,15 @@ from dedup import (
     strip_diacritics,
 )
 
-NORMALIZATION_VERSION = "v1.2"
+NORMALIZATION_VERSION = "v1.3"  # +Spanish CoStar aliases + ES country fallback
+
+
+# Default country for drops that don't carry an explicit `country` column.
+# CoStar's "Inmuebles" / "Transacciones" exports for ES markets have no
+# country field — the geo is inferred from the workspace context. Each
+# INPUT/ folder today is country-scoped to Spain; widen this when the
+# pipeline expands beyond ES.
+DEFAULT_COUNTRY = "ES"
 
 
 # ── Header alias maps (operator-friendly) ───────────────────────────────────
@@ -35,9 +43,15 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     # Identification
     "property_id": "costar_property_id", "costar_property_id": "costar_property_id", "inmueble_id": "costar_property_id", "id_inmueble": "costar_property_id",
     "name": "name", "nombre": "name", "property_name": "name", "hotel_name": "name", "nombre_hotel": "name", "hotel": "name",
+    # CoStar ES: "Nombre del edificio" → folds to "nombre_del_edificio"
+    "nombre_del_edificio": "name", "edificio": "name",
     "brand": "brand", "marca": "brand", "flag": "brand",
     "operator": "operator", "operador": "operator", "management": "operator", "management_company": "operator",
+    # CoStar ES: "Operador del hotel"
+    "operador_del_hotel": "operator",
     "owner": "owner", "propietario": "owner", "ownership": "owner",
+    # CoStar ES: "Propietario real" + "Empresa matriz" (parent company)
+    "propietario_real": "owner", "empresa_matriz": "owner",
     # Geo
     "country": "country", "pais": "country",
     "market": "market_name", "market_name": "market_name", "mercado": "market_name",
@@ -47,17 +61,31 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     "latitude": "latitude", "lat": "latitude",
     "longitude": "longitude", "lon": "longitude", "lng": "longitude", "long": "longitude",
     "neighborhood": "neighborhood",
+    # CoStar ES: "Ciudad" (typically Madrid for ES drops — used as market fallback)
+    "ciudad": "city_es_costar",
     # Property characteristics
     "chain_scale": "chain_scale", "class": "chain_scale", "categoria_cadena": "chain_scale", "scale": "chain_scale",
+    # CoStar ES: "Clase" is the canonical chain scale tier (Luxury / Upscale / Midscale / …).
+    #           "Escala" is the affiliation axis (Cadena / Independiente). We map Clase to
+    #           chain_scale; Escala only catches "Independiente" → independent below.
+    "clase": "chain_scale", "escala": "chain_scale_or_affiliation",
     "category": "category", "stars": "category", "estrellas": "category", "star_rating": "category",
     "segment": "segment_type", "segment_type": "segment_type", "segmento": "segment_type", "hotel_segment": "segment_type",
+    # CoStar ES: "Tipo de ubicación del hotel" / "Tipo secundario"
+    "tipo_de_ubicacion_del_hotel": "segment_type", "tipo_secundario": "segment_type",
     "rooms": "rooms_count", "rooms_count": "rooms_count", "habitaciones": "rooms_count", "n_habitaciones": "rooms_count", "keys": "rooms_count",
     "year_opened": "year_opened", "opened": "year_opened", "year_built": "year_opened", "ano_apertura": "year_opened", "ano_construccion": "year_opened",
+    # CoStar ES: "Año de construcción" → "ano_de_construccion" (extra "de") · "Fecha de apertura del hotel"
+    "ano_de_construccion": "year_opened", "fecha_de_apertura_del_hotel": "year_opened",
     "year_last_renovated": "year_last_renovated", "renovated": "year_last_renovated", "year_renovated": "year_last_renovated", "ano_renovacion": "year_last_renovated",
+    # CoStar ES: "Año de reform."
+    "ano_de_reform": "year_last_renovated", "ano_de_reforma": "year_last_renovated",
     "total_floors": "total_floors", "floors": "total_floors", "plantas": "total_floors",
     # Facilities / scoring
     "facilities": "facilities_raw", "amenities": "amenities_raw", "servicios": "facilities_raw",
     "meeting_space_sqm": "meeting_space_sqm", "meeting_space": "meeting_space_sqm",
+    # CoStar ES: "Espacio de reunión total" → meeting space in m²
+    "espacio_de_reunion_total": "meeting_space_sqm", "espacio_de_reunion_contig_max": "meeting_space_contig_sqm",
     "parking_spaces": "parking_spaces", "parking": "parking_spaces",
     "score": "score_costar", "score_costar": "score_costar", "puntuacion": "score_costar", "rating_costar": "score_costar",
 }
@@ -220,19 +248,51 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
 
     Returns (row, reasons). When `row` is None the row is unrecoverable
     (missing primary key inputs) and should land in staging/failed.
+
+    Country fallback: when the source row has no `country` column (CoStar
+    ES "Inmuebles" exports omit it), we default to `DEFAULT_COUNTRY` and
+    flag the row as `country_defaulted`. This is reversible — set the
+    column explicitly in the source to override.
     """
     reasons: list[str] = []
     country, r = normalise_country(raw.get("country"))
     reasons += r
+    if not country:
+        country = DEFAULT_COUNTRY
+        reasons.append(f"country_defaulted:{DEFAULT_COUNTRY}")
+
     market = (raw.get("market_name") or "").strip() or None
+    # Fallback: when "Mercado" is empty but the CoStar "Ciudad" column is
+    # present (e.g. ES inventory rows that didn't carry market explicitly),
+    # use the city as the market name. Most CoStar ES rows ship both;
+    # the data we've seen treats Madrid as market and submarkets as the
+    # finer cut.
+    if not market:
+        market = (raw.get("city_es_costar") or "").strip() or None
+        if market:
+            reasons.append("market_defaulted_from_city")
+
     name = (raw.get("name") or "").strip() or None
 
     if not (country and market and name):
         # Cannot derive a hotel_id without these
         return None, reasons + ["missing_pk_inputs"]
 
+    # CoStar ES splits chain scale across two columns:
+    #   "Clase"  → maps to `chain_scale` (Luxury / Upscale / Midscale ...)
+    #   "Escala" → "Cadena" / "Independiente" — we promote "Independiente"
+    #              to chain_scale=independent when Clase is empty, and
+    #              keep it as a separate flag otherwise.
     chain_scale, r = normalise_chain_scale(raw.get("chain_scale"))
     reasons += r
+    escala = (raw.get("chain_scale_or_affiliation") or "").strip()
+    if escala:
+        norm_escala = normalise_str_for_key(escala)
+        if norm_escala in ("independiente", "independent", "indie"):
+            if not chain_scale:
+                chain_scale = "independent"
+                reasons.append("chain_scale_from_escala:independent")
+        # otherwise the affiliation axis isn't tracked yet (could be added)
     segment_type, r = normalise_segment(raw.get("segment_type"))
     reasons += r
     facilities, r = normalise_facilities(raw.get("facilities_raw"))

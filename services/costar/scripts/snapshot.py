@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 
-SNAPSHOT_SCHEMA_VERSION = "v1.4"  # +batch_summary block (governance · 2026-05-14)
+SNAPSHOT_SCHEMA_VERSION = "v1.5"  # +compset_performance + synthetic_compsets (Phase 2.3.d.6c)
 
 
 def build_snapshot(
@@ -43,6 +43,8 @@ def build_snapshot(
     reconciliation_queue: list[dict[str, Any]],
     corrections_summary: dict[str, int] | None = None,
     batch_summary: dict[str, Any] | None = None,
+    compset_performance: list[dict[str, Any]] | None = None,
+    synthetic_compsets: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Assemble the snapshot dict. Caller writes it to disk.
 
@@ -90,6 +92,14 @@ def build_snapshot(
         "totals": {
             "hotels": len(hotels),
             "markets": len(market_rows),
+            # Membership ≠ performance: kept as separate counters so the
+            # admin UI can distinguish operator-confirmed competitive sets
+            # from time-series KPI aggregates.
+            "compset_membership": len(compsets),
+            "compset_performance": len(compset_performance or []),
+            "synthetic_compsets": len(synthetic_compsets or []),
+            # Legacy alias — pre-2026-05-14 readers expect `compsets`. Keep
+            # for backward compatibility (= compset_membership today).
             "compsets": len(compsets),
             "transactions": len(transactions),
             "reconciliation_queue": len(reconciliation_queue),
@@ -103,6 +113,11 @@ def build_snapshot(
         "batch": batch_summary or {},
         "markets": market_rows,
         "hotels": [_strip_private(h) for h in hotels],
+        # Compset surface (Phase 2.3.d.6c · 2026-05-14)
+        "compset_membership": compsets,
+        "compset_performance": compset_performance or [],
+        "synthetic_compsets": synthetic_compsets or [],
+        # Legacy alias for the existing Node reader.
         "compsets": compsets,
         "transactions": transactions,
         "reconciliation_queue": reconciliation_queue,

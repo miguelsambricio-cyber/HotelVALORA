@@ -58,6 +58,7 @@ from dedup import (  # noqa: E402
     transaction_id,
 )
 from normalization import (  # noqa: E402
+    DEFAULT_COUNTRY,
     HOTEL_HEADER_ALIASES,
     NORMALIZATION_VERSION,
     normalise_country,
@@ -70,6 +71,7 @@ from source_readers import (  # noqa: E402
 )
 from snapshot import build_snapshot, write_snapshot  # noqa: E402
 from corrections import apply_corrections  # noqa: E402
+from compset_inference import infer_synthetic_compsets  # noqa: E402
 
 # ── Workspace layout ────────────────────────────────────────────────────────
 #
@@ -132,10 +134,18 @@ COMPSET_HEADER_ALIASES: dict[str, str] = {
 
 TRANSACTION_HEADER_ALIASES: dict[str, str] = {
     "asset_name": "asset_name", "asset": "asset_name", "hotel": "asset_name", "hotel_name": "asset_name", "property": "asset_name", "nombre": "asset_name",
+    # CoStar ES: "Nombre del edificio" → nombre_del_edificio
+    "nombre_del_edificio": "asset_name", "edificio": "asset_name",
     "country": "country", "pais": "country",
     "market": "market_name", "mercado": "market_name",
+    "submarket": "submarket_name", "submercado": "submarket_name",
+    "ciudad": "city_es_costar",
     "closed_at": "closed_at", "close_date": "closed_at", "fecha_cierre": "closed_at",
+    # CoStar ES transaction timing
+    "fecha_de_la_transaccion": "closed_at", "fecha_de_transaccion": "closed_at",
+    "fecha_de_la_operacion": "closed_at", "fecha_de_venta": "closed_at",
     "price_eur": "price_eur", "price": "price_eur", "valor": "price_eur", "deal_value": "price_eur",
+    "precio": "price_eur", "precio_de_venta": "price_eur", "importe": "price_eur",
     "rooms": "rooms_count", "habitaciones": "rooms_count",
     "buyer": "buyer", "comprador": "buyer",
     "seller": "seller", "vendedor": "seller",
@@ -300,7 +310,7 @@ def ingest_compsets(
                 continue
 
             country_norm, _ = normalise_country(raw.get("country"))
-            country = country_norm or ""
+            country = country_norm or DEFAULT_COUNTRY
             market = (raw.get("market_name") or "").strip()
 
             target_id = _resolve_hotel_by_name(target_name, country, market, hotels_by_id)
@@ -411,8 +421,8 @@ def ingest_transactions(
             tx_id = transaction_id(source, asset_name, closed_at, price_eur)
 
             country_norm, _ = normalise_country(raw.get("country"))
-            country = country_norm or ""
-            market = (raw.get("market_name") or "").strip()
+            country = country_norm or DEFAULT_COUNTRY
+            market = (raw.get("market_name") or "").strip() or (raw.get("city_es_costar") or "").strip()
             matched_hotel = _resolve_hotel_by_name(asset_name, country, market, hotels_by_id)
 
             tx_row = {
@@ -577,6 +587,25 @@ def main(argv: list[str] | None = None) -> int:
     transactions, recon_tx, processed_tx, failed_tx = ingest_transactions(batch_id, hotels_by_id, logger)
     recon.extend(recon_tx)
 
+    # Phase 2.3.d.6c · Synthetic compset inference — generates a top-4
+    # compset per hotel when the operator-confirmed membership isn't
+    # available yet (PDF 3.1 not parsed). Every synthetic compset is
+    # tagged `provenance: "synthetic_inference"`; real memberships
+    # replace synthetic ones keyed by target_hotel_id when they land.
+    synthetic_compsets = infer_synthetic_compsets(hotels, batch_id=batch_id) if hotels else []
+    logger.event(
+        "info",
+        "compset.synthetic_inference",
+        target_count=len(synthetic_compsets),
+        algorithm="v1",
+    )
+
+    # Compset performance time-series (e.g. services/compset/INPUT/3.2)
+    # has a fundamentally different shape (period · KPIs over time, not
+    # membership list). Its dedicated ingestion path is deferred to
+    # Phase 2.3.d.8 — for now we ship the placeholder.
+    compset_performance: list[dict[str, Any]] = []
+
     # Phase 2.3.d.6 — apply pending operator corrections (overrides over
     # the canonical ingest values). Mutates hotels_by_id in place. The
     # consumer rewrites the JSONL with applied/rejected state so the next
@@ -624,6 +653,8 @@ def main(argv: list[str] | None = None) -> int:
         ingestion_batch_id=batch_id,
         hotels=hotels,
         compsets=compsets,
+        compset_performance=compset_performance,
+        synthetic_compsets=synthetic_compsets,
         transactions=transactions,
         reconciliation_queue=recon,
         corrections_summary=corrections_summary,
@@ -649,6 +680,8 @@ def main(argv: list[str] | None = None) -> int:
         ingestion_batch_id=batch_id,
         hotels=hotels,
         compsets=compsets,
+        compset_performance=compset_performance,
+        synthetic_compsets=synthetic_compsets,
         transactions=transactions,
         reconciliation_queue=recon,
         corrections_summary=corrections_summary,

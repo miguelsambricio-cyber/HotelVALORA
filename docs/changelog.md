@@ -4,6 +4,120 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 2.3.d.6c · Spanish CoStar aliases + ES country fallback + two-entity compset model + synthetic inference
+
+The first real Madrid `ingest.py` run flushed out two issues:
+1. CoStar ES "Inmuebles" exports ship Spanish column headers — my alias map only handled English/lowercase. All 364 hotel rows were rejected as `missing_pk_inputs`.
+2. The "INMUEBLES COMPSET DATOS" file turned out to be aggregated time-series KPIs, not a membership list. Real membership lives in the 3.1 PDF, which is not parsed yet.
+
+This commit closes both, plus adds a synthetic compset inference for every hotel as a transitional layer until the PDF parser ships.
+
+### Spanish CoStar header aliases
+
+`normalization.py` v1.3 + `ingest.py` extend `HOTEL_HEADER_ALIASES` and `TRANSACTION_HEADER_ALIASES` with diacritic-stripped, underscore-folded keys for every column we've seen in real CoStar ES exports:
+
+| Source column | Folded key | Canonical |
+|---|---|---|
+| `Nombre del edificio` | `nombre_del_edificio` | `name` / `asset_name` |
+| `Operador del hotel` | `operador_del_hotel` | `operator` |
+| `Propietario real` / `Empresa matriz` | `propietario_real` / `empresa_matriz` | `owner` |
+| `Marca` | `marca` | `brand` |
+| `Mercado` / `Submercado` / `Ciudad` | `mercado` / `submercado` / `ciudad` | `market_name` / `submarket_name` / `city_es_costar` (fallback) |
+| `Clase` / `Escala` | `clase` / `escala` | `chain_scale` (Clase is the canonical tier · Escala="Independiente" promotes to `chain_scale=independent`) |
+| `Dirección` / `Código postal` | `direccion` / `codigo_postal` | `address_line` / `postal_code` |
+| `Habitaciones` | `habitaciones` | `rooms_count` |
+| `Año de construcción` / `Año de reform.` / `Fecha de apertura del hotel` | `ano_de_construccion` / `ano_de_reform` / `fecha_de_apertura_del_hotel` | `year_opened` / `year_last_renovated` |
+| `Espacio de reunión total` | `espacio_de_reunion_total` | `meeting_space_sqm` |
+
+### Country fallback
+
+CoStar ES exports have no `country` column. `normalise_hotel_row()` now falls back to `DEFAULT_COUNTRY = "ES"` and tags the row with `country_defaulted:ES` for transparency. Same fallback applied in `ingest_transactions()` for hotel matching. Widen the constant when the pipeline expands beyond Spain.
+
+### Two-entity compset model
+
+The previous single `compsets` block in `snapshot.json` conflated two genuinely different concepts. Now split into three:
+
+| Entity | What it carries | Source today |
+|---|---|---|
+| `compset_membership` | Operator-confirmed `{target, members[]}` | Pending — 3.1 PDF parser not yet shipped |
+| `compset_performance` | Time-series KPIs for the compset | Deferred to Phase 2.3.d.8 (dedicated ingestion path for files like 3.2) |
+| `synthetic_compsets` | Algorithmic top-4 inference per hotel | **Shipped today** · replaced by real membership when it lands |
+
+The legacy `compsets` key stays in `snapshot.json` as an alias to `compset_membership` for backward compatibility with the Node reader.
+
+### Synthetic compset inference (`compset_inference.py` v1)
+
+For every hotel in inventory, generate a synthetic compset of the top-4 most similar competitors in the same `(country, market)`. Similarity is a weighted blend:
+
+- `submarket` (0.30) · 0 same / 1 different / 0.5 unknown
+- `chain_scale` (0.30) · 0 same / 0.33–1.0 by tier distance / 0.5 unknown
+- `rooms` (0.20) · `|Δrooms| / max(rooms_a, 200)`, clamped 0..1
+- `segment` (0.10) · 0 same / 1 different / 0.5 unknown
+- `geo` (0.10) · `Haversine(km) / 5km`, clamped 0..1
+
+Every entry is tagged `provenance: "synthetic_inference"`, `needs_operator_confirmation: true`, and carries the full algorithm config. The admin UI surfaces them on the hotel detail page with an explicit amber banner.
+
+### Path scanning fix
+
+`iter_input_files()` was recursively walking into `OLD/` (excluded only `old.*/` with dot prefix). On the second run that meant ingesting files that the first run had just archived → duplicate transactions. Fixed by excluding both `OLD` and `old` directory segments.
+
+### Snapshot schema → v1.5
+
+| Top-level field | Status |
+|---|---|
+| `totals` | gains `compset_membership`, `compset_performance`, `synthetic_compsets` counters (legacy `compsets` alias preserved) |
+| `compset_membership` | new top-level list (= old `compsets`, kept also as alias) |
+| `compset_performance` | new placeholder list (empty today) |
+| `synthetic_compsets` | new top-level list |
+
+### First real Madrid ingest — validation
+
+```
+BATCH batch_b248342b30634c87  · normalization v1.3
+  files       processed=3 archived=2 archive_failed=1 failed=0
+  rows        hotels=364 compsets=0 transactions=661
+  recon       total=597 duplicate_suspected=20
+  corrections applied=0 rejected=0 pending_before=0
+```
+
+Coverage on the 364 hotels:
+- `chain_scale` resolved on 364/364
+- `rooms_count` on 363/364
+- `year_opened` on 190/364 (partial — CoStar reports it for some)
+- `lat/lon` on 0/364 (export didn't include geo)
+- mean `confidence` 0.90, zero hotels below 0.7
+- 79 unique brands, 7 submarkets (Madrid Centre 178 · Argüelles & Chamberí 53 · Salamanca 48 · Chamartín 44 · …)
+
+Transactions: 661 (53 from official CoStar 4.1 + 608 from operator private) · 84 linked to hotels (12.7%) · 577 orphans (assets outside the Madrid inventory).
+
+Reconciliation queue: 597 = 577 transaction orphans + 20 fuzzy-matched suspected duplicates (real signal).
+
+Synthetic compsets: 364 (one per hotel). Example for "Edificio Eurobuilding 2" (upscale, 106 rooms): AC Aitana (0.104), Sercotel Togumar (0.133), NH Paseo Habana (0.149), Barceló Imagine (0.150).
+
+### Files
+
+- `services/costar/scripts/normalization.py` · v1.3 · 25+ Spanish aliases + `DEFAULT_COUNTRY` constant + Escala→independent promotion
+- `services/costar/scripts/ingest.py` · transaction aliases extended · `DEFAULT_COUNTRY` fallback in transactions + compsets · synthetic inference wired
+- `services/costar/scripts/source_readers.py` · `OLD/` excluded from recursive scan
+- `services/costar/scripts/snapshot.py` · v1.5 · adds `compset_performance`, `synthetic_compsets`, new totals counters
+- `services/costar/scripts/compset_inference.py` (new) · Phase 2.3.d.6c · v1 algorithm
+- `apps/web/src/lib/admin/hotels/snapshot-reader.ts` · `SyntheticCompset` type + `findSyntheticCompsetForHotel()` helper
+- `apps/web/src/app/user/admin/hotels/page.tsx` · new KPI **Synthetic compsets** (replaces stale `Compsets` slot, hint "pending PDF parse")
+- `apps/web/src/app/user/admin/hotels/[hotelId]/page.tsx` · new "Competitive set" section with synthetic-inference banner + 4 clickable member entries + algorithm-weights footer
+- `docs/intelligence/costar-hotels-by-market-schema.md` · § 0 Spanish header alias table + § 7 two-entity compset model + synthetic algorithm rationale
+- `docs/intelligence/hospitality-intelligence-roadmap.md` · 2.3.d.6c sub-phase marked shipped
+
+### Honest gaps
+
+- **`TRANSACCIONES. 30.5.xlsx` still locked in Excel** — its data ingests fine (608 transactions in the snapshot) but the file stays in INPUT until the operator closes Excel. The pipeline correctly flags `archive_failed: 1` and is idempotent on re-run.
+- **Compset membership (PDF) not parsed yet** — synthetic compsets are the transitional layer. When the 3.1 PDF parser ships (Phase 2.3.d.8), real memberships replace synthetic ones keyed by `target_hotel_id`.
+- **Compset performance ingestion** is a placeholder — Phase 2.3.d.8 also covers that.
+- **All 364 hotels have `hotel_id_synthetic: true`** — the export didn't include CoStar's `PROPERTY ID` column. When operator can produce an export with that column, IDs become `costar_<PROPERTY_ID>` (more durable across re-ingests).
+- **`segment_type` is empty for every hotel** — CoStar's "Tipo de ubicación del hotel" / "Tipo secundario" values ("Urbano", "Hotel", "Apartamento con servicios", …) don't match our 5-value enum. Surfaces as `segment_type_unrecognised:<value>` in `_meta.needs_review`. Extend the enum if these become operationally meaningful.
+- **Transaction linkage at 12.7%** — most orphan transactions reference assets outside the Madrid 364 inventory (other markets, demolished hotels, projects). Will improve as inventory expands.
+
+---
+
 ## 2026-05-14 — Phase 2.3.d.6b · INPUT → OLD governance + `HOTELESperMARKET` rename + batch summary
 
 Fixes the operational-governance gap operator flagged: source files were staying in `/INPUT` after successful ingestion, breaking the "INPUT = pending queue" contract. Also rolls in the folder rename `HOTELES POR MERCADO` → `HOTELESperMARKET` and adds the institutional batch-summary surface.

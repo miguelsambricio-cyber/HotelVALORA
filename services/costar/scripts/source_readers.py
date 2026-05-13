@@ -44,16 +44,29 @@ def fold_headers(headers: list[str], alias_map: dict[str, str]) -> dict[int, str
 
 
 def iter_input_files(root: Path) -> Iterable[Path]:
-    """All .xlsx and .csv files under `root` excluding archives + dotfiles."""
+    """All .xlsx and .csv files under `root` excluding archives + dotfiles.
+
+    Excluded path segments:
+      - `.*`           dotfiles + dot-prefixed dirs
+      - `old.*`        legacy per-workspace archives (old.class, old.mercado, …)
+      - `OLD` / `old`  canonical post-2026-05-14 governance archive
+
+    Without the OLD exclusion the recursive scan would re-process files
+    that earlier ingest runs already moved INPUT → OLD, producing
+    duplicate transactions and ghost archive_failed events.
+    """
     if not root.exists():
         return []
     out: list[Path] = []
+    excluded_dir_names = {"OLD", "old"}
     for p in root.rglob("*"):
         if not p.is_file():
             continue
         if p.name.startswith("."):
             continue
         if any(seg.startswith("old.") for seg in p.parts):
+            continue
+        if any(seg in excluded_dir_names for seg in p.parts):
             continue
         if p.suffix.lower() in (".xlsx", ".csv"):
             out.append(p)
