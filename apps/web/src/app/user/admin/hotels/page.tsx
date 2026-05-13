@@ -28,8 +28,23 @@ export const metadata: Metadata = {
     "Institutional hotel reference registry — search, inspect, reconcile reference hotels backing compsets, valuations, and market reports.",
 };
 
+// Phase 3.d · Tab IA — institutional operations terminal architecture.
+// Each tab is its own URL-state slice. Renders only its own content so
+// the DOM stays bounded as the inventory scales beyond Madrid.
+type TabId = "hotels" | "transactions" | "projects" | "reconciliation" | "corrections" | "analytics";
+const DEFAULT_TAB: TabId = "hotels";
+const TAB_IDS: TabId[] = [
+  "hotels",
+  "transactions",
+  "projects",
+  "reconciliation",
+  "corrections",
+  "analytics",
+];
+
 interface PageProps {
   searchParams?: {
+    tab?: string;
     q?: string;
     market?: string;
     country?: string;
@@ -38,9 +53,9 @@ interface PageProps {
     needs_review?: string;
     sort?: string;
     page?: string;
-    // Phase 3.c · Search transactions & projects section
+    // Per-tab filters for the transactions/projects sections
     dq?: string;
-    dkind?: string;        // "transaction" | "project" | "" (any)
+    dkind?: string;        // "transaction" | "project" | "" (any) · obsolete now (tab decides kind)
     dsource?: string;      // "costar" | "private" | "manual_entry" | "" (any)
     dmarket?: string;
     dcountry?: string;
@@ -120,6 +135,8 @@ function sortHotels(rows: HotelRecord[], key: SortKey): HotelRecord[] {
 export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const snap = await loadHotelsSnapshot();
   const diag = getSnapshotDiagnostics();
+  const activeTab: TabId =
+    TAB_IDS.includes((searchParams.tab as TabId) ?? DEFAULT_TAB) ? ((searchParams.tab as TabId) ?? DEFAULT_TAB) : DEFAULT_TAB;
   const q = (searchParams.q ?? "").trim();
   const marketFilter = (searchParams.market ?? "").trim();
   const countryFilter = (searchParams.country ?? "").trim().toUpperCase();
@@ -214,8 +231,12 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
       city: p.city,
     });
   }
+  // Tab dictates the kind constraint when on a deal tab. Outside deal
+  // tabs, `dkind` user param still works (e.g. for shared URLs).
+  const effectiveKind =
+    activeTab === "transactions" ? "transaction" : activeTab === "projects" ? "project" : dkind;
   const filteredDeals = allDeals.filter((d) => {
-    if (dkind && d.kind !== dkind) return false;
+    if (effectiveKind && d.kind !== effectiveKind) return false;
     if (dsource && d.source !== dsource) return false;
     if (dcountryFilter && d.country !== dcountryFilter) return false;
     if (dmarketFilter && d.market !== dmarketFilter) return false;
@@ -382,8 +403,55 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         );
       })()}
 
-      {/* Last ingestion batch · governance summary */}
-      {snap?.batch && (
+      {/* Phase 3.d · Sticky tab bar — institutional terminal IA.
+            Each tab is its own URL slice (?tab=...). Counters reflect the
+            full dataset size (not filtered values) so the operator can see
+            scale at a glance regardless of active filters. */}
+      <nav
+        aria-label="Hotel admin tabs"
+        className="sticky top-0 z-10 -mx-2 flex items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur"
+      >
+        {(
+          [
+            { id: "hotels", label: "Hotels", count: snap?.totals.hotels ?? 0 },
+            { id: "transactions", label: "Transactions", count: snap?.totals.transactions ?? 0 },
+            { id: "projects", label: "Projects", count: snap?.totals.projects ?? 0 },
+            { id: "reconciliation", label: "Reconciliation", count: snap?.totals.reconciliation_queue ?? 0 },
+            { id: "corrections", label: "Corrections", count: snap?.corrections?.applied_total_in_master ?? 0 },
+            { id: "analytics", label: "Analytics", count: null as number | null },
+          ] satisfies Array<{ id: TabId; label: string; count: number | null }>
+        ).map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <Link
+              key={t.id}
+              href={`/user/admin/hotels?tab=${t.id}`}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 font-headline text-[11px] font-bold uppercase tracking-[0.22em] transition-colors ${
+                isActive
+                  ? "bg-forest-900 text-lime-300"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-forest-900"
+              }`}
+            >
+              {t.label}
+              {t.count !== null && (
+                <span
+                  className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-bold tabular-nums ${
+                    isActive
+                      ? "bg-lime-300/20 text-lime-300"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {t.count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Last ingestion batch · governance summary · ANALYTICS TAB */}
+      {activeTab === "analytics" && snap?.batch && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Database size={14} className="text-slate-400" aria-hidden />
@@ -438,8 +506,9 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </section>
       )}
 
-      {/* Data-plane status */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* Data-plane status · ANALYTICS TAB */}
+      {activeTab === "analytics" && (
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2">
           <Database size={14} className="text-slate-400" aria-hidden />
           <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
@@ -500,9 +569,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           </div>
         )}
       </section>
+      )}
 
-      {/* Search */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* Search hotels · HOTELS TAB */}
+      {activeTab === "hotels" && (
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <form className="space-y-3" method="get">
           <div className="flex items-center gap-2">
             <Search size={14} className="text-slate-400" aria-hidden />
@@ -620,14 +691,17 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           )}
         </div>
       </section>
+      )}
 
-      {/* Phase 3.c · Search transactions & projects */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* Phase 3.c · Search transactions / projects · scoped by active tab */}
+      {(activeTab === "transactions" || activeTab === "projects") && (
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <form className="space-y-3" method="get">
+          <input type="hidden" name="tab" value={activeTab} />
           <div className="flex items-center gap-2">
             <Search size={14} className="text-slate-400" aria-hidden />
             <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
-              Search transactions &amp; projects
+              {activeTab === "transactions" ? "Search transactions" : "Search projects"}
             </h2>
             <div className="ml-auto">
               <AddDealModal />
@@ -644,7 +718,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 font-mono text-[12px] text-slate-900 placeholder:text-slate-400 focus:border-forest-900 focus:outline-none"
               />
             </div>
-            <SelectControl name="dkind" label="Kind" current={dkind} options={["transaction", "project"]} />
+            {/* Kind dropdown removed · the active tab IS the kind */}
             <SelectControl name="dsource" label="Source" current={dsource} options={["costar", "private", "manual_entry"]} />
             <SelectControl name="dmarket" label="Market" current={dmarketFilter} options={Array.from(new Set(allDeals.flatMap((d) => (d.market ? [d.market] : []))))} />
             <SelectControl name="dcountry" label="Country" current={dcountryFilter} options={Array.from(new Set(allDeals.flatMap((d) => (d.country ? [d.country] : []))))} />
@@ -706,9 +780,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           )}
         </div>
       </section>
+      )}
 
-      {/* Reconciliation queue */}
-      <section id="reconciliation-queue" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* Reconciliation queue · RECONCILIATION TAB */}
+      {activeTab === "reconciliation" && (
+      <section id="reconciliation-queue" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <AlertTriangle size={14} className="text-amber-400" aria-hidden />
@@ -745,46 +821,83 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           </div>
         )}
       </section>
+      )}
 
-      {/* Reference */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <ExternalLink size={14} className="text-slate-400" aria-hidden />
-          <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
-            Reference
-          </h2>
-        </div>
-        <ul className="space-y-1.5 text-[12px] text-slate-600">
-          <li>
-            <a
-              href="https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/docs/intelligence/costar-hotels-by-market-schema.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[11.5px] text-slate-600 hover:text-forest-900 hover:underline"
-            >
-              docs/intelligence/costar-hotels-by-market-schema.md — canonical schema
-            </a>
-          </li>
-          <li>
-            <a
-              href="https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/services/costar/scripts/README.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-[11.5px] text-slate-600 hover:text-forest-900 hover:underline"
-            >
-              services/costar/scripts/README.md — pipeline reference
-            </a>
-          </li>
-          <li>
-            <Link
-              href="/user/admin/agents/costar_market_data"
-              className="font-mono text-[11.5px] text-slate-600 hover:text-forest-900 hover:underline"
-            >
-              /user/admin/agents/costar_market_data — owning agent
-            </Link>
-          </li>
-        </ul>
-      </section>
+      {/* Corrections · CORRECTIONS TAB · placeholder until corrections accumulate */}
+      {activeTab === "corrections" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle size={14} className="text-emerald-500" aria-hidden />
+            <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+              Corrections audit
+            </h2>
+            {snap?.corrections && (
+              <span className="ml-auto font-mono text-[10.5px] text-slate-500">
+                {snap.corrections.applied_total_in_master} applied · {snap.corrections.pending_before} pending · {snap.corrections.rejected} rejected
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] leading-relaxed text-slate-600">
+            Operator-submitted corrections to canonical hotel records. Each correction is
+            consumed on the next <code className="rounded bg-slate-100 px-1 font-mono text-[10.5px]">ingest.py</code> run · creates
+            a supersede entry in the master with full provenance (submitted_by · reason ·
+            confidence_before).
+          </p>
+          {(snap?.corrections?.applied_total_in_master ?? 0) === 0 && (
+            <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-[12px] text-slate-500">
+              No corrections applied yet. Open any hotel detail and use the
+              &ldquo;Submit correction&rdquo; form to queue one. The next
+              ingest run will absorb it into the canonical master.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* Analytics tab · placeholder for the deeper analytics views */}
+      {activeTab === "analytics" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <ExternalLink size={14} className="text-slate-400" aria-hidden />
+            <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+              Reference
+            </h2>
+          </div>
+          <ul className="space-y-1.5 text-[12px] text-slate-600">
+            <li>
+              <a
+                href="https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/docs/intelligence/costar-hotels-by-market-schema.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[11.5px] text-slate-600 hover:text-forest-900 hover:underline"
+              >
+                docs/intelligence/costar-hotels-by-market-schema.md — canonical schema
+              </a>
+            </li>
+            <li>
+              <a
+                href="https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/services/costar/scripts/README.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[11.5px] text-slate-600 hover:text-forest-900 hover:underline"
+              >
+                services/costar/scripts/README.md — pipeline reference
+              </a>
+            </li>
+            <li>
+              <Link
+                href="/user/admin/agents/costar_market_data"
+                className="font-mono text-[11.5px] text-slate-600 hover:text-forest-900 hover:underline"
+              >
+                /user/admin/agents/costar_market_data — owning agent
+              </Link>
+            </li>
+          </ul>
+          <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-[11.5px] text-amber-900">
+            Analytics tab will host brand coverage · submarket distribution · YoY market
+            performance charts · cap-rate distribution. Next iteration.
+          </p>
+        </section>
+      )}
     </div>
   );
 }
