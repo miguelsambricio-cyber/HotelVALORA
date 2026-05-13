@@ -4,6 +4,75 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — COSTAR architecture · two-dataset split · `/user/admin/hotels` scaffold · agent expanded scope
+
+Operator dropped Madrid + Madrid Centro CoStar files into `services/costar/`, renamed the `CLASS/` folder to `HOTELES POR MERCADO/`, uploaded private transactions alongside the COSTAR transactions export into `services/transactions/`, and uploaded the COMPSET file into `services/compset/`. This commit persists the architectural shift these uploads imply.
+
+### Conceptual shift · two datasets, not one
+
+The COSTAR workspace now models **two genuinely distinct datasets** that both happen to come from CoStar exports but model different things:
+
+| Dataset | Nature | Granularities |
+|---|---|---|
+| **A · Market Performance** | aggregated KPIs over time (occupancy · ADR · RevPAR · room nights · supply · demand · pipeline · absorption) | country (`PAIS`) · market (`MERCADO`) · submarket (`SUBMERCADO`) |
+| **B · Hotel-by-Market Inventory** | individual property records with slowly-changing attributes (name · brand · operator · facilities · amenities · score · category · rooms · geo · owner) | hotel-by-hotel within a market (`HOTELES POR MERCADO`) |
+
+The legacy CLASS granularity (chain-scale aggregates) is **retired** — `chain_scale` becomes an attribute on each hotel record in Dataset B. The OLD class master stays in `MASTER/` for archival but is no longer regenerated.
+
+### Files
+
+| File | Change |
+|---|---|
+| `services/costar/README.md` | Two-dataset framing · 4-stream pipeline (3 market + 1 inventory) · directory tree updated |
+| `docs/intelligence/costar-hotels-by-market-schema.md` | **NEW** · schema for Dataset B with planned columns (identification · property · location · facilities · commercial context) |
+| `docs/intelligence/costar-class-schema.md` | Deprecation banner · points to the new schema |
+| `docs/intelligence/costar-master-dataset-architecture.md` | Two-dataset banner · dimension table refactored with dataset column · CLASS row marked retired |
+| `docs/intelligence/hospitality-intelligence-roadmap.md` | **NEW** Phase 2.3.d sub-phases (.0–.6) · **NEW** Phase 3 "Real institutional underwriting engine" with entry/exit criteria |
+| `docs/HOTELVALORA_MASTER_SYSTEM.md` | 7-surface admin map · 2026-05-14 callout |
+| `docs/features/admin.md` | New `/user/admin/hotels` row · sidebar table reordered (Hotels at slot 3 next to AI Operations) |
+| `apps/web/src/lib/admin/agents/registry.ts` | `costar_market_data` renamed → "COSTAR & Hotel Reference Agent" · expanded responsibilities + integrations + workflow + roadmap |
+| `apps/web/src/lib/admin/hotels/types.ts` | **NEW** · `HotelReferenceRecord` shape mirroring the schema doc |
+| `apps/web/src/lib/admin/hotels/registry.ts` | **NEW** · `loadHotelsRegistryStatus()` + `searchHotelsReference()` stubs |
+| `apps/web/src/app/user/admin/hotels/page.tsx` | **NEW** · read-only scaffold (data-plane status · disabled search · capabilities · empty reconciliation queue · references) |
+| `apps/web/src/components/admin/admin-sidebar.tsx` | Hotels entry between AI Operations and Integrations · BETA badge |
+
+### Agent ownership
+
+`costar_market_data` becomes **COSTAR & Hotel Reference Agent** (short name "Hotel Ref"). New responsibilities:
+
+- Maintain Dataset A (3 market masters) AND Dataset B (hotel inventory)
+- Hotel-reference integrity: dedup detection · missing-field flagging · stale-data monitoring
+- Compset cross-references: validate every compset target `hotel_id` resolves in the inventory
+- Reconciliation queue: surface suspicious changes + hallucinated attributes for operator review
+
+Mission updated to reflect this is the **reference data backbone** — every downstream surface (compset, valuations, market reports, underwriting) ultimately resolves to `hotel_id` values this agent vouches for.
+
+### `/user/admin/hotels` scaffold
+
+Read-only today. Sections:
+1. **Data plane** · status card (XLSX master · normalization version · rows · markets)
+2. **Search hotels** · disabled input + selects · activates with Phase-5 Supabase mirror
+3. **Planned capabilities** · 8 cards (search · inspect · edit · compset membership · market assignment · operator relationships · facilities · audit trail)
+4. **Reconciliation queue** · empty state today
+5. **Reference** · links to schema doc, workspace README, owning agent dashboard
+
+Why scaffolded now: the COSTAR & Hotel Reference Agent dashboards link to this route, and operators need a destination for the reconciliation work once the v1.2 pipeline ships.
+
+### What this does NOT do (honest gaps)
+
+- Does **not** ingest the Madrid drop into a master — `build_masters.py` v1.2 is Phase 2.3.d.2 work
+- Does **not** mirror anything into Supabase — Phase 5
+- Does **not** generate real reports — Phase 3 (entry criterion is Phase 2.3.d.2 + .4 complete)
+- The `searchHotelsReference()` stub returns `null` until the data plane is live
+
+### Smoke
+
+- Typecheck clean
+- Sidebar renders 8 entries with the new Hotels item at slot 3 (BETA badge)
+- `/user/admin/hotels` page composes successfully (read-only stub · no DB reads)
+
+---
+
 ## 2026-05-13 — Agents page · Executive AI Command Center · 6-section operational hierarchy
 
 `/user/admin/agents` becomes the institutional control room for the autonomous intelligence infrastructure. The previous "OperationalDashboard then orbital then roster" stack is replaced by a six-section hierarchy with the orbital command center on top.

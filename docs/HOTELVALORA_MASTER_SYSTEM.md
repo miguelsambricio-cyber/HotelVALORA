@@ -4,7 +4,9 @@
 > Cross-references every other doc in `/docs/*` and the four AI-context files at
 > repo root (`AI_CONTEXT.md`, `RULES.md`, `ENTRYPOINTS.md`, `README.md`).
 
-**Last refreshed:** 2026-05-12 — keep this date current after structural updates.
+**Last refreshed:** 2026-05-14 — keep this date current after structural updates.
+
+> **2026-05-14 · COSTAR ingestion architecture shift.** Two distinct datasets now flow through `services/costar/`: **Market Performance** (PAIS/MERCADO/SUBMERCADO KPIs) and **Hotel-by-Market Inventory** (HOTELES POR MERCADO — replaces the retired CLASS granularity). Madrid + Madrid Centro drops landed alongside private transactions + COMPSET. New admin surface `/user/admin/hotels` scaffolds the hotel registry; COSTAR Admin Agent renamed to **COSTAR & Hotel Reference Agent** with reconciliation-queue duties. See `docs/intelligence/costar-hotels-by-market-schema.md` for the new schema and `services/costar/README.md` for the workspace contract.
 
 > 📍 **For the institutional baseline state of the platform** — what's live, placeholder, planned — read `docs/SNAPSHOT_2026_05_12.md` first. That document is the single canonical answer for cross-cutting status questions. This file points at it for anything that would otherwise drift.
 
@@ -38,11 +40,11 @@ settings      /settings/{profile,credentials,…}       3 user-settings sub-tabs
 library       /library/{favorites,top}/{map,list}     map + table views, contact card
 review        /(dashboard)/review                     data-quality queues (real API)
 admin         /user/admin + /user/admin/{agents[/id],   Institutional Operations Center
-              integrations[/id], contacts, users,      (6 surfaces · 2 scaffolds)
-              campaigns, subscriptions}
+              integrations[/id], hotels, contacts,     (7 surfaces · 1 scaffold)
+              users, campaigns, subscriptions}
               ↑ Executive Control Room · AI Operations Center · Integrations Console
-              ↑ Contacts (growth funnel) · Users (real users) · Campaigns (activation, scaffold)
-              ↑ Subscriptions (monetization, scaffold)
+              ↑ **Hotels** (reference data backbone · scaffold) — owned by COSTAR & Hotel Reference Agent
+              ↑ Contacts (growth funnel) · Users (real users) · Campaigns (activation) · Subscriptions
               ↑ Conversion arc: contact → invited → onboarded user → active subscriber → premium
               ↑ See `docs/features/admin.md` + `docs/integrations/datasite-contacts.md` § Phase 2.D
 ```

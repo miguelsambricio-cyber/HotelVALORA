@@ -1,10 +1,17 @@
-# services/costar — institutional hospitality market WAREHOUSE
+# services/costar — institutional hospitality market WAREHOUSE + hotel REFERENCE registry
 
-The operational substrate for HOTELVALORA's institutional hospitality market intelligence. **Not a document repository.** This is the **macro-level normalized hospitality intelligence warehouse + benchmark database layer**.
+The operational substrate for HOTELVALORA's institutional hospitality market intelligence. **Not a document repository.** This workspace contains **two genuinely distinct datasets** that both happen to come from CoStar exports but model different things:
 
-**Owned by the CoStar Market Data Agent** (per `docs/agents/costar-market-data-agent.md`). Hotel-specific compsets and underwriting outputs live in the OPERATIONAL workspace at `services/compset/` — owned by the CompSet Underwriting Agent. The two workspaces are deliberately separate per `docs/architecture/market-vs-underwriting-separation.md`.
+| Dataset | Nature | Granularities | Purpose |
+|---|---|---|---|
+| **A. Market Performance Data** | aggregated KPIs over time (occupancy · ADR · RevPAR · room nights · supply · demand · pipeline · absorption) | country · market · submarket | Macro context for valuations + report generation |
+| **B. Hotel-by-Market Inventory** | individual hotel records with attributes (name · brand · operator · facilities · amenities · score · category · rooms · geolocation · owner / operator) | hotel-by-hotel within a market | Reference data backbone for compsets · valuations · benchmarking |
 
-**Status** — Phase 1 directory + schemas + workflow live. Phase 2.3.d.1 wires the CLI ingestion pipeline. No autonomous ingestion yet.
+**Owned by the COSTAR & Hotel Reference Agent** (per `docs/agents/costar-market-data-agent.md`). Hotel-specific compsets and underwriting outputs live in the OPERATIONAL workspace at `services/compset/` — owned by the CompSet Underwriting Agent. The two workspaces are deliberately separate per `docs/architecture/market-vs-underwriting-separation.md`.
+
+**Status** — Phase 1 directory + schemas + workflow live. Madrid · Madrid Centro · COSTAR market-data + hotel-inventory files dropped 2026-05-14. Phase 2.3.d.1 wires the CLI ingestion pipeline. No autonomous ingestion yet.
+
+> **2026-05-14 conceptual shift:** the previous CLASS granularity (chain-scale aggregates) is retired. `chain_scale` becomes an attribute on each hotel record in the new HOTELES POR MERCADO inventory, not its own master. The legacy `COSTAR_MASTER_CLASS.xlsx` stays in `MASTER/` for archival but is no longer the source of truth for chain-scale positioning.
 
 ---
 
@@ -23,26 +30,28 @@ CompSet outputs (MPI / ARI / RGI per target hotel) live in `services/compset/` �
 ```
 services/costar/
 ├── MASTER/                                  ← canonical XLSX corpora (tracked in git)
-│   ├── COSTAR_MASTER_PAIS.xlsx              ← country-level (39c · COUNTRY sheet)
-│   ├── COSTAR_MASTER_MERCADOS.xlsx          ← market-level (40c · MARKET sheet)
-│   ├── COSTAR_MASTER_SUBMERCADOS.xlsx       ← submarket-level (41c · SUBMARKET sheet)
-│   └── COSTAR_MASTER_CLASS.xlsx             ← chain-scale aggregates (41c · CLASS sheet)
+│   ├── COSTAR_MASTER_PAIS.xlsx              ← country market metrics (Dataset A)
+│   ├── COSTAR_MASTER_MERCADOS.xlsx          ← market metrics (Dataset A)
+│   ├── COSTAR_MASTER_SUBMERCADOS.xlsx       ← submarket metrics (Dataset A)
+│   ├── COSTAR_MASTER_HOTELES_POR_MERCADO    ← hotel inventory (Dataset B) · planned next master
+│   └── COSTAR_MASTER_CLASS.xlsx             ← LEGACY (chain-scale aggregates · retired 2026-05-14)
 │
 ├── PAIS/
-│   ├── INPUT/                               ← operator drops raw country files here
+│   ├── INPUT/                               ← operator drops raw country market-data files here
 │   └── old.pais/                            ← processed archive
 │
 ├── MERCADO/
-│   ├── INPUT/                               ← operator drops raw market files here
+│   ├── INPUT/                               ← operator drops raw market-data files here
 │   └── old.mercado/                         ← processed archive
 │
 ├── SUBMERCADO/
-│   ├── INPUT/                               ← operator drops raw submarket files here
+│   ├── INPUT/                               ← operator drops raw submarket-data files here
 │   └── old.submercado/                      ← processed archive
 │
-├── CLASS/
-│   ├── INPUT/                               ← operator drops chain-scale aggregates here
-│   └── old.class/                           ← processed archive
+├── HOTELES POR MERCADO/                     ← NEW · 2026-05-14 (replaces CLASS folder)
+│   ├── INPUT/                               ← operator drops hotel-inventory exports here
+│   │   └── LISTA HOTELES FROM MARKET - <CITY>/
+│   └── old.class/                           ← legacy archive (kept for audit)
 │
 ├── staging/
 │   ├── failed/                              ← unparseable / corrupted imports
@@ -59,18 +68,20 @@ services/costar/
     └── build_masters.py                     ← reproducible master generator
 ```
 
-## Strict separation across four granularities
+## Pipeline architecture · two datasets, four ingestion streams
 
-Country, market, submarket and class flow through **four strictly separated parallel pipelines** that share infrastructure (ingestion-meta block, SOURCES_REGISTRY) but never share a DATA sheet:
+Dataset **A** (market performance) flows through three strictly separated parallel pipelines by granularity. Dataset **B** (hotel inventory) is its own fourth pipeline.
 
-| Granularity | Primary entity | Time series | Underwriting role |
-|---|---|---|---|
-| **Country** (`PAIS`) | ISO-3166-1 alpha-2 | yes | Macro context |
-| **Market** (`MERCADO`) | (country, market_name) | yes | Asset-level positioning anchor |
-| **Submarket** (`SUBMERCADO`) | (country, market, submarket) | yes | Comp neighborhood reference |
-| **Class** (`CLASS`) | (country [+ market], chain_scale) | yes | Sub-segment positioning context |
+| Stream | Dataset | Primary entity | Time series | Role |
+|---|---|---|---|---|
+| **Country** (`PAIS`) | A | ISO-3166-1 alpha-2 | yes | Macro context |
+| **Market** (`MERCADO`) | A | (country, market_name) | yes | Asset-level positioning anchor |
+| **Submarket** (`SUBMERCADO`) | A | (country, market, submarket) | yes | Comp neighborhood reference |
+| **Hotels by Market** (`HOTELES POR MERCADO`) | B | (country, market, hotel_id) | no — slowly-changing dimension | **Reference data backbone** · powers compsets · valuations · benchmarking |
 
-They never share a master because their schemas, granularity, KPIs, aggregation logic, and underwriting relevance all differ. See `docs/intelligence/costar-master-dataset-architecture.md` for the detailed rationale.
+The four streams share infrastructure (ingestion-meta block, SOURCES_REGISTRY) but never share a DATA sheet — schemas, granularity, KPIs, aggregation logic, and underwriting relevance all differ. See `docs/intelligence/costar-master-dataset-architecture.md` for the detailed rationale.
+
+Compset outputs (MPI / ARI / RGI per target hotel) live in `services/compset/` — a different workspace owned by a different agent. Transactions live in `services/transactions/`.
 
 Compset outputs (MPI / ARI / RGI per target hotel) live in `services/compset/` — a different workspace owned by a different agent.
 

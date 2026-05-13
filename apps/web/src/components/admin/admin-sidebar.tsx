@@ -17,6 +17,7 @@ import {
   UserCircle2,
   Megaphone,
   CreditCard,
+  Hotel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,9 @@ interface NavItem {
 const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin", label: "Overview", icon: LayoutGrid },
   { href: "/user/admin/agents", label: "AI Operations", icon: CircuitBoard, badge: "Live", tone: "live" },
+  // Reference data backbone — sits next to AI Operations because the COSTAR
+  // & Hotel Reference Agent owns the integrity of this data plane.
+  { href: "/user/admin/hotels", label: "Hotels", icon: Hotel, badge: "Beta", tone: "beta" },
   { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live", tone: "live" },
   { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Live", tone: "live" },
   { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },

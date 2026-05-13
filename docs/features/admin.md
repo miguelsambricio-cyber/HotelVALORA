@@ -97,17 +97,18 @@ The sidebar answers one question — *is this module operational?*
 
 Current sidebar order (operational hierarchy · top → bottom):
 
-| # | Module | Stage |
-|---|---|---|
-| 1 | Overview | (entry · no badge) |
-| 2 | AI Operations | core intelligence |
-| 3 | Integrations | infrastructure |
-| 4 | Campaigns | growth |
-| 5 | Subscriptions | monetization |
-| 6 | Users | onboarded users |
-| 7 | Contacts | relationship graph · upstream acquisition / support |
+| # | Module | Stage | Badge |
+|---|---|---|---|
+| 1 | Overview | (entry) | — |
+| 2 | AI Operations | core intelligence | LIVE |
+| 3 | **Hotels** | reference data backbone (scaffold · 2026-05-14) | BETA |
+| 4 | Integrations | infrastructure | LIVE |
+| 5 | Campaigns | growth | LIVE |
+| 6 | Subscriptions | monetization | LIVE |
+| 7 | Users | onboarded users | LIVE |
+| 8 | Contacts | relationship graph · upstream acquisition / support | LIVE |
 
-All operational modules carry **LIVE**. Planned section below the primary nav: Workspaces · Observability · Cost Controls · Audit Log.
+Hotels sits next to AI Operations because the COSTAR & Hotel Reference Agent is its owner. Planned section below the primary nav: Workspaces · Observability · Cost Controls · Audit Log.
 
 Promoting BETA → LIVE requires: end-to-end happy path with audit · soft-delete posture where mutations exist · no caller-visible holes in the operator workflow.
 
@@ -168,6 +169,7 @@ Each row carries four operator controls: **Open dashboard** + **View activity** 
 |---|---|---|
 | `/user/admin` | Executive Control Room (6-section dashboard) | Static |
 | `/user/admin/agents` | **Executive AI Command Center** · six-section operational hierarchy (orbital → roster → metrics → priority intel → ingestion → alerts) | Dynamic (`force-dynamic` · live aggregator) |
+| `/user/admin/hotels` | **Hotel Reference Registry** · scaffolded 2026-05-14 · operator search + edit window onto the COSTAR hotel inventory backbone | Dynamic (`force-dynamic` · stub registry) |
 | `/user/admin/agents/[agentId]` | Per-agent dashboard · `market_intelligence` renders the **Intelligence Terminal** | SSG · 11 pre-rendered paths |
 | `/user/admin/integrations` | Integrations directory (10 hospitality intelligence sources · grouped by category) | Static |
 | `/user/admin/integrations/[integrationId]` | Per-integration detail (connection · session · ingestion health) | SSG · 10 pre-rendered paths |

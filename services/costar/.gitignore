@@ -22,10 +22,15 @@ SUBMERCADO/INPUT/*
 SUBMERCADO/old.submercado/*
 !SUBMERCADO/old.submercado/.gitkeep
 
-CLASS/INPUT/*
-!CLASS/INPUT/.gitkeep
-CLASS/old.class/*
-!CLASS/old.class/.gitkeep
+# HOTELES POR MERCADO replaces the retired CLASS folder (2026-05-14).
+# Operator-dropped hotel-inventory exports stay local + auditable but never commit.
+# Path contains spaces — gitignore handles them natively without quoting.
+HOTELES POR MERCADO/INPUT/*
+!HOTELES POR MERCADO/INPUT/.gitkeep
+HOTELES POR MERCADO/INPUT/**/*
+!HOTELES POR MERCADO/INPUT/**/.gitkeep
+HOTELES POR MERCADO/old.class/*
+!HOTELES POR MERCADO/old.class/.gitkeep
 
 # Staging — failed parses, manual-review queue, temp normalisation files
 staging/failed/*

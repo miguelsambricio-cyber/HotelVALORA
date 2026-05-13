@@ -2,8 +2,10 @@
 
 Phased delivery plan for the HotelVALORA Hospitality Intelligence Engine.
 
-**Last refreshed:** 2026-05-11
-**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing**
+**Last refreshed:** 2026-05-14
+**Current phase:** 🟢 **Phase 1** complete · 🟡 **Phase 2 partial — pipeline shipped, awaiting first cron firing** · 🟢 **Phase 2.3.d.0 substrate live** · 🟡 **Phase 2.3.d.2 Madrid drop ingested (manual) — build_masters v1.2 + reconciliation queue next**
+
+> **2026-05-14 · COSTAR dataset split.** The COSTAR workspace now ships **two datasets**: Market Performance (PAIS / MERCADO / SUBMERCADO) and Hotel-by-Market Inventory (HOTELES POR MERCADO, replaces retired CLASS). Madrid + Madrid Centro CoStar exports + a private transactions file + COMPSET file have landed under `services/{costar,transactions,compset}/INPUT/`. These are the building blocks that turn HotelVALORA from "platform scaffolding" into a real institutional underwriting engine.
 
 ---
 
@@ -166,4 +168,37 @@ These are explicitly out of scope. When a future phase needs them, they get thei
 
 The Intelligence Engine is **never done** — it's a living dataset. But each phase has a clean exit criterion that, when met, declares the phase shipped and the next phase active.
 
-Phase 1 exit: this document published + schema applied + trackers updated. **Today, 2026-05-11. ✅**
+Phase 1 exit: this document published + schema applied + trackers updated. **2026-05-11. ✅**
+
+---
+
+## Phase 2.3.d — COSTAR & Hotel Reference (2026-05-14 update)
+
+The COSTAR workspace splits cleanly into two datasets. The hotel-by-market inventory becomes the reference data backbone for every downstream surface (compset, valuations, market reports, underwriting). The COSTAR Admin Agent is renamed to **COSTAR & Hotel Reference Agent** with explicit reconciliation-queue duties.
+
+| Sub-phase | Deliverable | Status |
+|---|---|---|
+| 2.3.d.0 | Workspace + masters + 7 schema docs (substrate) | ✅ 2026-05-11 |
+| 2.3.d.1 | Python CLI pipeline (parser · normaliser · dedup · audit-sync) | 🟡 planned |
+| 2.3.d.2 | `build_masters.py` v1.2 — retire CLASS · add HOTELES POR MERCADO master · ingest Madrid drop | 🟡 next |
+| 2.3.d.3 | Reconciliation queue surface in `/user/admin/hotels` — dedup detection · missing fields · orphan compset refs | 🟡 planned |
+| 2.3.d.4 | Compset cross-reference validator — every compset target hotel_id must resolve in the inventory | 🟡 planned |
+| 2.3.d.5 | Transactions merge strategy — official COSTAR transactions + private dataset → master with provenance tagging | 🟡 planned |
+| 2.3.d.6 | Monthly Vercel Cron sweeping operator inbox | 🟡 planned |
+
+## Phase 3 — Real institutional underwriting engine (after 2.3.d)
+
+The 2026-05-14 Madrid drop unlocks the transition from "platform scaffolding" to "real institutional underwriting engine". With market performance + hotel inventory + compset + transactions all flowing, the report-generation pipeline becomes feasible.
+
+**Goal:** generate real market reports + compset benchmarking + transaction comparables + underwriting context end-to-end for a target hotel in Madrid, from the four datasets.
+
+| Deliverable | Notes |
+|---|---|
+| Market report renderer reads from PAIS/MERCADO/SUBMERCADO masters | Replaces mock data in `/report/[id]` section 1 |
+| Compset benchmarking joins compset master to hotel inventory + market KPIs | Drives section 2 of the report |
+| Transaction comparables surface — merged COSTAR + private with provenance tags | Section 3 |
+| Underwriting context — chain_scale comparison + segment positioning derived from inventory | Replaces retired CLASS aggregates |
+| Valuation logic reads scope from registry; no hard-coded chain-scale enums | Decouples valuation from the legacy CLASS master |
+
+**Entry criterion:** Phase 2.3.d.2 + 2.3.d.4 complete (hotel inventory + compset validated).
+**Exit criterion:** one real end-to-end Madrid report generated from the masters with zero mock fallback.

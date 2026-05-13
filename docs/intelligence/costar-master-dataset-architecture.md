@@ -2,7 +2,14 @@
 
 Why four canonical .xlsx workbooks today, and how they evolve into Supabase tables tomorrow.
 
-**Last refreshed:** 2026-05-11
+**Last refreshed:** 2026-05-14
+
+> **2026-05-14 — Two datasets, not one.** The COSTAR workspace now models **two genuinely distinct datasets** both sourced from CoStar exports:
+>
+> - **Dataset A · Market Performance** — aggregated KPIs by period (occupancy · ADR · RevPAR · room nights · supply · demand · pipeline). Granularities: country (`PAIS`), market (`MERCADO`), submarket (`SUBMERCADO`).
+> - **Dataset B · Hotel-by-Market Inventory** — individual property records with slowly-changing attributes (name · brand · operator · facilities · score · category · rooms · geo). Granularity: hotel-by-hotel within a market (`HOTELES POR MERCADO`).
+>
+> The legacy CLASS master (chain-scale aggregates) is retired — `chain_scale` is now an attribute on each hotel record in Dataset B. See `costar-hotels-by-market-schema.md`.
 
 ---
 
@@ -37,14 +44,16 @@ Same rationale as the transactions workspace:
 
 The four granularities diverge on multiple axes — collapsing them forces nullable columns everywhere and ambiguous primary keys. Each workbook stands on its own:
 
-| Dimension | Country (PAIS) | Market (MERCADOS) | Submarket (SUBMERCADOS) | Class (CLASS) |
+| Dimension | Country (PAIS) | Market (MERCADOS) | Submarket (SUBMERCADOS) | Hotels by Market (HOTELES POR MERCADO) |
 |---|---|---|---|---|
-| **Primary key** | (country, period, period_kind) | (country, market_name, period, period_kind) | (country, market_name, submarket_name, period, period_kind) | (country, market_name OR null, chain_scale, period, period_kind) |
-| **Source cadence** | Quarterly / annual | Monthly / quarterly | Monthly | Monthly / quarterly |
-| **Macro context columns** | yes (GDP, inflation, tourism arrivals) | no | no | no |
-| **Positioning indicators** | n/a | revpar_index_vs_country | revpar_index_vs_market | revpar_index_vs_country + revpar_index_vs_market |
-| **Aggregation rules** | source-direct | hierarchical (markets sum into country) | hierarchical (submarkets sum into market) | explicit chain-scale aggregate |
-| **Underwriting role** | macro substrate | asset-anchor | comp neighborhood | sub-segment positioning |
+| **Dataset** | A · market performance | A · market performance | A · market performance | B · hotel inventory |
+| **Primary key** | (country, period, period_kind) | (country, market_name, period, period_kind) | (country, market_name, submarket_name, period, period_kind) | (country, market_name, hotel_id) |
+| **Time series** | yes (quarterly / annual) | yes (monthly / quarterly) | yes (monthly) | no — slowly-changing dimension |
+| **Macro context columns** | yes (GDP, inflation, tourism arrivals) | no | no | n/a |
+| **Positioning indicators** | n/a | revpar_index_vs_country | revpar_index_vs_market | derived via JOIN to market metrics |
+| **Aggregation rules** | source-direct | hierarchical (markets sum into country) | hierarchical (submarkets sum into market) | n/a — atomic records |
+| **Underwriting role** | macro substrate | asset-anchor | comp neighborhood | **reference data backbone** (compsets · valuations · benchmarks) |
+| **~~Class (legacy)~~** | retired 2026-05-14 — `chain_scale` is now an attribute on each hotel record in Dataset B |
 
 Reusing one row shape across all four creates fewer required columns and more nullable ones — every analyst query becomes "filter where granularity = X". Separate workbooks keep every column meaningful in its workbook.
 

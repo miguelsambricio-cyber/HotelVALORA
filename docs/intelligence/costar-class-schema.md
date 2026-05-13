@@ -1,4 +1,16 @@
-# CoStar Class Schema
+# CoStar Class Schema · DEPRECATED 2026-05-14
+
+> **🛑 Retired as a separate granularity.** Chain-scale aggregates no longer ship as their own master. `chain_scale` is now an attribute on each hotel record in the new **Hotels-by-Market Inventory** (Dataset B). See `costar-hotels-by-market-schema.md`.
+>
+> **Why retired:** an operator question like "How does Spanish luxury compare to Spanish midscale this quarter?" is now answered by `GROUP BY chain_scale` over the hotels-by-market inventory joined to the period KPIs in `COSTAR_MASTER_MERCADOS` — not by maintaining a parallel aggregate master with its own dedup keys.
+>
+> **What happens to the workbook:** `services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx` stays in `MASTER/` for archival but is no longer regenerated. The `CLASS/` ingest folder was renamed to `HOTELES POR MERCADO/` on 2026-05-14. The legacy archive lives at `HOTELES POR MERCADO/old.class/`.
+>
+> **If you came here from a link:** see the new schema (`costar-hotels-by-market-schema.md`) for the hotel-by-hotel reference data. For chain-scale comparison queries, group the new inventory by `chain_scale` and join to the market KPIs.
+
+---
+
+## Historical reference (v1.1)
 
 Full column reference for `services/costar/MASTER/COSTAR_MASTER_CLASS.xlsx`.
 
