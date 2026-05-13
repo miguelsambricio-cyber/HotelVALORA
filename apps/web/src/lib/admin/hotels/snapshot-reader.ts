@@ -91,6 +91,46 @@ export interface TransactionEntry {
   price_eur: number | null;
   buyer: string | null;
   seller: string | null;
+  /** Phase 3.c · operator-added entries carry _meta.source = "manual_entry" */
+  _meta?: {
+    ingestion_batch_id: string | null;
+    source_path: string;
+    source?: "manual_entry" | string;
+    review_status?: "new" | "reconciled" | string;
+    submitted_by?: string;
+    submitted_at?: string;
+  };
+}
+
+/** Phase 3.c · pipeline / under-construction property record. Mirrors
+ *  the Python ingest output (CoStar Hotel Pipeline export) + the manual
+ *  add-project payload shape. */
+export interface ProjectEntry {
+  project_id: string;
+  project_name: string;
+  country: string;
+  market_name: string | null;
+  submarket_name?: string | null;
+  city: string | null;
+  state_province: string | null;
+  street?: string | null;
+  postal_code?: string | null;
+  phase: string | null;
+  status: string | null;
+  opening_date: string | null;
+  construction_type: string | null;
+  stars: number | null;
+  rooms_count: number | null;
+  office_company?: string | null;
+  notes?: string | null;
+  _meta?: {
+    ingestion_batch_id: string | null;
+    source_path: string;
+    source?: "manual_entry" | string;
+    review_status?: "new" | "reconciled" | string;
+    submitted_by?: string;
+    submitted_at?: string;
+  };
 }
 
 export interface MarketSummary {
@@ -304,12 +344,16 @@ const STORAGE_BUCKET = "costar-master";
 const STORAGE_KEY = "snapshot.json";
 const STORAGE_CACHE_TTL_MS = 60 * 1000; // 60s — short enough to feel fresh after each upload-snapshot run
 const MANUAL_HOTELS_PREFIX = "manual_hotels"; // Phase 3 · operator-added hotels live here
+const MANUAL_TX_PREFIX = "manual_transactions"; // Phase 3.c · operator-added transactions
+const MANUAL_PROJECTS_PREFIX = "manual_projects"; // Phase 3.c · operator-added projects
 const MANUAL_CACHE_TTL_MS = 30 * 1000; // 30s — operator just submitted; show within half a minute
 
 type Source = "fs" | "supabase_storage" | "none";
 let storageSourceLogged = false;
 let storageCache: { fetchedAtMs: number; snapshot: HotelsSnapshot | null } | null = null;
 let manualHotelsCache: { fetchedAtMs: number; rows: HotelRecord[] } | null = null;
+let manualTransactionsCache: { fetchedAtMs: number; rows: TransactionEntry[] } | null = null;
+let manualProjectsCache: { fetchedAtMs: number; rows: unknown[] } | null = null;
 
 /**
  * Load the snapshot. Two-tier resolution:
@@ -342,8 +386,7 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
   }
 
   if (base) {
-    const manual = await loadManualHotels();
-    return _mergeManualHotels(base, manual);
+    return _mergeAllManual(base);
   }
 
   // 2) Try Supabase Storage (production path)
@@ -353,16 +396,14 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
   ) {
     const cachedBase = storageCache.snapshot;
     if (!cachedBase) return null;
-    const manual = await loadManualHotels();
-    return _mergeManualHotels(cachedBase, manual);
+    return _mergeAllManual(cachedBase);
   }
   try {
     const parsed = await downloadFromStorage();
     storageCache = { fetchedAtMs: Date.now(), snapshot: parsed };
     if (parsed) {
       logFirstLoad("supabase_storage", `${STORAGE_BUCKET}/${STORAGE_KEY}`, null, parsed);
-      const manual = await loadManualHotels();
-      return _mergeManualHotels(parsed, manual);
+      return _mergeAllManual(parsed);
     }
     return parsed;
   } catch (err: unknown) {
@@ -381,36 +422,28 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
 }
 
 /**
- * Phase 3 · load operator-added hotels from
- * `costar-master/manual_hotels/<YYYY-MM>/<id>.json`.
+ * Phase 3 · generic loader for `costar-master/<prefix>/<YYYY-MM>/<id>.json`.
  *
- * Each file is one full hotel record. We list the prefix, download each
- * file in parallel, and return the merged list. Cached for 30s.
+ * Lists the YYYY-MM folders under `prefix`, downloads each JSON file, returns
+ * the merged list. Tolerant: any unreadable / malformed file is skipped, and
+ * Storage outages degrade to an empty list (canonical snapshot still renders).
  *
- * Errors are logged once and degraded to an empty list — the canonical
- * snapshot still renders even if Storage is misbehaving.
+ * Used for all three operator-write surfaces: manual_hotels,
+ * manual_transactions, manual_projects.
  */
-async function loadManualHotels(): Promise<HotelRecord[]> {
-  if (
-    manualHotelsCache &&
-    Date.now() - manualHotelsCache.fetchedAtMs < MANUAL_CACHE_TTL_MS
-  ) {
-    return manualHotelsCache.rows;
-  }
+async function _loadManualPrefix<T>(prefix: string): Promise<T[]> {
   try {
     const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
     const client = getSupabaseAdmin();
-
-    // List the YYYY-MM folders under manual_hotels/, then list each one's files
     const { data: months, error: listErr } = await client.storage
       .from(STORAGE_BUCKET)
-      .list(MANUAL_HOTELS_PREFIX, { limit: 100, sortBy: { column: "name", order: "desc" } });
+      .list(prefix, { limit: 100, sortBy: { column: "name", order: "desc" } });
     if (listErr) throw new Error(listErr.message);
 
-    const rows: HotelRecord[] = [];
+    const rows: T[] = [];
     for (const month of months ?? []) {
       if (!month.name || month.name.startsWith(".")) continue;
-      const folder = `${MANUAL_HOTELS_PREFIX}/${month.name}`;
+      const folder = `${prefix}/${month.name}`;
       const { data: files, error: subErr } = await client.storage
         .from(STORAGE_BUCKET)
         .list(folder, { limit: 1000 });
@@ -422,35 +455,100 @@ async function loadManualHotels(): Promise<HotelRecord[]> {
           .download(`${folder}/${f.name}`);
         if (dlErr || !dl) continue;
         try {
-          const parsed = JSON.parse(await dl.text()) as HotelRecord;
-          rows.push(parsed);
+          rows.push(JSON.parse(await dl.text()) as T);
         } catch {
-          // Skip malformed entries — caller can audit in Storage directly
+          // malformed JSON · audit in Storage UI
         }
       }
     }
-    manualHotelsCache = { fetchedAtMs: Date.now(), rows };
     return rows;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[hotels.manual] failed to load manual hotels · ${msg}`);
-    manualHotelsCache = { fetchedAtMs: Date.now(), rows: [] };
+    console.warn(`[hotels.manual] failed to load ${prefix} · ${msg}`);
     return [];
   }
 }
 
-function _mergeManualHotels(snapshot: HotelsSnapshot, manual: HotelRecord[]): HotelsSnapshot {
-  if (manual.length === 0) return snapshot;
-  // Canonical (snapshot) wins over manual on hotel_id collision — if the
-  // operator added a hotel manually and later it shows up in the next
-  // CoStar drop, the institutional source supersedes the placeholder.
-  const canonicalIds = new Set(snapshot.hotels.map((h) => h.hotel_id));
-  const extras = manual.filter((h) => !canonicalIds.has(h.hotel_id));
-  if (extras.length === 0) return snapshot;
+async function loadManualHotels(): Promise<HotelRecord[]> {
+  if (manualHotelsCache && Date.now() - manualHotelsCache.fetchedAtMs < MANUAL_CACHE_TTL_MS) {
+    return manualHotelsCache.rows;
+  }
+  const rows = await _loadManualPrefix<HotelRecord>(MANUAL_HOTELS_PREFIX);
+  manualHotelsCache = { fetchedAtMs: Date.now(), rows };
+  return rows;
+}
+
+async function loadManualTransactions(): Promise<TransactionEntry[]> {
+  if (manualTransactionsCache && Date.now() - manualTransactionsCache.fetchedAtMs < MANUAL_CACHE_TTL_MS) {
+    return manualTransactionsCache.rows;
+  }
+  const rows = await _loadManualPrefix<TransactionEntry>(MANUAL_TX_PREFIX);
+  manualTransactionsCache = { fetchedAtMs: Date.now(), rows };
+  return rows;
+}
+
+async function loadManualProjects(): Promise<unknown[]> {
+  if (manualProjectsCache && Date.now() - manualProjectsCache.fetchedAtMs < MANUAL_CACHE_TTL_MS) {
+    return manualProjectsCache.rows;
+  }
+  const rows = await _loadManualPrefix<unknown>(MANUAL_PROJECTS_PREFIX);
+  manualProjectsCache = { fetchedAtMs: Date.now(), rows };
+  return rows;
+}
+
+async function _mergeAllManual(snapshot: HotelsSnapshot): Promise<HotelsSnapshot> {
+  // Load all three operator write-paths in parallel
+  const [manualHotels, manualTransactions, manualProjects] = await Promise.all([
+    loadManualHotels(),
+    loadManualTransactions(),
+    loadManualProjects(),
+  ]);
+
+  // Hotels · canonical wins on hotel_id collision
+  const canonicalHotelIds = new Set(snapshot.hotels.map((h) => h.hotel_id));
+  const extraHotels = manualHotels.filter((h) => !canonicalHotelIds.has(h.hotel_id));
+
+  // Transactions · canonical wins on transaction_id collision
+  const canonicalTxIds = new Set(snapshot.transactions.map((t) => t.transaction_id));
+  const extraTxs = manualTransactions.filter(
+    (t) => t && typeof t === "object" && "transaction_id" in t && !canonicalTxIds.has(t.transaction_id),
+  );
+
+  // Projects · the snapshot may not carry the type strictly; treat as array
+  const existingProjects = ((snapshot as unknown as { projects?: unknown[] }).projects ?? []) as unknown[];
+  const canonicalProjectIds = new Set(
+    existingProjects.flatMap((p) =>
+      p && typeof p === "object" && "project_id" in p ? [(p as { project_id: string }).project_id] : [],
+    ),
+  );
+  const extraProjects = manualProjects.filter(
+    (p) =>
+      p &&
+      typeof p === "object" &&
+      "project_id" in p &&
+      !canonicalProjectIds.has((p as { project_id: string }).project_id),
+  );
+
+  if (extraHotels.length === 0 && extraTxs.length === 0 && extraProjects.length === 0) {
+    return snapshot;
+  }
+
   return {
     ...snapshot,
-    hotels: [...snapshot.hotels, ...extras],
-    totals: { ...snapshot.totals, hotels: snapshot.totals.hotels + extras.length },
+    hotels: extraHotels.length > 0 ? [...snapshot.hotels, ...extraHotels] : snapshot.hotels,
+    transactions: extraTxs.length > 0 ? [...snapshot.transactions, ...extraTxs] : snapshot.transactions,
+    // projects is optional on the type; spread back as unknown[]
+    ...(extraProjects.length > 0
+      ? { projects: [...existingProjects, ...extraProjects] }
+      : {}),
+    totals: {
+      ...snapshot.totals,
+      hotels: snapshot.totals.hotels + extraHotels.length,
+      transactions: snapshot.totals.transactions + extraTxs.length,
+      ...(snapshot.totals.projects !== undefined
+        ? { projects: (snapshot.totals.projects ?? 0) + extraProjects.length }
+        : {}),
+    },
   };
 }
 

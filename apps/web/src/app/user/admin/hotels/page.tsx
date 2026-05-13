@@ -15,8 +15,10 @@ import {
   getSnapshotDiagnostics,
   type HotelRecord,
   type ReconciliationEntry,
+  type ProjectEntry,
 } from "@/lib/admin/hotels/snapshot-reader";
 import { AddHotelModal } from "@/components/admin/hotels/add-hotel-modal";
+import { AddDealModal } from "@/components/admin/hotels/add-deal-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,13 @@ interface PageProps {
     needs_review?: string;
     sort?: string;
     page?: string;
+    // Phase 3.c · Search transactions & projects section
+    dq?: string;
+    dkind?: string;        // "transaction" | "project" | "" (any)
+    dsource?: string;      // "costar" | "private" | "manual_entry" | "" (any)
+    dmarket?: string;
+    dcountry?: string;
+    dsort?: string;        // "date_desc" | "date_asc" | "price_desc" | "price_asc" | "name_asc"
   };
 }
 
@@ -133,6 +142,100 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   // (acceptable up to ~5k rows; revisit with virtual scroll later).
   const filtered = sorted;
   void page; // legacy param preserved for backward compat with shared URLs
+
+  // ── Phase 3.c · "Search transactions & projects" section state ─────────
+  type DealKind = "transaction" | "project";
+  interface UnifiedDeal {
+    kind: DealKind;
+    id: string;
+    name: string;
+    country: string | null;
+    market: string | null;
+    submarket: string | null;
+    source: string; // costar | private | manual_entry
+    is_new: boolean;
+    // transaction-specific
+    closed_at?: string | null;
+    price_eur?: number | null;
+    buyer?: string | null;
+    seller?: string | null;
+    rooms_count?: number | null;
+    // project-specific
+    phase?: string | null;
+    status?: string | null;
+    opening_date?: string | null;
+    stars?: number | null;
+    city?: string | null;
+  }
+  const dq = (searchParams.dq ?? "").trim().toLowerCase();
+  const dkind = (searchParams.dkind ?? "").trim();
+  const dsource = (searchParams.dsource ?? "").trim();
+  const dmarketFilter = (searchParams.dmarket ?? "").trim();
+  const dcountryFilter = (searchParams.dcountry ?? "").trim().toUpperCase();
+  const dsort = (searchParams.dsort ?? "date_desc").trim();
+
+  const allDeals: UnifiedDeal[] = [];
+  for (const t of snap?.transactions ?? []) {
+    const isManualNew =
+      t._meta?.source === "manual_entry" && t._meta?.review_status === "new";
+    allDeals.push({
+      kind: "transaction",
+      id: t.transaction_id,
+      name: t.asset_name,
+      country: t.country,
+      market: t.market_name,
+      submarket: null,
+      source: isManualNew ? "manual_entry" : (t.source ?? "unknown"),
+      is_new: !!isManualNew,
+      closed_at: t.closed_at,
+      price_eur: t.price_eur,
+      buyer: t.buyer,
+      seller: t.seller,
+    });
+  }
+  const projectsRaw = (snap as unknown as { projects?: ProjectEntry[] } | null)?.projects ?? [];
+  for (const p of projectsRaw) {
+    const isManualNew =
+      p._meta?.source === "manual_entry" && p._meta?.review_status === "new";
+    allDeals.push({
+      kind: "project",
+      id: p.project_id,
+      name: p.project_name,
+      country: p.country,
+      market: p.market_name,
+      submarket: p.submarket_name ?? null,
+      source: isManualNew ? "manual_entry" : "costar",
+      is_new: !!isManualNew,
+      phase: p.phase,
+      status: p.status,
+      opening_date: p.opening_date,
+      stars: p.stars,
+      rooms_count: p.rooms_count,
+      city: p.city,
+    });
+  }
+  const filteredDeals = allDeals.filter((d) => {
+    if (dkind && d.kind !== dkind) return false;
+    if (dsource && d.source !== dsource) return false;
+    if (dcountryFilter && d.country !== dcountryFilter) return false;
+    if (dmarketFilter && d.market !== dmarketFilter) return false;
+    if (dq) {
+      const hay = `${d.name} ${d.buyer ?? ""} ${d.seller ?? ""} ${d.id}`.toLowerCase();
+      if (!hay.includes(dq)) return false;
+    }
+    return true;
+  });
+  filteredDeals.sort((a, b) => {
+    // primary sort
+    if (dsort === "name_asc") return a.name.localeCompare(b.name);
+    if (dsort === "price_desc") return (b.price_eur ?? -1) - (a.price_eur ?? -1);
+    if (dsort === "price_asc") return (a.price_eur ?? Number.MAX_SAFE_INTEGER) - (b.price_eur ?? Number.MAX_SAFE_INTEGER);
+    // date_asc / date_desc — use closed_at or opening_date as proxy
+    const ad = a.closed_at ?? a.opening_date ?? "";
+    const bd = b.closed_at ?? b.opening_date ?? "";
+    if (dsort === "date_asc") return ad.localeCompare(bd);
+    return bd.localeCompare(ad); // date_desc default
+  });
 
   return (
     <div className="space-y-6">
@@ -518,6 +621,92 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </div>
       </section>
 
+      {/* Phase 3.c · Search transactions & projects */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form className="space-y-3" method="get">
+          <div className="flex items-center gap-2">
+            <Search size={14} className="text-slate-400" aria-hidden />
+            <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+              Search transactions &amp; projects
+            </h2>
+            <div className="ml-auto">
+              <AddDealModal />
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
+              <input
+                type="text"
+                name="dq"
+                defaultValue={dq}
+                placeholder="Search by asset / project name · buyer · seller · id"
+                className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 font-mono text-[12px] text-slate-900 placeholder:text-slate-400 focus:border-forest-900 focus:outline-none"
+              />
+            </div>
+            <SelectControl name="dkind" label="Kind" current={dkind} options={["transaction", "project"]} />
+            <SelectControl name="dsource" label="Source" current={dsource} options={["costar", "private", "manual_entry"]} />
+            <SelectControl name="dmarket" label="Market" current={dmarketFilter} options={Array.from(new Set(allDeals.flatMap((d) => (d.market ? [d.market] : []))))} />
+            <SelectControl name="dcountry" label="Country" current={dcountryFilter} options={Array.from(new Set(allDeals.flatMap((d) => (d.country ? [d.country] : []))))} />
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">Sort by</span>
+              <select
+                name="dsort"
+                defaultValue={dsort}
+                className="appearance-none rounded-md border border-slate-200 bg-white py-1 pl-2 pr-7 font-mono text-[11px] text-slate-900 focus:border-forest-900 focus:outline-none"
+              >
+                <option value="date_desc">Date · newest first</option>
+                <option value="date_asc">Date · oldest first</option>
+                <option value="price_desc">Price · highest first</option>
+                <option value="price_asc">Price · lowest first</option>
+                <option value="name_asc">Name · A → Z</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="ml-auto rounded-md bg-forest-900 px-3 py-1.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-lime-300 hover:opacity-90"
+            >
+              Apply filters
+            </button>
+          </div>
+        </form>
+
+        <div className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <p className="font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+              {filteredDeals.length} result{filteredDeals.length === 1 ? "" : "s"}
+              {filteredDeals.length > 6 && (
+                <span className="ml-1 text-slate-400">· showing 6 of {filteredDeals.length}</span>
+              )}
+            </p>
+            {filteredDeals.length > 6 && (
+              <p className="font-mono text-[10px] text-slate-400">scroll for the rest ↓</p>
+            )}
+          </div>
+          {filteredDeals.length === 0 ? (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[12px] text-slate-500">
+              No transactions or projects match the current filters.
+            </p>
+          ) : (
+            <div
+              className="max-h-[360px] overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 ring-1 ring-inset ring-slate-100"
+              tabIndex={0}
+              aria-label={`Deal results · ${filteredDeals.length} matches · scroll within this list`}
+            >
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {filteredDeals.map((d) => (
+                  <li key={`${d.kind}-${d.id}`}>
+                    <DealRow deal={d} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Reconciliation queue */}
       <section id="reconciliation-queue" className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-2">
@@ -675,6 +864,103 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
       </div>
       <ArrowUpRight size={14} className="shrink-0 text-slate-300 group-hover:text-forest-900" />
     </Link>
+  );
+}
+
+interface DealRowItem {
+  kind: "transaction" | "project";
+  id: string;
+  name: string;
+  country: string | null;
+  market: string | null;
+  submarket: string | null;
+  source: string;
+  is_new: boolean;
+  closed_at?: string | null;
+  price_eur?: number | null;
+  buyer?: string | null;
+  seller?: string | null;
+  rooms_count?: number | null;
+  phase?: string | null;
+  status?: string | null;
+  opening_date?: string | null;
+  stars?: number | null;
+  city?: string | null;
+}
+
+function DealRow({ deal }: { deal: DealRowItem }) {
+  const isTx = deal.kind === "transaction";
+  const kindCls = isTx
+    ? "bg-violet-100 text-violet-800 ring-violet-200"
+    : "bg-cyan-100 text-cyan-800 ring-cyan-200";
+  const sourceCls =
+    deal.source === "costar"
+      ? "bg-slate-100 text-slate-700 ring-slate-200"
+      : deal.source === "manual_entry"
+        ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+        : "bg-amber-100 text-amber-800 ring-amber-200"; // private
+
+  return (
+    <div
+      className={`flex h-full flex-col gap-1.5 rounded-xl border p-3 transition-colors ${
+        deal.is_new ? "border-emerald-300 bg-emerald-50/40" : "border-slate-200 bg-slate-50/40"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className={`rounded px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.18em] ring-1 ${kindCls}`}>
+          {isTx ? "TX" : "PROJ"}
+        </span>
+        <span className={`rounded px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] ring-1 ${sourceCls}`}>
+          {deal.source.replace(/_/g, " ")}
+        </span>
+        {deal.is_new && (
+          <span
+            title="Manually added · pending CoStar reconciliation"
+            className="rounded bg-emerald-600 px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] text-white"
+          >
+            NEW
+          </span>
+        )}
+      </div>
+      <p className="truncate font-headline text-[13px] font-extrabold tracking-tight text-forest-900">
+        {deal.name}
+      </p>
+      <p className="truncate text-[11.5px] text-slate-500">
+        {deal.country ?? "—"}
+        {deal.market ? ` · ${deal.market}` : ""}
+        {deal.submarket ? ` · ${deal.submarket}` : ""}
+        {!isTx && deal.city && !deal.market ? ` · ${deal.city}` : ""}
+      </p>
+      {isTx ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10.5px] text-slate-600">
+          <span>
+            {deal.closed_at ? `closed ${deal.closed_at}` : "closed —"}
+            {deal.buyer || deal.seller
+              ? ` · ${deal.buyer ?? "—"} ← ${deal.seller ?? "—"}`
+              : ""}
+          </span>
+          {deal.price_eur !== null && deal.price_eur !== undefined && (
+            <span className="font-headline text-[13px] font-extrabold text-forest-900">
+              €{(deal.price_eur / 1_000_000).toFixed(1)}M
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-baseline justify-between gap-2 font-mono text-[10.5px] text-slate-600">
+          <span>
+            {deal.phase ?? "—"}
+            {deal.opening_date ? ` · opens ${deal.opening_date}` : ""}
+            {deal.rooms_count ? ` · ${deal.rooms_count}r` : ""}
+            {deal.stars ? ` · ${deal.stars}★` : ""}
+          </span>
+          {deal.status && (
+            <span className="font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-slate-700">
+              {deal.status}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
