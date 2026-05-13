@@ -4,6 +4,43 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 3.f.next 1 · Bulk Booking enrichment over filtered selection
+
+Single-hotel "Fetch from Booking" was shipped earlier today. Operator pointed out that 364 hotels × one click each is not the workflow. This commit turns it into a one-click bulk operation that respects the current filter context.
+
+- `runBookingEnrichmentBatch(hotel_ids)` server action in `booking-enrich.ts`
+  - Concurrency window = 3 · inter-call throttle = 250 ms · cap = 25 hotels/click
+  - Aggregates: `succeeded · failed · needs_disambiguation · skipped_manual_operator`
+  - Per-hotel result list with booking_name + match_confidence + completeness
+  - Early-stop on 5 consecutive RapidAPI rate-limit errors (429/quota/too many)
+  - Idempotent: re-running with same IDs re-attempts the failed ones
+- `BulkBookingButton({ targetHotelIds, totalEmpty })` in `bulk-booking-button.tsx`
+  - "Bulk fetch · next N" button in the Search hotels form header
+  - Result panel · breakdown grid · rate-limit warning · collapsible per-hotel log
+- Hotels page builds `targetHotelIds` from the currently-filtered + sorted set,
+  filtered to completeness < 80% and sorted ascending so the worst hotels go first
+
+Operator path
+- Land on `/user/admin/hotels?tab=hotels&enrichment=empty&sort=completeness_asc`
+- Click "Bulk fetch · next 25" · 25 hotels enriched in ~30-45 seconds
+- Click again to drain the next 25
+- 15 clicks to cover the full 364 institutional inventory
+
+Why cap at 25
+- Vercel Fluid Compute default timeout = 300s · 25 × ~1.5s = ~37s margin
+- Smaller batches let operator stop early if RapidAPI quota is tight
+- Server action enforces the cap even if client sends more IDs
+
+Smoke: HTTP 200 · 1.55 MB · "Bulk fetch · next 25" button rendered · typecheck clean.
+
+Deferred (Phase 3.f.next 2-4)
+- Interactive disambiguation when match < 80% (today: operator manually
+  edits the CoStar name + re-runs)
+- Image refs · upload Booking photo URLs to public Supabase bucket
+- Freshness cron · re-fetch when `last_scraped_at > N days`
+
+---
+
 ## 2026-05-14 — Phase 3.f.real-booking · RapidAPI booking-com15 enrichment wired
 
 Operator picked RapidAPI booking-com15 as the Booking data source. Wired server-side end-to-end: search → details → mapper → upsert with provenance, plus a UI button on the hotel detail page.

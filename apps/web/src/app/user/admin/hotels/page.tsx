@@ -19,6 +19,7 @@ import {
 } from "@/lib/admin/hotels/snapshot-reader";
 import { AddHotelModal } from "@/components/admin/hotels/add-hotel-modal";
 import { AddDealModal } from "@/components/admin/hotels/add-deal-modal";
+import { BulkBookingButton } from "@/components/admin/hotels/bulk-booking-button";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 
 export const dynamic = "force-dynamic";
@@ -664,7 +665,26 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
               Search hotels
             </h2>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {(() => {
+                // Build the bulk-target list from the CURRENT filter
+                // context · priority = completeness ascending so the
+                // worst-enriched hotels go first. Cap at 25 server-side
+                // anyway · the component caps display.
+                const eligible = sorted
+                  .filter((h) => computeProfileCompleteness(h.profile).score < 80)
+                  .sort(
+                    (a, b) =>
+                      computeProfileCompleteness(a.profile).score -
+                      computeProfileCompleteness(b.profile).score,
+                  );
+                return (
+                  <BulkBookingButton
+                    targetHotelIds={eligible.map((h) => h.hotel_id)}
+                    totalEmpty={eligible.length}
+                  />
+                );
+              })()}
               <AddHotelModal />
             </div>
           </div>

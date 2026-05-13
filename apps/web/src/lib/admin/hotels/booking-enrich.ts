@@ -234,6 +234,157 @@ export async function runBookingEnrichment(
   };
 }
 
+// ── Bulk · Phase 3.f.next 1 ────────────────────────────────────────────────
+
+export interface BulkBookingResult {
+  ok: boolean;
+  total: number;
+  succeeded: number;
+  failed: number;
+  needs_disambiguation: number;
+  skipped_manual_operator: number;
+  rate_limited_stop: boolean;
+  per_hotel: Array<{
+    hotel_id: string;
+    status: "ok" | "error" | "needs_disambiguation" | "skipped";
+    booking_name?: string;
+    match_confidence?: number;
+    completeness_score?: number;
+    error?: string;
+  }>;
+  // milliseconds elapsed end-to-end · operator can see throughput
+  elapsed_ms: number;
+}
+
+/**
+ * Phase 3.f.next 1 · bulk Booking enrichment.
+ *
+ * Loops `runBookingEnrichment` over a list of hotel_ids with a small
+ * concurrency window (3) and inter-call delay (250ms). Caps at 25 per
+ * call to fit Vercel Fluid Compute's 300s default timeout and to stay
+ * polite to RapidAPI quotas.
+ *
+ * Aggregates results so the operator sees one summary at the end · the
+ * per-hotel list captures which specific hotels need disambiguation or
+ * failed so the operator can address them individually.
+ *
+ * Stops early if 5 consecutive rate-limit errors land — operator gets
+ * `rate_limited_stop: true` and can resume later (idempotent: re-running
+ * with the same hotel_ids will just re-attempt the failed ones).
+ */
+const BULK_MAX_PER_CALL = 25;
+const BULK_CONCURRENCY = 3;
+const BULK_INTER_CALL_MS = 250;
+const RATE_LIMIT_PATIENCE = 5;
+
+export async function runBookingEnrichmentBatch(
+  hotel_ids: string[],
+): Promise<BulkBookingResult> {
+  const start = Date.now();
+  await requireOperator();
+
+  const ids = hotel_ids.slice(0, BULK_MAX_PER_CALL);
+  const out: BulkBookingResult = {
+    ok: true,
+    total: ids.length,
+    succeeded: 0,
+    failed: 0,
+    needs_disambiguation: 0,
+    skipped_manual_operator: 0,
+    rate_limited_stop: false,
+    per_hotel: [],
+    elapsed_ms: 0,
+  };
+
+  let consecutiveRateLimits = 0;
+  // Sequential is simpler · concurrency window of 3 implemented via a
+  // sliding pool. We don't use Promise.all directly because we want
+  // throttle BETWEEN calls and early-stop on consecutive 429s.
+  const queue = [...ids];
+  const inflight: Array<Promise<void>> = [];
+
+  const runOne = async (hotel_id: string) => {
+    try {
+      const r = await runBookingEnrichment(hotel_id);
+      if (r.ok) {
+        consecutiveRateLimits = 0;
+        out.succeeded += 1;
+        out.per_hotel.push({
+          hotel_id,
+          status: "ok",
+          booking_name: r.booking_name,
+          match_confidence: r.match_confidence,
+          completeness_score: r.completeness_score,
+        });
+      } else if (r.needs_disambiguation) {
+        consecutiveRateLimits = 0;
+        out.needs_disambiguation += 1;
+        out.per_hotel.push({
+          hotel_id,
+          status: "needs_disambiguation",
+          match_confidence: r.match_confidence,
+          error: r.error,
+        });
+      } else if (r.error?.toLowerCase().includes("refusing to overwrite")) {
+        consecutiveRateLimits = 0;
+        out.skipped_manual_operator += 1;
+        out.per_hotel.push({
+          hotel_id,
+          status: "skipped",
+          error: "manual_operator enrichment exists",
+        });
+      } else {
+        out.failed += 1;
+        out.per_hotel.push({ hotel_id, status: "error", error: r.error });
+        // Heuristic: rate-limit / quota errors usually mention 429 or
+        // "rate" or "quota" in the message
+        const e = (r.error ?? "").toLowerCase();
+        if (e.includes("429") || e.includes("rate") || e.includes("quota") || e.includes("too many")) {
+          consecutiveRateLimits += 1;
+        } else {
+          consecutiveRateLimits = 0;
+        }
+      }
+    } catch (err) {
+      out.failed += 1;
+      const msg = err instanceof Error ? err.message : "unknown error";
+      out.per_hotel.push({ hotel_id, status: "error", error: msg });
+      const m = msg.toLowerCase();
+      if (m.includes("429") || m.includes("rate") || m.includes("quota") || m.includes("too many")) {
+        consecutiveRateLimits += 1;
+      } else {
+        consecutiveRateLimits = 0;
+      }
+    }
+  };
+
+  while (queue.length > 0 || inflight.length > 0) {
+    if (consecutiveRateLimits >= RATE_LIMIT_PATIENCE) {
+      out.rate_limited_stop = true;
+      break;
+    }
+    while (inflight.length < BULK_CONCURRENCY && queue.length > 0) {
+      const id = queue.shift()!;
+      const p = runOne(id).finally(() => {
+        const i = inflight.indexOf(p);
+        if (i >= 0) inflight.splice(i, 1);
+      });
+      inflight.push(p);
+      await new Promise((res) => setTimeout(res, BULK_INTER_CALL_MS));
+    }
+    if (inflight.length > 0) {
+      await Promise.race(inflight);
+    }
+  }
+  // Drain remaining
+  await Promise.all(inflight);
+
+  out.elapsed_ms = Date.now() - start;
+  // ok=false if every single one failed · helps the UI render a hard error
+  out.ok = out.succeeded + out.needs_disambiguation + out.skipped_manual_operator > 0;
+  return out;
+}
+
 function _stripEmpty<T>(v: T): T {
   if (v === null || v === undefined) return v;
   if (typeof v === "string") return (v.trim() === "" ? undefined : v) as T;
