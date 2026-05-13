@@ -31,7 +31,42 @@ from pathlib import Path
 from typing import Any
 
 
-SNAPSHOT_SCHEMA_VERSION = "v1.5"  # +compset_performance + synthetic_compsets (Phase 2.3.d.6c)
+SNAPSHOT_SCHEMA_VERSION = "v1.6"  # stateful merge across runs (Phase 2.3.d.6d · 2026-05-14)
+
+
+def load_existing_snapshot(path: Path) -> dict[str, Any] | None:
+    """Read the previous snapshot, or None if missing/malformed.
+
+    Used by `ingest.py` as the stateful base before merging a new run.
+    Without this, every ingest run would replace the previous snapshot
+    wholesale — and a run with an empty INPUT folder would wipe the
+    institutional history. The XLSX masters in MASTER/ remain the
+    canonical store; this is the read-path persistence.
+    """
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def merge_by_id(
+    current: list[dict[str, Any]],
+    previous: list[dict[str, Any]],
+    id_key: str,
+) -> list[dict[str, Any]]:
+    """Merge two lists of dicts by `id_key`. Current-run rows always win;
+    rows present only in `previous` are carried forward unchanged.
+
+    Used for the persistent entities (hotels, transactions,
+    compset_membership). Synthetic compsets and the reconciliation queue
+    are NOT merged — they are regenerated every run from the merged
+    inventory.
+    """
+    current_ids = {row[id_key] for row in current if id_key in row}
+    carried = [row for row in previous if row.get(id_key) and row[id_key] not in current_ids]
+    return current + carried
 
 
 def build_snapshot(

@@ -57,6 +57,20 @@ from dedup import (  # noqa: E402
     normalise_str_for_key,
     transaction_id,
 )
+
+
+def _rehydrate_match_fields(hotel: dict[str, Any]) -> dict[str, Any]:
+    """Rebuild the in-pipeline-only `_match_*` helpers on a hotel row.
+
+    Hotels persisted in `snapshot.json` have these fields stripped by
+    `snapshot._strip_private`. After the stateful merge brings them back,
+    fuzzy-match code needs them re-derived from the canonical columns.
+    """
+    if "_match_name" not in hotel:
+        hotel["_match_name"] = normalise_str_for_key(hotel.get("name"))
+    if "_match_address" not in hotel:
+        hotel["_match_address"] = normalise_address(hotel.get("address_line"))
+    return hotel
 from normalization import (  # noqa: E402
     DEFAULT_COUNTRY,
     HOTEL_HEADER_ALIASES,
@@ -69,7 +83,12 @@ from source_readers import (  # noqa: E402
     iter_input_files,
     read_rows_with_aliases,
 )
-from snapshot import build_snapshot, write_snapshot  # noqa: E402
+from snapshot import (  # noqa: E402
+    build_snapshot,
+    load_existing_snapshot,
+    merge_by_id,
+    write_snapshot,
+)
 from corrections import apply_corrections  # noqa: E402
 from compset_inference import infer_synthetic_compsets  # noqa: E402
 
@@ -579,13 +598,46 @@ def main(argv: list[str] | None = None) -> int:
     logger.event("info", "run.started", batch_id=batch_id, normalization=NORMALIZATION_VERSION, dry_run=args.dry_run)
 
     hotels, recon, processed_hotels, failed_hotels = ingest_hotels(batch_id, logger)
+
+    # Phase 2.3.d.6d · stateful merge — the snapshot persists across runs.
+    # Read the previous snapshot and carry forward any hotel / transaction /
+    # compset_membership row whose stable ID is not present in this run.
+    # Current-run rows always win on overlap. Synthetic compsets and the
+    # reconciliation queue are NOT merged — they are regenerated every run
+    # from the merged inventory.
+    previous = load_existing_snapshot(SNAPSHOT_PATH)
+    if previous:
+        prev_hotels = previous.get("hotels", [])
+        prev_txs = previous.get("transactions", [])
+        prev_compsets = previous.get("compset_membership") or previous.get("compsets") or []
+        carried_hotels_count = max(0, len(prev_hotels) - sum(1 for h in prev_hotels if h.get("hotel_id") in {x["hotel_id"] for x in hotels}))
+        logger.event(
+            "info",
+            "snapshot.stateful_merge",
+            previous_hotels=len(prev_hotels),
+            previous_transactions=len(prev_txs),
+            previous_compset_membership=len(prev_compsets),
+            this_run_hotels=len(hotels),
+            carried_hotels=carried_hotels_count,
+        )
+        hotels = merge_by_id(hotels, prev_hotels, "hotel_id")
+    # Hotels carried in from the snapshot lost their `_match_*` helpers
+    # during `_strip_private` at write time. Re-derive them so the
+    # downstream fuzzy matchers (transactions linkage, compset
+    # cross-reference) can score against them.
+    for h in hotels:
+        _rehydrate_match_fields(h)
     hotels_by_id = {h["hotel_id"]: h for h in hotels}
 
     compsets, recon_compset, processed_compset, failed_compset = ingest_compsets(batch_id, hotels_by_id, logger)
     recon.extend(recon_compset)
+    if previous:
+        compsets = merge_by_id(compsets, previous.get("compset_membership") or previous.get("compsets") or [], "compset_id")
 
     transactions, recon_tx, processed_tx, failed_tx = ingest_transactions(batch_id, hotels_by_id, logger)
     recon.extend(recon_tx)
+    if previous:
+        transactions = merge_by_id(transactions, previous.get("transactions", []), "transaction_id")
 
     # Phase 2.3.d.6c · Synthetic compset inference — generates a top-4
     # compset per hotel when the operator-confirmed membership isn't

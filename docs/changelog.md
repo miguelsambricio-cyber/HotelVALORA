@@ -4,6 +4,54 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 2.3.d.6d · Stateful snapshot merge (load + merge + write) · fixes wholesale-overwrite bug
+
+Critical bug discovered during a re-run of `ingest.py`: a run with an empty INPUT folder **wiped the snapshot wholesale** (364 hotels → 0 hotels). The pipeline was stateless — each run reconstructed the snapshot from whatever happened to be in INPUT that moment. This breaks the institutional governance model where INPUT is the "pending queue" (transient) and the snapshot is the persistent read path.
+
+### Fix · `snapshot.py` v1.6
+
+- New `load_existing_snapshot(path)` reads the previous snapshot file (returns `None` on missing/malformed).
+- New `merge_by_id(current, previous, id_key)` carries forward any row whose stable ID isn't produced by the current run. Current-run rows always win on overlap.
+
+### `ingest.py` wiring
+
+Three entities are merged stateful:
+
+| Entity | Merge key | Behaviour |
+|---|---|---|
+| Hotels | `hotel_id` | Run's new + previous (uncovered) carried forward |
+| Transactions | `transaction_id` | Content-hash IDs guarantee idempotent dedup |
+| Compset membership | `compset_id` | Same — preserves operator-confirmed memberships |
+
+Synthetic compsets and the reconciliation queue are **regenerated** every run from the merged inventory — they reflect the current state, not history.
+
+### Match-field rehydration
+
+Hotels persisted in `snapshot.json` had `_match_name` / `_match_address` stripped by `_strip_private()` at write time. The fuzzy matchers (transaction linkage, compset cross-reference) needed them re-derived after the merge. New `_rehydrate_match_fields()` helper restores them from `name` + `address_line` on each carried-in hotel.
+
+### Validation · two-pass run
+
+```
+Pass 1 (INPUT had hotels + transactions):
+  previous_hotels=0  this_run_hotels=364  →  snapshot has 364
+Pass 2 (INPUT only the locked transaction file, hotels already in OLD):
+  previous_hotels=364  this_run_hotels=0  carried=364  →  snapshot STILL has 364
+  transactions: 608 from current run + 53 carried from previous = 661 (dedup by transaction_id)
+```
+
+The institutional read path is now persistent. The XLSX masters in `MASTER/` remain the audit-grade canonical store; `snapshot.json` is the runtime cache.
+
+### Files
+
+- `services/costar/scripts/snapshot.py` · schema v1.5 → v1.6 · `load_existing_snapshot()` + `merge_by_id()` exports
+- `services/costar/scripts/ingest.py` · `_rehydrate_match_fields()` helper · stateful merge wired after each ingest stage
+
+### Honest gap
+
+- The reconciliation queue is **not** merged — fresh signal each run. So `suspected_duplicate` entries from a previous run are dropped if not re-detected. Operationally the queue is a "current-state worklist" so this is the right semantics, but if you want sticky reconciliation items in the future, add `reconciliation_queue` to the merged-by-ID list.
+
+---
+
 ## 2026-05-14 — Phase 2.3.d.6c · Spanish CoStar aliases + ES country fallback + two-entity compset model + synthetic inference
 
 The first real Madrid `ingest.py` run flushed out two issues:
