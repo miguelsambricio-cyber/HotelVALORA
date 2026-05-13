@@ -60,9 +60,18 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
       {/* Header */}
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md bg-emerald-100 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-emerald-800 ring-1 ring-inset ring-emerald-200">
-            Reference hotel
-          </span>
+          {hotel._meta?.source === "manual_entry" && hotel._meta?.review_status === "new" ? (
+            <span
+              title={`Manually added · ${hotel._meta?.submitted_by ?? "operator"} · ${hotel._meta?.submitted_at ?? ""}`}
+              className="rounded-md bg-emerald-600 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-white"
+            >
+              NEW · manual entry
+            </span>
+          ) : (
+            <span className="rounded-md bg-emerald-100 px-2 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.25em] text-emerald-800 ring-1 ring-inset ring-emerald-200">
+              Reference hotel
+            </span>
+          )}
           {hotel.hotel_id_synthetic && (
             <span
               title="No CoStar PROPERTY ID in source — hotel_id was computed deterministically"

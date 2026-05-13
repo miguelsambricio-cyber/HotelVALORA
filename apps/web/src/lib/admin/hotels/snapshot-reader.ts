@@ -101,11 +101,21 @@ export interface MarketSummary {
 }
 
 export interface HotelMeta {
-  ingestion_batch_id: string;
+  ingestion_batch_id: string | null;
   source_path: string;
   confidence: number;
   needs_review: string[];
   fuzzy_matched: boolean;
+  /** Phase 3 · provenance for manual / non-CoStar hotels.
+   *  "manual_entry" tags rows added via the Add hotel modal · pending
+   *  reconciliation with the canonical CoStar inventory. */
+  source?: "manual_entry" | string;
+  /** Phase 3 · operator-facing flag · "new" until reconciled. */
+  review_status?: "new" | "reconciled" | string;
+  /** Phase 3 · who submitted the manual entry. */
+  submitted_by?: string;
+  /** Phase 3 · ISO timestamp of the manual entry. */
+  submitted_at?: string;
 }
 
 /** Per-hotel audit entry produced by `corrections.py` when a pending
@@ -293,10 +303,13 @@ let cache: { mtime: number; snapshot: HotelsSnapshot | null } | null = null;
 const STORAGE_BUCKET = "costar-master";
 const STORAGE_KEY = "snapshot.json";
 const STORAGE_CACHE_TTL_MS = 60 * 1000; // 60s — short enough to feel fresh after each upload-snapshot run
+const MANUAL_HOTELS_PREFIX = "manual_hotels"; // Phase 3 · operator-added hotels live here
+const MANUAL_CACHE_TTL_MS = 30 * 1000; // 30s — operator just submitted; show within half a minute
 
 type Source = "fs" | "supabase_storage" | "none";
 let storageSourceLogged = false;
 let storageCache: { fetchedAtMs: number; snapshot: HotelsSnapshot | null } | null = null;
+let manualHotelsCache: { fetchedAtMs: number; rows: HotelRecord[] } | null = null;
 
 /**
  * Load the snapshot. Two-tier resolution:
@@ -311,19 +324,26 @@ let storageCache: { fetchedAtMs: number; snapshot: HotelsSnapshot | null } | nul
  */
 export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
   // 1) Try filesystem
+  let base: HotelsSnapshot | null = null;
   try {
     const { promises: fs } = await import("node:fs");
     const stat = await fs.stat(SNAPSHOT_PATH);
     if (cache && cache.mtime === stat.mtimeMs) {
-      return cache.snapshot;
+      base = cache.snapshot;
+    } else {
+      const raw = await readFile(SNAPSHOT_PATH, "utf-8");
+      const parsed = JSON.parse(raw) as HotelsSnapshot;
+      cache = { mtime: stat.mtimeMs, snapshot: parsed };
+      logFirstLoad("fs", SNAPSHOT_PATH, stat.size, parsed);
+      base = parsed;
     }
-    const raw = await readFile(SNAPSHOT_PATH, "utf-8");
-    const parsed = JSON.parse(raw) as HotelsSnapshot;
-    cache = { mtime: stat.mtimeMs, snapshot: parsed };
-    logFirstLoad("fs", SNAPSHOT_PATH, stat.size, parsed);
-    return parsed;
   } catch {
     /* fall through to Storage */
+  }
+
+  if (base) {
+    const manual = await loadManualHotels();
+    return _mergeManualHotels(base, manual);
   }
 
   // 2) Try Supabase Storage (production path)
@@ -331,13 +351,18 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
     storageCache &&
     Date.now() - storageCache.fetchedAtMs < STORAGE_CACHE_TTL_MS
   ) {
-    return storageCache.snapshot;
+    const cachedBase = storageCache.snapshot;
+    if (!cachedBase) return null;
+    const manual = await loadManualHotels();
+    return _mergeManualHotels(cachedBase, manual);
   }
   try {
     const parsed = await downloadFromStorage();
     storageCache = { fetchedAtMs: Date.now(), snapshot: parsed };
     if (parsed) {
       logFirstLoad("supabase_storage", `${STORAGE_BUCKET}/${STORAGE_KEY}`, null, parsed);
+      const manual = await loadManualHotels();
+      return _mergeManualHotels(parsed, manual);
     }
     return parsed;
   } catch (err: unknown) {
@@ -353,6 +378,80 @@ export async function loadHotelsSnapshot(): Promise<HotelsSnapshot | null> {
     cache = { mtime: 0, snapshot: null };
     return null;
   }
+}
+
+/**
+ * Phase 3 · load operator-added hotels from
+ * `costar-master/manual_hotels/<YYYY-MM>/<id>.json`.
+ *
+ * Each file is one full hotel record. We list the prefix, download each
+ * file in parallel, and return the merged list. Cached for 30s.
+ *
+ * Errors are logged once and degraded to an empty list — the canonical
+ * snapshot still renders even if Storage is misbehaving.
+ */
+async function loadManualHotels(): Promise<HotelRecord[]> {
+  if (
+    manualHotelsCache &&
+    Date.now() - manualHotelsCache.fetchedAtMs < MANUAL_CACHE_TTL_MS
+  ) {
+    return manualHotelsCache.rows;
+  }
+  try {
+    const { getSupabaseAdmin } = await import("@/lib/supabase/admin");
+    const client = getSupabaseAdmin();
+
+    // List the YYYY-MM folders under manual_hotels/, then list each one's files
+    const { data: months, error: listErr } = await client.storage
+      .from(STORAGE_BUCKET)
+      .list(MANUAL_HOTELS_PREFIX, { limit: 100, sortBy: { column: "name", order: "desc" } });
+    if (listErr) throw new Error(listErr.message);
+
+    const rows: HotelRecord[] = [];
+    for (const month of months ?? []) {
+      if (!month.name || month.name.startsWith(".")) continue;
+      const folder = `${MANUAL_HOTELS_PREFIX}/${month.name}`;
+      const { data: files, error: subErr } = await client.storage
+        .from(STORAGE_BUCKET)
+        .list(folder, { limit: 1000 });
+      if (subErr) continue;
+      for (const f of files ?? []) {
+        if (!f.name?.endsWith(".json")) continue;
+        const { data: dl, error: dlErr } = await client.storage
+          .from(STORAGE_BUCKET)
+          .download(`${folder}/${f.name}`);
+        if (dlErr || !dl) continue;
+        try {
+          const parsed = JSON.parse(await dl.text()) as HotelRecord;
+          rows.push(parsed);
+        } catch {
+          // Skip malformed entries — caller can audit in Storage directly
+        }
+      }
+    }
+    manualHotelsCache = { fetchedAtMs: Date.now(), rows };
+    return rows;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[hotels.manual] failed to load manual hotels · ${msg}`);
+    manualHotelsCache = { fetchedAtMs: Date.now(), rows: [] };
+    return [];
+  }
+}
+
+function _mergeManualHotels(snapshot: HotelsSnapshot, manual: HotelRecord[]): HotelsSnapshot {
+  if (manual.length === 0) return snapshot;
+  // Canonical (snapshot) wins over manual on hotel_id collision — if the
+  // operator added a hotel manually and later it shows up in the next
+  // CoStar drop, the institutional source supersedes the placeholder.
+  const canonicalIds = new Set(snapshot.hotels.map((h) => h.hotel_id));
+  const extras = manual.filter((h) => !canonicalIds.has(h.hotel_id));
+  if (extras.length === 0) return snapshot;
+  return {
+    ...snapshot,
+    hotels: [...snapshot.hotels, ...extras],
+    totals: { ...snapshot.totals, hotels: snapshot.totals.hotels + extras.length },
+  };
 }
 
 async function downloadFromStorage(): Promise<HotelsSnapshot | null> {

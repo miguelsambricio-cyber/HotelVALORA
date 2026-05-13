@@ -16,6 +16,7 @@ import {
   type HotelRecord,
   type ReconciliationEntry,
 } from "@/lib/admin/hotels/snapshot-reader";
+import { AddHotelModal } from "@/components/admin/hotels/add-hotel-modal";
 
 export const dynamic = "force-dynamic";
 
@@ -314,6 +315,9 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
               Search hotels
             </h2>
+            <div className="ml-auto">
+              <AddHotelModal />
+            </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
@@ -475,22 +479,36 @@ function matchesQuery(
 function HotelRow({ hotel }: { hotel: HotelRecord }) {
   const conf = hotel._meta?.confidence ?? 1;
   const needsReview = (hotel._meta?.needs_review.length ?? 0) > 0;
+  const isManualNew =
+    hotel._meta?.source === "manual_entry" && hotel._meta?.review_status === "new";
   return (
     <Link
       href={`/user/admin/hotels/${encodeURIComponent(hotel.hotel_id)}`}
-      className="group flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/40 p-3 transition-colors hover:border-forest-900 hover:bg-white"
+      className={`group flex items-start gap-3 rounded-xl border p-3 transition-colors hover:bg-white ${
+        isManualNew
+          ? "border-emerald-300 bg-emerald-50/40 hover:border-emerald-600"
+          : "border-slate-200 bg-slate-50/40 hover:border-forest-900"
+      }`}
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-headline text-[13px] font-extrabold tracking-tight text-forest-900">
             {hotel.name}
           </span>
+          {isManualNew && (
+            <span
+              title={`Manually added · ${hotel._meta?.submitted_by ?? "operator"} · ${hotel._meta?.submitted_at ?? ""}`}
+              className="inline-flex items-center rounded bg-emerald-600 px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] text-white"
+            >
+              NEW
+            </span>
+          )}
           {hotel.chain_scale && (
             <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-slate-700 ring-1 ring-slate-200">
               {hotel.chain_scale.replace(/_/g, " ")}
             </span>
           )}
-          {needsReview && (
+          {needsReview && !isManualNew && (
             <span className="inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 font-headline text-[9px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
               Review
             </span>
