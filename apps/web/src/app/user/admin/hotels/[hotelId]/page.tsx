@@ -16,6 +16,10 @@ import {
 import { CorrectionForm } from "@/components/admin/hotels/correction-form";
 import { EnrichmentModal } from "@/components/admin/hotels/enrichment-modal";
 import { BookingEnrichButton } from "@/components/admin/hotels/booking-enrich-button";
+import {
+  CANONICAL_FACILITIES,
+  summariseCanonicalFacilities,
+} from "@/lib/admin/hotels/canonical-facilities";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 
 export const dynamic = "force-dynamic";
@@ -690,24 +694,74 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
         </div>
       )}
 
-      {/* Lists below the cards */}
-      {profile && (
+      {/* Canonical 10-facility grid · institutional view · matches the
+            asset-analysis report's facility checklist. The raw Booking
+            facility strings are evidence (see <details> below); these
+            icons are what the report consumes. */}
+      {profile && (() => {
+        const fac = summariseCanonicalFacilities(profile);
+        return (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/40 p-4">
+            <div className="mb-3 flex items-baseline justify-between">
+              <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+                Facilities
+              </p>
+              <p className="font-mono text-[10.5px] tabular-nums text-slate-500">
+                {fac.present} / {fac.total} present
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-5">
+              {CANONICAL_FACILITIES.map((f) => {
+                const present = fac.resolved[f.key];
+                const Icon = f.icon;
+                return (
+                  <div
+                    key={f.key}
+                    className={`flex items-center gap-2 text-[12.5px] ${
+                      present ? "text-forest-900" : "text-slate-400"
+                    }`}
+                    title={`${f.label} · ${present ? "available" : "not available"}`}
+                  >
+                    <Icon
+                      size={15}
+                      className={present ? "text-emerald-600" : "text-slate-300"}
+                      strokeWidth={present ? 2.4 : 1.8}
+                    />
+                    <span className={present ? "" : "line-through"}>{f.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {(profile.facilities_detailed?.length ?? 0) > 0 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer font-mono text-[10.5px] text-slate-500 hover:text-forest-900">
+                  Raw evidence · {profile.facilities_detailed?.length} Booking facility strings
+                </summary>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {(profile.facilities_detailed ?? []).map((it) => (
+                    <li
+                      key={it}
+                      className="rounded bg-white px-2 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-slate-200"
+                    >
+                      {it}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Policies + check-in/out · separate block, kept compact */}
+      {profile && (profile.check_in_time || profile.check_out_time || profile.cancellation_policy || profile.pet_policy) && (
         <div className="mt-4 space-y-3">
-          {(profile.facilities_detailed?.length ?? 0) > 0 && (
-            <Chips label="Facilities" items={profile.facilities_detailed ?? []} />
-          )}
-          {(profile.amenities?.length ?? 0) > 0 && (
-            <Chips label="Amenities" items={profile.amenities ?? []} />
-          )}
-          {(profile.services?.length ?? 0) > 0 && (
-            <Chips label="Services" items={profile.services ?? []} />
-          )}
-          {profile.check_in_time || profile.check_out_time ? (
+          {(profile.check_in_time || profile.check_out_time) && (
             <div className="grid grid-cols-2 gap-3 text-[11.5px]">
               <Pair label="Check-in" value={profile.check_in_time ?? "—"} />
               <Pair label="Check-out" value={profile.check_out_time ?? "—"} />
             </div>
-          ) : null}
+          )}
           {profile.cancellation_policy && (
             <div>
               <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">Cancellation</p>
@@ -748,23 +802,6 @@ function ProfileCard({ label, children }: { label: string; children: React.React
   );
 }
 
-function Chips({ label, items }: { label: string; items: string[] }) {
-  return (
-    <div>
-      <p className="mb-1 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <ul className="flex flex-wrap gap-1.5">
-        {items.map((it) => (
-          <li
-            key={it}
-            className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] text-slate-700 ring-1 ring-slate-200"
-          >
-            {it.replace(/_/g, " ")}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 function Section({
   title,

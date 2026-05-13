@@ -4,6 +4,29 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 3.f.next 2 · canonical 10-facility icon grid (report-aligned)
+
+Operator feedback: the noisy chip list of raw Booking facility strings (15+ "Wifi in all areas · Air conditioning · Heating · Non-smoking rooms · …") isn't what the final asset-analysis report consumes. The report uses a fixed 10-facility checklist with icons. Re-aligned the enrichment view to that institutional contract.
+
+- `lib/admin/hotels/canonical-facilities.ts` · new single-source-of-truth for the 10 institutional facilities:
+  - Bar & Caffe (Coffee) · Restaurant (UtensilsCrossed) · Rooftop Bar (Wine) · Meeting rooms (Users) · Events (CalendarHeart) · Gym (Dumbbell) · SPA Wellness (Sparkles) · Pool (Waves) · Parking (Car) · Other rentals (Home)
+- `resolveCanonicalFacilities(profile)` derives availability from three layers:
+  1. Structured `HotelProfile` fields (e.g. `profile.spa?.has_spa`)
+  2. Boolean toggles baked in the schema
+  3. Substring probe against `profile.facilities_detailed[]` (Booking raw evidence)
+- Hotel detail page · replaced the noisy chip lists (Facilities · Amenities · Services) with a 5×2 icon grid · green icon + label when present · slate icon + line-through label when absent · "N / 10 present" counter in the section header
+- Raw Booking facility strings preserved as collapsible `<details>` block below the grid (evidence for audit / debug, not display)
+- Icons match `components/library/amenity-icon-cell.tsx` (the library/favorites-list system) so the visual language is consistent across the platform
+
+Validation on the 9 enriched hotels
+- AC Hotel Avenida de América → 4 / 10 (Restaurant · Gym · Meeting · Parking)
+- Novotel Madrid Center → expected higher (Booking returned Pool · Fitness · Meeting · Restaurant · Bar in facility list)
+- Other hotels render the icon grid consistently
+
+Aligned with: `lib/report/asset-analysis-data.ts::FacilityItem` (the canonical report shape). Adding a new facility means updating both files — `canonical-facilities.ts` for the registry + admin UI · `asset-analysis-data.ts` for the report consumer.
+
+---
+
 ## 2026-05-14 — Phase 3.f.real-booking v2 · matching strategy + bulk runner CLI
 
 Day-2 of Booking integration · the first bulk attempt at operator request
