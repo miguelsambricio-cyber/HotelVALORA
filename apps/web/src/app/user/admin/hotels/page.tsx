@@ -27,7 +27,80 @@ export const metadata: Metadata = {
 };
 
 interface PageProps {
-  searchParams?: { q?: string; market?: string; country?: string; chain?: string; needs_review?: string };
+  searchParams?: {
+    q?: string;
+    market?: string;
+    country?: string;
+    chain?: string;
+    affiliation?: string;
+    needs_review?: string;
+    sort?: string;
+    page?: string;
+  };
+}
+
+const PAGE_SIZE = 50;
+
+type SortKey =
+  | "name_asc"
+  | "name_desc"
+  | "rooms_desc"
+  | "rooms_asc"
+  | "year_desc"
+  | "year_asc"
+  | "chain_scale"
+  | "brand";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "name_asc", label: "Name · A → Z" },
+  { value: "name_desc", label: "Name · Z → A" },
+  { value: "rooms_desc", label: "Rooms · largest first" },
+  { value: "rooms_asc", label: "Rooms · smallest first" },
+  { value: "year_desc", label: "Year opened · newest" },
+  { value: "year_asc", label: "Year opened · oldest" },
+  { value: "chain_scale", label: "Class · luxury → economy" },
+  { value: "brand", label: "Brand · A → Z" },
+];
+
+const CHAIN_SCALE_ORDER: Record<string, number> = {
+  luxury: 0,
+  upper_upscale: 1,
+  upscale: 2,
+  upper_midscale: 3,
+  midscale: 4,
+  economy: 5,
+};
+
+function sortHotels(rows: HotelRecord[], key: SortKey): HotelRecord[] {
+  const cmpStr = (a: string | null | undefined, b: string | null | undefined, dir = 1) => {
+    const aa = (a ?? "").toLocaleLowerCase();
+    const bb = (b ?? "").toLocaleLowerCase();
+    if (aa === bb) return 0;
+    return aa < bb ? -dir : dir;
+  };
+  const cmpNum = (a: number | null | undefined, b: number | null | undefined, dir = 1) => {
+    const aa = a ?? Number.NEGATIVE_INFINITY;
+    const bb = b ?? Number.NEGATIVE_INFINITY;
+    return (aa - bb) * dir;
+  };
+  const arr = [...rows];
+  switch (key) {
+    case "name_asc": return arr.sort((a, b) => cmpStr(a.name, b.name, 1));
+    case "name_desc": return arr.sort((a, b) => cmpStr(a.name, b.name, -1));
+    case "rooms_desc": return arr.sort((a, b) => cmpNum(a.rooms_count, b.rooms_count, -1));
+    case "rooms_asc": return arr.sort((a, b) => cmpNum(a.rooms_count, b.rooms_count, 1));
+    case "year_desc": return arr.sort((a, b) => cmpNum(a.year_opened, b.year_opened, -1));
+    case "year_asc": return arr.sort((a, b) => cmpNum(a.year_opened, b.year_opened, 1));
+    case "chain_scale":
+      return arr.sort((a, b) => {
+        const ra = CHAIN_SCALE_ORDER[a.chain_scale ?? ""] ?? 99;
+        const rb = CHAIN_SCALE_ORDER[b.chain_scale ?? ""] ?? 99;
+        if (ra !== rb) return ra - rb;
+        return cmpStr(a.name, b.name, 1);
+      });
+    case "brand": return arr.sort((a, b) => cmpStr(a.brand, b.brand, 1));
+    default: return arr;
+  }
 }
 
 export default async function HotelsPage({ searchParams = {} }: PageProps) {
@@ -37,11 +110,42 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const marketFilter = (searchParams.market ?? "").trim();
   const countryFilter = (searchParams.country ?? "").trim().toUpperCase();
   const chainFilter = (searchParams.chain ?? "").trim();
+  const affiliationFilter = (searchParams.affiliation ?? "").trim();
   const needsReviewOnly = searchParams.needs_review === "1";
+  const sortKey: SortKey =
+    (SORT_OPTIONS.find((o) => o.value === searchParams.sort)?.value as SortKey | undefined) ??
+    "name_asc";
+  const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
-  const filtered = snap
-    ? snap.hotels.filter((h) => matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, needsReviewOnly }))
+  const filteredAll = snap
+    ? snap.hotels.filter((h) =>
+        matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, needsReviewOnly }),
+      )
     : [];
+  const sorted = sortHotels(filteredAll, sortKey);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const sliceStart = (safePage - 1) * PAGE_SIZE;
+  const filtered = sorted.slice(sliceStart, sliceStart + PAGE_SIZE);
+
+  // Helper to build URLs preserving current filters
+  const buildHref = (overrides: Record<string, string | undefined>) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (marketFilter) params.set("market", marketFilter);
+    if (countryFilter) params.set("country", countryFilter);
+    if (chainFilter) params.set("chain", chainFilter);
+    if (affiliationFilter) params.set("affiliation", affiliationFilter);
+    if (needsReviewOnly) params.set("needs_review", "1");
+    if (sortKey && sortKey !== "name_asc") params.set("sort", sortKey);
+    if (safePage > 1) params.set("page", String(safePage));
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v === undefined || v === "" || v === "1" && k === "page") params.delete(k);
+      else params.set(k, v);
+    }
+    const qs = params.toString();
+    return qs ? `/user/admin/hotels?${qs}` : "/user/admin/hotels";
+  };
 
   return (
     <div className="space-y-6">
@@ -342,6 +446,12 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
               current={chainFilter}
               options={["luxury", "upper_upscale", "upscale", "upper_midscale", "midscale", "economy"]}
             />
+            <SelectControl
+              name="affiliation"
+              label="Affiliation"
+              current={affiliationFilter}
+              options={["chain", "independent"]}
+            />
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">
             <label className="inline-flex items-center gap-1.5">
@@ -354,6 +464,22 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
               />
               Needs review only
             </label>
+            <div className="flex items-center gap-1.5">
+              <span className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                Sort by
+              </span>
+              <select
+                name="sort"
+                defaultValue={sortKey}
+                className="appearance-none rounded-md border border-slate-200 bg-white py-1 pl-2 pr-7 font-mono text-[11px] text-slate-900 focus:border-forest-900 focus:outline-none"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="submit"
               className="ml-auto rounded-md bg-forest-900 px-3 py-1.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-lime-300 hover:opacity-90"
@@ -364,10 +490,22 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </form>
 
         <div className="mt-4">
-          <p className="mb-2 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
-            {filtered.length} result{filtered.length === 1 ? "" : "s"}
-          </p>
-          {filtered.length === 0 ? (
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <p className="font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+              {sorted.length} result{sorted.length === 1 ? "" : "s"}
+              {sorted.length > PAGE_SIZE && (
+                <span className="ml-1 text-slate-400">
+                  · showing {sliceStart + 1}–{Math.min(sliceStart + PAGE_SIZE, sorted.length)}
+                </span>
+              )}
+            </p>
+            {totalPages > 1 && (
+              <p className="font-mono text-[10.5px] text-slate-500">
+                page {safePage} of {totalPages}
+              </p>
+            )}
+          </div>
+          {sorted.length === 0 ? (
             <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-[12px] text-slate-500">
               {snap
                 ? "No hotels match the current filters."
@@ -375,17 +513,49 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             </p>
           ) : (
             <ul className="grid gap-2 sm:grid-cols-2">
-              {filtered.slice(0, 50).map((h) => (
+              {filtered.map((h) => (
                 <li key={h.hotel_id}>
                   <HotelRow hotel={h} />
                 </li>
               ))}
             </ul>
           )}
-          {filtered.length > 50 && (
-            <p className="mt-2 font-mono text-[10.5px] text-slate-500">
-              showing 50 of {filtered.length} · narrow filters to see the rest
-            </p>
+
+          {totalPages > 1 && (
+            <nav
+              aria-label="Pagination"
+              className="mt-3 flex items-center justify-between gap-2 border-t border-slate-200 pt-3"
+            >
+              {safePage > 1 ? (
+                <Link
+                  href={buildHref({ page: String(safePage - 1) })}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+                >
+                  ← Prev
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-100 px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300">
+                  ← Prev
+                </span>
+              )}
+
+              <span className="font-mono text-[10.5px] text-slate-500">
+                {sliceStart + 1}–{Math.min(sliceStart + PAGE_SIZE, sorted.length)} of {sorted.length}
+              </span>
+
+              {safePage < totalPages ? (
+                <Link
+                  href={buildHref({ page: String(safePage + 1) })}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+                >
+                  Next →
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-100 px-2.5 py-1.5 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300">
+                  Next →
+                </span>
+              )}
+            </nav>
           )}
         </div>
       </section>
@@ -463,7 +633,14 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
 
 function matchesQuery(
   h: HotelRecord,
-  f: { q: string; marketFilter: string; countryFilter: string; chainFilter: string; needsReviewOnly: boolean },
+  f: {
+    q: string;
+    marketFilter: string;
+    countryFilter: string;
+    chainFilter: string;
+    affiliationFilter: string;
+    needsReviewOnly: boolean;
+  },
 ): boolean {
   if (f.q) {
     const hay = `${h.name} ${h.brand ?? ""} ${h.operator ?? ""} ${h.hotel_id}`.toLowerCase();
@@ -472,6 +649,7 @@ function matchesQuery(
   if (f.marketFilter && h.market_name !== f.marketFilter) return false;
   if (f.countryFilter && h.country !== f.countryFilter) return false;
   if (f.chainFilter && (h.chain_scale ?? "") !== f.chainFilter) return false;
+  if (f.affiliationFilter && (h.affiliation_type ?? "") !== f.affiliationFilter) return false;
   if (f.needsReviewOnly && (h._meta?.needs_review.length ?? 0) === 0) return false;
   return true;
 }
