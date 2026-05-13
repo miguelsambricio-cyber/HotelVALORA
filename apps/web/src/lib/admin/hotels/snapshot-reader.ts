@@ -216,6 +216,12 @@ export interface HotelsSnapshot {
     hotels: number;
     markets: number;
     compsets: number;
+    /** Phase 2.3.d.6c · operator-confirmed compset memberships (pending 3.1 PDF). */
+    compset_membership?: number;
+    /** Phase 2.3.d.6c · time-series KPIs for the operator's compset (deferred). */
+    compset_performance?: number;
+    /** Phase 2.3.d.6c · top-4 synthetic compset per hotel · transitional. */
+    synthetic_compsets?: number;
     transactions: number;
     reconciliation_queue: number;
     /** Phase 2.3.d.6f · current-snapshot market KPIs (PAIS + MERCADO geo + SUBMERCADO geo). */

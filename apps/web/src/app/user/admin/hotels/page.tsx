@@ -73,47 +73,119 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         </p>
       </header>
 
-      {/* KPI strip · 9 cards: inventory · compsets · transactions · market · projects · governance */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-9">
-        <Kpi label="Hotels" value={snap?.totals.hotels ?? 0} tone="emerald" />
-        <Kpi label="Markets" value={snap?.totals.markets ?? 0} />
-        <Kpi
-          label="Synthetic compsets"
-          value={(snap?.synthetic_compsets ?? []).length}
-          tone="amber"
-          hint="pending PDF parse"
-        />
-        <Kpi label="Transactions" value={snap?.totals.transactions ?? 0} />
-        <Kpi
-          label="Market snapshots"
-          value={snap?.totals.market_snapshots ?? 0}
-          tone="emerald"
-          hint="PAIS · MERCADO · SUBMERCADO"
-        />
-        <Kpi
-          label="Market time-series"
-          value={snap?.totals.market_timeseries ?? 0}
-          tone="emerald"
-          hint="periodic KPIs"
-        />
-        <Kpi label="Projects" value={snap?.totals.projects ?? 0} hint="pipeline" />
-        <Kpi
-          label="To reconcile"
-          value={snap?.totals.reconciliation_queue ?? 0}
-          tone={(snap?.totals.reconciliation_queue ?? 0) > 0 ? "amber" : "slate"}
-          href="#reconciliation-queue"
-        />
-        <Kpi
-          label="Corrections"
-          value={snap?.corrections?.applied_total_in_master ?? 0}
-          tone="emerald"
-          hint={
-            snap?.corrections
-              ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending`
-              : undefined
-          }
-        />
-      </section>
+      {/* KPI strip · two-row layout designed for institutional scale.
+            Row 1 = COVERAGE (geo hierarchy + inventory)
+            Row 2 = OPERATIONS (performance KPIs + worklists)
+          Scale-aware hints (e.g. "1 / 70 planned via CoStar") surface the
+          runway so the operator can see remaining coverage at a glance. */}
+      {(() => {
+        // Derive coverage from the actual hotels list (not the heterogenous
+        // market_snapshots count which mixes country/market/submarket rows).
+        const hotels = snap?.hotels ?? [];
+        const countries = new Set(hotels.map((h) => h.country).filter(Boolean));
+        const markets = new Set(hotels.map((h) => h.market_name).filter(Boolean));
+        const submarkets = new Set(hotels.map((h) => h.submarket_name).filter(Boolean));
+        // Compset semantics: the snapshot today carries 0 operator-confirmed
+        // memberships (3.1 PDF parser not yet shipped) and N synthetic
+        // applications. Treat the operator's conceptual compset as "1" when
+        // synthetic inference is running, so the KPI matches the operator's
+        // mental model. Switch to real count once memberships land.
+        const realCompsets = snap?.totals.compset_membership ?? 0;
+        const syntheticCount = (snap?.synthetic_compsets ?? []).length;
+        const compsetDisplay =
+          realCompsets > 0 ? realCompsets : syntheticCount > 0 ? 1 : 0;
+        const compsetHint =
+          realCompsets > 0
+            ? `${realCompsets} operator-confirmed`
+            : syntheticCount > 0
+              ? `synthetic-applied to ${syntheticCount} hotels · pending CoStar PDF`
+              : "no compset data yet";
+        return (
+          <>
+            <section
+              aria-label="Coverage"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+            >
+              <Kpi
+                label="Countries"
+                value={countries.size}
+                tone="emerald"
+                hint="70+ planned via CoStar"
+              />
+              <Kpi
+                label="Markets"
+                value={markets.size}
+                tone="emerald"
+                hint="300+ planned"
+              />
+              <Kpi
+                label="Submarkets"
+                value={submarkets.size}
+                tone="emerald"
+                hint={
+                  markets.size === 1 && hotels[0]?.market_name
+                    ? `within ${hotels[0].market_name}`
+                    : undefined
+                }
+              />
+              <Kpi
+                label="Hotels"
+                value={snap?.totals.hotels ?? 0}
+                tone="emerald"
+                hint="institutional inventory"
+              />
+              <Kpi
+                label="Projects"
+                value={snap?.totals.projects ?? 0}
+                hint="pipeline"
+              />
+            </section>
+
+            <section
+              aria-label="Operations"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+            >
+              <Kpi
+                label="Market KPIs"
+                value={snap?.totals.market_timeseries ?? 0}
+                tone="emerald"
+                hint="period-indexed"
+              />
+              <Kpi
+                label="Transactions"
+                value={snap?.totals.transactions ?? 0}
+                hint={
+                  hotels.length > 0
+                    ? `${snap?.transactions.filter((t) => t.hotel_id).length ?? 0} hotel-linked`
+                    : undefined
+                }
+              />
+              <Kpi
+                label="Compsets"
+                value={compsetDisplay}
+                tone="amber"
+                hint={compsetHint}
+              />
+              <Kpi
+                label="To reconcile"
+                value={snap?.totals.reconciliation_queue ?? 0}
+                tone={(snap?.totals.reconciliation_queue ?? 0) > 0 ? "amber" : "slate"}
+                href="#reconciliation-queue"
+              />
+              <Kpi
+                label="Corrections"
+                value={snap?.corrections?.applied_total_in_master ?? 0}
+                tone="emerald"
+                hint={
+                  snap?.corrections
+                    ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending`
+                    : undefined
+                }
+              />
+            </section>
+          </>
+        );
+      })()}
 
       {/* Last ingestion batch · governance summary */}
       {snap?.batch && (
