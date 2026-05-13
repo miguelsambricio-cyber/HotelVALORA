@@ -398,6 +398,15 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
 
         {/* Sidebar (1/3) */}
         <aside className="space-y-5">
+          {/* Phase 3.b · jump to the dedicated underwriting screen */}
+          <Link
+            href={`/user/admin/hotels/${encodeURIComponent(hotelId)}/underwriting`}
+            className="flex items-center justify-between gap-2 rounded-xl border border-forest-900 bg-forest-900 px-4 py-3 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-lime-300 hover:opacity-90"
+          >
+            Open underwriting view
+            <span className="text-lime-300">→</span>
+          </Link>
+
           <Section title="Provenance">
             <Pair
               label="Ingestion batch"
