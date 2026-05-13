@@ -7,23 +7,38 @@ Institutional Operations Center for HOTELVALORA. The visual layer of the AI Oper
 
 > Institutional baseline state: `docs/SNAPSHOT_2026_05_12.md` § 3.3.
 
-## A. `/user/admin/integrations` taxonomy (5-layer operational map · 2026-05-13)
+## A. `/user/admin/integrations` taxonomy (9-layer operational map · reconciled 2026-05-13 PM)
 
-The integrations surface evolved from "news/feed directory" to "connected platform ecosystem". Five layers, rendered in operational order:
+The integrations surface reconciled against the operator account inventory. Nine layers, rendered in operational order. Canonical reconciliation matrix lives in `docs/integrations/account-inventory.md`; the operator-provisioned account list lives in `memory/project_operator_accounts.md` (architectural source-of-truth).
 
-| # | Layer | Drives | Source-of-truth registry |
-|---|---|---|---|
-| 1 | **Intelligence Sources** | Market Intelligence Agent · daily ingestion | `lib/admin/integrations/registry.ts` + live merge via `lib/admin/integrations/live.ts` (sessions, credentials, ingestion health) |
-| 2 | **Infrastructure** | Hosting · auth · storage · cron · maps | `lib/admin/integrations/platform-registry.ts` § INFRASTRUCTURE |
-| 3 | **Communications** | Outbound channels — Resend (live), Gmail (live, operator-managed), Slack + Twilio (planned) | `platform-registry.ts` § COMMUNICATIONS |
-| 4 | **Relationship Intelligence** | Datasite + Google Contacts + Gmail signals feeding the contacts graph | `platform-registry.ts` § RELATIONSHIP_INTELLIGENCE |
-| 5 | **Commercial / Monetization** | Subscription Engine · Campaign Attribution · Stripe (planned) | `platform-registry.ts` § COMMERCIAL |
+| # | Layer | Source-of-truth registry |
+|---|---|---|
+| 1 | **Infrastructure** | `platform-registry.ts` § INFRASTRUCTURE (Supabase DB/Storage · Vercel · Vercel Cron · Mapbox · Namecheap) |
+| 2 | **Auth & Identity** | `platform-registry.ts` § AUTH (Supabase Auth · Google Cloud Console OAuth · Auth.js parked) |
+| 3 | **AI** | `platform-registry.ts` § AI (OpenAI API) |
+| 4 | **Analytics & Observability** | `platform-registry.ts` § ANALYTICS (Vercel Analytics · Speed Insights · PostHog · Sentry) |
+| 5 | **Communications** | `platform-registry.ts` § COMMUNICATIONS (Resend · Gmail Signals · Slack · Twilio) |
+| 6 | **Intelligence Sources** | `lib/admin/integrations/registry.ts` + live merge via `live.ts` (rich card · session + credentials telemetry) |
+| 7 | **Relationship Intelligence** | `platform-registry.ts` § RELATIONSHIP_INTELLIGENCE (Datasite · Google Contacts · Gmail Relationship Intelligence) |
+| 8 | **Commercial / Monetization** | `platform-registry.ts` § COMMERCIAL (Subscription Engine · Campaign Attribution · Stripe) |
+| 9 | **Developer Infrastructure** | `platform-registry.ts` § DEVELOPER_INFRASTRUCTURE (GitHub · Google Developer Program · Apple Developer) |
 
-Layer 1 keeps the rich `IntegrationCard` with T1/T2 credential + session telemetry. Layers 2–5 use the simpler `PlatformIntegrationCard` (descriptor-only — status, auth, env vars, schema, cron, consumed-by surfaces, operator-managed flag, next milestone for BETA/PLANNED).
+Layer 6 keeps the rich `IntegrationCard` with T1/T2 credential + session telemetry. Other layers use the simpler `PlatformIntegrationCard`.
 
-Adding a new integration:
+### Status taxonomy
+
+| Status | Meaning | Examples today |
+|---|---|---|
+| **LIVE** | Operational end-to-end in production | Supabase DB · Vercel · Mapbox · Resend · GitHub |
+| **PARTIAL** | Wired in some surfaces, not others | Sentry (api yes · web no) · Supabase Auth (code ready · `AUTH_ENABLED` flag pending) |
+| **CONFIGURED_NOT_WIRED** | Operator account exists · no code path calls | OpenAI · PostHog · Stripe · Sentry/web · Apple Dev · Google Dev Program · Auth.js |
+| **PLANNED** | No account or no env yet | Slack · Twilio |
+
+### Adding a new integration
+
 - **Intelligence source** → extend `INTEGRATIONS_REGISTRY` in `registry.ts` (gets full session/credentials lifecycle for free).
 - **Platform integration** (any other layer) → add a descriptor to the layer array in `platform-registry.ts`. The page auto-renders.
+- **New operator account** → also update `memory/project_operator_accounts.md` and the reconciliation matrix in `docs/integrations/account-inventory.md`.
 
 ## 0. Status semantics — sidebar vs page header (codified 2026-05-13)
 

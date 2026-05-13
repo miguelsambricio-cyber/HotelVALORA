@@ -4,6 +4,54 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-13 — Integrations · second-pass reconciliation against operator account inventory · 9 layers
+
+The morning's 5-layer architecture under-represented the real ecosystem because it didn't reconcile against the provisioned operator accounts. This evening's pass corrects that: the integrations surface now renders **9 operational layers** with **33 integrations** total (27 in the platform registry + 6 in the intelligence-sources registry).
+
+### Operator account inventory is now architectural source-of-truth
+
+`memory/project_operator_accounts.md` captures the 15 operator-provisioned accounts (Namecheap · Vercel · Mapbox · Supabase · Auth.js · Datasite · GitHub · Stripe · Google Cloud · Google Dev · Apple Dev · Resend · PostHog · OpenAI · Sentry). Future audits reconcile against this file before declaring anything "PLANNED". Canonical reconciliation matrix lives in `docs/integrations/account-inventory.md`.
+
+### New layers · new integrations on /user/admin/integrations
+
+| Layer | New entries | Status |
+|---|---|---|
+| Infrastructure | Namecheap (DNS) | LIVE |
+| **Auth & Identity** (new) | Supabase Auth · Google Cloud Console · Auth.js (parked) | PARTIAL · LIVE · CONFIGURED_NOT_WIRED |
+| **AI** (new) | OpenAI API | CONFIGURED_NOT_WIRED |
+| **Analytics & Observability** (new) | Vercel Analytics · Vercel Speed Insights · PostHog · Sentry | 2 LIVE · 1 CONFIGURED_NOT_WIRED · 1 PARTIAL |
+| **Developer Infrastructure** (new) | GitHub · Google Developer Program · Apple Developer | LIVE · 2 CONFIGURED_NOT_WIRED |
+
+### Status taxonomy extended
+
+`PlatformIntegrationStatus` now covers `live | partial | configured_not_wired | planned`. The `configured_not_wired` state is the load-bearing addition — it captures the situation where the operator has provisioned the account and even scaffolded env stubs but no code path actually invokes the vendor. Today: OpenAI · PostHog · Stripe · Sentry/web · Apple Dev · Google Dev Program · Auth.js.
+
+### Page layout (operational hierarchy)
+
+1. Infrastructure → 2. Auth & Identity → 3. AI → 4. Analytics & Observability → 5. Communications → 6. Intelligence Sources (rich card · session telemetry preserved) → 7. Relationship Intelligence → 8. Commercial / Monetization → 9. Developer Infrastructure.
+
+### Card additions
+
+`PlatformIntegrationDescriptor` gains an `accountProvisioned: boolean` field. Status pill renders the new label "configured · not wired" with a slate background + lime ring (visually distinct from "live" emerald and "partial" amber).
+
+### Smoke
+
+- `/user/admin/integrations` → 200 · 437 KB
+- All 9 layer headers render
+- New integrations all visible (Namecheap · GitHub · OpenAI API · PostHog · Sentry · Google Cloud Console · Apple Developer · Google Developer Program · Vercel Analytics · Auth.js)
+- Status pills tally: 17 live · 6 configured-not-wired · 2 partial · 2 planned (within the platform registry; intelligence-sources cards have their own signal lights)
+- Typecheck clean
+
+### Files touched
+
+- `apps/web/src/lib/admin/integrations/platform-registry.ts` — 9-layer taxonomy + 9 new entries + new status taxonomy
+- `apps/web/src/components/admin/integrations/platform-integration-card.tsx` — new status tones + readable "configured · not wired" label
+- `apps/web/src/app/user/admin/integrations/page.tsx` — 9-layer renderer · Intelligence Sources slotted at position 6 between Communications and Relationship Intelligence
+- `docs/integrations/account-inventory.md` — new canonical reconciliation matrix
+- `memory/project_operator_accounts.md` + `memory/MEMORY.md` — operator account inventory persisted for future sessions
+
+---
+
 ## 2026-05-13 — Integrations surface · 5-layer operational map (Connected Platform Ecosystem)
 
 `/user/admin/integrations` evolves from a news-feed directory into the full operational map of HotelVALORA's connected ecosystem. The integrations surface now renders five layers in operational order:

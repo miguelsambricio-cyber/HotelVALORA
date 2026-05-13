@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Radio, Server, Send, UsersRound, BadgeDollarSign } from "lucide-react";
+import { Radio, Server, Send, UsersRound, BadgeDollarSign, Lock, BrainCircuit, LineChart, GitBranch } from "lucide-react";
 import { getIntegrationsLive } from "@/lib/admin/integrations/live";
 import { IntegrationCard } from "@/components/admin/integrations/integration-card";
-import { platformIntegrationsByLayer } from "@/lib/admin/integrations/platform-registry";
+import { platformIntegrationsByLayer, PLATFORM_LAYER_META } from "@/lib/admin/integrations/platform-registry";
 import { PlatformIntegrationCard } from "@/components/admin/integrations/platform-integration-card";
 import { LayerSection } from "@/components/admin/integrations/layer-section";
 
@@ -94,11 +94,20 @@ export default async function IntegrationsPage() {
         </div>
       </section>
 
-      {/* ── Layer 1 · Intelligence Sources ────────────────────────── */}
+      {/* Render layers in operational order:
+            1 Infrastructure · 2 Auth · 3 AI · 4 Analytics · 5 Communications
+            6 Intelligence Sources (rich card · separate registry · slotted after Communications)
+            7 Relationship Intelligence · 8 Commercial · 9 Developer Infrastructure */}
+      {platformLayers
+        .filter((l) => PLATFORM_LAYER_META[l.layer].order <= 5)
+        .map((layer) => (
+          <PlatformLayer key={layer.layer} layer={layer} />
+        ))}
+
       <LayerSection
-        number={1}
+        number={6}
         label="Intelligence Sources"
-        subtitle="The institutional source roster powering the Market Intelligence Agent — RSS, paywalled scrape, public preview."
+        subtitle="The institutional source roster powering the Market Intelligence Agent — RSS, paywalled scrape, public preview. Rich session + credentials telemetry preserved."
         count={live.length}
         icon={<Radio size={14} className="text-slate-400" aria-hidden />}
       >
@@ -120,49 +129,68 @@ export default async function IntegrationsPage() {
         </div>
       </LayerSection>
 
-      {/* ── Layers 2-5 · driven by the platform registry ──────────── */}
-      {platformLayers.map((layer) => (
-        <LayerSection
-          key={layer.layer}
-          number={layerNumber(layer.layer)}
-          label={layer.label}
-          subtitle={layer.subtitle}
-          count={layer.rows.length}
-          icon={layerIcon(layer.layer)}
-        >
-          {layer.rows.length === 0 ? (
-            <p className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-4 text-[12px] leading-relaxed text-slate-400">
-              No integrations registered in this layer yet.
-            </p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {layer.rows.map((i) => (
-                <PlatformIntegrationCard key={i.id} integration={i} />
-              ))}
-            </div>
-          )}
-        </LayerSection>
-      ))}
+      {platformLayers
+        .filter((l) => PLATFORM_LAYER_META[l.layer].order > 5)
+        .map((layer) => (
+          <PlatformLayer key={layer.layer} layer={layer} />
+        ))}
     </div>
+  );
+}
+
+function PlatformLayer({
+  layer,
+}: {
+  layer: ReturnType<typeof platformIntegrationsByLayer>[number];
+}) {
+  return (
+    <LayerSection
+      number={layerNumber(layer.layer)}
+      label={layer.label}
+      subtitle={layer.subtitle}
+      count={layer.rows.length}
+      icon={layerIcon(layer.layer)}
+    >
+      {layer.rows.length === 0 ? (
+        <p className="rounded-lg border border-slate-700/50 bg-slate-900/40 p-4 text-[12px] leading-relaxed text-slate-400">
+          No integrations registered in this layer yet.
+        </p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {layer.rows.map((i) => (
+            <PlatformIntegrationCard key={i.id} integration={i} />
+          ))}
+        </div>
+      )}
+    </LayerSection>
   );
 }
 
 function layerNumber(layer: string): number {
   switch (layer) {
-    case "infrastructure": return 2;
-    case "communications": return 3;
-    case "relationship_intelligence": return 4;
-    case "commercial": return 5;
-    default: return 9;
+    case "infrastructure": return 1;
+    case "auth": return 2;
+    case "ai": return 3;
+    case "analytics": return 4;
+    case "communications": return 5;
+    // 6 reserved for Intelligence Sources (rendered separately after Communications)
+    case "relationship_intelligence": return 7;
+    case "commercial": return 8;
+    case "developer_infrastructure": return 9;
+    default: return 99;
   }
 }
 
 function layerIcon(layer: string): React.ReactNode {
   switch (layer) {
     case "infrastructure": return <Server size={14} className="text-slate-400" aria-hidden />;
+    case "auth": return <Lock size={14} className="text-slate-400" aria-hidden />;
+    case "ai": return <BrainCircuit size={14} className="text-slate-400" aria-hidden />;
+    case "analytics": return <LineChart size={14} className="text-slate-400" aria-hidden />;
     case "communications": return <Send size={14} className="text-slate-400" aria-hidden />;
     case "relationship_intelligence": return <UsersRound size={14} className="text-slate-400" aria-hidden />;
     case "commercial": return <BadgeDollarSign size={14} className="text-slate-400" aria-hidden />;
+    case "developer_infrastructure": return <GitBranch size={14} className="text-slate-400" aria-hidden />;
     default: return null;
   }
 }
