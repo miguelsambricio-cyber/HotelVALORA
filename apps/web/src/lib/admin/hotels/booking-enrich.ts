@@ -10,6 +10,7 @@ import {
   getHotelDetails,
   getHotelFacilities,
   getHotelPolicies,
+  getHotelReviewScores,
   getHotelRooms,
   mapBookingToProfile,
   matchConfidence,
@@ -143,15 +144,16 @@ export async function runBookingEnrichment(
     };
   }
 
-  // ── Step 2 · fetch details + facilities + rooms + policies in parallel ──
+  // ── Step 2 · fetch all enrichment endpoints in parallel ──
   const bookingHotelId = parseInt(top.dest.dest_id, 10);
-  let details, facilities, rooms, policies;
+  let details, facilities, rooms, policies, reviews;
   try {
-    [details, facilities, rooms, policies] = await Promise.all([
+    [details, facilities, rooms, policies, reviews] = await Promise.all([
       getHotelDetails(bookingHotelId),
       getHotelFacilities(bookingHotelId),
       getHotelRooms(bookingHotelId),
       getHotelPolicies(bookingHotelId),
+      getHotelReviewScores(bookingHotelId),
     ]);
   } catch (err) {
     return {
@@ -160,7 +162,7 @@ export async function runBookingEnrichment(
     };
   }
 
-  const { profile } = mapBookingToProfile({ details, facilities, rooms, policies });
+  const { profile } = mapBookingToProfile({ details, facilities, rooms, policies, reviews });
 
   // ── Step 4 · upsert to Storage with rapidapi_booking provenance ──
   const cleaned = _stripEmpty(profile) as HotelProfile;

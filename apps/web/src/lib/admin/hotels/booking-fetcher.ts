@@ -282,6 +282,39 @@ export async function getHotelPolicies(booking_hotel_id: number): Promise<HotelP
   }).catch(() => ({} as HotelPoliciesRaw));
 }
 
+/**
+ * Step 4c · review scores · headline + per-category breakdown.
+ * `score_breakdown[0].question[]` carries per-category sub-scores
+ * (hotel_clean, hotel_comfort, hotel_location, hotel_staff, hotel_value,
+ * hotel_facilities, hotel_wifi). These feed the HotelVALORA composite
+ * score and the Location / Confort cards on the detail page.
+ */
+export interface HotelReviewScoresRaw {
+  hotel_id?: number;
+  review_score?: number;
+  review_nr?: number;
+  score_distribution?: Array<{ score?: number | string; count?: number; percent?: number }>;
+  score_breakdown?: Array<{
+    from_year?: number;
+    question?: Array<{
+      score?: number;
+      question?: string;
+      localized_question?: string;
+    }>;
+  }>;
+}
+
+export async function getHotelReviewScores(
+  booking_hotel_id: number,
+): Promise<HotelReviewScoresRaw[]> {
+  // Booking returns an ARRAY at the top level (one entry per year cohort
+  // typically). The mapper reads index 0 (latest year).
+  return await _rapid<HotelReviewScoresRaw[]>("/api/v1/hotels/getHotelReviewScores", {
+    hotel_id: String(booking_hotel_id),
+    languagecode: "en-us",
+  }).catch(() => [] as HotelReviewScoresRaw[]);
+}
+
 /** Step 5 (optional) · room list. */
 export async function getHotelRooms(booking_hotel_id: number): Promise<RoomsRaw> {
   const today = new Date();
@@ -474,11 +507,71 @@ export function extractPolicies(raw: HotelPoliciesRaw | undefined | null): {
   return out;
 }
 
+/**
+ * Extract per-category sub-scores from `getHotelReviewScores` response.
+ * Each question code maps to a HotelProfile field on the same 0-10 scale.
+ * Booking's question codes are stable across locales (`localized_question`
+ * is the human label; `question` is the machine code we match against).
+ */
+export function extractReviewSubScores(raw: HotelReviewScoresRaw[] | undefined): {
+  review_score?: number;
+  review_count?: number;
+  location_score?: number;
+  comfort_score?: number;
+  cleanliness_score?: number;
+  staff_score?: number;
+  value_score?: number;
+  facilities_score?: number;
+  wifi_score?: number;
+} {
+  const out: ReturnType<typeof extractReviewSubScores> = {};
+  if (!Array.isArray(raw) || raw.length === 0) return out;
+  const r0 = raw[0];
+  if (typeof r0.review_score === "number") out.review_score = r0.review_score;
+  if (typeof r0.review_nr === "number") out.review_count = r0.review_nr;
+  // Headline score fallback · weighted average over distribution
+  if (out.review_score == null && Array.isArray(r0.score_distribution)) {
+    let totalCount = 0;
+    let totalWeighted = 0;
+    for (const d of r0.score_distribution) {
+      const s = typeof d.score === "number" ? d.score : parseFloat(String(d.score));
+      const c = typeof d.count === "number" ? d.count : 0;
+      if (Number.isFinite(s) && Number.isFinite(c)) {
+        totalCount += c;
+        totalWeighted += s * c;
+      }
+    }
+    if (totalCount > 0) {
+      out.review_score = Math.round((totalWeighted / totalCount) * 100) / 100;
+      if (out.review_count == null) out.review_count = totalCount;
+    }
+  }
+  // Sub-scores · latest cohort
+  const cohort = r0.score_breakdown?.[0];
+  const questions = cohort?.question ?? [];
+  const QUESTION_MAP: Record<string, keyof typeof out> = {
+    hotel_clean: "cleanliness_score",
+    hotel_comfort: "comfort_score",
+    hotel_location: "location_score",
+    hotel_staff: "staff_score",
+    hotel_value: "value_score",
+    hotel_facilities: "facilities_score",
+    hotel_wifi: "wifi_score",
+  };
+  for (const q of questions) {
+    if (typeof q.score !== "number" || !q.question) continue;
+    const key = QUESTION_MAP[q.question];
+    if (key) (out as Record<string, number>)[key] = q.score;
+  }
+  return out;
+}
+
 export function mapBookingToProfile(opts: {
   details: HotelDetailsRaw;
   facilities?: FacilitiesRaw;
   rooms?: RoomsRaw;
   policies?: HotelPoliciesRaw;
+  reviews?: HotelReviewScoresRaw[];
   searchHit?: HotelSearchHit;
 }): { profile: HotelProfile; booking_url: string | null; latitude: number | null; longitude: number | null } {
   const d = opts.details ?? ({} as HotelDetailsRaw);
@@ -561,20 +654,17 @@ export function mapBookingToProfile(opts: {
   const check_out_time =
     pol.check_out_time ?? d.checkout?.until ?? d.checkout_from ?? undefined;
 
-  // Booking returns review fields in EITHER the search hit OR the details
-  // response · seldom both. Prefer search hit when present (more reliable).
+  // Reviews · prefer dedicated review-scores endpoint (carries sub-scores),
+  // then search hit, then details endpoint.
+  const subs = extractReviewSubScores(opts.reviews);
   const review_score =
-    typeof sh?.reviewScore === "number"
-      ? sh.reviewScore
-      : typeof d.review_score === "number"
-        ? d.review_score
-        : undefined;
+    subs.review_score ??
+    (typeof sh?.reviewScore === "number" ? sh.reviewScore : undefined) ??
+    (typeof d.review_score === "number" ? d.review_score : undefined);
   const review_count =
-    typeof sh?.reviewCount === "number"
-      ? sh.reviewCount
-      : typeof d.review_nr === "number"
-        ? d.review_nr
-        : undefined;
+    subs.review_count ??
+    (typeof sh?.reviewCount === "number" ? sh.reviewCount : undefined) ??
+    (typeof d.review_nr === "number" ? d.review_nr : undefined);
 
   const profile: HotelProfile = {
     facilities_detailed,
@@ -594,9 +684,28 @@ export function mapBookingToProfile(opts: {
     parking: probe.has_parking ? { has_parking: true } : undefined,
     meeting_rooms: probe.has_meeting ? { count: 1 } : undefined,
     rooftop: probe.has_rooftop ? { has_rooftop: true } : undefined,
+    latitude:
+      typeof d.latitude === "number"
+        ? d.latitude
+        : typeof sh?.latitude === "number"
+          ? sh.latitude
+          : undefined,
+    longitude:
+      typeof d.longitude === "number"
+        ? d.longitude
+        : typeof sh?.longitude === "number"
+          ? sh.longitude
+          : undefined,
     review_score,
     review_count,
     review_source: review_score !== undefined ? "booking" : undefined,
+    location_score: subs.location_score,
+    comfort_score: subs.comfort_score,
+    cleanliness_score: subs.cleanliness_score,
+    staff_score: subs.staff_score,
+    value_score: subs.value_score,
+    facilities_score: subs.facilities_score,
+    wifi_score: subs.wifi_score,
     booking_url: d.url ?? undefined,
     check_in_time,
     check_out_time,

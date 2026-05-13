@@ -21,6 +21,8 @@ import {
   summariseCanonicalFacilities,
 } from "@/lib/admin/hotels/canonical-facilities";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
+import { computeHotelVALORAScore } from "@/lib/admin/hotels/hotelvalora-score";
+import { summariseRoomMix } from "@/lib/admin/hotels/room-mix";
 
 export const dynamic = "force-dynamic";
 
@@ -130,6 +132,16 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             <Pair label="Operator" value={hotel.operator ?? "—"} />
             <Pair label="Owner" value={hotel.owner ?? "—"} />
             <Pair label="CoStar Hotel ID" value={hotel.hotel_id} mono />
+            <Pair
+              label="Booking Hotel ID"
+              value={
+                hotel._enrichment_meta?.booking_hotel_id != null
+                  ? String(hotel._enrichment_meta.booking_hotel_id)
+                  : "—"
+              }
+              mono
+            />
+            <Pair label="Catastro ID" value={hotel.catastro_id ?? "—"} mono />
           </Section>
 
           <Section title="Property characteristics">
@@ -140,22 +152,79 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             <Pair label="Floors" value={fmtNum(hotel.total_floors)} />
             <Pair label="Year opened" value={fmtNum(hotel.year_opened)} />
             <Pair label="Year last renovated" value={fmtNum(hotel.year_last_renovated)} />
-            <Pair label="CoStar score" value={hotel.score_costar !== null ? hotel.score_costar.toFixed(2) : "—"} />
+            {(() => {
+              const hv = computeHotelVALORAScore(hotel);
+              return (
+                <Pair
+                  label="HotelVALORA score"
+                  value={
+                    hv.score !== null
+                      ? `${hv.score.toFixed(2)} / 10`
+                      : "—"
+                  }
+                />
+              );
+            })()}
           </Section>
 
           <Section title="Location" icon={<MapPin size={14} />}>
             <Pair label="Address" value={hotel.address_line ?? "—"} />
             <Pair label="Postal code" value={hotel.postal_code ?? "—"} />
-            <Pair label="Neighborhood" value={hotel.neighborhood ?? "—"} />
-            <Pair
-              label="Coordinates"
-              value={
-                hotel.latitude !== null && hotel.longitude !== null
-                  ? `${hotel.latitude.toFixed(5)}, ${hotel.longitude.toFixed(5)}`
-                  : "—"
+            <Pair label="Submarket" value={hotel.submarket_name ?? "—"} />
+            {(() => {
+              // Coordinate resolution priority:
+              //   1. CoStar canonical (hotel.latitude/longitude)
+              //   2. Booking enrichment (hotel.profile.latitude/longitude)
+              //   3. Google Maps search fallback (operator finds + submits)
+              const lat = hotel.latitude ?? hotel.profile?.latitude ?? null;
+              const lng = hotel.longitude ?? hotel.profile?.longitude ?? null;
+              const source =
+                hotel.latitude != null
+                  ? "CoStar"
+                  : hotel.profile?.latitude != null
+                    ? "Booking"
+                    : null;
+              if (lat !== null && lng !== null) {
+                return (
+                  <Pair
+                    label="Coordinates"
+                    value={
+                      <a
+                        href={`https://www.google.com/maps?q=${lat},${lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[12px] text-forest-900 hover:underline"
+                      >
+                        {lat.toFixed(5)}, {lng.toFixed(5)} ↗
+                        {source && (
+                          <span className="ml-2 rounded bg-slate-100 px-1 py-0.5 text-[9.5px] font-normal text-slate-500 ring-1 ring-slate-200">
+                            {source}
+                          </span>
+                        )}
+                      </a>
+                    }
+                  />
+                );
               }
-              mono
-            />
+              return (
+                <Pair
+                  label="Coordinates"
+                  value={
+                    <a
+                      href={`https://www.google.com/maps/search/${encodeURIComponent(
+                        `${hotel.name} ${hotel.address_line ?? ""} ${hotel.market_name} ${hotel.country}`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-mono text-[11.5px] text-amber-800 hover:underline"
+                      title="Open Google Maps to find coordinates, then submit them via Correction form"
+                    >
+                      — · find on Google Maps ↗
+                    </a>
+                  }
+                />
+              );
+            })()}
           </Section>
 
           <Section title="Facilities & amenities">
@@ -514,6 +583,7 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
   const meta = hotel._enrichment_meta;
   const completeness = computeProfileCompleteness(profile);
   const isEnriched = !!profile;
+  const hvScore = computeHotelVALORAScore(hotel);
   const headerHint = isEnriched
     ? `Last updated ${meta?.submitted_at ? formatRel(meta.submitted_at) : "—"} by ${meta?.submitted_by ?? "operator"}`
     : "Not yet enriched · CoStar fields above are institutional · this layer adds operational depth";
@@ -535,7 +605,7 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
         </div>
       </div>
 
-      {/* Completeness bar */}
+      {/* Completeness bar · summary line only, no missing-fields warning */}
       <div className="mb-4">
         <div className="mb-1 flex items-baseline justify-between">
           <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
@@ -559,47 +629,35 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
           />
         </div>
         <p className="mt-1 font-mono text-[10.5px] text-slate-500">
-          {completeness.populated_weight} / {completeness.total_weight} weighted ·
-          {" "}
-          {completeness.populated_fields.length} filled ·{" "}
-          {completeness.missing_fields.length} missing
+          {completeness.populated_fields.length} of {completeness.populated_fields.length + completeness.missing_fields.length} institutional fields populated
         </p>
       </div>
 
-      {/* Missing fields list */}
-      {completeness.missing_fields.length > 0 && (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-          <p className="mb-1 font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-amber-900">
-            Missing · biggest gaps first
-          </p>
-          <ul className="space-y-0.5 text-[11.5px] leading-snug text-amber-900">
-            {completeness.missing_fields.slice(0, 8).map((f) => (
-              <li key={f}>· {f}</li>
-            ))}
-            {completeness.missing_fields.length > 8 && (
-              <li className="font-mono text-[10px] text-amber-700">
-                + {completeness.missing_fields.length - 8} more
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
-
-      {/* Populated categories */}
+      {/* Score cards · Location · Confort · HotelVALORA · matches the
+            asset-analysis report's metric panel. Each card colors by
+            score bucket (≥9 emerald · ≥8 forest · ≥7 amber · else rose). */}
       {profile && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {profile.review_score !== null && profile.review_score !== undefined && (
-            <ProfileCard label="Review score">
-              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-                {profile.review_score?.toFixed(1)} / 10
-              </p>
-              {profile.review_count && (
-                <p className="font-mono text-[10.5px] text-slate-500">
-                  {profile.review_count.toLocaleString()} reviews · {profile.review_source ?? "—"}
-                </p>
-              )}
-            </ProfileCard>
-          )}
+          <ScoreCard
+            label="Location score"
+            score={profile.location_score ?? null}
+            hint={profile.review_count ? `${profile.review_count.toLocaleString()} reviews · Booking` : "Booking"}
+          />
+          <ScoreCard
+            label="Confort score"
+            score={profile.comfort_score ?? null}
+            hint={profile.cleanliness_score != null ? `cleanliness ${profile.cleanliness_score.toFixed(1)}` : undefined}
+          />
+          <ScoreCard
+            label="HotelVALORA score"
+            score={hvScore.score}
+            hint={
+              hvScore.score !== null
+                ? `${Math.round(hvScore.weight_coverage * 100)}% signal coverage`
+                : "needs Booking sub-scores"
+            }
+            highlight
+          />
           {(profile.room_types?.length ?? 0) > 0 && (
             <ProfileCard label="Room types">
               <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
@@ -622,37 +680,6 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               </p>
             </ProfileCard>
           )}
-          {profile.spa?.has_spa && (
-            <ProfileCard label="Spa">
-              <p className="font-headline text-lg font-extrabold text-forest-900">Yes</p>
-              {profile.spa.sqm && <p className="font-mono text-[10.5px] text-slate-500">{profile.spa.sqm} sqm</p>}
-            </ProfileCard>
-          )}
-          {profile.gym?.has_gym && (
-            <ProfileCard label="Gym">
-              <p className="font-headline text-lg font-extrabold text-forest-900">Yes</p>
-              {profile.gym.open_24h && <p className="font-mono text-[10.5px] text-slate-500">24h</p>}
-            </ProfileCard>
-          )}
-          {profile.pool?.has_pool && (
-            <ProfileCard label="Pool">
-              <p className="font-headline text-lg font-extrabold text-forest-900">
-                {[profile.pool.indoor && "indoor", profile.pool.outdoor && "outdoor"].filter(Boolean).join(" + ") || "Yes"}
-              </p>
-            </ProfileCard>
-          )}
-          {profile.parking?.has_parking && (
-            <ProfileCard label="Parking">
-              <p className="font-headline text-lg font-extrabold text-forest-900">
-                {profile.parking.spaces ? `${profile.parking.spaces} spaces` : "Yes"}
-              </p>
-              <p className="font-mono text-[10.5px] text-slate-500">
-                {profile.parking.price_eur ? `€${profile.parking.price_eur}/night · ` : ""}
-                {profile.parking.valet ? "valet · " : ""}
-                {profile.parking.ev_charging ? "EV" : ""}
-              </p>
-            </ProfileCard>
-          )}
           {profile.meeting_rooms && (profile.meeting_rooms.count ?? 0) > 0 && (
             <ProfileCard label="Meeting rooms">
               <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
@@ -672,27 +699,64 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               </p>
             </ProfileCard>
           )}
-          {(profile.accessibility?.length ?? 0) > 0 && (
-            <ProfileCard label="Accessibility">
-              <p className="font-headline text-[12px] font-extrabold text-forest-900">
-                {profile.accessibility?.length} feature{(profile.accessibility?.length ?? 0) === 1 ? "" : "s"}
-              </p>
-            </ProfileCard>
-          )}
-          {profile.booking_url && (
-            <ProfileCard label="External">
-              <a
-                href={profile.booking_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-mono text-[11px] text-forest-900 hover:underline"
-              >
-                Booking ↗
-              </a>
-            </ProfileCard>
-          )}
         </div>
       )}
+
+      {/* Room mix · canonical 7-bucket institutional distribution.
+            Derived from profile.room_types[] via summariseRoomMix() ·
+            avg_sqm sourced from Booking when available. Renders before
+            facilities to match the asset-analysis report flow. */}
+      {profile && (() => {
+        const mix = summariseRoomMix(profile);
+        if (mix.type_count_total === 0) return null;
+        return (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/40 p-4">
+            <div className="mb-3 flex items-baseline justify-between">
+              <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
+                Room mix
+              </p>
+              <p className="font-mono text-[10.5px] tabular-nums text-slate-500">
+                {mix.type_count_total} Booking room type{mix.type_count_total === 1 ? "" : "s"} classified
+                {mix.total_units != null ? ` · ${mix.total_units} units` : ""}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+              {mix.rows.map((row) => {
+                const present = row.type_count > 0;
+                return (
+                  <div
+                    key={row.bucket}
+                    className={`flex items-baseline justify-between gap-2 rounded border px-2 py-1.5 ${
+                      present
+                        ? "border-slate-200 bg-white"
+                        : "border-slate-100 bg-slate-50/40"
+                    }`}
+                    title={row.example ?? row.label}
+                  >
+                    <div className="min-w-0">
+                      <p className={`truncate font-headline text-[11px] font-bold uppercase tracking-[0.18em] ${present ? "text-forest-900" : "text-slate-400"}`}>
+                        {row.label}
+                      </p>
+                      <p className={`font-mono text-[9.5px] ${present ? "text-slate-500" : "text-slate-300"}`}>
+                        {present
+                          ? `${row.type_count} type${row.type_count === 1 ? "" : "s"}${row.total_units != null ? ` · ${row.total_units}u` : ""}`
+                          : "—"}
+                      </p>
+                    </div>
+                    <p className={`font-headline text-[13px] font-extrabold tabular-nums ${present ? "text-forest-900" : "text-slate-300"}`}>
+                      {row.avg_sqm != null ? `${row.avg_sqm}` : "—"}
+                      <span className="ml-0.5 font-mono text-[9px] font-normal text-slate-400">m²</span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-2 font-mono text-[10px] text-slate-400">
+              avg m² sourced from Booking when available · canonical buckets · individuales · doble · junior suite · suite · estudio · 1/2 dormitorio
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Canonical 10-facility grid · institutional view · matches the
             asset-analysis report's facility checklist. The raw Booking
@@ -802,6 +866,61 @@ function ProfileCard({ label, children }: { label: string; children: React.React
   );
 }
 
+/**
+ * Score card · 0-10 scale · color-coded by bucket.
+ *   ≥9   emerald  · "excellent"
+ *   ≥8   forest   · "strong"
+ *   ≥7   amber    · "average"
+ *   ≥6   orange   · "below average"
+ *   else rose     · "weak"
+ *   null grey     · "—"
+ * `highlight` puts an emerald ring around the card · used to flag the
+ * institutional composite (HotelVALORA score) as the load-bearing
+ * headline.
+ */
+function ScoreCard({
+  label,
+  score,
+  hint,
+  highlight,
+}: {
+  label: string;
+  score: number | null;
+  hint?: string;
+  highlight?: boolean;
+}) {
+  const tone =
+    score === null
+      ? "text-slate-400"
+      : score >= 9
+        ? "text-emerald-700"
+        : score >= 8
+          ? "text-forest-900"
+          : score >= 7
+            ? "text-amber-700"
+            : score >= 6
+              ? "text-orange-700"
+              : "text-rose-700";
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        highlight
+          ? "border-emerald-300 bg-emerald-50/30 ring-1 ring-emerald-200"
+          : "border-slate-200 bg-slate-50/40"
+      }`}
+    >
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+      <p className={`mt-0.5 font-headline text-xl font-extrabold tabular-nums ${tone}`}>
+        {score !== null ? score.toFixed(1) : "—"}
+        <span className="ml-1 font-mono text-[10px] font-normal text-slate-400">/ 10</span>
+      </p>
+      {hint && (
+        <p className="mt-0.5 font-mono text-[10px] leading-snug text-slate-500">{hint}</p>
+      )}
+    </div>
+  );
+}
+
 
 function Section({
   title,
@@ -825,7 +944,17 @@ function Section({
   );
 }
 
-function Pair({ label, value, mono, wrap }: { label: string; value: string; mono?: boolean; wrap?: boolean }) {
+function Pair({
+  label,
+  value,
+  mono,
+  wrap,
+}: {
+  label: string;
+  value: string | React.ReactNode;
+  mono?: boolean;
+  wrap?: boolean;
+}) {
   return (
     <div className="grid grid-cols-[160px_1fr] gap-3 text-[12px]">
       <dt className="font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">

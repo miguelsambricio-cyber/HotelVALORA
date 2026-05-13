@@ -53,6 +53,10 @@ export interface HotelReferenceRecord {
   latitude: number | null;
   longitude: number | null;
   neighborhood: string | null;
+  /** Spanish cadastre identifier (Catastro). Manual operator entry today;
+   *  future Catastro API enrichment will populate automatically. Other
+   *  countries will get their own local-registry IDs later. */
+  catastro_id?: string | null;
 
   // Facilities · amenities · scoring
   facilities: string[];
@@ -152,10 +156,20 @@ export interface HotelProfile {
   family_features?: string[];
 
   // ── Guest experience ────────────────────────────────────────────
-  /** Review score (0-10 Booking scale typical; normalise upstream). */
+  /** Aggregate review score (0-10 Booking scale typical; normalise upstream). */
   review_score?: number | null;
   review_count?: number | null;
   review_source?: "booking" | "tripadvisor" | "google" | "aggregated" | string;
+  /** Per-category review sub-scores from Booking's getHotelReviewScores
+   *  `score_breakdown.question[]`. Each is the latest-year score on the
+   *  same 0-10 scale. These feed the HotelVALORA composite score. */
+  location_score?: number | null;
+  comfort_score?: number | null;
+  cleanliness_score?: number | null;
+  staff_score?: number | null;
+  value_score?: number | null;
+  facilities_score?: number | null;
+  wifi_score?: number | null;
 
   // ── External references ─────────────────────────────────────────
   booking_url?: string | null;
@@ -163,6 +177,10 @@ export interface HotelProfile {
   image_refs?: string[];
 
   // ── Location intelligence ───────────────────────────────────────
+  /** Lat/lng captured at enrichment time · used as fallback when the
+   *  CoStar canonical record has no coordinates. */
+  latitude?: number | null;
+  longitude?: number | null;
   geo_context?: {
     nearby_poi?: Array<{
       name: string;
@@ -191,8 +209,16 @@ export interface EnrichmentMeta {
   source_priority?: Record<string, number>;
   /** 0–1 composite confidence across the enrichment fields. */
   enrichment_confidence?: number | null;
+  /** Booking.com hotel_id when this record was sourced from the
+   *  RapidAPI booking-com15 pipeline. Surfaced in the Identification
+   *  section · also lets the patcher re-enrich without re-resolving. */
+  booking_hotel_id?: number | null;
   /** ISO timestamp of the most recent scrape / manual edit. */
   last_scraped_at?: string | null;
+  /** ISO timestamp of the last `patch-enrichment-policies` run that
+   *  touched this record. Lets the operator see when policies were
+   *  back-filled separately from the main enrichment. */
+  last_policies_patched_at?: string | null;
   /** 0–100 percent of priority enrichment fields populated. */
   profile_completeness_score?: number | null;
   /** Operator who submitted the last manual enrichment. */

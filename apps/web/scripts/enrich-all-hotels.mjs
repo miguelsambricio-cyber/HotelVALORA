@@ -211,6 +211,28 @@ function extractPolicies(raw) {
   return out;
 }
 
+function extractSubScores(rv) {
+  const out = {};
+  if (!Array.isArray(rv) || rv.length === 0) return out;
+  const r0 = rv[0];
+  const cohort = r0.score_breakdown?.[0];
+  const QMAP = {
+    hotel_clean: "cleanliness_score",
+    hotel_comfort: "comfort_score",
+    hotel_location: "location_score",
+    hotel_staff: "staff_score",
+    hotel_value: "value_score",
+    hotel_facilities: "facilities_score",
+    hotel_wifi: "wifi_score",
+  };
+  for (const q of cohort?.question ?? []) {
+    if (typeof q.score !== "number" || !q.question) continue;
+    const key = QMAP[q.question];
+    if (key) out[key] = q.score;
+  }
+  return out;
+}
+
 function mapToProfile({ details: d = {}, facilities: f = {}, rooms: r = {}, reviews: rv = null, policies: pol = null }) {
   // Collect facility names from every shape Booking returns
   const facilityNames = [];
@@ -317,7 +339,10 @@ function mapToProfile({ details: d = {}, facilities: f = {}, rooms: r = {}, revi
     accessibility: probe.accessibility_hint ? ["wheelchair_accessible"] : undefined,
     review_score,
     review_count,
+    latitude: typeof d.latitude === "number" ? d.latitude : undefined,
+    longitude: typeof d.longitude === "number" ? d.longitude : undefined,
     review_source: (review_score != null) ? "booking" : undefined,
+    ...extractSubScores(rv),
     booking_url: d.url ?? undefined,
     check_in_time,
     check_out_time,

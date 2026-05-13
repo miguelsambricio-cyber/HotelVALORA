@@ -4,6 +4,53 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Hotel detail UX overhaul · scores · room mix · Google Maps fallback
+
+Operator review of `/user/admin/hotels/<id>` surfaced a list of fixes against the institutional contract. All shipped in one pass:
+
+Identification section
+- Added `Booking Hotel ID` (from `_enrichment_meta.booking_hotel_id`)
+- Added `Catastro ID` slot (new schema field · manual entry today · Catastro API enrichment later)
+
+Property characteristics
+- `CoStar score` replaced by **`HotelVALORA score`** · 0-10 composite computed from Booking sub-scores + class adjustment · weights: Location 30% · Comfort 20% · Cleanliness 15% · Staff 10% · Value 10% · Facilities 5% · Class 10%
+- Category and Segment lines kept (already populated when CoStar provides)
+
+Location section
+- `Neighborhood` label renamed → **`Submarket`** (was already pulling `submarket_name`)
+- Coordinates resolution priority: CoStar → Booking enrichment → Google Maps search fallback
+- When coords present: clickable link to Google Maps with `CoStar` / `Booking` source badge
+- When coords missing: amber "find on Google Maps" link pre-filled with hotel name + address + market
+
+Hotel profile · enrichment section
+- Removed the yellow "Missing · biggest gaps first" block (was erroneous · most "missing" fields are already shown in facilities or aren't institutionally relevant)
+- Replaced the `Review score` card with three score cards: **Location score** · **Confort score** · **HotelVALORA score** (last one highlighted in emerald ring as the headline institutional metric)
+- Removed `Accessibility` card and `External` card (External is already in the sources footer)
+- **New Room Mix card** before Facilities · canonical 7-bucket distribution (Individuales · Doble · Junior Suite · Suite · Estudio · 1 dormitorio · 2 dormitorios) · derived from `profile.room_types[]` via `summariseRoomMix()` · classifier in `lib/admin/hotels/room-mix.ts` maps Booking room names to buckets (regex patterns for English + Spanish) · avg sqm sourced from Booking when available · row shows: `{label} · {N types · M units} · {avg_sqm} m²`
+
+Schema additions
+- `HotelReferenceRecord.catastro_id?: string | null`
+- `HotelProfile.latitude?: number | null` / `longitude?: number | null` (Booking coords as CoStar fallback)
+- `HotelProfile.location_score / comfort_score / cleanliness_score / staff_score / value_score / facilities_score / wifi_score` (all from `getHotelReviewScores` `score_breakdown.question[]`)
+- `EnrichmentMeta.booking_hotel_id?: number | null` + `last_policies_patched_at?: string | null`
+
+Booking integration
+- `booking-fetcher.ts::getHotelReviewScores` · new endpoint wrapper
+- `booking-fetcher.ts::extractReviewSubScores` · pulls per-category scores from `score_breakdown[0].question[]` · matches `hotel_clean → cleanliness_score`, `hotel_comfort → comfort_score`, `hotel_location → location_score`, etc.
+- `mapBookingToProfile` now extracts sub-scores AND Booking lat/lng into `profile.latitude/longitude`
+- Server action `runBookingEnrichment` now calls 5 endpoints in parallel (details + facilities + rooms + policies + reviews)
+- Bulk CLI runner already had reviews call · extended to pull sub-scores + lat/lng
+
+New helper libs
+- `lib/admin/hotels/hotelvalora-score.ts` · `computeHotelVALORAScore(hotel)` · pure function · returns `{score, inputs, weight_coverage}` · auto re-normalises weights when sub-scores partial so a half-enriched hotel still gets a sensible composite (vs always 0)
+- `lib/admin/hotels/room-mix.ts` · `summariseRoomMix(profile)` · classifies + aggregates by 7 buckets · `ROOM_BUCKETS` registry exported for any future UI that needs the canonical order
+
+Existing 9 enriched hotels show 0/10 on sub-scores (the score-breakdown wasn't captured in the older payload format). Once RapidAPI tier is upgraded, re-running `enrich-all-hotels.mjs --skip-enriched` no — wait, those 9 ARE enriched, so `--skip-enriched` skips them. Operator should drop them via the storage list + remove, or remove `--skip-enriched` and let the runner upsert. The bulk runner with the new contract will populate sub-scores + lat/lng + room mix on those 9 too.
+
+typecheck clean · /user/admin/hotels/h_204efabe95397fff renders all signatures (Booking Hotel ID · Catastro ID · Submarket · HotelVALORA score · 3 score cards · Room mix when room_types > 0 · Google Maps coords fallback).
+
+---
+
 ## 2026-05-14 — Phase 3.f.next 3 · getHotelPolicies integration · check-in/out + pet + cancellation + smoking
 
 Operator-chosen sequencing: probe `getHotelPolicies` and patch the 9 already-enriched hotels with policies BEFORE doing the bulk run · so the institutional contract is complete before scaling to 364 (saves ~1k duplicate calls when tier is upgraded).
