@@ -4,6 +4,72 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Phase 3.f.real-booking v2 · matching strategy + bulk runner CLI
+
+Day-2 of Booking integration · the first bulk attempt at operator request
+("run enrichment para todos los hoteles") surfaced two fixes.
+
+### Fix 1 · match heuristic over-counted disordered token overlap
+
+"AC Hotel Avenida de America" was matching "Avenida America Cama King AC junto a la estacion" (an apartment listing) because both share 3 tokens after stripping filler words. New algorithm:
+
+- normalize both names (strip diacritics + filler "Hotel/by/de/the/etc")
+- contiguous-ordered substring → score 0.95 (the correct discriminator)
+- token-set Jaccard → max 0.85 (so noisy apartment listings drop below threshold)
+- result: AC Hotel correctly matches "AC Hotel Avenida de América by Marriott"
+
+Applied to `lib/admin/hotels/booking-fetcher.ts::matchConfidence`.
+
+### Fix 2 · v2 server strategy · searchDestination(name) instead of searchHotels
+
+Booking's `/searchDestination` indexes hotels too · a query with the property name returns `dest_type: "hotel"` hits whose `dest_id` IS the hotel_id used by `/getHotelDetails`. This:
+
+- removes the noisy intermediate `searchHotels` step (which surfaced apartments)
+- reduces base cost from 3 calls/hotel to 2 (search + details)
+- raises match rate from ~30% to ~90% on the validation set (8/10 hotels matched at 100% in the real-world test)
+
+Applied to `lib/admin/hotels/booking-enrich.ts::runBookingEnrichment`.
+
+### Fix 3 · bulk runner CLI for operator-side full inventory enrichment
+
+`apps/web/scripts/enrich-all-hotels.mjs` · iterates every hotel in the snapshot, runs the 5-call deep path (searchDestination → details → facilities → rooms → reviews), maps to HotelProfile, upserts to `costar-master/manual_enrichment/<hotel_id>.json`. Idempotent. Logs to `services/costar/logs/enrich-all-<date>-<ts>.jsonl`.
+
+CLI flags: `--limit N` · `--only <hotel_id>` · `--skip-enriched` · `--basic` (drop deep endpoints for quota safety) · `--throttle <ms>` · `--min-match 0.7`.
+
+### Validation run
+
+- 10-hotel sample (Madrid)
+- 8/10 enriched at 100% match · 1 ambig (no Booking hotel-type hit) · 1 quota-exceeded (operator's RapidAPI tier hit MONTHLY quota at hotel 10)
+- Sample enriched: AC Hotel Avenida de América (50% completeness · 15 facilities · ★8.75 · 2817 reviews) · Novotel Madrid Center (74% completeness · 28 room types · ★8.68 · 5663 reviews) · Hotel Puerta América (69% · 15 facilities · ★8.43 · 6981 reviews)
+
+### Quota gap (operator action required)
+
+To enrich all 364 hotels (~1820 calls in deep mode, ~728 in basic mode) the operator must upgrade the RapidAPI tier beyond the current MONTHLY quota. Without the upgrade, only ~10 hotels can be enriched per cycle.
+
+### CoStar + Booking gaps still uncovered
+
+Even with successful Booking enrichment, the following fields stay empty for most hotels (Booking doesn't expose them via the booking-com15 endpoints used today):
+
+- `check_in_time` / `check_out_time` (Booking has policy info but endpoints don't return it consistently)
+- `pet_policy` · `cancellation_policy` · `smoking_policy` (specialised endpoints needed)
+- `fnb.michelin_stars` · cuisine type · restaurant count > 1
+- `spa.sqm` · `gym.open_24h` · `pool.indoor/outdoor`
+- `meeting_rooms.count` (only 0 or 1 from boolean toggle) · `total_sqm`
+- `sustainability` certifications (BREEAM/LEED/Green Key)
+- `accessibility` certifications
+- `family_features`
+- `image_refs` / photos
+- `geo_context` (nearby POI, transport_score)
+
+Phase 3.f.next priority order proposed:
+1. **Quota upgrade + bulk run all 364** (operator decision)
+2. Probe `/api/v1/hotels/getHotelPolicies` for check-in/out + pet + cancellation
+3. Image refs → Supabase public bucket
+4. Add Google Places (or similar) as second source for hours + photos
+5. Manual operator overlay for sustainability/accessibility/family (always wins · priority 100)
+
+---
+
 ## 2026-05-14 — Phase 3.f.next 1 · Bulk Booking enrichment over filtered selection
 
 Single-hotel "Fetch from Booking" was shipped earlier today. Operator pointed out that 364 hotels × one click each is not the workflow. This commit turns it into a one-click bulk operation that respects the current filter context.

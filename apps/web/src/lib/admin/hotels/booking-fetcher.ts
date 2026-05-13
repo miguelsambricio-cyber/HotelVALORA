@@ -272,23 +272,43 @@ export async function getHotelRooms(booking_hotel_id: number): Promise<RoomsRaw>
  * Match-confidence scoring for a Booking candidate vs the operator's
  * canonical hotel record. Returns 0..1 · the caller uses this to
  * decide whether to auto-pick or to surface a candidate list.
+ *
+ * Algorithm (v2 · 2026-05-14):
+ *   - normalize both names (strip diacritics + filler words like
+ *     "Hotel", "by", "de", "the")
+ *   - prefer contiguous-ordered substring (handles "AC Hotel Avenida
+ *     America" inside "AC Hotel Avenida America by Marriott")
+ *   - fall back to Jaccard token overlap so noisy candidates score low
+ *     (a hotel that contains all target tokens scattered among many
+ *     extra tokens — like an apartment listing — scores below threshold)
  */
+function _normName(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip diacritics
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\b(hotel|hotels|resort|resorts|by|the|de|del|la|el|los|las)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function matchConfidence(
   candidate: HotelSearchHit,
   canonical: { name: string; market?: string | null; country?: string | null },
 ): number {
-  const cname = (candidate.property?.name ?? "").toLowerCase().trim();
-  const target = canonical.name.toLowerCase().trim();
-  if (!cname || !target) return 0;
-  if (cname === target) return 1;
-  // Substring containment (either direction) is a strong signal
-  if (cname.includes(target) || target.includes(cname)) return 0.85;
-  // Token overlap
-  const ct = new Set(cname.split(/\s+/));
-  const tt = target.split(/\s+/).filter(Boolean);
-  if (tt.length === 0) return 0;
-  const overlap = tt.filter((t) => ct.has(t)).length / tt.length;
-  return Math.max(0, Math.min(1, overlap * 0.7));
+  const c = _normName(candidate.property?.name ?? "");
+  const t = _normName(canonical.name);
+  if (!c || !t) return 0;
+  if (c === t) return 1;
+  if (c.includes(t)) return 0.95;
+  if (t.includes(c)) return 0.9;
+  const ct = new Set(c.split(/\s+/).filter(Boolean));
+  const tt = new Set(t.split(/\s+/).filter(Boolean));
+  if (tt.size === 0) return 0;
+  const inter = [...tt].filter((x) => ct.has(x)).length;
+  const union = new Set([...ct, ...tt]).size;
+  return Math.max(0, Math.min(0.85, (inter / union) * 0.9));
 }
 
 // ── Mapper · Booking raw → HotelProfile ────────────────────────────────────
