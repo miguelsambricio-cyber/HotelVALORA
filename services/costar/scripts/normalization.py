@@ -18,7 +18,7 @@ from dedup import (
     strip_diacritics,
 )
 
-NORMALIZATION_VERSION = "v1.3"  # +Spanish CoStar aliases + ES country fallback
+NORMALIZATION_VERSION = "v1.4"  # `independent` retired from chain_scale; new affiliation_type field
 
 
 # Default country for drops that don't carry an explicit `country` column.
@@ -108,6 +108,9 @@ MARKET_HEADER_ALIASES: dict[str, str] = {
 
 # ── Canonical enum normalisers ──────────────────────────────────────────────
 
+# Canonical chain_scale tiers (Phase 2.3.d.6e · 2026-05-14):
+# six CoStar institutional tiers. `independent` is NOT a tier — it is a
+# brand affiliation axis surfaced separately as `affiliation_type`.
 _CHAIN_SCALE_MAP = {
     "luxury": "luxury",
     "lujo": "luxury",
@@ -118,8 +121,44 @@ _CHAIN_SCALE_MAP = {
     "midscale": "midscale", "media": "midscale", "media-gama": "midscale",
     "economy": "economy", "economico": "economy", "economy class": "economy",
     "budget": "economy",
-    "independent": "independent", "independiente": "independent", "indie": "independent",
+    # "independent" / "independiente" intentionally NOT mapped — they are
+    # affiliation values that flow to `affiliation_type`, not chain_scale.
 }
+
+
+def _infer_chain_scale_from_secondary(
+    tipo_secundario: Any,
+    rooms_count: int | None,
+) -> tuple[str | None, list[str]]:
+    """Best-effort inference when CoStar leaves `Clase` blank.
+
+    Triggered for properties below CoStar's tracking-cohort threshold —
+    hostels, serviced apartments, small boutiques — where Clase is
+    omitted but the operator still needs a chain_scale assignment for
+    compset + valuation logic to work.
+
+    Rules:
+      - hostel                                  → economy
+      - apartamento con servicios (< 50 rooms)  → economy
+      - apartamento con servicios (≥ 50 rooms)  → upper_midscale
+      - boutique                                → upscale
+    """
+    if tipo_secundario in (None, ""):
+        return None, []
+    key = normalise_str_for_key(tipo_secundario)
+    if "hostel" in key:
+        return "economy", [f"chain_scale_inferred_from_secondary:hostel→economy"]
+    if "apartament" in key:
+        try:
+            r = int(rooms_count) if rooms_count is not None else 0
+        except (TypeError, ValueError):
+            r = 0
+        if r < 50:
+            return "economy", [f"chain_scale_inferred_from_secondary:apartament_small→economy"]
+        return "upper_midscale", [f"chain_scale_inferred_from_secondary:apartament_large→upper_midscale"]
+    if "boutique" in key:
+        return "upscale", [f"chain_scale_inferred_from_secondary:boutique→upscale"]
+    return None, []
 
 
 def normalise_chain_scale(value: Any) -> tuple[str | None, list[str]]:
@@ -278,21 +317,44 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         # Cannot derive a hotel_id without these
         return None, reasons + ["missing_pk_inputs"]
 
-    # CoStar ES splits chain scale across two columns:
-    #   "Clase"  → maps to `chain_scale` (Luxury / Upscale / Midscale ...)
-    #   "Escala" → "Cadena" / "Independiente" — we promote "Independiente"
-    #              to chain_scale=independent when Clase is empty, and
-    #              keep it as a separate flag otherwise.
+    # CoStar ES carries two columns; v1.4 splits them cleanly:
+    #   "Clase"  → `chain_scale` (Luxury / Upper Upscale / Upscale /
+    #              Upper Midscale / Midscale / Economy)
+    #   "Escala" → `affiliation_type` (chain / independent) — a separate
+    #              axis from chain_scale, never coerced into it.
     chain_scale, r = normalise_chain_scale(raw.get("chain_scale"))
     reasons += r
+
+    # affiliation_type: surface "Independiente" / "Cadena" as its own field
     escala = (raw.get("chain_scale_or_affiliation") or "").strip()
+    affiliation_type: str | None = None
     if escala:
         norm_escala = normalise_str_for_key(escala)
         if norm_escala in ("independiente", "independent", "indie"):
-            if not chain_scale:
-                chain_scale = "independent"
-                reasons.append("chain_scale_from_escala:independent")
-        # otherwise the affiliation axis isn't tracked yet (could be added)
+            affiliation_type = "independent"
+        elif norm_escala in ("cadena", "chain"):
+            affiliation_type = "chain"
+        # other values (e.g. "Marca", "Soft brand") could be added later
+
+    # When `Clase` is blank (CoStar omits it for sub-cohort properties:
+    # hostels, small serviced apartments, boutique indies), infer the
+    # chain_scale heuristically from `Tipo secundario` + rooms count.
+    # This stops the historical "independent" misclassification —
+    # independent is an affiliation, NOT a chain-scale tier.
+    if not chain_scale:
+        # Try to grab a number for rooms before the dedicated normaliser
+        rooms_raw = raw.get("rooms_count")
+        try:
+            rooms_pre = int(rooms_raw) if rooms_raw not in (None, "") else None
+        except (TypeError, ValueError):
+            rooms_pre = None
+        inferred, infer_reasons = _infer_chain_scale_from_secondary(
+            raw.get("segment_type"),  # = CoStar "Tipo secundario"
+            rooms_pre,
+        )
+        if inferred:
+            chain_scale = inferred
+            reasons += infer_reasons
     segment_type, r = normalise_segment(raw.get("segment_type"))
     reasons += r
     facilities, r = normalise_facilities(raw.get("facilities_raw"))
@@ -331,6 +393,9 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         "operator": (raw.get("operator") or None) or None,
         "owner": (raw.get("owner") or None) or None,
         "chain_scale": chain_scale,
+        # Phase 2.3.d.6e: affiliation_type is the brand-affiliation axis
+        # (chain / independent), separate from chain_scale (the tier axis).
+        "affiliation_type": affiliation_type,
         "category": (raw.get("category") or None) or None,
         "segment_type": segment_type,
         "rooms_count": rooms_count,

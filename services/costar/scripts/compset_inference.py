@@ -42,6 +42,9 @@ import math
 from typing import Any
 
 
+# Canonical chain-scale tier order (Phase 2.3.d.6e · 2026-05-14).
+# `independent` is intentionally absent — it is an affiliation axis,
+# not a tier.
 CHAIN_SCALE_ORDER = (
     "luxury",
     "upper_upscale",
@@ -49,7 +52,6 @@ CHAIN_SCALE_ORDER = (
     "upper_midscale",
     "midscale",
     "economy",
-    "independent",
 )
 
 WEIGHTS = {

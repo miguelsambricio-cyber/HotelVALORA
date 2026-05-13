@@ -249,9 +249,9 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             <SelectControl name="country" label="Any country" current={countryFilter} options={Array.from(new Set((snap?.hotels ?? []).map((h) => h.country)))} />
             <SelectControl
               name="chain"
-              label="Any chain scale"
+              label="Class"
               current={chainFilter}
-              options={["luxury", "upper_upscale", "upscale", "upper_midscale", "midscale", "economy", "independent"]}
+              options={["luxury", "upper_upscale", "upscale", "upper_midscale", "midscale", "economy"]}
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">

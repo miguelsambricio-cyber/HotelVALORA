@@ -29,8 +29,11 @@ export interface HotelReferenceRecord {
     | "upper_midscale"
     | "midscale"
     | "economy"
-    | "independent"
     | null;
+  /** Phase 2.3.d.6e · brand affiliation axis (CoStar "Escala") · separate
+   *  from chain_scale. `independent` here is what previously misclassified
+   *  as `chain_scale="independent"`. */
+  affiliation_type: "chain" | "independent" | null;
   category: string | null;
   segment_type:
     | "business"
