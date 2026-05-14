@@ -211,11 +211,15 @@ def autosize(ws, max_width=44):
         ws.column_dimensions[col_letter].width = min(max(max_len + 2, 12), max_width)
 
 
-def build_data_sheet(ws, title: str, domain_columns):
+def build_data_sheet(ws, title: str, domain_columns, data_rows: list[dict] | None = None):
     ws.title = title
     columns = domain_columns + INGESTION_META_COLUMNS
-    ws.append([name for (name, _t, _r, _n) in columns])
+    headers = [name for (name, _t, _r, _n) in columns]
+    ws.append(headers)
     style_header(ws)
+    if data_rows:
+        for row in data_rows:
+            ws.append([row.get(h) for h in headers])
     autosize(ws)
 
 
@@ -303,9 +307,16 @@ def build_readme_sheet(wb, dataset_label: str, domain_label: str, schema_doc: st
     ws.column_dimensions["A"].width = 110
 
 
-def build_workbook(dataset_label: str, domain_columns, data_sheet_title: str, schema_doc: str, output_path: Path):
+def build_workbook(
+    dataset_label: str,
+    domain_columns,
+    data_sheet_title: str,
+    schema_doc: str,
+    output_path: Path,
+    data_rows: list[dict] | None = None,
+):
     wb = Workbook()
-    build_data_sheet(wb.active, data_sheet_title, domain_columns)
+    build_data_sheet(wb.active, data_sheet_title, domain_columns, data_rows)
     build_dictionary_sheet(wb, "DICTIONARY", domain_columns)
     build_ingestion_log_sheet(wb)
     build_sources_registry_sheet(wb)
@@ -313,16 +324,199 @@ def build_workbook(dataset_label: str, domain_columns, data_sheet_title: str, sc
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
-    print(f"[build_masters] wrote {output_path.relative_to(ROOT.parent.parent)}")
+    rows_written = len(data_rows) if data_rows else 0
+    print(f"[build_masters] wrote {output_path.relative_to(ROOT.parent.parent)} · {rows_written} rows")
+
+
+# ── Data extraction from snapshot.json ───────────────────────────────────
+import json as _json
+COSTAR_SNAPSHOT_PATH = ROOT.parent.parent / "services" / "costar" / "MASTER" / "snapshot.json"
+
+
+def _load_snapshot() -> dict:
+    if not COSTAR_SNAPSHOT_PATH.exists():
+        return {}
+    return _json.loads(COSTAR_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+
+
+def _meta_block(snapshot: dict, canonical_id: str, source_kind: str) -> dict:
+    return {
+        "canonical_id": canonical_id,
+        "ingestion_id": snapshot.get("ingestion_batch_id", ""),
+        "source_file": "snapshot.json",
+        "source_kind": source_kind,
+        "source_url": "",
+        "ingested_at": snapshot.get("generated_at", BUILT_AT),
+        "ingested_by": "cli:build_masters",
+        "normalization_version": (snapshot.get("batch") or {}).get("normalization_version", NORMALIZATION_VERSION),
+        "dedup_key": "",
+        "review_required": "FALSE",
+        "review_reason": "",
+        "ingestion_status": "ingested",
+        "supersedes_id": "",
+        "notes": "",
+    }
+
+
+def _compset_to_row(c: dict, hotels_by_id: dict, snapshot: dict) -> dict:
+    """Map snapshot synthetic_compsets[] row → COMPSET_MASTER row.
+    Targets hotel inventory · uses member chain_scale + market for
+    geographic context. Subject/compset performance KPIs (occupancy,
+    ADR, RevPAR) come from operator-confirmed Smith Travel reports ·
+    nullable until those reports are ingested."""
+    target = hotels_by_id.get(c.get("target_hotel_id"), {})
+    members = c.get("members") or []
+    member_names = " · ".join(m.get("name", "") for m in members)
+    # Pick chain_scale from the most-common member chain_scale
+    scales = [m.get("chain_scale") for m in members if m.get("chain_scale")]
+    chain_scale = max(set(scales), key=scales.count) if scales else target.get("chain_scale")
+    return {
+        "compset_name": f"{target.get('name') or c.get('target_name')} · compset",
+        "compset_uid": c.get("compset_id"),
+        "costar_compset_code": "",
+        "target_hotel_name": target.get("name") or c.get("target_name"),
+        "target_hotel_uid": c.get("target_hotel_id"),
+        "compset_hotel_names": member_names,
+        "compset_size": len(members),
+        "country": target.get("country") or "ES",
+        "market_name": c.get("market_name") or target.get("market_name"),
+        "submarket_name": c.get("submarket_name") or target.get("submarket_name"),
+        "chain_scale": chain_scale,
+        "period_kind": "ltm",
+        "period_start": "",
+        "period_end": "",
+        "currency": "EUR",
+        "subject_occupancy_pct": None,
+        "subject_adr": None,
+        "subject_revpar": None,
+        "subject_rooms_available": None,
+        "subject_rooms_sold": None,
+        "subject_revenue": None,
+        "compset_occupancy_pct": None,
+        "compset_adr": None,
+        "compset_revpar": None,
+        "compset_rooms_available": None,
+        "compset_rooms_sold": None,
+        "mpi": None,
+        "ari": None,
+        "rgi": None,
+        "mpi_yoy_pp": None,
+        "ari_yoy_pp": None,
+        "rgi_yoy_pp": None,
+        "fair_share_pct": None,
+        "revpar_premium_eur": None,
+        **_meta_block(snapshot, c.get("compset_id", ""), source_kind=c.get("provenance", "synthetic")),
+        "review_required": "TRUE" if c.get("needs_operator_confirmation") else "FALSE",
+        "review_reason": "synthetic_compset_pending_operator_confirmation" if c.get("needs_operator_confirmation") else "",
+        "notes": f"algorithm={(c.get('algorithm') or {}).get('version', 'v1')} · members_with_similarity_scores",
+    }
+
+
+def _positioning_to_row(h: dict, compset_by_target: dict, market_snap: dict, snapshot: dict) -> dict:
+    """Map snapshot hotels[] row → HOTEL_POSITIONING_MASTER row.
+    One row per hotel · joins market KPIs (occupancy/ADR/RevPAR for the
+    hotel's market) and the hotel's synthetic compset. Subject KPIs
+    (the hotel's own occupancy/ADR/RevPAR) come from operator reports ·
+    nullable until ingested · the structure of the master is there for
+    institutional underwriting workflow."""
+    cs = compset_by_target.get(h.get("hotel_id"))
+    # Market lookup · CoStar uses "Madrid" on hotels but "Madrid ESP"
+    # on KPI rows · try suffixed variant + suffix-strip
+    hmkt = h.get("market_name") or ""
+    market_kpis = (
+        market_snap.get(hmkt)
+        or market_snap.get(f"{hmkt} ESP")
+        or market_snap.get(f"{hmkt} {(h.get('country') or 'ESP').upper()}")
+        or {}
+    )
+    return {
+        "hotel_uid": h.get("hotel_id"),
+        "hotel_name": h.get("name"),
+        "snapshot_kind": "ltm_market_average",
+        "snapshot_at": snapshot.get("generated_at"),
+        "trigger": "build_masters_run",
+        "country": h.get("country"),
+        "market_name": h.get("market_name"),
+        "submarket_name": h.get("submarket_name"),
+        "chain_scale": h.get("chain_scale"),
+        "hotel_segment": h.get("segment_type"),
+        "as_of_period_start": "",
+        "as_of_period_end": "",
+        "as_of_period_kind": "ltm",
+        "compset_uid": cs.get("compset_id") if cs else None,
+        "compset_name": f"{h.get('name')} · compset" if cs else None,
+        "compset_size": len(cs.get("members") or []) if cs else None,
+        "currency": "EUR",
+        "subject_revpar": None,  # operator-reported
+        "compset_revpar": (market_kpis.get("revpar_12m") or 0) if market_kpis.get("revpar_12m") else None,
+        "revpar_premium_eur": None,
+        "subject_adr": None,
+        "compset_adr": (market_kpis.get("adr_12m") or 0) if market_kpis.get("adr_12m") else None,
+        "adr_premium_eur": None,
+        "subject_occupancy_pct": None,
+        "compset_occupancy_pct": (market_kpis.get("occupancy_12m") or 0) * 100 if market_kpis.get("occupancy_12m") is not None else None,
+        "occupancy_premium_pp": None,
+        "mpi": None,
+        "ari": None,
+        "rgi": None,
+        # Underwriting assumption fields · nullable until operator runs
+        # the valuation pass
+        "adr_assumption_eur": (market_kpis.get("adr_12m") or 0) if market_kpis.get("adr_12m") else None,
+        "occupancy_assumption_pct": (market_kpis.get("occupancy_12m") or 0) * 100 if market_kpis.get("occupancy_12m") is not None else None,
+        "revpar_assumption_eur": (market_kpis.get("revpar_12m") or 0) if market_kpis.get("revpar_12m") else None,
+        "room_revenue_assumption_eur": None,
+        "gop_per_key_assumption_eur": None,
+        "valuation_anchor_eur_per_key": None,
+        "cap_rate_assumption_pct": None,
+        "multiple_of_revenue_assumption": None,
+        "confidence": "low" if (h.get("_meta") or {}).get("confidence", 1) < 0.8 else "medium",
+        "assumptions_basis": "market_average_via_costar_data_table",
+        "risks": None,
+        "valuation_outcome_uid": None,
+        **_meta_block(snapshot, h.get("hotel_id", ""), source_kind="derived"),
+        "notes": f"compset={'synthetic' if cs else 'none'}",
+    }
 
 
 def main():
+    snapshot = _load_snapshot()
+    if snapshot:
+        print(f"[build_masters] snapshot loaded · hotels={len(snapshot.get('hotels') or [])} · "
+              f"synthetic_compsets={len(snapshot.get('synthetic_compsets') or [])}")
+        hotels = snapshot.get("hotels") or []
+        hotels_by_id = {h["hotel_id"]: h for h in hotels}
+        compsets_synth = snapshot.get("synthetic_compsets") or []
+        compsets_real = snapshot.get("compset_membership") or snapshot.get("compsets") or []
+        compset_by_target = {c.get("target_hotel_id"): c for c in compsets_synth}
+        # Market snapshot index (LTM rolling per market). The source XLSX
+        # carries multiple rows per market_name (overall + class-level
+        # breakdowns). Prefer the row with populated occupancy_12m ·
+        # that's the rolled-up market KPI row.
+        market_snap = {}
+        for r in (snapshot.get("market_snapshots") or []):
+            if r.get("granularity") != "market" or not r.get("market_name"):
+                continue
+            key = r["market_name"]
+            existing = market_snap.get(key)
+            if existing is None or (r.get("occupancy_12m") is not None and existing.get("occupancy_12m") is None):
+                market_snap[key] = r
+
+        compset_rows = [_compset_to_row(c, hotels_by_id, snapshot) for c in compsets_synth]
+        # Real compsets prepended (operator-confirmed wins over synthetic in display order)
+        compset_rows = [_compset_to_row(c, hotels_by_id, snapshot) for c in compsets_real] + compset_rows
+        positioning_rows = [_positioning_to_row(h, compset_by_target, market_snap, snapshot) for h in hotels]
+    else:
+        print(f"[build_masters] no snapshot at {COSTAR_SNAPSHOT_PATH} · emitting headers-only templates")
+        compset_rows = []
+        positioning_rows = []
+
     build_workbook(
         dataset_label="COMPSET_MASTER",
         domain_columns=COMPSET_COLUMNS,
         data_sheet_title="COMPSET",
         schema_doc="docs/intelligence/compset-schema.md",
         output_path=MASTER_DIR / "COMPSET_MASTER.xlsx",
+        data_rows=compset_rows,
     )
     build_workbook(
         dataset_label="HOTEL_POSITIONING_MASTER",
@@ -330,6 +524,7 @@ def main():
         data_sheet_title="POSITIONING",
         schema_doc="docs/intelligence/hotel-positioning-schema.md",
         output_path=MASTER_DIR / "HOTEL_POSITIONING_MASTER.xlsx",
+        data_rows=positioning_rows,
     )
 
 

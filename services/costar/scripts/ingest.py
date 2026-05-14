@@ -1126,6 +1126,18 @@ def main(argv: list[str] | None = None) -> int:
             logger.event("info", "tx_masters.rebuilt")
         except Exception as e:  # noqa: BLE001
             logger.event("warn", "tx_masters.rebuild_failed", err=str(e))
+        # Compset + positioning masters · derived from synthetic_compsets
+        # + hotel inventory + market_snapshots in the same snapshot.
+        try:
+            import importlib.util as _imp_util
+            cs_builder_path = WORKSPACE.parent / "compset" / "scripts" / "build_masters.py"
+            spec = _imp_util.spec_from_file_location("compset_build_masters", cs_builder_path)
+            cs_mod = _imp_util.module_from_spec(spec)
+            spec.loader.exec_module(cs_mod)
+            cs_mod.main()
+            logger.event("info", "compset_masters.rebuilt")
+        except Exception as e:  # noqa: BLE001
+            logger.event("warn", "compset_masters.rebuild_failed", err=str(e))
 
     log_path = logger.flush()
     if log_path:
