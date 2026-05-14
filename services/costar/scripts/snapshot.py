@@ -69,6 +69,56 @@ def merge_by_id(
     return current + carried
 
 
+_KPI_METRIC_FIELDS = (
+    "rooms_inventory", "rooms_under_construction", "rooms_delivered_12m",
+    "occupancy_12m", "occupancy_yoy_12m",
+    "adr_12m", "adr_yoy_12m",
+    "revpar_12m", "revpar_yoy_12m",
+    "supply_12m", "supply_yoy_12m",
+    "demand_12m", "demand_yoy_12m",
+    "revenue_12m", "revenue_yoy_12m",
+    "occupancy_spot", "occupancy_yoy_spot",
+    "adr_spot", "adr_yoy_spot",
+    "revpar_spot", "revpar_yoy_spot",
+    "buildings_built", "buildings_under_construction", "avg_rooms_per_building",
+    "inventory_growth_12m", "rooms_opened_12m", "buildings_opened_12m",
+    "market_sale_price_per_room", "sales_volume_12m", "market_yield",
+)
+
+
+def _count_kpi_metrics(
+    market_snapshots: list[dict[str, Any]] | None,
+    market_timeseries: list[dict[str, Any]] | None,
+) -> int:
+    """Count populated numeric KPI cells across all market data rows.
+    Each (geo, period, metric) tuple is one KPI value · institutional
+    "data point" count that the UI surfaces in the Market KPIs card."""
+    count = 0
+    for row in (market_snapshots or []):
+        for f in _KPI_METRIC_FIELDS:
+            v = row.get(f)
+            if v is not None:
+                try:
+                    if isinstance(v, bool):
+                        continue
+                    float(v)
+                    count += 1
+                except (TypeError, ValueError):
+                    continue
+    for row in (market_timeseries or []):
+        for f in _KPI_METRIC_FIELDS:
+            v = row.get(f)
+            if v is not None:
+                try:
+                    if isinstance(v, bool):
+                        continue
+                    float(v)
+                    count += 1
+                except (TypeError, ValueError):
+                    continue
+    return count
+
+
 def build_snapshot(
     *,
     ingestion_batch_id: str,
@@ -144,6 +194,11 @@ def build_snapshot(
             # Phase 2.3.d.6f · market data + projects
             "market_snapshots": len(market_snapshots or []),
             "market_timeseries": len(market_timeseries or []),
+            # v1.3 · institutional KPI cell count (sum of populated numeric
+            # KPI cells across PAIS / MERCADO / SUBMERCADO snapshots +
+            # MERCADO time-series). Each (geo, period, metric) tuple is
+            # one KPI · this is the operator-facing "data point" count.
+            "kpi_metrics": _count_kpi_metrics(market_snapshots, market_timeseries),
             "projects": len(projects or []),
         },
         "corrections": corrections_summary or {
