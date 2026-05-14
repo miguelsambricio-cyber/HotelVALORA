@@ -482,17 +482,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 }
                 href="/user/admin/hotels?tab=hotels&enrichment=partial"
               />
-              <Kpi
-                label="Empty profile"
-                value={Math.max(0, hotels.length - enrichedCount - partialCount)}
-                tone={hotels.length - enrichedCount - partialCount > 0 ? "amber" : "emerald"}
-                hint={
-                  hotels.length > 0
-                    ? "no Booking-grade data · prioritize"
-                    : undefined
-                }
-                href="/user/admin/hotels?tab=hotels&enrichment=empty&sort=completeness_asc"
-              />
+              {/* "Empty profile" KPI removed 2026-05-14 · with CoStar
+                  core in the scoring, no hotel can read as 0% · every
+                  hotel reaches at least Partial automatically. The
+                  operator's institutional goal is to bring all 364 to
+                  Enriched (≥80%) via the Booking + CoStar agent. */}
             </section>
           </>
         );
