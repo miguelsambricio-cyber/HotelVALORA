@@ -146,12 +146,18 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
 
           <Section title="Property characteristics">
             <Pair label="Chain scale" value={hotel.chain_scale?.replace(/_/g, " ") ?? "—"} />
-            <Pair label="Category" value={hotel.category ?? "—"} />
-            <Pair label="Segment" value={hotel.segment_type ?? "—"} />
+            <Pair label="Category" value={fmtCategory(hotel.category)} />
+            <Pair label="Segment" value={fmtSegment(hotel.segment_type)} />
             <Pair label="Rooms" value={fmtNum(hotel.rooms_count)} />
-            <Pair label="Floors" value={fmtNum(hotel.total_floors)} />
+            <Pair
+              label="Floors"
+              value={fmtFloors(hotel.total_floors, hotel.floors_above_ground, hotel.floors_below_ground)}
+            />
             <Pair label="Year opened" value={fmtNum(hotel.year_opened)} />
             <Pair label="Year last renovated" value={fmtNum(hotel.year_last_renovated)} />
+            <Pair label="Gross building (m²)" value={fmtSqm(hotel.gross_building_sqm)} />
+            <Pair label="Lot size (m²)" value={fmtSqm(hotel.lot_size_sqm)} />
+            <Pair label="Typical floor (m²)" value={fmtSqm(hotel.typical_floor_sqm)} />
           </Section>
 
           <Section title="Location" icon={<MapPin size={14} />}>
@@ -728,6 +734,22 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+              {/* Headline · weighted average sqm · the institutional
+                  "Superficie media" metric · always first card */}
+              <div className="flex items-baseline justify-between gap-2 rounded border border-emerald-300 bg-emerald-50/40 px-2 py-1.5 ring-1 ring-emerald-200">
+                <div className="min-w-0">
+                  <p className="truncate font-headline text-[11px] font-bold uppercase tracking-[0.18em] text-forest-900">
+                    Superficie media
+                  </p>
+                  <p className="font-mono text-[9.5px] text-slate-500">
+                    {mix.total_units != null ? `${mix.total_units}u total` : "weighted avg"}
+                  </p>
+                </div>
+                <p className="font-headline text-[13px] font-extrabold tabular-nums text-emerald-700">
+                  {mix.hotel_avg_sqm != null ? mix.hotel_avg_sqm : "—"}
+                  <span className="ml-0.5 font-mono text-[9px] font-normal text-slate-400">m²</span>
+                </p>
+              </div>
               {mix.rows.map((row) => {
                 const present = (row.total_units ?? 0) > 0 || row.type_count > 0;
                 return (
@@ -764,7 +786,7 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               {mix.source === "booking"
                 ? "avg m² sourced from Booking room_surface_in_m2 · per-bucket means"
                 : mix.source === "estimated"
-                  ? "5% individuales · 90% doble · 5% suite · institutional default · sqm: 18/25/45 · operator can override via Run enrichment"
+                  ? "5% individuales · 90% doble · 5% suite · institutional default · sqm: 18/25/45"
                   : "no data yet · use Run enrichment or Fetch from Booking to populate"}
             </p>
           </div>
@@ -983,6 +1005,58 @@ function Pair({
 function fmtNum(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return String(n);
+}
+
+function fmtSqm(n: number | null | undefined): string {
+  if (n === null || n === undefined) return "—";
+  // Thousand-separator with Spanish locale to match the institutional
+  // asset-analysis report (e.g. "102.851 m²")
+  return n.toLocaleString("es-ES");
+}
+
+function fmtCategory(c: string | null | undefined): string {
+  if (!c) return "—";
+  const trimmed = c.trim();
+  // Numeric (e.g. "5", "5.0") → "5 ★"
+  const n = Number(trimmed);
+  if (Number.isFinite(n) && n > 0 && n <= 7) {
+    return `${n} ★`;
+  }
+  // Already formatted (e.g. "5 stars", "GL", "Lujo") — pass through
+  return trimmed;
+}
+
+function fmtSegment(s: string | null | undefined): string {
+  if (!s) return "—";
+  const map: Record<string, string> = {
+    hotel: "Hotel",
+    hotel_project: "Hotel project",
+    tourist_apartments: "Tourist apartments",
+    // Legacy values may still be in older records · render gracefully
+    business: "Hotel (business · legacy)",
+    leisure: "Hotel (leisure · legacy)",
+    extended_stay: "Extended stay (legacy)",
+    resort: "Resort (legacy)",
+    convention: "Convention (legacy)",
+  };
+  return map[s] ?? s;
+}
+
+function fmtFloors(
+  total: number | null | undefined,
+  above: number | null | undefined,
+  below: number | null | undefined,
+): string {
+  // Prefer the "above / total" institutional format when both are
+  // present (matches the asset-analysis "Nº Stories" pattern · e.g.
+  // "33 / 58" = above-ground / total). Fall back to plain total
+  // when only one signal exists.
+  if (above !== null && above !== undefined && total !== null && total !== undefined) {
+    return `${above} / ${total}${below ? ` · ${below} below` : ""}`;
+  }
+  if (total !== null && total !== undefined) return String(total);
+  if (above !== null && above !== undefined) return String(above);
+  return "—";
 }
 
 // ── Phase 3 helpers ─────────────────────────────────────────────────────────

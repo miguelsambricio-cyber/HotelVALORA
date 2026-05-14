@@ -4,6 +4,61 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Hotel detail · Property characteristics expanded + Room Mix superficie media
+
+Operator request after the previous overhaul:
+1. Property characteristics misses fields shown in the asset-analysis report (gross building · lot size · typical floor · etc.)
+2. Category should display as 1–5 stars
+3. Segment values should be: hotel · hotel_project · tourist_apartments (property-type axis, not commercial-segment)
+4. Room Mix · first card should be the weighted average (Superficie media)
+5. Remove "operator can override via Run enrichment" footer text
+
+### Schema additions to `HotelReferenceRecord`
+- `gross_building_sqm: number | null` · "Superficie construida" · institutional headline alongside rooms_count
+- `lot_size_sqm: number | null` · "Superficie de la parcela"
+- `typical_floor_sqm: number | null` · "Planta tipo"
+- `floors_above_ground: number | null` · CoStar splits this from total_floors
+- `floors_below_ground: number | null`
+
+### segment_type enum rewritten
+Replaced commercial-segment axis (`business / leisure / extended_stay / resort / convention`) with property-type axis: `hotel / hotel_project / tourist_apartments`. The previous values were the wrong axis — those describe market positioning, not what the asset IS. Legacy records still in the snapshot render gracefully as "(legacy)" until next re-ingestion.
+
+### Python normalization (services/costar/scripts/normalization.py)
+Added CoStar header aliases so the next `ingest.py` run captures the new fields:
+- `superficie_construida` / `area_construida` / `gba` / `gross_building_area` → `gross_building_sqm`
+- `superficie_de_la_parcela` / `superficie_del_terreno` / `lot_size` → `lot_size_sqm`
+- `planta_tipo` / `superficie_planta_tipo` / `typical_floor` → `typical_floor_sqm`
+- `plantas_sobre_rasante` / `floors_above_ground` → `floors_above_ground`
+- `plantas_bajo_rasante` / `floors_below_ground` → `floors_below_ground`
+
+`_SEGMENT_MAP` rewritten to map the new three buckets · accepts ES + EN variants (proyecto_hotelero, en_desarrollo, apartamentos_turisticos, aparthotel, etc.).
+
+`normalise_hotel_row` extended to extract + persist the 5 new numeric fields.
+
+Operator action: re-run `python services/costar/scripts/ingest.py` after CoStar source XLSX is updated with those columns. Current 364 hotels show "—" for these until ingest runs.
+
+### UI changes · `/user/admin/hotels/<id>`
+- **Property characteristics** · adds Gross building · Lot size · Typical floor · Floors line now formats as "above / total · X below" when floors-above-ground is known
+- **Category** · numeric values (1–7) display as "{N} ★"; strings pass through
+- **Segment** · new enum values display as "Hotel" / "Hotel project" / "Tourist apartments"; legacy values tagged "(legacy)"
+- **Room Mix** · new first card "Superficie media" · emerald-ringed · displays the weighted hotel-wide avg sqm
+  - Formula: `Σ(units × avg_sqm) / Σ(units)`
+  - Falls back to plain mean across populated buckets when unit counts are missing
+- Removed "operator can override via Run enrichment" footer text
+
+### Helpers added in detail page
+- `fmtSqm(n)` · Spanish locale thousand separators ("102.851 m²")
+- `fmtCategory(c)` · numeric → "{N} ★" · string passthrough
+- `fmtSegment(s)` · enum → human label with legacy tagging
+- `fmtFloors(total, above, below)` · "above / total · X below" institutional format
+
+### Validation
+- AC Hotel (h_204efabe95397fff) · estimated mix · Superficie media = 25.6 m² (Σ: 7×18 + 130×25 + 7×45 = 3691 / 144) ✓
+- Gross building / Lot size / Typical floor all render "—" today (CoStar snapshot doesn't have them yet · ingest re-run unblocks)
+- typecheck clean
+
+---
+
 ## 2026-05-14 — Hotel detail · Room Mix always visible + 5/90/5 default formula
 
 Operator feedback after the UX overhaul: (1) HotelVALORA score appearing in both Property characteristics and the enrichment cards is redundant · keep only the enrichment card · (2) the Room Mix card was hidden when Booking returned 0 rooms · but the operator may need to MANUALLY EDIT it later for hotels where Booking has no data · (3) when Booking data is missing, fall back to an institutional default distribution: 5% individuales · 90% doble · 5% suite · over `rooms_count`.

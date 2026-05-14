@@ -34,18 +34,40 @@ export interface HotelReferenceRecord {
    *  from chain_scale. `independent` here is what previously misclassified
    *  as `chain_scale="independent"`. */
   affiliation_type: "chain" | "independent" | null;
+  /** Category · star rating (1–5 stars typical for hotels). Stored as
+   *  string to preserve "5 stars" / "5*" / "5★" / "GL" variants from
+   *  the CoStar source. The UI normalises to "{N} ★" when numeric. */
   category: string | null;
+  /** Property-type axis · what kind of asset this is. Operator
+   *  definition 2026-05-14:
+   *    - hotel               : operating hotel
+   *    - hotel_project       : hotel under development / planned
+   *    - tourist_apartments  : tourist apartments / aparthotel
+   *  Replaces the previous commercial-segment enum
+   *  (business/leisure/extended_stay/resort/convention) which was
+   *  the wrong axis · those properties belong to the asset's
+   *  market positioning, not the property-type classification. */
   segment_type:
-    | "business"
-    | "leisure"
-    | "extended_stay"
-    | "resort"
-    | "convention"
+    | "hotel"
+    | "hotel_project"
+    | "tourist_apartments"
     | null;
   rooms_count: number | null;
   year_opened: number | null;
   year_last_renovated: number | null;
   total_floors: number | null;
+  /** Gross built area in m² · "Superficie construida" in CoStar ES.
+   *  The institutional underwriting headline alongside rooms_count. */
+  gross_building_sqm: number | null;
+  /** Lot / plot area in m² · "Superficie de la parcela". */
+  lot_size_sqm: number | null;
+  /** Typical-floor area in m² · "Planta tipo". */
+  typical_floor_sqm: number | null;
+  /** Floors above ground · CoStar splits this from `total_floors`
+   *  (which is the headline · all floors incl. basement). */
+  floors_above_ground: number | null;
+  /** Floors below ground (basement levels). */
+  floors_below_ground: number | null;
 
   // Location
   address_line: string | null;

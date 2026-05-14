@@ -81,6 +81,21 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     # CoStar ES: "Año de reform."
     "ano_de_reform": "year_last_renovated", "ano_de_reforma": "year_last_renovated",
     "total_floors": "total_floors", "floors": "total_floors", "plantas": "total_floors",
+    # Floors above / below ground (CoStar ES: "Plantas sobre rasante" / "Plantas bajo rasante")
+    "plantas_sobre_rasante": "floors_above_ground", "floors_above_ground": "floors_above_ground",
+    "plantas_bajo_rasante": "floors_below_ground", "floors_below_ground": "floors_below_ground",
+    # Surface fields (CoStar ES institutional underwriting headline)
+    # "Superficie construida" / "Gross Building Area" / "Área construida"
+    "superficie_construida": "gross_building_sqm", "area_construida": "gross_building_sqm",
+    "gross_building_sqm": "gross_building_sqm", "gross_building_area": "gross_building_sqm",
+    "gba": "gross_building_sqm", "superficie_construida_m2": "gross_building_sqm",
+    # "Superficie de la parcela" / "Superficie del terreno" / "Lot size"
+    "superficie_de_la_parcela": "lot_size_sqm", "superficie_del_terreno": "lot_size_sqm",
+    "superficie_parcela": "lot_size_sqm", "lot_size": "lot_size_sqm", "lot_size_sqm": "lot_size_sqm",
+    "terreno_m2": "lot_size_sqm",
+    # "Planta tipo" / "Superficie planta tipo" / "Typical floor"
+    "planta_tipo": "typical_floor_sqm", "superficie_planta_tipo": "typical_floor_sqm",
+    "typical_floor": "typical_floor_sqm", "typical_floor_sqm": "typical_floor_sqm",
     # Facilities / scoring
     "facilities": "facilities_raw", "amenities": "amenities_raw", "servicios": "facilities_raw",
     "meeting_space_sqm": "meeting_space_sqm", "meeting_space": "meeting_space_sqm",
@@ -212,12 +227,28 @@ def normalise_chain_scale(value: Any) -> tuple[str | None, list[str]]:
     return canonical, []
 
 
+# Phase 2026-05-14 · segment_type rewritten · property-type axis
+# (hotel / hotel project / tourist apartments) replaces the previous
+# commercial-segment axis (business/leisure/etc). Operator institutional
+# definition: this field describes WHAT the asset is, not its market
+# positioning. Legacy values (business/leisure/extended_stay/resort/
+# convention) fall through and remain in records until the next
+# canonical re-ingestion — they will be normalised to `null` by the
+# normaliser below.
 _SEGMENT_MAP = {
-    "business": "business", "negocios": "business", "corp": "business", "corporate": "business",
-    "leisure": "leisure", "ocio": "leisure", "vacacional": "leisure",
-    "extended_stay": "extended_stay", "extended stay": "extended_stay", "estancia larga": "extended_stay",
-    "resort": "resort",
-    "convention": "convention", "mice": "convention", "congresos": "convention",
+    # Hotel (operating)
+    "hotel": "hotel",
+    # Hotel project (under development / planned)
+    "hotel_project": "hotel_project", "hotel project": "hotel_project",
+    "proyecto_hotelero": "hotel_project", "proyecto hotelero": "hotel_project",
+    "en_desarrollo": "hotel_project", "en desarrollo": "hotel_project",
+    "in_development": "hotel_project", "under_development": "hotel_project",
+    "planned": "hotel_project", "pipeline": "hotel_project",
+    # Tourist apartments / aparthotel
+    "tourist_apartments": "tourist_apartments", "tourist apartments": "tourist_apartments",
+    "apartamentos_turisticos": "tourist_apartments", "apartamentos turisticos": "tourist_apartments",
+    "aparthotel": "tourist_apartments", "apart_hotel": "tourist_apartments",
+    "serviced_apartments": "tourist_apartments", "vacation_rental": "tourist_apartments",
 }
 
 
@@ -408,6 +439,16 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
     reasons += r
     total_floors, r = normalise_numeric(raw.get("total_floors"), kind="integer")
     reasons += r
+    floors_above_ground, r = normalise_numeric(raw.get("floors_above_ground"), kind="integer")
+    reasons += r
+    floors_below_ground, r = normalise_numeric(raw.get("floors_below_ground"), kind="integer")
+    reasons += r
+    gross_building_sqm, r = normalise_numeric(raw.get("gross_building_sqm"))
+    reasons += r
+    lot_size_sqm, r = normalise_numeric(raw.get("lot_size_sqm"))
+    reasons += r
+    typical_floor_sqm, r = normalise_numeric(raw.get("typical_floor_sqm"))
+    reasons += r
     meeting_sqm, r = normalise_numeric(raw.get("meeting_space_sqm"))
     reasons += r
     parking, r = normalise_numeric(raw.get("parking_spaces"), kind="integer")
@@ -443,6 +484,11 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         "year_opened": year_opened,
         "year_last_renovated": year_renovated,
         "total_floors": total_floors,
+        "floors_above_ground": floors_above_ground,
+        "floors_below_ground": floors_below_ground,
+        "gross_building_sqm": gross_building_sqm,
+        "lot_size_sqm": lot_size_sqm,
+        "typical_floor_sqm": typical_floor_sqm,
         "address_line": (raw.get("address_line") or None) or None,
         "postal_code": (raw.get("postal_code") or None) or None,
         "latitude": lat,

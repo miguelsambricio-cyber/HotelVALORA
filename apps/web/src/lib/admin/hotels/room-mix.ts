@@ -76,6 +76,10 @@ export interface RoomMixSummary {
   type_count_total: number;
   /** Total units when count data is available. */
   total_units: number | null;
+  /** Weighted average sqm across all buckets · the institutional
+   *  headline that anchors the room-mix card. Computed as
+   *  `sum(units × avg_sqm) / sum(units)`. Null when no data. */
+  hotel_avg_sqm: number | null;
   /** How the values in `rows` were sourced:
    *   - "booking"   : real per-type data from Booking
    *   - "estimated" : operator-default formula (5/90/5) applied to
@@ -196,5 +200,28 @@ export function summariseRoomMix(
     }
   }
 
-  return { rows, type_count_total, total_units, source };
+  // Weighted hotel-wide average sqm · sum(units × avg_sqm) / sum(units)
+  // Falls back to simple average across populated buckets when unit
+  // counts are missing (Booking sometimes returns avg_sqm but no count).
+  let weightedSqm = 0;
+  let weightUnits = 0;
+  let plainSqmSum = 0;
+  let plainSqmN = 0;
+  for (const row of rows) {
+    if (row.avg_sqm == null) continue;
+    plainSqmSum += row.avg_sqm;
+    plainSqmN += 1;
+    if (row.total_units != null && row.total_units > 0) {
+      weightedSqm += row.avg_sqm * row.total_units;
+      weightUnits += row.total_units;
+    }
+  }
+  const hotel_avg_sqm =
+    weightUnits > 0
+      ? Math.round((weightedSqm / weightUnits) * 10) / 10
+      : plainSqmN > 0
+        ? Math.round((plainSqmSum / plainSqmN) * 10) / 10
+        : null;
+
+  return { rows, type_count_total, total_units, hotel_avg_sqm, source };
 }
