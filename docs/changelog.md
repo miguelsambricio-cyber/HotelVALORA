@@ -4,6 +4,56 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Meeting rooms count + transaction dedup pipeline
+
+Three operator-reported fixes:
+1. Meeting rooms card showed "✓" placeholder · should show the actual count from CoStar "Salas de reuniones"
+2. Transaction comparables list included rows with null price (institutionally useless · price is the headline metric)
+3. Same real-world transaction surfaced multiple times in the snapshot because news sources publish slightly different prices · operator wants pipeline-side dedup that picks the modal (most-repeated) price
+
+### Meeting rooms count
+- Schema: `HotelReferenceRecord.meeting_rooms_count: number | null`
+- Python alias `salas_de_reuniones` → `meeting_rooms_count`
+- Card now uses CoStar count as primary signal · Booking `profile.meeting_rooms.count` as fallback · displays the actual integer instead of ✓ placeholder
+
+### Comparables filter
+- `findTransactionComparables` now skips rows with null/zero price
+- Also skips rows the pipeline marked `is_duplicate=true`
+
+### Transaction dedup · `services/costar/scripts/dedup_transactions.py`
+Pure function `dedupe_transactions(transactions) → (rows, duplicate_count)`.
+
+Algorithm:
+1. Group by (normalised_asset_name, year-month of closed_at) · no-date rows bucket under asset only
+2. For each group with ≥2 rows:
+   a. Collect non-null prices
+   b. Count modal price using ±2% tolerance bands (€290M and €291M considered same band; €290M and €310M not)
+   c. Canonical row = first row whose price falls in the modal band AND has closed_at when ties
+   d. Other rows tagged `is_duplicate=True`, `duplicate_of=<canonical_id>`
+   e. Canonical row gets `price_variants[]` listing every (source, price_eur, closed_at) seen across siblings — operator audit trail
+
+3. Singletons pass through unchanged
+
+Wired into ingest.py after `ingest_transactions` + `merge_by_id` (so it runs AFTER stateful merge with previous snapshot). Logger emits `transactions.dedup` event with duplicates_marked + canonical_rows.
+
+Pipeline run results: 661 raw rows → 629 canonical + 32 duplicates (4.8% noise eliminated). Sample groups: "Dream Hotel Group" €289M+€291M → €289M canonical · "Hotel Incosol Marbella" €150M+€20M → €150M canonical (price_variants[] preserves both for audit).
+
+TS types extended on `TransactionEntry`:
+- `is_duplicate?: boolean`
+- `duplicate_of?: string`
+- `price_variants?: Array<{ source, price_eur, closed_at }>`
+
+### Field coverage update
+After re-ingest with new aliases:
+- `meeting_rooms_count`: 364 hotels (CoStar populated this on every row)
+- 32 transactions tagged duplicate → comparables tables now ≤4% smaller and price-accurate
+
+### Operator workflow
+- Operator audits dedup decisions via the canonical row's `price_variants[]` list (future UI: hover/expand a transaction row to see all sibling prices)
+- For now: visible in raw snapshot.json · CLI inspection
+
+---
+
 ## 2026-05-14 — Location · Country/Market lines + last_sale schema + ingest re-run unblocks 80%+ field coverage
 
 Operator observed many CoStar-side fields still rendered "—" (category, segment, gross area, etc). Root cause: the snapshot in production was generated before the new aliases landed. This pass adds the last missing pieces, runs a clean re-ingest, and uploads the fresh snapshot.

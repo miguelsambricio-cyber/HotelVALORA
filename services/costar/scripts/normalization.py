@@ -113,6 +113,9 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     "meeting_space_sqm": "meeting_space_sqm", "meeting_space": "meeting_space_sqm",
     # CoStar ES: "Espacio de reunión total" → meeting space in m²
     "espacio_de_reunion_total": "meeting_space_sqm", "espacio_de_reunion_contig_max": "meeting_space_contig_sqm",
+    # CoStar ES: "Salas de reuniones" → count of meeting rooms (distinct rooms)
+    "salas_de_reuniones": "meeting_rooms_count", "meeting_rooms_count": "meeting_rooms_count",
+    "meeting_rooms": "meeting_rooms_count",
     "parking_spaces": "parking_spaces", "parking": "parking_spaces",
     "score": "score_costar", "score_costar": "score_costar", "puntuacion": "score_costar", "rating_costar": "score_costar",
     # CoStar ES: "Fecha de la última venta" + "Último precio de venta"
@@ -500,6 +503,8 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
                 last_sale_date = s
     meeting_sqm, r = normalise_numeric(raw.get("meeting_space_sqm"))
     reasons += r
+    meeting_rooms_count, r = normalise_numeric(raw.get("meeting_rooms_count"), kind="integer")
+    reasons += r
     parking, r = normalise_numeric(raw.get("parking_spaces"), kind="integer")
     reasons += r
     lat, r = normalise_numeric(raw.get("latitude"))
@@ -548,6 +553,7 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         "facilities": facilities,
         "amenities": [],
         "meeting_space_sqm": meeting_sqm,
+        "meeting_rooms_count": meeting_rooms_count,
         "parking_spaces": parking,
         "score_costar": score,
         "score_external": {},

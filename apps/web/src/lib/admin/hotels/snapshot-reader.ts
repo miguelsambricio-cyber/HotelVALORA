@@ -91,6 +91,18 @@ export interface TransactionEntry {
   price_eur: number | null;
   buyer: string | null;
   seller: string | null;
+  /** Pipeline-dedup flag · the Python deduper sets this on rows that
+   *  are duplicates of a canonical transaction (same asset + month with
+   *  different prices reported across news sources). The UI filters
+   *  them from comparables; they stay in the snapshot for audit. */
+  is_duplicate?: boolean;
+  /** Pipeline-dedup pointer · transaction_id of the canonical row that
+   *  this duplicate was folded into. */
+  duplicate_of?: string;
+  /** Pipeline-dedup audit · the list of price variants seen across all
+   *  sibling rows · helps the operator see which news source had which
+   *  number when triaging. */
+  price_variants?: Array<{ source: string; price_eur: number | null; closed_at: string | null }>;
   /** Phase 3.c · operator-added entries carry _meta.source = "manual_entry" */
   _meta?: {
     ingestion_batch_id: string | null;
@@ -844,6 +856,14 @@ export async function findTransactionComparables(
 
   const candidates: TransactionComparable[] = [];
   for (const t of snap.transactions) {
+    // Filter transactions without a usable price · they're noise in a
+    // comparables table where price is the headline metric.
+    const price = typeof t.price_eur === "number" && t.price_eur > 0 ? t.price_eur : null;
+    if (price === null) continue;
+    // Also drop transactions that the pipeline marked as duplicates
+    // (kept in the snapshot for audit · not for display)
+    if (t.is_duplicate) continue;
+
     const linkedHotel = t.hotel_id ? hotelsByName.get(t.hotel_id) : null;
     let matched: TransactionComparable["matched_via"];
     if (t.hotel_id === hotel.hotel_id) matched = "same_hotel";
@@ -856,7 +876,6 @@ export async function findTransactionComparables(
     // transaction's own rooms_count field (often absent on private rows).
     let rooms: number | null = null;
     if (linkedHotel?.rooms_count) rooms = linkedHotel.rooms_count;
-    const price = typeof t.price_eur === "number" ? t.price_eur : null;
     const ppk = price && rooms ? Math.round(price / rooms) : null;
     candidates.push({ ...t, price_per_key_eur: ppk, matched_via: matched });
   }

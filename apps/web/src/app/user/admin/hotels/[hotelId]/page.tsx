@@ -713,24 +713,34 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               institutional truth · used as fallback when Booking didn't
               return a structured meeting_rooms object. */}
           {(() => {
-            const count = profile.meeting_rooms?.count;
+            // Meeting rooms count · priority: CoStar canonical
+            // (meeting_rooms_count = "Salas de reuniones") → Booking
+            // structured (profile.meeting_rooms.count) → null
+            const count =
+              hotel.meeting_rooms_count ??
+              profile.meeting_rooms?.count ??
+              null;
+            const countSource =
+              hotel.meeting_rooms_count != null
+                ? "CoStar"
+                : profile.meeting_rooms?.count != null
+                  ? "Booking"
+                  : null;
             const sqmBooking = profile.meeting_rooms?.total_sqm;
             const sqmCoStar = hotel.meeting_space_sqm;
             const sqm = sqmBooking ?? sqmCoStar ?? null;
-            const sqmSource = sqmBooking != null ? "Booking" : sqmCoStar != null ? "CoStar" : null;
-            const present = (count ?? 0) > 0 || (sqm ?? 0) > 0;
             return (
               <ProfileCard label="Meeting rooms">
                 <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-                  {count != null ? count : sqm != null ? "✓" : "—"}
+                  {count != null ? count : "—"}
                 </p>
                 <p className="font-mono text-[10.5px] text-slate-500">
                   {sqm != null ? (
                     <>
                       {fmtSqm(sqm)} m²
-                      {sqmSource && (
+                      {countSource && (
                         <span className="ml-1 rounded bg-slate-100 px-1 py-0.5 text-[9.5px] text-slate-500 ring-1 ring-slate-200">
-                          {sqmSource}
+                          {countSource}
                         </span>
                       )}
                       {profile.meeting_rooms?.max_capacity
@@ -739,9 +749,6 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
                     </>
                   ) : (
                     <span className="text-slate-400">no meeting rooms data</span>
-                  )}
-                  {present && count == null && sqm != null && (
-                    <span className="ml-1 text-slate-400"> · count tbd</span>
                   )}
                 </p>
               </ProfileCard>

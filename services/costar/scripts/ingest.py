@@ -93,6 +93,7 @@ from snapshot import (  # noqa: E402
 )
 from corrections import apply_corrections  # noqa: E402
 from compset_inference import infer_synthetic_compsets  # noqa: E402
+from dedup_transactions import dedupe_transactions  # noqa: E402
 
 # ── Workspace layout ────────────────────────────────────────────────────────
 #
@@ -824,6 +825,20 @@ def main(argv: list[str] | None = None) -> int:
     recon.extend(recon_tx)
     if previous:
         transactions = merge_by_id(transactions, previous.get("transactions", []), "transaction_id")
+
+    # Phase 3.f.next 4 · Transaction dedup. News-sourced rows often
+    # surface the same deal multiple times with slightly different
+    # prices. Group by (asset, year-month) · pick the modal price ·
+    # tag the rest as duplicates (kept in snapshot for audit; the web
+    # UI filters them from comparables).
+    transactions, dup_count = dedupe_transactions(transactions)
+    logger.event(
+        "info",
+        "transactions.dedup",
+        duplicates_marked=dup_count,
+        canonical_rows=len([t for t in transactions if not t.get("is_duplicate")]),
+        total_rows=len(transactions),
+    )
 
     # Phase 2.3.d.6f · market-data + projects streams
     market_snapshots, market_timeseries, processed_market, failed_market = ingest_market_data(batch_id, logger)

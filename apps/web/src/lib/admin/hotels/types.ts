@@ -90,6 +90,9 @@ export interface HotelReferenceRecord {
   facilities: string[];
   amenities: string[];
   meeting_space_sqm: number | null;
+  /** Count of distinct meeting rooms · CoStar "Salas de reuniones".
+   *  Used as the primary signal for the Meeting rooms card. */
+  meeting_rooms_count: number | null;
   parking_spaces: number | null;
   score_costar: number | null;
   score_external: Record<string, number>;
