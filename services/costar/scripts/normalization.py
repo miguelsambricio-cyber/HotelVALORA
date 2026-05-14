@@ -275,6 +275,15 @@ PROJECT_HEADER_ALIASES: dict[str, str] = {
     "stars": "stars", "estrellas": "stars", "categoria": "stars",
     "rooms": "rooms_count", "habitaciones": "rooms_count", "tbi": "tbi",
     "office_role": "office_role", "office_company": "office_company", "office_name": "office_name",
+    # v1.3 · CoStar pipeline export · institutional passthrough (2026-05-14)
+    "views": "views",
+    "office_street": "office_street",
+    "office_postal_code": "office_postal_code",
+    "office_city": "office_city",
+    "office_state": "office_state",
+    "office_country": "office_country",
+    "office_contact_last_name": "office_contact_last_name",
+    "office_contact_position": "office_contact_position",
 }
 
 

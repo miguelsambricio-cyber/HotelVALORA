@@ -172,15 +172,38 @@ TRANSACTION_HEADER_ALIASES: dict[str, str] = {
     "market": "market_name", "mercado": "market_name",
     "submarket": "submarket_name", "submercado": "submarket_name",
     "ciudad": "city_es_costar",
+    # Private TRANSACCIONES 30.5 fields
+    "location": "location_label",
+    "fecha": "closed_at",
+    "year": "year_label",
+    "month": "month_label",
+    "no_of_hotels": "portfolio_size_assets",
+    "category": "category",
+    "keys": "rooms_count",
+    "m2": "gross_area_sqm",
+    "price_key": "price_per_key_eur",
+    "price_m2": "price_per_sqm_eur",
+    "p_g": "p_g_flag",
+    "p_u": "p_u_flag",
+    "p_c": "p_c_flag",
+    "comments": "comments",
     "closed_at": "closed_at", "close_date": "closed_at", "fecha_cierre": "closed_at",
     # CoStar ES transaction timing
     "fecha_de_la_transaccion": "closed_at", "fecha_de_transaccion": "closed_at",
     "fecha_de_la_operacion": "closed_at", "fecha_de_venta": "closed_at",
     "price_eur": "price_eur", "price": "price_eur", "valor": "price_eur", "deal_value": "price_eur",
     "precio": "price_eur", "precio_de_venta": "price_eur", "importe": "price_eur",
+    # Note: CoStar TX file (4.1) is essentially the same shape as the
+    # hotels-by-market file · each row is a HOTEL with sale info. The
+    # institutional sale columns map here:
+    "ultimo_precio_de_venta": "price_eur",
+    "fecha_de_la_ultima_venta": "closed_at",
+    "precio_habitacion": "price_per_key_eur",
     "rooms": "rooms_count", "habitaciones": "rooms_count",
     "buyer": "buyer", "comprador": "buyer",
     "seller": "seller", "vendedor": "seller",
+    "empresa_de_ventas": "broker",
+    "contacto_de_ventas": "broker_contact",
 }
 
 
@@ -457,6 +480,13 @@ def ingest_transactions(
             market = (raw.get("market_name") or "").strip() or (raw.get("city_es_costar") or "").strip()
             matched_hotel = _resolve_hotel_by_name(asset_name, country, market, hotels_by_id)
 
+            # Numeric/passthrough captures from extended aliases
+            rooms_tx, _ = normalise_numeric(raw.get("rooms_count"), kind="integer")
+            price_per_key, _ = normalise_numeric(raw.get("price_per_key_eur"))
+            price_per_sqm, _ = normalise_numeric(raw.get("price_per_sqm_eur"))
+            gross_area, _ = normalise_numeric(raw.get("gross_area_sqm"))
+            portfolio_size, _ = normalise_numeric(raw.get("portfolio_size_assets"), kind="integer")
+
             tx_row = {
                 "transaction_id": tx_id,
                 "source": source,
@@ -464,10 +494,27 @@ def ingest_transactions(
                 "asset_name": asset_name,
                 "country": country or None,
                 "market_name": market or None,
+                "submarket_name": (raw.get("submarket_name") or None) or None,
+                "location_label": (raw.get("location_label") or None) or None,
+                "city": (raw.get("city_es_costar") or None) or None,
                 "closed_at": closed_at,
+                "year_label": (raw.get("year_label") or None) or None,
+                "month_label": (raw.get("month_label") or None) or None,
                 "price_eur": price_eur,
+                "price_per_key_eur": price_per_key,
+                "price_per_sqm_eur": price_per_sqm,
+                "gross_area_sqm": gross_area,
+                "rooms_count": rooms_tx,
+                "category": (raw.get("category") or None) or None,
+                "portfolio_size_assets": portfolio_size,
                 "buyer": (raw.get("buyer") or None) or None,
                 "seller": (raw.get("seller") or None) or None,
+                "broker": (raw.get("broker") or None) or None,
+                "broker_contact": (raw.get("broker_contact") or None) or None,
+                "p_g_flag": (raw.get("p_g_flag") or None) or None,
+                "p_u_flag": (raw.get("p_u_flag") or None) or None,
+                "p_c_flag": (raw.get("p_c_flag") or None) or None,
+                "comments": (raw.get("comments") or None) or None,
                 "_meta": {
                     "ingestion_batch_id": batch_id,
                     "source_path": str(path.relative_to(REPO_ROOT)),
@@ -699,6 +746,19 @@ def ingest_projects(batch_id: str, logger: RunLogger) -> tuple[
                 "rooms_count": rooms,
                 "street": (raw.get("street") or None) or None,
                 "postal_code": (raw.get("postal_code") or None) or None,
+                "tbi": (raw.get("tbi") or None) or None,
+                # v1.3 institutional passthrough
+                "views": (raw.get("views") or None) or None,
+                "office_role": (raw.get("office_role") or None) or None,
+                "office_company": (raw.get("office_company") or None) or None,
+                "office_name": (raw.get("office_name") or None) or None,
+                "office_street": (raw.get("office_street") or None) or None,
+                "office_postal_code": (raw.get("office_postal_code") or None) or None,
+                "office_city": (raw.get("office_city") or None) or None,
+                "office_state": (raw.get("office_state") or None) or None,
+                "office_country": (raw.get("office_country") or None) or None,
+                "office_contact_last_name": (raw.get("office_contact_last_name") or None) or None,
+                "office_contact_position": (raw.get("office_contact_position") or None) or None,
                 "_meta": {
                     "ingestion_batch_id": batch_id,
                     "source_path": str(path.relative_to(REPO_ROOT)),
@@ -869,7 +929,14 @@ def main(argv: list[str] | None = None) -> int:
     transactions, recon_tx, processed_tx, failed_tx = ingest_transactions(batch_id, hotels_by_id, logger)
     recon.extend(recon_tx)
     if previous:
-        transactions = merge_by_id(transactions, previous.get("transactions", []), "transaction_id")
+        # By-source merge: keep previous rows ONLY for sources we didn't
+        # re-ingest this run. Same source ingested again = full replace ·
+        # avoids stale duplicates when the alias map evolves and a new
+        # field changes the transaction_id hash.
+        current_sources = {t.get("source") for t in transactions}
+        for prev_tx in (previous.get("transactions") or []):
+            if prev_tx.get("source") not in current_sources:
+                transactions.append(prev_tx)
 
     # Phase 3.f.next 4 · Transaction dedup. News-sourced rows often
     # surface the same deal multiple times with slightly different
@@ -1047,6 +1114,18 @@ def main(argv: list[str] | None = None) -> int:
             logger.event("info", "masters.rebuilt")
         except Exception as e:  # noqa: BLE001
             logger.event("warn", "masters.rebuild_failed", err=str(e))
+        # Also rebuild the transactions + projects masters · they live
+        # in services/transactions/MASTER/ and consume the same snapshot.
+        try:
+            import importlib.util as _imp_util
+            tx_builder_path = WORKSPACE.parent / "transactions" / "scripts" / "build_masters.py"
+            spec = _imp_util.spec_from_file_location("tx_build_masters", tx_builder_path)
+            tx_mod = _imp_util.module_from_spec(spec)
+            spec.loader.exec_module(tx_mod)
+            tx_mod.main()
+            logger.event("info", "tx_masters.rebuilt")
+        except Exception as e:  # noqa: BLE001
+            logger.event("warn", "tx_masters.rebuild_failed", err=str(e))
 
     log_path = logger.flush()
     if log_path:

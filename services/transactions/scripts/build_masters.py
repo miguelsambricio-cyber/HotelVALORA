@@ -197,15 +197,15 @@ def autosize(ws, max_width=44):
         ws.column_dimensions[col_letter].width = min(max(max_len + 2, 12), max_width)
 
 
-def build_data_sheet(ws, title: str, domain_columns):
+def build_data_sheet(ws, title: str, domain_columns, data_rows: list[dict] | None = None):
     ws.title = title
     columns = domain_columns + INGESTION_META_COLUMNS
     headers = [name for (name, _t, _r, _n) in columns]
     ws.append(headers)
     style_header(ws)
-    # No example rows committed — masters start empty by design.
-    # The DICTIONARY sheet documents the contract; this sheet is the canonical
-    # corpus, append-only via the Data Ingestion Agent.
+    if data_rows:
+        for row in data_rows:
+            ws.append([row.get(h) for h in headers])
     autosize(ws)
 
 
@@ -301,30 +301,188 @@ def build_readme_sheet(wb, dataset_label: str, domain_label: str, schema_doc: st
     ws.column_dimensions["A"].width = 110
 
 
-def build_workbook(dataset_label: str, domain_columns, data_sheet_title: str, schema_doc: str, output_path: Path):
+def build_workbook(
+    dataset_label: str,
+    domain_columns,
+    data_sheet_title: str,
+    schema_doc: str,
+    output_path: Path,
+    data_rows: list[dict] | None = None,
+):
     wb = Workbook()
-    # First sheet — DATA — is the default ws created by Workbook()
-    build_data_sheet(wb.active, data_sheet_title, domain_columns)
+    build_data_sheet(wb.active, data_sheet_title, domain_columns, data_rows)
     build_dictionary_sheet(wb, "DICTIONARY", domain_columns)
     build_ingestion_log_sheet(wb)
     build_sources_registry_sheet(wb)
     build_readme_sheet(wb, dataset_label, data_sheet_title.lower(), schema_doc)
 
-    # Move README to the end (operators land on DATA first)
-    # openpyxl already orders by creation, so no shuffle needed.
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
-    print(f"[build_masters] wrote {output_path.relative_to(ROOT.parent.parent)}")
+    rows_written = len(data_rows) if data_rows else 0
+    print(f"[build_masters] wrote {output_path.relative_to(ROOT.parent.parent)} · {rows_written} rows")
+
+
+# ── Data extraction from snapshot.json ───────────────────────────────────
+import json as _json
+COSTAR_SNAPSHOT_PATH = ROOT.parent.parent / "services" / "costar" / "MASTER" / "snapshot.json"
+
+
+def _load_snapshot() -> dict:
+    if not COSTAR_SNAPSHOT_PATH.exists():
+        return {}
+    return _json.loads(COSTAR_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+
+
+def _meta_block(snapshot: dict, canonical_id: str, source_kind: str = "private") -> dict:
+    return {
+        "canonical_id": canonical_id,
+        "ingestion_id": snapshot.get("ingestion_batch_id", ""),
+        "source_file": "snapshot.json",
+        "source_kind": source_kind,
+        "source_url": "",
+        "ingested_at": snapshot.get("generated_at", BUILT_AT),
+        "ingested_by": "cli:build_masters",
+        "normalization_version": (snapshot.get("batch") or {}).get("normalization_version", NORMALIZATION_VERSION),
+        "dedup_key": "",
+        "review_required": "FALSE",
+        "review_reason": "",
+        "ingestion_status": "ingested",
+        "supersedes_id": "",
+        "notes": "",
+    }
+
+
+def _tx_to_row(t: dict, hotels_by_id: dict, snapshot: dict) -> dict:
+    """Map snapshot transactions[] row → HOTEL_TRANSACCIONES_MASTER row.
+    Joins with hotels for geo/property context when hotel_id is linked."""
+    h = hotels_by_id.get(t.get("hotel_id"), {}) if t.get("hotel_id") else {}
+    return {
+        "transaction_uid": t.get("transaction_id"),
+        "category": t.get("category") or h.get("category"),
+        "asset_type": "hotel",
+        "asset_name": t.get("asset_name"),
+        "portfolio_name": None,
+        "portfolio_size_assets": t.get("portfolio_size_assets"),
+        "city": t.get("city") or h.get("city") or t.get("location_label"),
+        "country": t.get("country"),
+        "market": t.get("market_name"),
+        "submarket": t.get("submarket_name") or h.get("submarket_name"),
+        "address": h.get("address_line"),
+        "latitude": h.get("latitude"),
+        "longitude": h.get("longitude"),
+        "rooms": t.get("rooms_count") or h.get("rooms_count"),
+        "hotel_segment": h.get("segment_type"),
+        "star_rating": h.get("category"),
+        "year_built": h.get("year_opened"),
+        "year_renovated": h.get("year_last_renovated"),
+        "gross_area_sqm": t.get("gross_area_sqm") or h.get("gross_building_sqm"),
+        "price_eur": t.get("price_eur"),
+        "price_currency_original": "EUR",
+        "price_per_key_eur": t.get("price_per_key_eur"),
+        "cap_rate": None,
+        "gop_per_key_eur": None,
+        "revpar_at_closing_eur": None,
+        "closed_at": t.get("closed_at"),
+        "announced_at": None,
+        "buyer_name": t.get("buyer"),
+        "buyer_uid": None,
+        "buyer_country": None,
+        "buyer_kind": None,
+        "seller_name": t.get("seller"),
+        "seller_uid": None,
+        "seller_country": None,
+        "seller_kind": None,
+        "broker": t.get("broker"),
+        "operator_at_closing": h.get("operator"),
+        "operator_post_closing": None,
+        "brand_at_closing": h.get("brand"),
+        "brand_post_closing": None,
+        "financing_type": None,
+        "disclosed_terms": None,
+        "press_release_url": None,
+        "news_url": None,
+        "linked_news_id": None,
+        **_meta_block(snapshot, t.get("transaction_id", ""), source_kind=t.get("source", "private")),
+        "notes": " · ".join(filter(None, [
+            t.get("comments"),
+            f"P.G={t.get('p_g_flag')}" if t.get('p_g_flag') else None,
+            f"P.U={t.get('p_u_flag')}" if t.get('p_u_flag') else None,
+            f"P.C={t.get('p_c_flag')}" if t.get('p_c_flag') else None,
+            f"price/m²={t.get('price_per_sqm_eur')}" if t.get('price_per_sqm_eur') else None,
+            "DUPLICATE_OF=" + str(t.get('duplicate_of')) if t.get('is_duplicate') and t.get('duplicate_of') else None,
+        ])) or None,
+    }
+
+
+def _proj_to_row(p: dict, snapshot: dict) -> dict:
+    """Map snapshot projects[] row → HOTEL_PROYECTOS_MASTER row."""
+    return {
+        "project_uid": p.get("project_id"),
+        "category": "hotel_pipeline",
+        "asset_type": "hotel",
+        "project_name": p.get("project_name"),
+        "city": p.get("city"),
+        "country": p.get("country"),
+        "market": p.get("market_name") or p.get("city"),
+        "submarket": p.get("submarket_name"),
+        "address": p.get("street"),
+        "latitude": None,
+        "longitude": None,
+        "rooms": p.get("rooms_count"),
+        "gross_area_sqm": None,
+        "capex_eur": None,
+        "capex_per_key_eur": None,
+        "estimated_opening": p.get("opening_date"),
+        "groundbreaking": None,
+        "announced_at": None,
+        "project_stage": p.get("phase"),
+        "permitting_status": p.get("status"),
+        "developer_name": p.get("office_company"),
+        "developer_uid": None,
+        "developer_country": p.get("office_country"),
+        "developer_kind": p.get("office_role"),
+        "operator_name": None,
+        "operator_uid": None,
+        "operator_kind": None,
+        "brand": None,
+        "hotel_segment": p.get("construction_type"),
+        "star_rating": p.get("stars"),
+        "mixed_use_flag": None,
+        "mixed_use_components": None,
+        "public_subsidy_flag": None,
+        "press_release_url": None,
+        "news_url": None,
+        "linked_news_id": None,
+        **_meta_block(snapshot, p.get("project_id", ""), source_kind="costar"),
+        "notes": " · ".join(filter(None, [
+            f"TBI={p.get('tbi')}" if p.get('tbi') else None,
+            f"views={p.get('views')}" if p.get('views') else None,
+            f"office_contact={p.get('office_contact_last_name')}" if p.get('office_contact_last_name') else None,
+            f"office_postal={p.get('office_postal_code')}" if p.get('office_postal_code') else None,
+        ])) or None,
+    }
 
 
 def main():
+    snapshot = _load_snapshot()
+    if snapshot:
+        print(f"[build_masters] snapshot loaded · transactions={len(snapshot.get('transactions') or [])} · "
+              f"projects={len(snapshot.get('projects') or [])}")
+        hotels_by_id = {h["hotel_id"]: h for h in (snapshot.get("hotels") or [])}
+        tx_rows = [_tx_to_row(t, hotels_by_id, snapshot) for t in (snapshot.get("transactions") or [])]
+        proj_rows = [_proj_to_row(p, snapshot) for p in (snapshot.get("projects") or [])]
+    else:
+        print(f"[build_masters] no snapshot at {COSTAR_SNAPSHOT_PATH} · emitting headers-only templates")
+        tx_rows = []
+        proj_rows = []
+
     build_workbook(
         dataset_label="HOTEL_TRANSACCIONES_MASTER",
         domain_columns=TRANSACTION_COLUMNS,
         data_sheet_title="TRANSACTIONS",
         schema_doc="docs/intelligence/transaction-schema.md",
         output_path=MASTER_DIR / "HOTEL_TRANSACCIONES_MASTER.xlsx",
+        data_rows=tx_rows,
     )
     build_workbook(
         dataset_label="HOTEL_PROYECTOS_MASTER",
@@ -332,6 +490,7 @@ def main():
         data_sheet_title="PROJECTS",
         schema_doc="docs/intelligence/project-schema.md",
         output_path=MASTER_DIR / "HOTEL_PROYECTOS_MASTER.xlsx",
+        data_rows=proj_rows,
     )
 
 
