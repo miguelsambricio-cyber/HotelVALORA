@@ -96,3 +96,6 @@ CONTACTOS DATASITE/*.csv
 CONTACTOS DATASITE/*.vcf
 # README.md is the only safe-to-commit artifact under this tree
 !CONTACTOS DATASITE/README.md
+
+# Excel lock files (created when operator has master open in Excel)
+services/costar/MASTER/~$*.xlsx
