@@ -63,20 +63,17 @@ const FIELD_DEFS: FieldDef[] = [
     (p?.meeting_rooms != null && (p.meeting_rooms.count ?? 0) > 0) ||
     (h?.meeting_rooms_count ?? 0) > 0 ||
     (h?.meeting_space_sqm ?? 0) > 0 },
-  // Compliance + commercial
-  { key: "Accessibility", weight: 4, check: ({ profile: p }) => (p?.accessibility?.length ?? 0) > 0 },
   // External
   { key: "Booking URL", weight: 4, check: ({ profile: p }) => !!p?.booking_url },
-  { key: "Cancellation policy", weight: 4, check: ({ profile: p }) => !!p?.cancellation_policy },
   // Removed 2026-05-14 · these don't appear in the asset-analysis report
   // or the detail-page UI · they only added noise to the completeness %:
-  //   - Check-in / Check-out times (4 pts) · operator review surface
-  //     doesn't track institutional value here
+  //   - Check-in / Check-out times (4 pts)
   //   - Pet policy (2 pts) · low signal · niche
   //   - Sustainability certifications (4 pts) · CoStar `eco_rating` not
-  //     reliable · Booking doesn't expose · operator-manual only and
-  //     not yet visible in the canonical report
+  //     reliable · Booking doesn't expose · not in canonical report
   //   - Family features (2 pts) · low signal · niche
+  //   - Accessibility (4 pts) · not surfaced in the report layout
+  //   - Cancellation policy (4 pts) · not in report
 ];
 
 // Total weight (sanity check) — must sum to 100 for the % math to work cleanly
