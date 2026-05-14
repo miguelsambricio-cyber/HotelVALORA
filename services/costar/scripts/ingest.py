@@ -109,6 +109,13 @@ from dedup_transactions import dedupe_transactions  # noqa: E402
 WORKSPACE = HERE.parent  # services/costar
 REPO_ROOT = WORKSPACE.parent.parent
 
+# Time-series history cap · keep the last N calendar years of MERCADO
+# DataTable periods. CoStar exports ~30 years of monthly history but
+# institutional underwriting horizons rarely look beyond a decade.
+# Cap reduces snapshot size, speeds reads, and matches the operator's
+# review window.
+HISTORY_YEARS_LIMIT = 10
+
 INPUT_HOTELS = WORKSPACE / "HOTELESperMARKET" / "INPUT"
 ARCHIVE_HOTELS = WORKSPACE / "HOTELESperMARKET" / "OLD"
 INPUT_PAIS = WORKSPACE / "PAIS" / "INPUT"
@@ -511,6 +518,11 @@ def _read_market_rows(
         return [], False
 
     out: list[dict[str, Any]] = []
+    # 10-year history cap · MERCADO DataTable rows older than the cutoff
+    # are dropped at ingestion time. Cutoff = current_year - HISTORY_YEARS_LIMIT.
+    import re as _re
+    cutoff_year = datetime.now(timezone.utc).year - HISTORY_YEARS_LIMIT
+    dropped_old = 0
     for raw in raw_rows:
         market = (raw.get("market_name") or "").strip() or None
         submarket = (raw.get("submarket_name") or "").strip() or None
@@ -523,6 +535,12 @@ def _read_market_rows(
         # blank lines or schema artefacts at the bottom of the export.
         if not (market or submarket or period):
             continue
+        # Apply history cap on time-series rows (those with a `period`)
+        if period:
+            m = _re.search(r"\b(\d{4})\b", period)
+            if m and int(m.group(1)) < cutoff_year:
+                dropped_old += 1
+                continue
         out.append({
             "country": default_country,
             "market_name": market,
@@ -569,7 +587,15 @@ def _read_market_rows(
                 "granularity": granularity,
             },
         })
-    logger.event("info", "market.file_read", file=str(path.relative_to(REPO_ROOT)), granularity=granularity, rows=len(out))
+    logger.event(
+        "info",
+        "market.file_read",
+        file=str(path.relative_to(REPO_ROOT)),
+        granularity=granularity,
+        rows=len(out),
+        dropped_pre_cutoff=dropped_old,
+        history_cutoff_year=cutoff_year,
+    )
     return out, True
 
 
