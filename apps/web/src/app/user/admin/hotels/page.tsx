@@ -367,7 +367,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           <>
             <section
               aria-label="Coverage"
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4"
             >
               <Kpi
                 label="Countries"
@@ -397,16 +397,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 tone="emerald"
                 hint="institutional inventory"
               />
-              <Kpi
-                label="Projects"
-                value={snap?.totals.projects ?? 0}
-                hint="pipeline"
-              />
             </section>
 
             <section
-              aria-label="Operations"
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+              aria-label="Activity"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4"
             >
               <Kpi
                 label="Market KPIs"
@@ -439,26 +434,15 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 hint={compsetHint}
               />
               <Kpi
-                label="To reconcile"
-                value={snap?.totals.reconciliation_queue ?? 0}
-                tone={(snap?.totals.reconciliation_queue ?? 0) > 0 ? "amber" : "slate"}
-                href="#reconciliation-queue"
-              />
-              <Kpi
-                label="Corrections"
-                value={snap?.corrections?.applied_total_in_master ?? 0}
-                tone="emerald"
-                hint={
-                  snap?.corrections
-                    ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending`
-                    : undefined
-                }
+                label="Projects"
+                value={snap?.totals.projects ?? 0}
+                hint="pipeline"
               />
             </section>
 
             <section
-              aria-label="Profile enrichment coverage"
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+              aria-label="Status"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4"
             >
               <Kpi
                 label="Enriched"
@@ -482,11 +466,25 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 }
                 href="/user/admin/hotels?tab=hotels&enrichment=partial"
               />
+              <Kpi
+                label="To reconcile"
+                value={snap?.totals.reconciliation_queue ?? 0}
+                tone={(snap?.totals.reconciliation_queue ?? 0) > 0 ? "amber" : "slate"}
+                href="#reconciliation-queue"
+              />
+              <Kpi
+                label="Corrections"
+                value={snap?.corrections?.applied_total_in_master ?? 0}
+                tone="emerald"
+                hint={
+                  snap?.corrections
+                    ? `${snap.corrections.applied} applied · ${snap.corrections.rejected} rejected · ${snap.corrections.pending_before} pending`
+                    : undefined
+                }
+              />
               {/* "Empty profile" KPI removed 2026-05-14 · with CoStar
                   core in the scoring, no hotel can read as 0% · every
-                  hotel reaches at least Partial automatically. The
-                  operator's institutional goal is to bring all 364 to
-                  Enriched (≥80%) via the Booking + CoStar agent. */}
+                  hotel reaches at least Partial automatically. */}
             </section>
           </>
         );
