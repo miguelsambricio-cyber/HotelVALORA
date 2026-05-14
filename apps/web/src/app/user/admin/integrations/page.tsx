@@ -97,7 +97,7 @@ export default async function IntegrationsPage() {
             </h1>
             <p className="mt-1 max-w-3xl text-[12px] leading-snug text-slate-400">
               Institutional infrastructure observability — every vendor, every layer, real-time
-              health across the nine operational tiers of HotelVALORA.
+              health across the ten operational tiers of HotelVALORA.
             </p>
           </div>
         </div>
@@ -105,14 +105,14 @@ export default async function IntegrationsPage() {
         <HeroKPIs counts={counts} />
 
         <div className="mt-2.5">
-          <OperationalStrip totalIntegrations={counts.total} totalLayers={9} />
+          <OperationalStrip totalIntegrations={counts.total} totalLayers={10} />
         </div>
       </section>
 
       {/* Render layers in operational order:
             1 Infrastructure · 2 Auth · 3 AI · 4 Analytics · 5 Communications
             6 Intelligence Sources (rich card · separate registry · slotted after Communications)
-            7 Relationship Intelligence · 8 Commercial · 9 Developer Infrastructure */}
+            7 Relationship Intelligence · 7.5 External Data APIs · 8 Commercial · 9 Developer Infrastructure */}
       {platformLayers
         .filter((l) => PLATFORM_LAYER_META[l.layer].order <= 5)
         .map((layer) => (

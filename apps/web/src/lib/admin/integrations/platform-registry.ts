@@ -32,6 +32,7 @@ export type PlatformIntegrationLayer =
   | "analytics"
   | "communications"
   | "relationship_intelligence"
+  | "external_data"
   | "commercial"
   | "developer_infrastructure";
 
@@ -524,6 +525,72 @@ const RELATIONSHIP_INTELLIGENCE: PlatformIntegrationDescriptor[] = [
   },
 ];
 
+const EXTERNAL_DATA: PlatformIntegrationDescriptor[] = [
+  {
+    id: "rapidapi-booking-com15",
+    name: "RapidAPI · Booking.com (booking-com15)",
+    provider: "DataCrawler via RapidAPI",
+    layer: "external_data",
+    status: "live",
+    purpose:
+      "Hotel property enrichment · 5-endpoint chain per hotel · searchDestination → getHotelDetails → getHotelFacilities → getRoomList → getHotelPolicies → getHotelReviewScores. Powers the Booking-merged HOTELESperMARKET master + the per-hotel Enrichment card (review scores · room types · facilities · sub-scores).",
+    authMethod: "x-rapidapi-host + x-rapidapi-key headers · Pro tier",
+    envVars: ["BOOKING_RAPIDAPI_HOST", "BOOKING_RAPIDAPI_KEY"],
+    tables: ["(Storage) costar-master/manual_enrichment/<hotel_id>.json"],
+    cronDependencies: [],
+    consumedBy: [
+      "/user/admin/hotels/[hotelId] · Fetch from Booking server action",
+      "scripts/enrich-all-hotels.mjs · bulk runner",
+      "scripts/patch-enrichment-policies.mjs",
+    ],
+    operatorManaged: true,
+    signal: "ok",
+    accountProvisioned: true,
+    notes: [
+      "Pro tier · 35 000 calls/month · ~$25/month tier",
+      "Per-hotel enrichment cost = 5 calls (deep mode) · 364 hotels ≈ 1 820 calls per full refresh",
+      "Provenance tag: enrichment_sources=['rapidapi_booking'] · source_priority 80 · manual_operator at 100 always wins",
+      "Date window for getRoomList = today + 60 days (some hotels have no availability at 30 days)",
+      "MCP server config in .mcp.json (gitignored · per-operator local secret)",
+    ],
+    externalLinks: [
+      { label: "Provider on RapidAPI", href: "https://rapidapi.com/DataCrawler/api/booking-com15" },
+      { label: "Operator dashboard", href: "https://rapidapi.com/developer/dashboard" },
+    ],
+  },
+  {
+    id: "google-places-v1",
+    name: "Google Places API (v1)",
+    provider: "Google",
+    layer: "external_data",
+    status: "configured_not_wired",
+    purpose:
+      "Geocode + address-component resolution for hotels CoStar doesn't ship lat/lng for. Client + CLI runner are coded; awaiting Google Cloud API-key activation.",
+    authMethod: "X-Goog-Api-Key header · field-mask required per call",
+    envVars: ["GOOGLE_PLACES_API_KEY"],
+    tables: ["(Storage) costar-master/manual_enrichment/<hotel_id>.json (geo_context fields)"],
+    cronDependencies: [],
+    consumedBy: [
+      "scripts/enrich-hotels-coords.mjs · CLI runner (coded, pending key)",
+      "future · /user/admin/hotels/[hotelId] · 'Resolve via Google Places' button",
+    ],
+    operatorManaged: true,
+    signal: "neutral",
+    accountProvisioned: false,
+    nextMilestone:
+      "Activate Places API (New) in Google Cloud Console · drop GOOGLE_PLACES_API_KEY into env.local + Vercel · run scripts/enrich-hotels-coords.mjs · ~$12 for all 364 hotels (Atmosphere tier ~$32/1000 calls).",
+    notes: [
+      "Provenance tag: enrichment_sources=['google_places'] · priority 70 · below rapidapi_booking (80) and manual_operator (100)",
+      "Coordinate-only writes · never touches other enrichment fields",
+      "Endpoints: /v1/places:searchText (POST) · /v1/places/{id} (GET) · field-mask DEFAULT_FIELD_MASK in google-places.ts",
+    ],
+    externalLinks: [
+      { label: "Google Cloud Console", href: "https://console.cloud.google.com/google/maps-apis" },
+      { label: "Places API (New) docs", href: "https://developers.google.com/maps/documentation/places/web-service" },
+    ],
+  },
+];
+
 const COMMERCIAL: PlatformIntegrationDescriptor[] = [
   {
     id: "subscription-engine",
@@ -648,6 +715,7 @@ export const PLATFORM_INTEGRATIONS: PlatformIntegrationDescriptor[] = [
   ...ANALYTICS,
   ...COMMUNICATIONS,
   ...RELATIONSHIP_INTELLIGENCE,
+  ...EXTERNAL_DATA,
   ...COMMERCIAL,
   ...DEVELOPER_INFRASTRUCTURE,
 ];
@@ -687,6 +755,11 @@ export const PLATFORM_LAYER_META: Record<PlatformIntegrationLayer, {
     label: "Relationship Intelligence",
     subtitle: "Upstream data sources feeding the contacts graph — operator-managed batches today.",
     order: 7, // Intelligence Sources takes slot 6 on the page (separate registry)
+  },
+  external_data: {
+    label: "External Data APIs",
+    subtitle: "Third-party APIs that enrich the canonical hotel registry — Booking (RapidAPI) for property + room data, Google Places for geocoding. Provenance ranks below operator-managed inputs.",
+    order: 7.5,
   },
   commercial: {
     label: "Commercial / Monetization",

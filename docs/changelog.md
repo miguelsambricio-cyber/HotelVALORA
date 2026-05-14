@@ -4,6 +4,25 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Integrations registry · new External Data APIs layer
+
+Operator: "si rapidapi esta vinculado, deberiamos incluir en admin/integrations, y el api que usamos". The Booking-com15 RapidAPI and Google Places APIs were live in code but invisible on `/user/admin/integrations`. Promoted them to first-class layer cards.
+
+### platform-registry.ts
+- New `external_data` value on `PlatformIntegrationLayer` union
+- New `EXTERNAL_DATA` descriptor array · 2 rows:
+  - **RapidAPI · Booking.com (booking-com15)** · status `live` · Pro tier (35 k calls/month) · 5-endpoint chain · env `BOOKING_RAPIDAPI_HOST` + `BOOKING_RAPIDAPI_KEY` · consumed by hotel-detail Fetch action + `scripts/enrich-all-hotels.mjs` + provenance tag `rapidapi_booking` (priority 80)
+  - **Google Places API (v1)** · status `configured_not_wired` · env `GOOGLE_PLACES_API_KEY` · awaiting Google Cloud key activation · provenance priority 70 · coordinate-only writes
+- `PLATFORM_LAYER_META` entry · label "External Data APIs" · order 7.5 (between Relationship Intelligence and Commercial)
+
+### page.tsx
+- `OperationalStrip` totalLayers 9 → 10 · hero copy "nine operational tiers" → "ten"
+- Comment block updated to reflect new render order
+
+Typecheck clean. Layer renders dynamically via `platformIntegrationsByLayer()` — no consumer-side wiring needed.
+
+---
+
 ## 2026-05-14 — Institutional masters populated · HOTELESperMARKET + Booking merge
 
 Operator: "los documentos en services/costar/MASTER están vacíos · faltan datos · y falta un master HOTELESperMARKET con los 364 hoteles + Booking enrichment". The pre-existing `build_masters.py` only wrote schema templates (DATA sheets empty). Reworked to also populate from canonical data sources.

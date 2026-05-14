@@ -4,7 +4,7 @@
 >
 > If a technology doesn't appear here, it's not in the stack.
 
-**Last refreshed:** 2026-05-11 (AI Operations Layer foundation — schema + **10 agents declared** in 4 tiers including CEO / Orchestration (Tier 0 supervisor) + 30 tools catalogued + 8 strategic + technical docs; Phase 2 agent runtime pending).
+**Last refreshed:** 2026-05-14 (External Data APIs surfaced as a first-class platform layer on `/user/admin/integrations` — RapidAPI booking-com15 live + Google Places v1 staged).
 
 **Live URL:** [hotelvalora.com](https://hotelvalora.com)
 **Repo:** `github.com/miguelsambricio-cyber/HotelVALORA`
@@ -171,7 +171,9 @@
 |---|---|---|---|---|---|
 | CoStar (live API) | Comparable hotels | 🔵 | Not licensed | Workbook ingestion already supports manual exports | Phase 5 — license + webhook |
 | STR | RevPAR / ADR / occupancy benchmarks | 🔵 | Not licensed | Investment scenarios use internal mock today | Phase 4 |
-| Booking | OTA pricing | 🔵 | Not licensed | — | Phase 6 |
+| Booking (RapidAPI booking-com15) | Hotel property + room enrichment | 🟢 | Pro tier · 35k calls/mo | 5-endpoint chain · powers HOTELESperMARKET master + per-hotel Enrichment card · provenance priority 80 | — |
+| Google Places API (v1) | Geocoding · address-component resolution | 🟡 | API not yet activated in Google Cloud | Client + CLI runner coded · `GOOGLE_PLACES_API_KEY` pending · provenance priority 70 | Activate Places API (New) → drop key in env → run `scripts/enrich-hotels-coords.mjs` |
+| Booking (OTA pricing) | Rate parity / promo monitoring | 🔵 | Not licensed | — | Phase 6 |
 | Catastro (España) | Land registry | 🔵 | Public API | — | Phase 5 |
 | CBRE | Transactions | 🔵 | Not licensed | — | Phase 6 |
 | MSCI / Real Capital | Institutional comps | 🔵 | Not licensed | — | Phase 6 |

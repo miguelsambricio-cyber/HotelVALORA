@@ -2,7 +2,7 @@
 
 Single inventory of every env var that exists, where it's set, who consumes it, and whether it's safe.
 
-**Last refreshed:** 2026-05-12
+**Last refreshed:** 2026-05-14
 
 ## Convention
 
@@ -22,6 +22,9 @@ Single inventory of every env var that exists, where it's set, who consumes it, 
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | ✅ | ✅ | Yes (when Supabase queries land) | Supabase · `lib/supabase/*` | Public — `https://twebgqutuqgonabvhzjk.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ | ✅ | Yes (when Supabase queries land) | Supabase · `lib/supabase/{client,server,middleware}.ts` | Safe in browser **iff** RLS policies enforced |
 | `SUPABASE_SERVICE_ROLE_KEY` | ❌ Server | ✅ | ✅ | Only for admin operations | Supabase · `lib/supabase/admin.ts` | Bypasses RLS — never expose |
+| `BOOKING_RAPIDAPI_HOST` | ❌ Server | ✅ | ✅ | Yes — Booking enrichment + bulk runner fail without it | RapidAPI booking-com15 · `lib/admin/hotels/booking-fetcher.ts` | Value: `booking-com15.p.rapidapi.com` |
+| `BOOKING_RAPIDAPI_KEY` | ❌ Server | ✅ | ✅ | Yes — Booking enrichment + bulk runner fail without it | RapidAPI booking-com15 · `lib/admin/hotels/booking-fetcher.ts` | Pro tier · 35 k calls/mo · rotate via RapidAPI dashboard |
+| `GOOGLE_PLACES_API_KEY` | ❌ Server | ⏸ | ⏸ | Optional · gates geocoding runner | Google Places v1 · `scripts/enrich-hotels-coords.mjs` | API not yet activated in Google Cloud Console |
 
 ## Auth flags (Supabase Auth — production path)
 
