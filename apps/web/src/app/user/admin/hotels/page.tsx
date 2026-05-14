@@ -54,6 +54,8 @@ interface PageProps {
     chain?: string;
     affiliation?: string;
     enrichment?: string;
+    type?: string;
+    status?: string;
     needs_review?: string;
     sort?: string;
     page?: string;
@@ -161,6 +163,26 @@ function classifyEnrichment(hotel: HotelRecord): "enriched" | "partial" | "empty
   return "empty";
 }
 
+/** Operator-facing 3-tier status · complete (≥95%) · enriched (80–94%)
+ *  · partial (<80%). Replaces the empty tier since with CoStar core
+ *  in the scoring no hotel can read as empty. */
+function classifyStatus(hotel: HotelRecord): "complete" | "enriched" | "partial" {
+  const score = computeProfileCompleteness(hotel).score;
+  if (score >= 95) return "complete";
+  if (score >= 80) return "enriched";
+  return "partial";
+}
+
+/** 3-bucket type filter:
+ *   - hostel · name matches /hostel|albergue/i
+ *   - tourist_apartments · segment_type matches
+ *   - hotel · operating hotels + null + project (catch-all) */
+function classifyType(hotel: HotelRecord): "hotel" | "tourist_apartments" | "hostel" {
+  if (/hostel|albergue/i.test(hotel.name ?? "")) return "hostel";
+  if (hotel.segment_type === "tourist_apartments") return "tourist_apartments";
+  return "hotel";
+}
+
 export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const snap = await loadHotelsSnapshot();
   const diag = getSnapshotDiagnostics();
@@ -172,6 +194,9 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const chainFilter = (searchParams.chain ?? "").trim();
   const affiliationFilter = (searchParams.affiliation ?? "").trim();
   const enrichmentFilter = (searchParams.enrichment ?? "").trim();
+  // New 3-bucket filters (2026-05-14)
+  const typeFilter = (searchParams.type ?? "").trim();
+  const statusFilter = (searchParams.status ?? "").trim();
   const needsReviewOnly = searchParams.needs_review === "1";
   const sortKey: SortKey =
     (SORT_OPTIONS.find((o) => o.value === searchParams.sort)?.value as SortKey | undefined) ??
@@ -180,7 +205,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
 
   const filteredAll = snap
     ? snap.hotels.filter((h) =>
-        matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, enrichmentFilter, needsReviewOnly }),
+        matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, enrichmentFilter, typeFilter, statusFilter, needsReviewOnly }),
       )
     : [];
   const sorted = sortHotels(filteredAll, sortKey);
@@ -705,8 +730,8 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 font-mono text-[12px] text-slate-900 placeholder:text-slate-400 focus:border-forest-900 focus:outline-none"
               />
             </div>
-            <SelectControl name="market" label="Any market" current={marketFilter} options={(snap?.markets ?? []).map((m) => m.market_name)} />
             <SelectControl name="country" label="Any country" current={countryFilter} options={Array.from(new Set((snap?.hotels ?? []).map((h) => h.country)))} />
+            <SelectControl name="market" label="Any market" current={marketFilter} options={(snap?.markets ?? []).map((m) => m.market_name)} />
             <SelectControl
               name="chain"
               label="Class"
@@ -714,16 +739,16 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
               options={["luxury", "upper_upscale", "upscale", "upper_midscale", "midscale", "economy"]}
             />
             <SelectControl
-              name="affiliation"
-              label="Affiliation"
-              current={affiliationFilter}
-              options={["chain", "independent"]}
+              name="type"
+              label="Type"
+              current={typeFilter}
+              options={["hotel", "tourist_apartments", "hostel"]}
             />
             <SelectControl
-              name="enrichment"
-              label="Enrichment"
-              current={enrichmentFilter}
-              options={["empty", "partial", "enriched"]}
+              name="status"
+              label="Status"
+              current={statusFilter}
+              options={["complete", "enriched", "partial"]}
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">
@@ -1023,6 +1048,8 @@ function matchesQuery(
     chainFilter: string;
     affiliationFilter: string;
     enrichmentFilter: string;
+    typeFilter: string;
+    statusFilter: string;
     needsReviewOnly: boolean;
   },
 ): boolean {
@@ -1037,6 +1064,8 @@ function matchesQuery(
   if (f.enrichmentFilter) {
     if (classifyEnrichment(h) !== f.enrichmentFilter) return false;
   }
+  if (f.typeFilter && classifyType(h) !== f.typeFilter) return false;
+  if (f.statusFilter && classifyStatus(h) !== f.statusFilter) return false;
   if (f.needsReviewOnly && !hasMaterialReview(h._meta?.needs_review)) return false;
   return true;
 }
