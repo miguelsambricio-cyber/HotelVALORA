@@ -428,6 +428,9 @@ def read_jsonl_snapshots(files: list[Path]) -> tuple[dict[str, dict[str, Any]], 
                         "inbound_count": int(rec.get("inbound_count") or 0),
                         "outbound_count": int(rec.get("outbound_count") or 0),
                         "directionality": rec.get("directionality") or "",
+                        "bounce_count": int(rec.get("bounce_count") or 0),
+                        "last_bounce_date": rec.get("last_bounce_date") or "",
+                        "bounce_reasons": list(rec.get("bounce_reasons") or []),
                         "snapshot_source": path.name,
                     }
                 else:
@@ -443,6 +446,15 @@ def read_jsonl_snapshots(files: list[Path]) -> tuple[dict[str, dict[str, Any]], 
                         cur["last_email_date"] = ld
                     cur["inbound_count"] = max(cur["inbound_count"], int(rec.get("inbound_count") or 0))
                     cur["outbound_count"] = max(cur["outbound_count"], int(rec.get("outbound_count") or 0))
+                    # Bounces · max count (don't lose a bounce signal that exists in any snapshot)
+                    cur["bounce_count"] = max(cur.get("bounce_count", 0), int(rec.get("bounce_count") or 0))
+                    bd = rec.get("last_bounce_date") or ""
+                    if bd and (not cur.get("last_bounce_date") or bd > cur["last_bounce_date"]):
+                        cur["last_bounce_date"] = bd
+                    new_reasons = rec.get("bounce_reasons") or []
+                    if new_reasons:
+                        existing = cur.get("bounce_reasons") or []
+                        cur["bounce_reasons"] = list(dict.fromkeys(existing + list(new_reasons)))
                     # Re-derive directionality from totals
                     if cur["inbound_count"] > 0 and cur["outbound_count"] > 0:
                         cur["directionality"] = "bidirectional"
