@@ -852,12 +852,12 @@ def main(argv: list[str] | None = None) -> int:
             prev_ms = previous.get("market_snapshots", [])
             if len(prev_ms) > 0:
                 market_snapshots = prev_ms
-                logger.event("info", "market.carried_from_previous", kind="snapshots", count=len(prev_ms))
+                logger.event("info", "market.snapshots.carried_from_previous", count=len(prev_ms))
         if len(market_timeseries) == 0:
             prev_mt = previous.get("market_timeseries", [])
             if len(prev_mt) > 0:
                 market_timeseries = prev_mt
-                logger.event("info", "market.carried_from_previous", kind="timeseries", count=len(prev_mt))
+                logger.event("info", "market.timeseries.carried_from_previous", count=len(prev_mt))
         if len(projects) == 0:
             prev_pj = previous.get("projects", [])
             if len(prev_pj) > 0:

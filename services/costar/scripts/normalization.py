@@ -77,7 +77,7 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     "clasificacion_por_estrellas": "category", "estrellas_rating": "category",
     "segment": "segment_type", "segment_type": "segment_type", "segmento": "segment_type", "hotel_segment": "segment_type",
     # CoStar ES: "Tipo de ubicación del hotel" / "Tipo secundario"
-    "tipo_de_ubicacion_del_hotel": "segment_type", "tipo_secundario": "segment_type",
+    "tipo_secundario": "segment_type",
     "rooms": "rooms_count", "rooms_count": "rooms_count", "habitaciones": "rooms_count", "n_habitaciones": "rooms_count", "keys": "rooms_count",
     "year_opened": "year_opened", "opened": "year_opened", "year_built": "year_opened", "ano_apertura": "year_opened", "ano_construccion": "year_opened",
     # CoStar ES: "Año de construcción" → "ano_de_construccion" (extra "de") · "Fecha de apertura del hotel"
@@ -117,7 +117,87 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     "salas_de_reuniones": "meeting_rooms_count", "meeting_rooms_count": "meeting_rooms_count",
     "meeting_rooms": "meeting_rooms_count",
     "parking_spaces": "parking_spaces", "parking": "parking_spaces",
+    "plazas_de_parking": "parking_spaces",  # CoStar ES literal column name
     "score": "score_costar", "score_costar": "score_costar", "puntuacion": "score_costar", "rating_costar": "score_costar",
+    # ── v1.3 · institutional CoStar passthrough (2026-05-14) ──
+    # Capture all institutionally-relevant CoStar columns so the master
+    # XLSX reaches column-parity with the source export. FEMA flood-plain
+    # fields (US-only · always NULL for Spain) and clear duplicates are
+    # excluded by design.
+    "id_del_inmueble": "costar_property_id",
+    "tipo_de_operacion": "operation_type",
+    "estado_de_construccion": "construction_state",
+    "estado_de_funcionamiento": "operating_state",
+    "habitaciones_de_expansion": "expansion_rooms",
+    "fecha_de_estado_de_expansion": "expansion_status_date",
+    "estado_de_expansion": "expansion_status",
+    "ciudad": "city_es_costar",  # already aliased; kept here for visibility
+    "estado_o_provincia": "state_province",
+    "participacion_en_los_datos": "data_participation",
+    "espacio_de_reunion_contig_max": "meeting_contig_sqm",
+    "tipo_de_ubicacion_del_hotel": "location_type",  # overrides earlier segment_type mapping (operator confirmed: tipo_secundario = segment, ubicacion = location_type)
+    "precio_todo_incluido": "all_inclusive_price",
+    "todos_los_modulos": "modules",
+    "ejes_principales": "main_axes",
+    "plazas_de_parking_habitacion": "parking_per_room",
+    "fondo": "fund",
+    "tipo": "property_type",
+    "clasificacion_ecologica": "eco_rating",
+    "estado": "operating_status",
+    "m2_disp": "rentable_sqm_available",  # CoStar: "m² disp." (available leasable area)
+    # FEMA flood-plain (US-only · always null for Spanish hotels but captured for institutional parity)
+    "riesgo_de_inundacion": "flood_risk",
+    "zona_de_inundacion": "flood_zone",
+    "fecha_del_mapa_de_la_fema": "fema_map_date",
+    "identificador_de_mapa_de_la_fema": "fema_map_id",
+    "id_del_mapa_firm": "firm_map_id",
+    "numero_de_panel_de_firm": "firm_panel_number",
+    "zona_especial_de_riesgo_de_inundacion": "flood_special_risk_zone",
+    "zona_de_llanura_inundable": "flood_plain_zone",
+    # Commercial-rent fields (mostly null for hotels but in source for parity)
+    "precio_de_alquiler_min_m2_mes": "rent_min_per_sqm_month",
+    "precio_de_alquiler_max_m2_mes": "rent_max_per_sqm_month",
+    "precio_de_alquiler_no_divulgado": "rent_undisclosed",
+    "precio_de_venta_no_divulgado": "sale_price_undisclosed",
+    "venta_solo_de_multipropietarios": "multi_owner_sale_only",
+    "precio_superficie_no_divulgado_a": "price_per_sqm_undisclosed",
+    "pagina_de_mapa": "map_page",
+    "precio_de_salida_de_alquiler_min_mes": "rent_listing_min_month",
+    "precio_de_salida_de_alquiler_max_mes": "rent_listing_max_month",
+    "precio_de_salida_de_alquiler_no_divulgado": "rent_listing_undisclosed",
+    "repres_del_propietario": "owner_rep",
+    "contacto_repres_del_propietario": "owner_rep_contact",
+    "cluster_de_submercado": "submarket_cluster",
+    "condado": "county",
+    "pais": "country",  # already aliased above (line 56) · kept for visibility
+    "continente": "continent",
+    "subcontinente": "subcontinent",
+    "empresa_de_ventas": "sales_company",
+    "contacto_de_ventas": "sales_contact",
+    "precio_de_venta": "asking_sale_price",
+    "precio_min_m2": "price_per_sqm_min",
+    "precio_max_m2": "price_per_sqm_max",
+    "tipo_de_interes": "interest_rate_type",  # 2 cols in source (94+95) · second one overwrites · acceptable for institutional review
+    # CoStar commercial-rent columns (mostly null for hotels but captured for parity)
+    "alquiler_estimado": "rent_estimated",
+    "alquiler": "rent_listing",
+    "precio_habitacion": "price_per_room",
+    "estado_de_venta": "sale_status",
+    "alquilado": "leased_pct",
+    "ratio_de_parking": "parking_ratio",
+    "parque_de_edificios": "building_park",
+    "mes_de_construccion": "construction_month",
+    "mes_de_reform": "renovation_month",
+    "zonificacion": "zoning",
+    "propietario_registrado": "registered_owner",
+    "inicio_de_construccion": "construction_start",
+    "importe_de_originacion": "loan_origination_amount",
+    "fecha_de_originacion": "loan_origination_date",
+    "fecha_de_vencimiento": "loan_maturity_date",
+    "prestamista": "lender",
+    "tipo_de_garantia": "collateral_type",
+    "tipo_de_prestamo": "loan_type",
+    "multipropietarios": "co_owners",
     # CoStar ES: "Fecha de la última venta" + "Último precio de venta"
     "fecha_de_la_ultima_venta": "last_sale_date", "ultima_venta": "last_sale_date",
     "last_sale_date": "last_sale_date", "fecha_ultima_venta": "last_sale_date",
@@ -514,9 +594,14 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
     score, r = normalise_numeric(raw.get("score_costar"))
     reasons += r
 
+    # v1.3 stability constraint: hotel_id MUST stay synthetic to preserve
+    # the linkage built on top of it (Booking enrichment in Supabase
+    # Storage, transactions linkage, compset memberships). Include
+    # costar_property_id as a passthrough column on the row but DO NOT
+    # use it in the hash · otherwise existing enrichment is orphaned.
     costar_property_id = raw.get("costar_property_id")
-    canonical_hotel_id = hotel_id(country, market, name, str(costar_property_id) if costar_property_id else None)
-    hotel_id_synthetic = not bool(costar_property_id)
+    canonical_hotel_id = hotel_id(country, market, name, None)
+    hotel_id_synthetic = True
 
     row = {
         "country": country,
@@ -560,6 +645,82 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         "competitive_set_ids": [],
         "transactions_history_ref": None,
         "notes": None,
+        # ── v1.3 institutional CoStar passthrough (2026-05-14) ──
+        # Direct passthrough · no normalisation · these fields carry
+        # through to the HOTELESperMARKET master for institutional review.
+        # Numeric fields stay as openpyxl returns them; string fields are
+        # stripped to None when blank.
+        "costar_property_id": raw.get("costar_property_id"),
+        "city": (raw.get("city_es_costar") or None) or None,
+        "state_province": (raw.get("state_province") or None) or None,
+        "county": (raw.get("county") or None) or None,
+        "continent": (raw.get("continent") or None) or None,
+        "subcontinent": (raw.get("subcontinent") or None) or None,
+        "submarket_cluster": (raw.get("submarket_cluster") or None) or None,
+        "location_type": (raw.get("location_type") or None) or None,
+        "operation_type": (raw.get("operation_type") or None) or None,
+        "construction_state": (raw.get("construction_state") or None) or None,
+        "operating_state": (raw.get("operating_state") or None) or None,
+        "operating_status": (raw.get("operating_status") or None) or None,
+        "expansion_rooms": raw.get("expansion_rooms"),
+        "expansion_status": (raw.get("expansion_status") or None) or None,
+        "expansion_status_date": raw.get("expansion_status_date"),
+        "data_participation": (raw.get("data_participation") or None) or None,
+        "meeting_contig_sqm": raw.get("meeting_contig_sqm"),
+        "all_inclusive_price": raw.get("all_inclusive_price"),
+        "modules": (raw.get("modules") or None) or None,
+        "main_axes": (raw.get("main_axes") or None) or None,
+        "parking_per_room": raw.get("parking_per_room"),
+        "parking_ratio": raw.get("parking_ratio"),
+        "fund": (raw.get("fund") or None) or None,
+        "property_type": (raw.get("property_type") or None) or None,
+        "eco_rating": (raw.get("eco_rating") or None) or None,
+        "rentable_sqm_available": raw.get("rentable_sqm_available"),
+        "owner_rep": (raw.get("owner_rep") or None) or None,
+        "owner_rep_contact": (raw.get("owner_rep_contact") or None) or None,
+        "sales_company": (raw.get("sales_company") or None) or None,
+        "sales_contact": (raw.get("sales_contact") or None) or None,
+        "asking_sale_price": raw.get("asking_sale_price"),
+        "price_per_sqm_min": raw.get("price_per_sqm_min"),
+        "price_per_sqm_max": raw.get("price_per_sqm_max"),
+        "price_per_room": raw.get("price_per_room"),
+        "sale_status": (raw.get("sale_status") or None) or None,
+        "leased_pct": raw.get("leased_pct"),
+        "building_park": (raw.get("building_park") or None) or None,
+        "construction_month": (raw.get("construction_month") or None) or None,
+        "renovation_month": (raw.get("renovation_month") or None) or None,
+        "zoning": (raw.get("zoning") or None) or None,
+        "registered_owner": (raw.get("registered_owner") or None) or None,
+        "construction_start": raw.get("construction_start"),
+        "loan_origination_amount": raw.get("loan_origination_amount"),
+        "loan_origination_date": raw.get("loan_origination_date"),
+        "loan_maturity_date": raw.get("loan_maturity_date"),
+        "lender": (raw.get("lender") or None) or None,
+        "interest_rate_type": (raw.get("interest_rate_type") or None) or None,
+        "collateral_type": (raw.get("collateral_type") or None) or None,
+        "loan_type": (raw.get("loan_type") or None) or None,
+        "co_owners": (raw.get("co_owners") or None) or None,
+        "rent_estimated": raw.get("rent_estimated"),
+        "rent_listing": raw.get("rent_listing"),
+        "rent_min_per_sqm_month": raw.get("rent_min_per_sqm_month"),
+        "rent_max_per_sqm_month": raw.get("rent_max_per_sqm_month"),
+        # Non-disclosed flags + FEMA · captured for parity · always null in Spain
+        "rent_undisclosed": raw.get("rent_undisclosed"),
+        "sale_price_undisclosed": raw.get("sale_price_undisclosed"),
+        "multi_owner_sale_only": raw.get("multi_owner_sale_only"),
+        "price_per_sqm_undisclosed": raw.get("price_per_sqm_undisclosed"),
+        "map_page": raw.get("map_page"),
+        "rent_listing_min_month": raw.get("rent_listing_min_month"),
+        "rent_listing_max_month": raw.get("rent_listing_max_month"),
+        "rent_listing_undisclosed": raw.get("rent_listing_undisclosed"),
+        "flood_risk": (raw.get("flood_risk") or None) or None,
+        "flood_zone": (raw.get("flood_zone") or None) or None,
+        "fema_map_date": raw.get("fema_map_date"),
+        "fema_map_id": raw.get("fema_map_id"),
+        "firm_map_id": raw.get("firm_map_id"),
+        "firm_panel_number": raw.get("firm_panel_number"),
+        "flood_special_risk_zone": (raw.get("flood_special_risk_zone") or None) or None,
+        "flood_plain_zone": (raw.get("flood_plain_zone") or None) or None,
         "_match_name": normalise_str_for_key(name),
         "_match_address": normalise_address(raw.get("address_line")),
     }
