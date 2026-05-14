@@ -70,8 +70,11 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     #           chain_scale; Escala only catches "Independiente" → independent below.
     "clase": "chain_scale", "escala": "chain_scale_or_affiliation",
     "category": "category", "stars": "category", "estrellas": "category", "star_rating": "category",
-    # CoStar ES: "Clasificación hotelera" (official star rating field)
+    # CoStar ES: "Clasificación hotelera" + "Clasificación por estrellas" (both
+    # carry the star rating · the first is the institutional hotel-classification
+    # field, the second is CoStar's stars column). Either populates `category`.
     "clasificacion_hotelera": "category", "clasificacion": "category",
+    "clasificacion_por_estrellas": "category", "estrellas_rating": "category",
     "segment": "segment_type", "segment_type": "segment_type", "segmento": "segment_type", "hotel_segment": "segment_type",
     # CoStar ES: "Tipo de ubicación del hotel" / "Tipo secundario"
     "tipo_de_ubicacion_del_hotel": "segment_type", "tipo_secundario": "segment_type",
@@ -90,6 +93,8 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     # CoStar canonical column: "Superficie alquilable" → gross area (m²)
     # Also accept "Superficie construida" / "Gross Building Area" / "Área construida"
     "superficie_alquilable": "gross_building_sqm", "superficie_alquilable_m2": "gross_building_sqm",
+    "superficie_alquilable_del_inmueble": "gross_building_sqm",
+    "superficie_alquilable_del_inmueble_sba": "gross_building_sqm",
     "rentable_area": "gross_building_sqm", "leasable_area": "gross_building_sqm",
     "superficie_construida": "gross_building_sqm", "area_construida": "gross_building_sqm",
     "gross_building_sqm": "gross_building_sqm", "gross_building_area": "gross_building_sqm",
@@ -110,6 +115,12 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     "espacio_de_reunion_total": "meeting_space_sqm", "espacio_de_reunion_contig_max": "meeting_space_contig_sqm",
     "parking_spaces": "parking_spaces", "parking": "parking_spaces",
     "score": "score_costar", "score_costar": "score_costar", "puntuacion": "score_costar", "rating_costar": "score_costar",
+    # CoStar ES: "Fecha de la última venta" + "Último precio de venta"
+    "fecha_de_la_ultima_venta": "last_sale_date", "ultima_venta": "last_sale_date",
+    "last_sale_date": "last_sale_date", "fecha_ultima_venta": "last_sale_date",
+    "ultimo_precio_de_venta": "last_sale_price_eur", "ultimo_precio_venta": "last_sale_price_eur",
+    "last_sale_price": "last_sale_price_eur", "last_sale_price_eur": "last_sale_price_eur",
+    "precio_ultima_venta": "last_sale_price_eur",
 }
 
 
@@ -458,6 +469,35 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
     reasons += r
     typical_floor_sqm, r = normalise_numeric(raw.get("typical_floor_sqm"))
     reasons += r
+    last_sale_price_eur, r = normalise_numeric(raw.get("last_sale_price_eur"))
+    reasons += r
+    # last_sale_date · CoStar ES exports as "DD/MM/YYYY" string · also
+    # accept Excel datetime cells (isoformat()) when openpyxl parsed them
+    # natively. Output is ISO "YYYY-MM-DD" so the UI can sort/compare.
+    raw_lsd = raw.get("last_sale_date")
+    last_sale_date = None
+    if raw_lsd is None:
+        pass
+    elif hasattr(raw_lsd, "isoformat"):
+        last_sale_date = raw_lsd.isoformat()[:10]
+    else:
+        s = str(raw_lsd).strip()
+        if s:
+            # Try DD/MM/YYYY · DD-MM-YYYY · YYYY-MM-DD · M/D/YYYY (US fallback)
+            import re as _re
+            m = _re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$", s)
+            if m:
+                d, mo, y = m.group(1), m.group(2), m.group(3)
+                # Heuristic: if first number > 12, it must be day · DD/MM/YYYY
+                # If second > 12 it must be day · MM/DD/YYYY · else assume ES DD/MM/YYYY
+                d_int, mo_int = int(d), int(mo)
+                if mo_int > 12 and d_int <= 12:
+                    d, mo = mo, d
+                last_sale_date = f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
+            elif _re.match(r"^\d{4}-\d{2}-\d{2}", s):
+                last_sale_date = s[:10]
+            else:
+                last_sale_date = s
     meeting_sqm, r = normalise_numeric(raw.get("meeting_space_sqm"))
     reasons += r
     parking, r = normalise_numeric(raw.get("parking_spaces"), kind="integer")
@@ -498,6 +538,8 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         "gross_building_sqm": gross_building_sqm,
         "lot_size_sqm": lot_size_sqm,
         "typical_floor_sqm": typical_floor_sqm,
+        "last_sale_date": last_sale_date,
+        "last_sale_price_eur": last_sale_price_eur,
         "address_line": (raw.get("address_line") or None) or None,
         "postal_code": (raw.get("postal_code") or None) or None,
         "latitude": lat,

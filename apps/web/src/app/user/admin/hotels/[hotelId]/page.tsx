@@ -159,25 +159,31 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             <Pair label="Lot size (m²)" value={fmtSqm(hotel.lot_size_sqm)} />
             <Pair label="Typical floor (m²)" value={fmtSqm(hotel.typical_floor_sqm)} />
             {(() => {
-              // Derive last sale from the hotel's transaction history ·
-              // most-recent closed_at with a known price_eur wins
+              // Priority for last-sale fields:
+              //   1. Most-recent linked transaction (richest provenance)
+              //   2. Hotel record's last_sale_date / last_sale_price_eur
+              //      (CoStar "Fecha de la última venta" / "Último precio de venta")
               const sorted = [...transactions]
                 .filter((t) => t.closed_at && t.price_eur != null)
                 .sort((a, b) => (b.closed_at ?? "").localeCompare(a.closed_at ?? ""));
-              const last = sorted[0];
+              const lastTx = sorted[0];
+              const date = lastTx?.closed_at ?? hotel.last_sale_date ?? null;
+              const price = lastTx?.price_eur ?? hotel.last_sale_price_eur ?? null;
               return (
                 <>
-                  <Pair label="Last sale date" value={last?.closed_at ?? "—"} mono />
-                  <Pair label="Last sale price" value={fmtPriceEur(last?.price_eur)} />
+                  <Pair label="Last sale date" value={date ?? "—"} mono />
+                  <Pair label="Last sale price" value={fmtPriceEur(price)} />
                 </>
               );
             })()}
           </Section>
 
           <Section title="Location" icon={<MapPin size={14} />}>
+            <Pair label="Country" value={hotel.country ?? "—"} />
+            <Pair label="Market" value={hotel.market_name ?? "—"} />
+            <Pair label="Submarket" value={hotel.submarket_name ?? "—"} />
             <Pair label="Address" value={hotel.address_line ?? "—"} />
             <Pair label="Postal code" value={hotel.postal_code ?? "—"} />
-            <Pair label="Submarket" value={hotel.submarket_name ?? "—"} />
             {(() => {
               // Coordinate resolution priority:
               //   1. CoStar canonical (hotel.latitude/longitude)

@@ -4,6 +4,54 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Location · Country/Market lines + last_sale schema + ingest re-run unblocks 80%+ field coverage
+
+Operator observed many CoStar-side fields still rendered "—" (category, segment, gross area, etc). Root cause: the snapshot in production was generated before the new aliases landed. This pass adds the last missing pieces, runs a clean re-ingest, and uploads the fresh snapshot.
+
+UI tweaks
+- Location section now shows full geographic hierarchy: Country · Market · Submarket · Address · Postal code (was missing Country and Market)
+- last_sale fields now have a hotel-record fallback path (CoStar canonical "Fecha de la última venta" / "Último precio de venta") · still prefers the linked-transaction date when present
+
+Schema · last_sale fields added
+- `HotelReferenceRecord.last_sale_date: string | null` (ISO YYYY-MM-DD)
+- `HotelReferenceRecord.last_sale_price_eur: number | null`
+
+Python normalization · last_sale + missing aliases
+- `fecha_de_la_ultima_venta` / `ultima_venta` / `fecha_ultima_venta` / `last_sale_date` → `last_sale_date`
+- `ultimo_precio_de_venta` / `precio_ultima_venta` / `last_sale_price` → `last_sale_price_eur`
+- `clasificacion_por_estrellas` → `category` (CoStar has two stars-bearing columns · both now populate)
+- `superficie_alquilable_del_inmueble_sba` → `gross_building_sqm` (the full SBA-suffixed column name CoStar uses)
+- Date parser handles ES `DD/MM/YYYY` string → ISO `YYYY-MM-DD` (with US `MM/DD/YYYY` heuristic when day > 12)
+- Excel datetime cells also accepted (isoformat fallback)
+
+Re-ingest results · `python services/costar/scripts/ingest.py`
+- Files processed: 1 / archived: 1
+- 364 hotels merged · stateful merge preserved all enrichment
+
+Field coverage after re-ingest (of 364 hotels):
+| Field                | Before | After |
+|---------------------|--------|-------|
+| category             | 0      | 312   |
+| segment_type         | 0      | 338   |
+| gross_building_sqm   | 0      | 363   |
+| lot_size_sqm         | 0      | 306   |
+| typical_floor_sqm    | 0      | 345   |
+| last_sale_date       | 0      | 62    |
+| last_sale_price_eur  | 0      | 32    |
+| floors (Plantas)     | 0      | 364   |
+
+Sample verifications
+- AC Hotel Avenida de América: category=4 · segment=hotel · gross=5744 m² · lot=1170 m² · planta=797 m² · floors=6 · last_sale=null (CoStar had no sale on this hotel)
+- Hotel Puerta América: category=5 · gross=31243 m² · last_sale=2017-03-15 · €16.3M
+- NH Madrid Chamberí: category=3 · last_sale=2003-06-01 · €8.5M
+
+Snapshot upload
+- `node --env-file=.env.local scripts/upload-snapshot.mjs`
+- 1.66 MB · schema v1.7 · batch_170a27dfbf594b69
+- Production `/user/admin/hotels` reflects new data within 30s cache TTL
+
+---
+
 ## 2026-05-14 — CoStar mapping correction · last-sale + Meeting rooms always visible
 
 Operator clarification on which CoStar source columns each property field maps to:

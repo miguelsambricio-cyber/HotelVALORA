@@ -68,6 +68,12 @@ export interface HotelReferenceRecord {
   floors_above_ground: number | null;
   /** Floors below ground (basement levels). */
   floors_below_ground: number | null;
+  /** Date of the last asset sale · CoStar "Fecha de la última venta".
+   *  ISO YYYY-MM-DD string when known. The UI also derives a fall-back
+   *  value from the linked transactions array when this is null. */
+  last_sale_date: string | null;
+  /** Last sale price in EUR · CoStar "Último precio de venta". */
+  last_sale_price_eur: number | null;
 
   // Location
   address_line: string | null;
