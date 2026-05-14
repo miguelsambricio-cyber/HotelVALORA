@@ -428,15 +428,15 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 }
               />
               <Kpi
+                label="Projects"
+                value={snap?.totals.projects ?? 0}
+                hint="pipeline"
+              />
+              <Kpi
                 label="Compsets"
                 value={compsetDisplay}
                 tone="amber"
                 hint={compsetHint}
-              />
-              <Kpi
-                label="Projects"
-                value={snap?.totals.projects ?? 0}
-                hint="pipeline"
               />
             </section>
 
