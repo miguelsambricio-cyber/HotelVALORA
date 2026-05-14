@@ -29,6 +29,21 @@ interface FieldDef {
 }
 
 const FIELD_DEFS: FieldDef[] = [
+  // ── CoStar institutional core (35 pts) ──
+  // Always-or-mostly-populated CoStar canonical fields. Every hotel
+  // with a clean CoStar record contributes here · ensures no hotel
+  // reads as "empty" when it has CoStar coverage.
+  { key: "Rooms count", weight: 5, check: ({ hotel: h }) => (h?.rooms_count ?? 0) > 0 },
+  { key: "Chain scale", weight: 4, check: ({ hotel: h }) => !!h?.chain_scale },
+  { key: "Gross building area", weight: 4, check: ({ hotel: h }) => (h?.gross_building_sqm ?? 0) > 0 },
+  { key: "Operator", weight: 4, check: ({ hotel: h }) => !!h?.operator },
+  { key: "Category (stars)", weight: 4, check: ({ hotel: h }) => !!h?.category },
+  { key: "Segment type", weight: 3, check: ({ hotel: h }) => !!h?.segment_type },
+  { key: "Brand", weight: 3, check: ({ hotel: h }) => !!h?.brand },
+  { key: "Year opened", weight: 3, check: ({ hotel: h }) => (h?.year_opened ?? 0) > 0 },
+  { key: "Address", weight: 3, check: ({ hotel: h }) => !!h?.address_line },
+  { key: "CoStar score", weight: 2, check: ({ hotel: h }) => h?.score_costar != null },
+  // ── Booking enrichment depth (100 pts) ──
   // Heavy-weight institutional fields
   { key: "Room types", weight: 15, check: ({ profile: p }) => (p?.room_types?.length ?? 0) > 0 },
   { key: "Facilities (detailed)", weight: 10, check: ({ profile: p }) => (p?.facilities_detailed?.length ?? 0) > 0 },
