@@ -21,6 +21,7 @@ import { AddHotelModal } from "@/components/admin/hotels/add-hotel-modal";
 import { AddDealModal } from "@/components/admin/hotels/add-deal-modal";
 import { BulkBookingButton } from "@/components/admin/hotels/bulk-booking-button";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
+import { hasMaterialReview } from "@/lib/admin/hotels/review-reasons";
 
 export const dynamic = "force-dynamic";
 
@@ -1035,13 +1036,13 @@ function matchesQuery(
   if (f.enrichmentFilter) {
     if (classifyEnrichment(h) !== f.enrichmentFilter) return false;
   }
-  if (f.needsReviewOnly && (h._meta?.needs_review.length ?? 0) === 0) return false;
+  if (f.needsReviewOnly && !hasMaterialReview(h._meta?.needs_review)) return false;
   return true;
 }
 
 function HotelRow({ hotel }: { hotel: HotelRecord }) {
   const conf = hotel._meta?.confidence ?? 1;
-  const needsReview = (hotel._meta?.needs_review.length ?? 0) > 0;
+  const needsReview = hasMaterialReview(hotel._meta?.needs_review);
   const isManualNew =
     hotel._meta?.source === "manual_entry" && hotel._meta?.review_status === "new";
   const completeness = computeProfileCompleteness(hotel.profile);

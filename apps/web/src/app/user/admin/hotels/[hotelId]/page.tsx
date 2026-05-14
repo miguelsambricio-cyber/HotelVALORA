@@ -23,6 +23,7 @@ import {
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 import { computeHotelVALORAScore } from "@/lib/admin/hotels/hotelvalora-score";
 import { summariseRoomMix } from "@/lib/admin/hotels/room-mix";
+import { getMaterialReviewReasons } from "@/lib/admin/hotels/review-reasons";
 
 export const dynamic = "force-dynamic";
 
@@ -104,24 +105,32 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
         </p>
       </header>
 
-      {/* Confidence + review banner */}
-      {hotel._meta && hotel._meta.needs_review.length > 0 && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={14} className="text-amber-600" aria-hidden />
-            <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-900">
-              Needs review · confidence {(hotel._meta.confidence * 100).toFixed(0)}%
-            </p>
+      {/* Confidence + review banner · suppress reasons we already handle
+            gracefully via UI fallback paths. Missing latitude/longitude
+            is recoverable through the "find on Google Maps" CTA in the
+            Location section, so it's not review-worthy. */}
+      {(() => {
+        if (!hotel._meta) return null;
+        const visibleReasons = getMaterialReviewReasons(hotel._meta.needs_review);
+        if (visibleReasons.length === 0) return null;
+        return (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-amber-600" aria-hidden />
+              <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-amber-900">
+                Needs review · confidence {(hotel._meta.confidence * 100).toFixed(0)}%
+              </p>
+            </div>
+            <ul className="mt-2 space-y-0.5 text-[12px] text-amber-900">
+              {visibleReasons.map((reason) => (
+                <li key={reason} className="font-mono text-[11.5px]">
+                  · {reason}
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="mt-2 space-y-0.5 text-[12px] text-amber-900">
-            {hotel._meta.needs_review.map((reason) => (
-              <li key={reason} className="font-mono text-[11.5px]">
-                · {reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Profile (2/3) */}
