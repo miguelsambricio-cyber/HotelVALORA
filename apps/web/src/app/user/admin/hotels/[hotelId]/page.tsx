@@ -603,7 +603,7 @@ const CORRECTABLE_FIELDS = [
 function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
   const profile = hotel.profile;
   const meta = hotel._enrichment_meta;
-  const completeness = computeProfileCompleteness(profile);
+  const completeness = computeProfileCompleteness(hotel);
   const isEnriched = !!profile;
   const hvScore = computeHotelVALORAScore(hotel);
   const headerHint = isEnriched

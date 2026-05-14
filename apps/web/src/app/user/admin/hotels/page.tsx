@@ -138,15 +138,15 @@ function sortHotels(rows: HotelRecord[], key: SortKey): HotelRecord[] {
     case "brand": return arr.sort((a, b) => cmpStr(a.brand, b.brand, 1));
     case "completeness_asc":
       return arr.sort((a, b) => {
-        const sa = computeProfileCompleteness(a.profile).score;
-        const sb = computeProfileCompleteness(b.profile).score;
+        const sa = computeProfileCompleteness(a).score;
+        const sb = computeProfileCompleteness(b).score;
         if (sa !== sb) return sa - sb;
         return cmpStr(a.name, b.name, 1);
       });
     case "completeness_desc":
       return arr.sort((a, b) => {
-        const sa = computeProfileCompleteness(a.profile).score;
-        const sb = computeProfileCompleteness(b.profile).score;
+        const sa = computeProfileCompleteness(a).score;
+        const sb = computeProfileCompleteness(b).score;
         if (sa !== sb) return sb - sa;
         return cmpStr(a.name, b.name, 1);
       });
@@ -155,7 +155,7 @@ function sortHotels(rows: HotelRecord[], key: SortKey): HotelRecord[] {
 }
 
 function classifyEnrichment(hotel: HotelRecord): "enriched" | "partial" | "empty" {
-  const score = computeProfileCompleteness(hotel.profile).score;
+  const score = computeProfileCompleteness(hotel).score;
   if (score >= 80) return "enriched";
   if (score > 0) return "partial";
   return "empty";
@@ -350,11 +350,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
         // partial Booking-grade profile data. 80%+ = "enriched"; any
         // partial profile counts as "in progress"; zero = "empty".
         const enrichedCount = hotels.filter((h) => {
-          const s = computeProfileCompleteness(h.profile).score;
+          const s = computeProfileCompleteness(h).score;
           return s >= 80;
         }).length;
         const partialCount = hotels.filter((h) => {
-          const s = computeProfileCompleteness(h.profile).score;
+          const s = computeProfileCompleteness(h).score;
           return s > 0 && s < 80;
         }).length;
         const enrichedTone: "emerald" | "amber" | "slate" =
@@ -682,11 +682,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 // worst-enriched hotels go first. Cap at 25 server-side
                 // anyway · the component caps display.
                 const eligible = sorted
-                  .filter((h) => computeProfileCompleteness(h.profile).score < 80)
+                  .filter((h) => computeProfileCompleteness(h).score < 80)
                   .sort(
                     (a, b) =>
-                      computeProfileCompleteness(a.profile).score -
-                      computeProfileCompleteness(b.profile).score,
+                      computeProfileCompleteness(a).score -
+                      computeProfileCompleteness(b).score,
                   );
                 return (
                   <BulkBookingButton
@@ -1054,7 +1054,7 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
   const needsReview = hasMaterialReview(hotel._meta?.needs_review);
   const isManualNew =
     hotel._meta?.source === "manual_entry" && hotel._meta?.review_status === "new";
-  const completeness = computeProfileCompleteness(hotel.profile);
+  const completeness = computeProfileCompleteness(hotel);
   const enrichTone =
     completeness.score >= 80
       ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
