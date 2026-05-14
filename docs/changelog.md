@@ -4,6 +4,47 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Bulk Booking enrichment over 364 Madrid hotels · 217 enriched (60% coverage)
+
+Operator upgraded RapidAPI booking-com15 to Pro tier (35k calls/month) · ran the full bulk over the Madrid inventory.
+
+### Runner improvements (this commit)
+- `--concurrency N` flag · refactored main loop into a worker-pool pattern · 10 parallel workers processed 364 hotels in 210s (3.5 min) · was projecting 90+ min serial
+- Refactor: per-hotel logic extracted to `processHotel(hotel, i)` function · workers pull from a shared queue · 5 consecutive 429s across any worker triggers global abort
+- `booking-fetcher.ts::searchHotelsByCoordinates(lat, lng)` · new endpoint wrapper for future disambiguation pass (when CoStar names match wrong Booking properties because they share a building, e.g. "Edificio Eurobuilding 2" matched a Pierre & Vacances apartment listing in the same building)
+
+### Bulk run results
+- 198 hotels enriched in this run · plus 19 already-enriched preserved = **217 total** in `manual_enrichment/`
+- 147 hotels need disambiguation · Booking returned no Spain-country hotels matching the canonical CoStar names (typically because the name is too specific: "URBAN SEA Atocha 113" · "Sercotel Togumar, Ascend Hotel Collection" · "Mualto Madrid Princesa")
+- 0 API errors · 0 upload errors · Pro tier handled the burst cleanly
+- Elapsed: 210s · effective ~1.7 hotels/sec under concurrency 10
+
+### Completeness distribution (217 enriched)
+- avg `profile_completeness_score`: **52%**
+- 71-100% complete: 8 hotels
+- 51-70% complete: 119 hotels
+- 31-50% complete: 89 hotels
+- 1-30% complete: 1 hotel
+- 0% complete: 0 hotels
+
+### Sample enriched hotels
+- The Westin Madrid Cuzco · 70% complete · 13 facilities · 29 room types · ★8.9 · 100% match
+- Barceló Imagine · 69% complete · 18 facilities · 60 room types · ★9.1
+- NH Madrid Ventas · 69% complete · 16 facilities · 8 room types · ★8.6
+- Leonardo Hotel Madrid City Center · 60% · 13 facilities · 18 rooms · ★8.4
+
+### Next steps (operator-driven)
+1. **Disambiguation pass for 147 ambig hotels** · use `searchHotelsByCoordinates` once Google Places API resolves lat/lng (or operator manually edits the canonical name)
+2. **Re-enrich the 19 originally-skipped** · they were captured before sub-scores + policies + lat/lng landed · re-run without `--skip-enriched` to refresh
+3. **Google Places** · operator provides API key · CLI fills remaining coords + addressComponents
+4. **Snapshot regeneration not needed** · web app reads `manual_enrichment/` records at request time via `_mergeAllManual` · 30s cache TTL · changes already visible
+
+### Production impact
+- `/user/admin/hotels` list page · 217 hotels now show real completeness chips (50-70% range typical) instead of "empty"
+- Each detail page renders: Booking Hotel ID · Location score · Confort score · HotelVALORA score · Room mix from Booking room_types · Meeting rooms from CoStar count · 10-facility icon grid · policies (where Booking returned them)
+
+---
+
 ## 2026-05-14 — Google Places API v1 integration (Phase 3.f.next 5)
 
 CoStar export doesn't ship lat/lng for any of the 364 hotels · every hotel detail page falls back to the "find on Google Maps" CTA. Operator pointed to the Places API as the canonical source.

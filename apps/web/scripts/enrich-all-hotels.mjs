@@ -48,6 +48,7 @@ const SKIP_ENRICHED = flag("--skip-enriched");
 const BASIC = flag("--basic");
 const THROTTLE_MS = parseInt(arg("--throttle", "250"), 10);
 const MIN_MATCH = parseFloat(arg("--min-match", "0.7"));
+const CONCURRENCY = parseInt(arg("--concurrency", "1"), 10);
 
 // ── Config ──────────────────────────────────────────────────────────────
 const HOST = process.env.BOOKING_RAPIDAPI_HOST ?? "booking-com15.p.rapidapi.com";
@@ -412,19 +413,21 @@ const stats = { total: hotels.length, ok: 0, ambig: 0, skipped: 0, no_match: 0, 
 const log = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-for (let i = 0; i < hotels.length; i++) {
-  const hotel = hotels[i];
+// Worker function · processes ONE hotel. Wrapped so we can run a
+// configurable pool of these in parallel (Pro RapidAPI tier handles
+// ~10 RPS easily and CoStar Madrid coverage is 364 hotels · serial
+// = 90+ minutes · concurrency 10 = ~10 minutes).
+async function processHotel(hotel, i) {
   const prefix = `[${String(i + 1).padStart(3, "0")}/${hotels.length}]`;
   const idShort = hotel.hotel_id.slice(0, 18);
   const nameShort = (hotel.name || "").slice(0, 30);
 
-  if (stats.consecutive_rl >= 5) { console.error(`${prefix} ✗ ABORT · 5 consecutive rate-limits`); break; }
   if (SKIP_ENRICHED && skipSet.has(hotel.hotel_id)) {
     stats.skipped += 1;
     if (i < 3 || i % 50 === 0) console.log(`${prefix} ⊘ ${idShort} · ${nameShort} · already enriched`);
-    continue;
+    return;
   }
-  if (!hotel.name?.trim()) { stats.no_match += 1; continue; }
+  if (!hotel.name?.trim()) { stats.no_match += 1; return; }
 
   try {
     // 1. searchDestination(hotel_name) — look for hotel-type hit
@@ -450,7 +453,7 @@ for (let i = 0; i < hotels.length; i++) {
       stats.ambig += 1;
       log.push({ hotel_id: hotel.hotel_id, status: "ambig", name: hotel.name, top_name: top?.hit?.name, top_score: top?.score, country_match: top?.countryMatch });
       console.log(`${prefix} ? ${idShort} · ${nameShort} → ${top?.hit?.name?.slice(0, 30) ?? "—"} (${((top?.score ?? 0) * 100).toFixed(0)}% ${top?.countryMatch ? "" : "wrong-country"})`);
-      continue;
+      return;
     }
 
     const bookingHotelId = top.hit.dest_id;
@@ -501,7 +504,7 @@ for (let i = 0; i < hotels.length; i++) {
       stats.upload_error += 1;
       log.push({ hotel_id: hotel.hotel_id, status: "upload_error", error: uploadErr.message });
       console.error(`${prefix} ✗ ${idShort} · upload: ${uploadErr.message}`);
-      continue;
+      return;
     }
 
     stats.ok += 1;
@@ -518,8 +521,25 @@ for (let i = 0; i < hotels.length; i++) {
       await sleep(THROTTLE_MS * 8);
     } else stats.consecutive_rl = 0;
   }
-  await sleep(THROTTLE_MS);
 }
+
+// Run the worker pool · CONCURRENCY parallel workers · each pulls
+// hotels from a shared queue. Workers exit when the queue is empty
+// or when we've seen 5 consecutive RapidAPI rate-limit errors across
+// any worker (Pro tier limit safety).
+const queue = hotels.map((h, i) => ({ hotel: h, i }));
+const workers = [];
+for (let w = 0; w < Math.max(1, CONCURRENCY); w++) {
+  workers.push((async () => {
+    while (queue.length > 0) {
+      if (stats.consecutive_rl >= 5) break;
+      const item = queue.shift();
+      if (!item) break;
+      await processHotel(item.hotel, item.i);
+    }
+  })());
+}
+await Promise.all(workers);
 
 const elapsed = ((Date.now() - stats.start_ms) / 1000).toFixed(1);
 console.log("");

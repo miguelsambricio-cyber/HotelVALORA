@@ -250,6 +250,48 @@ export async function getHotelFacilities(booking_hotel_id: number): Promise<Faci
 }
 
 /**
+ * Step 2b · search hotels at a specific lat/lng. Used to disambiguate
+ * canonical names that match multiple Booking properties (e.g. an
+ * "Edificio Eurobuilding 2" CoStar entry is a building hosting both
+ * a hotel and apartment listings · name search alone returns whichever
+ * listing comes first in the index · coord search at the building's
+ * lat/lng surfaces all properties on-site so the operator picks the
+ * right one).
+ *
+ * Booking returns the same `HotelSearchHit[]` shape as searchHotels.
+ */
+export async function searchHotelsByCoordinates(opts: {
+  latitude: number;
+  longitude: number;
+  /** Search radius is implicit (Booking caps at ~5km). Override the
+   *  page if you need to walk results. */
+  page_number?: number;
+}): Promise<HotelSearchHit[]> {
+  const today = new Date();
+  const arrival = new Date(today.getTime() + 30 * 24 * 3600_000).toISOString().slice(0, 10);
+  const departure = new Date(today.getTime() + 31 * 24 * 3600_000).toISOString().slice(0, 10);
+  const params: Record<string, string> = {
+    latitude: String(opts.latitude),
+    longitude: String(opts.longitude),
+    adults: "1",
+    children_age: "",
+    room_qty: "1",
+    page_number: String(opts.page_number ?? 1),
+    units: "metric",
+    temperature_unit: "c",
+    languagecode: "en-us",
+    currency_code: "EUR",
+    arrival_date: arrival,
+    departure_date: departure,
+  };
+  const data = await _rapid<{ hotels?: HotelSearchHit[] }>(
+    "/api/v1/hotels/searchHotelsByCoordinates",
+    params,
+  );
+  return data?.hotels ?? [];
+}
+
+/**
  * Step 4b · hotel policies · check-in/out times · pets · cancellation
  * · smoking · children · internet · parking. Many hotels expose this
  * via a dedicated endpoint that `/getHotelDetails` doesn't return.
