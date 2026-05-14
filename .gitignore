@@ -94,6 +94,7 @@ CONTACTOS DATASITE/*.xlsx
 CONTACTOS DATASITE/*.xlsm
 CONTACTOS DATASITE/*.csv
 CONTACTOS DATASITE/*.vcf
+CONTACTOS DATASITE/.gmail-batch-baseline.txt
 # README.md is the only safe-to-commit artifact under this tree
 !CONTACTOS DATASITE/README.md
 
