@@ -29,51 +29,53 @@ interface FieldDef {
 }
 
 const FIELD_DEFS: FieldDef[] = [
-  // ── CoStar institutional core (35 pts) ──
-  // Always-or-mostly-populated CoStar canonical fields. Every hotel
-  // with a clean CoStar record contributes here · ensures no hotel
-  // reads as "empty" when it has CoStar coverage.
-  { key: "Rooms count", weight: 5, check: ({ hotel: h }) => (h?.rooms_count ?? 0) > 0 },
-  { key: "Chain scale", weight: 4, check: ({ hotel: h }) => !!h?.chain_scale },
-  { key: "Gross building area", weight: 4, check: ({ hotel: h }) => (h?.gross_building_sqm ?? 0) > 0 },
-  { key: "Operator", weight: 4, check: ({ hotel: h }) => !!h?.operator },
-  { key: "Category (stars)", weight: 4, check: ({ hotel: h }) => !!h?.category },
-  { key: "Segment type", weight: 3, check: ({ hotel: h }) => !!h?.segment_type },
-  { key: "Brand", weight: 3, check: ({ hotel: h }) => !!h?.brand },
-  { key: "Year opened", weight: 3, check: ({ hotel: h }) => (h?.year_opened ?? 0) > 0 },
-  { key: "Address", weight: 3, check: ({ hotel: h }) => !!h?.address_line },
-  { key: "CoStar score", weight: 2, check: ({ hotel: h }) => h?.score_costar != null },
-  // ── Booking enrichment depth (100 pts) ──
-  // Heavy-weight institutional fields
-  { key: "Room types", weight: 15, check: ({ profile: p }) => (p?.room_types?.length ?? 0) > 0 },
+  // ── CoStar institutional core (50 pts · 11 fields) ──
+  // Half-weight of Booking enrichment · institutional foundation.
+  // Operator constraint (2026-05-14): "CoStar core = 50% Booking · if
+  // everything except Room types is populated, score is 80%".
+  //   Total 150 pts · 80% threshold = 120 pts · achieved when:
+  //   CoStar 50 + Booking 70 (= 100 - 30 Room types) = 120 ✓
+  { key: "Rooms count", weight: 7, check: ({ hotel: h }) => (h?.rooms_count ?? 0) > 0 },
+  { key: "Gross building area", weight: 6, check: ({ hotel: h }) => (h?.gross_building_sqm ?? 0) > 0 },
+  { key: "Chain scale", weight: 5, check: ({ hotel: h }) => !!h?.chain_scale },
+  { key: "Category (stars)", weight: 5, check: ({ hotel: h }) => !!h?.category },
+  { key: "Segment type", weight: 4, check: ({ hotel: h }) => !!h?.segment_type },
+  { key: "Brand", weight: 4, check: ({ hotel: h }) => !!h?.brand },
+  { key: "Year opened", weight: 4, check: ({ hotel: h }) => (h?.year_opened ?? 0) > 0 },
+  { key: "Address", weight: 4, check: ({ hotel: h }) => !!h?.address_line },
+  { key: "Submarket", weight: 4, check: ({ hotel: h }) => !!h?.submarket_name },
+  { key: "Lot size", weight: 4, check: ({ hotel: h }) => (h?.lot_size_sqm ?? 0) > 0 },
+  { key: "Year renovated", weight: 3, check: ({ hotel: h }) => (h?.year_last_renovated ?? 0) > 0 },
+  // ── Booking enrichment depth (100 pts · 12 fields) ──
+  // Room types is the institutional-headline-missing-piece · it gets
+  // 30 pts so a hotel with all other Booking fields + full CoStar
+  // hits exactly 80% (Enriched threshold).
+  { key: "Room types", weight: 30, check: ({ profile: p }) => (p?.room_types?.length ?? 0) > 0 },
+  { key: "Review score + count", weight: 12, check: ({ profile: p }) => p?.review_score != null && p?.review_count != null },
   { key: "Facilities (detailed)", weight: 10, check: ({ profile: p }) => (p?.facilities_detailed?.length ?? 0) > 0 },
   { key: "Amenities", weight: 8, check: ({ profile: p }) => (p?.amenities?.length ?? 0) > 0 },
+  { key: "F&B (restaurants/bars)", weight: 8, check: ({ profile: p }) => p?.fnb != null && ((p.fnb.restaurants_count ?? 0) > 0 || (p.fnb.bars_count ?? 0) > 0) },
   { key: "Services", weight: 6, check: ({ profile: p }) => (p?.services?.length ?? 0) > 0 },
-  { key: "Review score + count", weight: 10, check: ({ profile: p }) => p?.review_score != null && p?.review_count != null },
-  // Operational categories (each "has_X" toggle + at least some detail)
-  { key: "F&B (restaurants/bars)", weight: 6, check: ({ profile: p }) => p?.fnb != null && ((p.fnb.restaurants_count ?? 0) > 0 || (p.fnb.bars_count ?? 0) > 0) },
+  // Operational toggles (4 each)
   { key: "Spa", weight: 4, check: ({ profile: p }) => p?.spa?.has_spa === true },
   { key: "Gym", weight: 4, check: ({ profile: p }) => p?.gym?.has_gym === true },
   { key: "Pool", weight: 4, check: ({ profile: p }) => p?.pool?.has_pool === true },
-  // Parking · counts when Booking has it OR CoStar parking_spaces > 0
   { key: "Parking", weight: 4, check: ({ profile: p, hotel: h }) =>
     p?.parking?.has_parking === true || (h?.parking_spaces ?? 0) > 0 },
-  // Meeting rooms · counts when Booking has count OR CoStar meeting_rooms_count > 0 OR meeting_space_sqm > 0
+  // Meeting rooms · weight 5 · counts when Booking has count OR CoStar
+  // meeting_rooms_count > 0 OR meeting_space_sqm > 0
   { key: "Meeting rooms", weight: 5, check: ({ profile: p, hotel: h }) =>
     (p?.meeting_rooms != null && (p.meeting_rooms.count ?? 0) > 0) ||
     (h?.meeting_rooms_count ?? 0) > 0 ||
     (h?.meeting_space_sqm ?? 0) > 0 },
-  // External
-  { key: "Booking URL", weight: 4, check: ({ profile: p }) => !!p?.booking_url },
-  // Removed 2026-05-14 · these don't appear in the asset-analysis report
-  // or the detail-page UI · they only added noise to the completeness %:
-  //   - Check-in / Check-out times (4 pts)
-  //   - Pet policy (2 pts) · low signal · niche
-  //   - Sustainability certifications (4 pts) · CoStar `eco_rating` not
-  //     reliable · Booking doesn't expose · not in canonical report
-  //   - Family features (2 pts) · low signal · niche
-  //   - Accessibility (4 pts) · not surfaced in the report layout
-  //   - Cancellation policy (4 pts) · not in report
+  { key: "Booking URL", weight: 5, check: ({ profile: p }) => !!p?.booking_url },
+  // Removed 2026-05-14 · not in asset-analysis report or detail UI:
+  //   - Check-in / Check-out times · Pet policy · Sustainability certs
+  //   - Family features · Accessibility · Cancellation policy
+  // Removed at operator request 2026-05-14:
+  //   - CoStar score · sparse / not displayed
+  //   - Operator (CoStar field · `operator`) · 239/364 coverage but not
+  //     visible in the institutional report layout
 ];
 
 // Total weight (sanity check) — must sum to 100 for the % math to work cleanly
