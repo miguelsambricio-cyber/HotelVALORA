@@ -196,8 +196,8 @@ export async function searchHotels(opts: {
   query_filter?: string; // hotel name to narrow results
 }): Promise<HotelSearchHit[]> {
   const today = new Date();
-  const arrival = new Date(today.getTime() + 30 * 24 * 3600_000).toISOString().slice(0, 10);
-  const departure = new Date(today.getTime() + 31 * 24 * 3600_000).toISOString().slice(0, 10);
+  const arrival = new Date(today.getTime() + 60 * 24 * 3600_000).toISOString().slice(0, 10);
+  const departure = new Date(today.getTime() + 61 * 24 * 3600_000).toISOString().slice(0, 10);
   const params: Record<string, string> = {
     dest_id: opts.dest_id,
     search_type: (opts.dest_type ?? "CITY").toUpperCase(),
@@ -225,8 +225,8 @@ export async function searchHotels(opts: {
 /** Step 3 · pull full hotel details by Booking's hotel_id. */
 export async function getHotelDetails(booking_hotel_id: number): Promise<HotelDetailsRaw> {
   const today = new Date();
-  const arrival = new Date(today.getTime() + 30 * 24 * 3600_000).toISOString().slice(0, 10);
-  const departure = new Date(today.getTime() + 31 * 24 * 3600_000).toISOString().slice(0, 10);
+  const arrival = new Date(today.getTime() + 60 * 24 * 3600_000).toISOString().slice(0, 10);
+  const departure = new Date(today.getTime() + 61 * 24 * 3600_000).toISOString().slice(0, 10);
   return await _rapid<HotelDetailsRaw>("/api/v1/hotels/getHotelDetails", {
     hotel_id: String(booking_hotel_id),
     arrival_date: arrival,
@@ -268,8 +268,8 @@ export async function searchHotelsByCoordinates(opts: {
   page_number?: number;
 }): Promise<HotelSearchHit[]> {
   const today = new Date();
-  const arrival = new Date(today.getTime() + 30 * 24 * 3600_000).toISOString().slice(0, 10);
-  const departure = new Date(today.getTime() + 31 * 24 * 3600_000).toISOString().slice(0, 10);
+  const arrival = new Date(today.getTime() + 60 * 24 * 3600_000).toISOString().slice(0, 10);
+  const departure = new Date(today.getTime() + 61 * 24 * 3600_000).toISOString().slice(0, 10);
   const params: Record<string, string> = {
     latitude: String(opts.latitude),
     longitude: String(opts.longitude),
@@ -360,8 +360,8 @@ export async function getHotelReviewScores(
 /** Step 5 (optional) · room list. */
 export async function getHotelRooms(booking_hotel_id: number): Promise<RoomsRaw> {
   const today = new Date();
-  const arrival = new Date(today.getTime() + 30 * 24 * 3600_000).toISOString().slice(0, 10);
-  const departure = new Date(today.getTime() + 31 * 24 * 3600_000).toISOString().slice(0, 10);
+  const arrival = new Date(today.getTime() + 60 * 24 * 3600_000).toISOString().slice(0, 10);
+  const departure = new Date(today.getTime() + 61 * 24 * 3600_000).toISOString().slice(0, 10);
   return await _rapid<RoomsRaw>("/api/v1/hotels/getRoomList", {
     hotel_id: String(booking_hotel_id),
     arrival_date: arrival,

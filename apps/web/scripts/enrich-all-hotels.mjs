@@ -102,8 +102,12 @@ async function rapid(path, params) {
 }
 
 const TODAY = new Date();
-const ARRIVAL = new Date(TODAY.getTime() + 30 * 86400_000).toISOString().slice(0, 10);
-const DEPARTURE = new Date(TODAY.getTime() + 31 * 86400_000).toISOString().slice(0, 10);
+// Date window for searchHotels/getRoomList · empirical 60 days out
+// (was 30) · some hotels (e.g. AC Hotel Avenida América) have no
+// availability listed for short-horizon dates · 60+ days unlocks the
+// full room block inventory across the Madrid catalogue.
+const ARRIVAL = new Date(TODAY.getTime() + 60 * 86400_000).toISOString().slice(0, 10);
+const DEPARTURE = new Date(TODAY.getTime() + 61 * 86400_000).toISOString().slice(0, 10);
 
 const DETAIL_PARAMS = (hotel_id) => ({
   hotel_id: String(hotel_id), arrival_date: ARRIVAL, departure_date: DEPARTURE,
