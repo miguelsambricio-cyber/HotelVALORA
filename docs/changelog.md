@@ -4,6 +4,60 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Google Places API v1 integration (Phase 3.f.next 5)
+
+CoStar export doesn't ship lat/lng for any of the 364 hotels · every hotel detail page falls back to the "find on Google Maps" CTA. Operator pointed to the Places API as the canonical source.
+
+### Shipped (no API key yet · ready to run when key provided)
+
+- `apps/web/src/lib/admin/hotels/google-places.ts` · typed server-only client
+  - `searchText({ textQuery, regionCode, maxResultCount })` · POST `/v1/places:searchText`
+  - `getPlaceDetails(place_id, fieldMask)` · GET `/v1/places/{place_id}`
+  - `extractStructuredAddress(place)` · pulls street_number · street · postal_code · city · province · country_code · neighborhood from `addressComponents[]`
+  - `placeMatchConfidence(place, canonical)` · same algorithm as Booking match · token-normalised substring/Jaccard
+- `apps/web/scripts/enrich-hotels-coords.mjs` · CLI runner
+  - Iterates the snapshot · searches Places by `"{name}, {address}, {market}, {country}"`
+  - Picks top-match place ≥0.7 confidence · regionCode-biased
+  - MERGE-aware upload to `costar-master/manual_enrichment/<hotel_id>.json` · preserves existing Booking + manual enrichment · only adds lat/lng + geo_context.google_*
+  - Skip-list: `--skip-coord-resolved` skips hotels with existing coords (CoStar canonical or prior profile)
+  - Source-priority guard: refuses to overwrite a `manual_operator` record's coords
+  - CLI flags: `--limit N` · `--only <hotel_id>` · `--throttle <ms>` · `--min-match 0.7`
+- `apps/web/.env.example` · documented `GOOGLE_PLACES_API_KEY` env var with pricing note (~$32/1000 Atmosphere · ≈$12 for all 364)
+
+### Provenance contract
+
+| Source | Priority | Behaviour |
+|---|---|---|
+| `manual_operator` | 100 | Always wins · never overwritten by Places |
+| `rapidapi_booking` | 80 | Wins over Places on conflict |
+| `google_places` | 70 | Coordinates + addressComponents + place_id only · won't touch other fields |
+
+The snapshot reader's `_mergeAllManual` doesn't need changes · it already merges enrichment by source priority. Google Places fills the `profile.latitude / .longitude / .geo_context.google_place_id` slots that the Booking pipeline leaves empty.
+
+### Operator action
+
+1. Get a Places API key: https://console.cloud.google.com/google/maps-apis · enable "Places API (New)"
+2. Add to `apps/web/.env.local`:
+   ```
+   GOOGLE_PLACES_API_KEY=<key>
+   ```
+3. Also push to Vercel project env (Production + Preview + Development)
+4. Run the bulk enricher:
+   ```bash
+   cd apps/web && node --env-file=.env.local scripts/enrich-hotels-coords.mjs --skip-coord-resolved
+   ```
+5. Upload the new snapshot: `node --env-file=.env.local scripts/upload-snapshot.mjs`
+
+After run · all 364 hotel detail pages should show coords (with "Booking" or "Google Places" source badge) instead of the "find on Google Maps" CTA.
+
+### Not shipped
+
+- UI button "Resolve via Google Places" on the detail page (CLI is sufficient for the one-time bulk fill · UI can come later for per-hotel re-resolution)
+- Auto-trigger on snapshot regeneration (operator-driven for now · avoids burning quota on every ingest)
+- Address-component back-write to canonical `address_line` / `postal_code` (today the structured address lands only in `profile.geo_context.google_address_components` · CoStar canonical fields stay institutional)
+
+---
+
 ## 2026-05-14 — Meeting rooms count + transaction dedup pipeline
 
 Three operator-reported fixes:
