@@ -680,22 +680,39 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
             }
             highlight
           />
-          {/* Row 2 · always renders all 3 cards so Meeting rooms is
-              anchored to the right of F&B regardless of which fields
-              the profile has populated. "—" placeholder when empty. */}
-          <ProfileCard label="Room types">
-            <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-              {profile.room_types?.length ?? "—"}
-            </p>
-            {(profile.room_types?.length ?? 0) > 0 ? (
-              <p className="font-mono text-[10.5px] text-slate-500">
-                {profile.room_types?.slice(0, 2).map((r) => `${r.name}${r.count ? ` (${r.count})` : ""}`).join(" · ")}
-                {(profile.room_types?.length ?? 0) > 2 ? ` · +${(profile.room_types?.length ?? 0) - 2}` : ""}
-              </p>
-            ) : (
-              <p className="font-mono text-[10.5px] text-slate-400">no Booking room types yet</p>
-            )}
-          </ProfileCard>
+          {/* Row 2 · Room mix · F&B · Meeting rooms.
+              "Room mix" replaces the previous raw "Room types" count
+              (which surfaced ALL Booking variants · 18 for AC Hotel ·
+              not institutionally useful) with the 7-bucket canonical
+              summary that matches the Room Mix block below. */}
+          {(() => {
+            const mix = summariseRoomMix(profile, hotel.rooms_count);
+            const presentBuckets = mix.rows.filter((r) => (r.total_units ?? 0) > 0 || r.type_count > 0);
+            const topLabels = presentBuckets.slice(0, 2).map((r) => r.label).join(" · ");
+            const more = presentBuckets.length > 2 ? ` · +${presentBuckets.length - 2}` : "";
+            return (
+              <ProfileCard label="Room mix">
+                <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+                  {presentBuckets.length > 0
+                    ? `${presentBuckets.length} / 7`
+                    : "—"}
+                </p>
+                <p className="font-mono text-[10.5px] text-slate-500">
+                  {presentBuckets.length > 0 ? (
+                    <>
+                      {topLabels}
+                      {more}
+                      {mix.hotel_avg_sqm != null && (
+                        <span className="ml-1 text-slate-400"> · avg {mix.hotel_avg_sqm} m²</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-slate-400">no room data yet</span>
+                  )}
+                </p>
+              </ProfileCard>
+            );
+          })()}
           <ProfileCard label="F&B">
             <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
               {profile.fnb
