@@ -11,7 +11,7 @@ import {
   Wine,
   type LucideIcon,
 } from "lucide-react";
-import type { HotelProfile } from "./types";
+import type { HotelProfile, HotelReferenceRecord } from "./types";
 
 /**
  * Canonical 10-facility registry · matches the Asset Analysis report
@@ -83,11 +83,35 @@ const PROBE: Record<CanonicalFacility["key"], readonly string[]> = {
 /**
  * Resolve canonical facility availability for one hotel.
  *
- * Returns a `Record<key, boolean>` over the 10 canonical facilities.
+ * Accepts EITHER the full `HotelReferenceRecord` (preferred · probes
+ * both CoStar canonical fields and Booking enrichment) OR a bare
+ * `HotelProfile` (Booking-only · legacy callers).
+ *
+ * Signal precedence (any source flips the facility on):
+ *   1. CoStar canonical: hotel.meeting_space_sqm > 0 → meeting_rooms
+ *      · hotel.parking_spaces > 0 → parking
+ *      · hotel.facilities[] short codes → maps to canonical buckets
+ *   2. Booking enrichment: profile structured booleans (has_spa, etc.)
+ *   3. Booking raw evidence: substring probe over facilities_detailed[]
+ *
  * Pure function · safe to call at render time.
  */
+const COSTAR_FACILITY_MAP: Record<string, CanonicalFacility["key"]> = {
+  meeting_space: "meeting_rooms",
+  pool: "pool",
+  spa: "spa_wellness",
+  fitness: "gym",
+  restaurant: "restaurant",
+  bar: "bar",
+  parking: "parking",
+};
+
 export function resolveCanonicalFacilities(
-  profile: HotelProfile | null | undefined,
+  hotelOrProfile:
+    | HotelReferenceRecord
+    | HotelProfile
+    | null
+    | undefined,
 ): Record<CanonicalFacility["key"], boolean> {
   const out: Record<CanonicalFacility["key"], boolean> = {
     bar: false,
@@ -101,30 +125,48 @@ export function resolveCanonicalFacilities(
     parking: false,
     other_rentals: false,
   };
-  if (!profile) return out;
+  if (!hotelOrProfile) return out;
 
-  // Structured signals first (highest confidence)
-  if (profile.fnb?.bars_count != null && profile.fnb.bars_count > 0) out.bar = true;
-  if (profile.fnb?.restaurants_count != null && profile.fnb.restaurants_count > 0) {
-    out.restaurant = true;
+  // Discriminate hotel record vs bare profile · hotel records carry
+  // `hotel_id` + `meeting_space_sqm` etc.
+  const isHotel = "hotel_id" in hotelOrProfile;
+  const hotel = isHotel ? (hotelOrProfile as HotelReferenceRecord) : null;
+  const profile = isHotel
+    ? (hotelOrProfile as HotelReferenceRecord).profile
+    : (hotelOrProfile as HotelProfile);
+
+  // ── CoStar canonical (highest confidence · institutional truth) ──
+  if (hotel) {
+    if ((hotel.meeting_space_sqm ?? 0) > 0) out.meeting_rooms = true;
+    if ((hotel.parking_spaces ?? 0) > 0) out.parking = true;
+    for (const code of hotel.facilities ?? []) {
+      const target = COSTAR_FACILITY_MAP[code];
+      if (target) out[target] = true;
+    }
   }
-  if (profile.rooftop?.has_rooftop) out.rooftop = true;
-  if (profile.meeting_rooms && (profile.meeting_rooms.count ?? 0) > 0) out.meeting_rooms = true;
-  if (profile.gym?.has_gym) out.gym = true;
-  if (profile.spa?.has_spa) out.spa_wellness = true;
-  if (profile.pool?.has_pool) out.pool = true;
-  if (profile.parking?.has_parking) out.parking = true;
 
-  // Raw-evidence probe · fills in toggles that the structured fields
-  // missed (e.g. Booking listed "Conference center" so we infer meeting
-  // even though `profile.meeting_rooms` is undefined).
-  const raw = (profile.facilities_detailed ?? []).map((s) => s.toLowerCase());
-  if (raw.length > 0) {
-    for (const fac of CANONICAL_FACILITIES) {
-      if (out[fac.key]) continue;
-      const probes = PROBE[fac.key];
-      if (probes.some((p) => raw.some((r) => r.includes(p)))) {
-        out[fac.key] = true;
+  // ── Booking enrichment · structured booleans ──
+  if (profile) {
+    if (profile.fnb?.bars_count != null && profile.fnb.bars_count > 0) out.bar = true;
+    if (profile.fnb?.restaurants_count != null && profile.fnb.restaurants_count > 0) {
+      out.restaurant = true;
+    }
+    if (profile.rooftop?.has_rooftop) out.rooftop = true;
+    if (profile.meeting_rooms && (profile.meeting_rooms.count ?? 0) > 0) out.meeting_rooms = true;
+    if (profile.gym?.has_gym) out.gym = true;
+    if (profile.spa?.has_spa) out.spa_wellness = true;
+    if (profile.pool?.has_pool) out.pool = true;
+    if (profile.parking?.has_parking) out.parking = true;
+
+    // ── Booking raw evidence · substring probe ──
+    const raw = (profile.facilities_detailed ?? []).map((s) => s.toLowerCase());
+    if (raw.length > 0) {
+      for (const fac of CANONICAL_FACILITIES) {
+        if (out[fac.key]) continue;
+        const probes = PROBE[fac.key];
+        if (probes.some((p) => raw.some((r) => r.includes(p)))) {
+          out[fac.key] = true;
+        }
       }
     }
   }
@@ -137,9 +179,9 @@ export function resolveCanonicalFacilities(
  * facilities present" at a glance.
  */
 export function summariseCanonicalFacilities(
-  profile: HotelProfile | null | undefined,
+  hotelOrProfile: HotelReferenceRecord | HotelProfile | null | undefined,
 ): { resolved: Record<CanonicalFacility["key"], boolean>; present: number; total: number } {
-  const resolved = resolveCanonicalFacilities(profile);
+  const resolved = resolveCanonicalFacilities(hotelOrProfile);
   const present = Object.values(resolved).filter(Boolean).length;
   return { resolved, present, total: CANONICAL_FACILITIES.length };
 }

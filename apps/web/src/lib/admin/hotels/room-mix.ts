@@ -158,7 +158,9 @@ export function summariseRoomMix(
   }
   for (const [key, w] of sumByKey.entries()) {
     const row = rowByKey.get(key)!;
-    row.avg_sqm = w.sqmN > 0 ? Math.round((w.sqmSum / w.sqmN) * 10) / 10 : null;
+    // Round to integer · m² with decimals carries no institutional
+    // meaning at the bucket-average level
+    row.avg_sqm = w.sqmN > 0 ? Math.round(w.sqmSum / w.sqmN) : null;
     row.total_units = w.unitsHas ? w.unitsSum : null;
   }
 
@@ -218,9 +220,9 @@ export function summariseRoomMix(
   }
   const hotel_avg_sqm =
     weightUnits > 0
-      ? Math.round((weightedSqm / weightUnits) * 10) / 10
+      ? Math.round(weightedSqm / weightUnits)
       : plainSqmN > 0
-        ? Math.round((plainSqmSum / plainSqmN) * 10) / 10
+        ? Math.round(plainSqmSum / plainSqmN)
         : null;
 
   return { rows, type_count_total, total_units, hotel_avg_sqm, source };

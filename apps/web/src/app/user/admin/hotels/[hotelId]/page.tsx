@@ -265,7 +265,7 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
               </ul>
             )}
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Pair label="Meeting space (sqm)" value={fmtNum(hotel.meeting_space_sqm)} />
+              <Pair label="Meeting space (m²)" value={fmtSqm(hotel.meeting_space_sqm)} />
               <Pair label="Parking spaces" value={fmtNum(hotel.parking_spaces)} />
             </div>
           </Section>
@@ -708,18 +708,45 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
               {!profile.fnb && <span className="text-slate-400">no F&B data yet</span>}
             </p>
           </ProfileCard>
-          <ProfileCard label="Meeting rooms">
-            <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-              {profile.meeting_rooms?.count ?? "—"}
-            </p>
-            <p className="font-mono text-[10.5px] text-slate-500">
-              {profile.meeting_rooms?.total_sqm ? `${profile.meeting_rooms.total_sqm} sqm` : ""}
-              {profile.meeting_rooms?.max_capacity ? ` · max ${profile.meeting_rooms.max_capacity}` : ""}
-              {!profile.meeting_rooms?.count && (
-                <span className="text-slate-400">no meeting rooms data</span>
-              )}
-            </p>
-          </ProfileCard>
+          {/* Meeting rooms · merge Booking enrichment + CoStar canonical.
+              CoStar "Espacio de reunión total" (meeting_space_sqm) is
+              institutional truth · used as fallback when Booking didn't
+              return a structured meeting_rooms object. */}
+          {(() => {
+            const count = profile.meeting_rooms?.count;
+            const sqmBooking = profile.meeting_rooms?.total_sqm;
+            const sqmCoStar = hotel.meeting_space_sqm;
+            const sqm = sqmBooking ?? sqmCoStar ?? null;
+            const sqmSource = sqmBooking != null ? "Booking" : sqmCoStar != null ? "CoStar" : null;
+            const present = (count ?? 0) > 0 || (sqm ?? 0) > 0;
+            return (
+              <ProfileCard label="Meeting rooms">
+                <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+                  {count != null ? count : sqm != null ? "✓" : "—"}
+                </p>
+                <p className="font-mono text-[10.5px] text-slate-500">
+                  {sqm != null ? (
+                    <>
+                      {fmtSqm(sqm)} m²
+                      {sqmSource && (
+                        <span className="ml-1 rounded bg-slate-100 px-1 py-0.5 text-[9.5px] text-slate-500 ring-1 ring-slate-200">
+                          {sqmSource}
+                        </span>
+                      )}
+                      {profile.meeting_rooms?.max_capacity
+                        ? ` · max ${profile.meeting_rooms.max_capacity}`
+                        : ""}
+                    </>
+                  ) : (
+                    <span className="text-slate-400">no meeting rooms data</span>
+                  )}
+                  {present && count == null && sqm != null && (
+                    <span className="ml-1 text-slate-400"> · count tbd</span>
+                  )}
+                </p>
+              </ProfileCard>
+            );
+          })()}
           {(profile.sustainability?.length ?? 0) > 0 && (
             <ProfileCard label="Sustainability">
               <p className="font-headline text-[12px] font-extrabold text-emerald-700">
@@ -832,9 +859,11 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
       {/* Canonical 10-facility grid · institutional view · matches the
             asset-analysis report's facility checklist. The raw Booking
             facility strings are evidence (see <details> below); these
-            icons are what the report consumes. */}
-      {profile && (() => {
-        const fac = summariseCanonicalFacilities(profile);
+            icons are what the report consumes. Always renders · derives
+            from BOTH CoStar canonical fields AND Booking enrichment so
+            hotels without Booking data still surface CoStar signal. */}
+      {(() => {
+        const fac = summariseCanonicalFacilities(hotel);
         return (
           <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50/40 p-4">
             <div className="mb-3 flex items-baseline justify-between">
@@ -867,13 +896,13 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
                 );
               })}
             </div>
-            {(profile.facilities_detailed?.length ?? 0) > 0 && (
+            {(profile?.facilities_detailed?.length ?? 0) > 0 && (
               <details className="mt-3">
                 <summary className="cursor-pointer font-mono text-[10.5px] text-slate-500 hover:text-forest-900">
-                  Raw evidence · {profile.facilities_detailed?.length} Booking facility strings
+                  Raw evidence · {profile?.facilities_detailed?.length} Booking facility strings
                 </summary>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
-                  {(profile.facilities_detailed ?? []).map((it) => (
+                  {(profile?.facilities_detailed ?? []).map((it) => (
                     <li
                       key={it}
                       className="rounded bg-white px-2 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-slate-200"
@@ -1045,9 +1074,12 @@ function fmtNum(n: number | null | undefined): string {
 
 function fmtSqm(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  // Thousand-separator with Spanish locale to match the institutional
-  // asset-analysis report (e.g. "102.851 m²")
-  return n.toLocaleString("es-ES");
+  // Round to integer · CoStar source carries trailing decimals from
+  // its underlying calculations that have no institutional meaning at
+  // the m² level. Manual thousand-separator with European "." convention
+  // (Node SSR doesn't ship full-icu by default · toLocaleString would
+  // silently fall back to en-US comma separators on the server).
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 function fmtCategory(c: string | null | undefined): string {
