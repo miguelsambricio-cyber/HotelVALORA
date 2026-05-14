@@ -22,14 +22,55 @@ EXISTING_PATH = os.path.join(DEST, "A.-INBOX-REVIEW.json")
 
 WINDOW_SECONDS = 1800  # last 30 minutes
 
-INTERNAL_DOMAINS = {"metcub.com", "build3rent.com", "fernandezmolina.com", "eurostarshotelcompany.com"}
+INTERNAL_DOMAINS = {
+    "metcub.com", "build3rent.com", "fernandezmolina.com", "eurostarshotelcompany.com",
+    "grupohotusa.com", "workmanager.es",
+}
 MARKETING_PATTERNS = (
     "noreply", "no-reply", "donotreply", "do-not-reply",
     "notifications@", "notification@", "marketing@", "newsletter@",
     "welcome@", "alerts@", "support@", "hello@", "info@",
     "service@", "contact@", "ceofeedback@", "clientservices@",
     "onboarding@", "reply@", "learn@", "webinar@",
+    "envios@", "comunicacion@", "comunicacion1@", "comunicaciones@",
+    "administracion@", "admsedeconta@", "facturacion@",
+    "dse@", "developer@", "tickets@",
 )
+NOISE_SUBJECT_PATTERNS = (
+    "factura electrónica", "factura electronica",
+    "cita confirmada", "cita médica", "encuesta de satisfacción",
+    "docusign", "ficha cliente", "reporte mensual",
+    "salarios", "nóminas", "nominas",
+    "cheque regalo", "promoción", "promocion",
+    "newsletter", "subscription", "suscripción", "suscripcion",
+    "welcome to", "your enrollment", "your zaps",
+    "automatic reply", "respuesta automática",
+    "out of office", "out of the office",
+    "tokenización", "tokenizacion",
+    "podcast", "rebuild ", "kit digital",
+)
+NOISE_DOMAINS = {
+    "messerbranding.com", "signaturit.com", "posthog.com",
+    "buttondown.email", "growthoptimizationbuzz.com",
+    "growth-buzz.com", "gosmartflowautomation.lat",
+    "startzetaautomations.com", "metlabs.io", "esfaronics.es",
+    "niceleads.io", "mindfulabs.tech", "cre.niceleads.io",
+    "panelcliente.net", "online.mdanderson.es",
+    "surveys.cigna.com", "events.caixabank.com",
+    "hubspotfree.hs-send.com", "hedgestone.ccsend.com",
+    "leadscavviar.com", "ccsend.com",
+    "fremap.es", "fremap_comunica@fremap.es",
+    "rebuildexpo.com", "acelerapyme.gob.es",
+    "send.zapier.com", "mail.zapier.com",
+    "salesforce.com", "spglobal.com",
+    "platform.datasite.com",
+    "webguestadmin.com",
+    "studiohc.es", "puntmobles.com", "estiluz.pro",
+    "munka.es", "exclama.es",
+    "solredprofesionales@email.repsol.com", "email.repsol.com",
+    "uam.ventas-uam-asistencia", "fuerzacomercial.es",
+    "mvfinancehq.com", "ai@mindfulabs.tech",
+}
 PERSONAL_DOMAINS = {
     "gmail.com", "yahoo.com", "yahoo.es", "hotmail.com", "hotmail.es",
     "outlook.com", "outlook.es", "live.com", "live.es", "aol.com",
@@ -48,6 +89,16 @@ def is_marketing_or_noise(email: str) -> bool:
     dom = em.split("@", 1)[-1] if "@" in em else ""
     if dom.startswith(("email.", "e.", "send.", "mail.", "learn.", "news.", "reply.")):
         return True
+    if dom in NOISE_DOMAINS:
+        return True
+    return False
+
+
+def is_noise_subject(subject: str) -> bool:
+    s = (subject or "").lower()
+    for pat in NOISE_SUBJECT_PATTERNS:
+        if pat in s:
+            return True
     return False
 
 
@@ -204,6 +255,9 @@ def build_candidates(untagged: list[dict]) -> list[tuple[str, dict]]:
         if is_marketing_or_noise(em):
             continue
         if dom in PERSONAL_DOMAINS and not (info["is_bidi"] or info["has_starred"]):
+            continue
+        # Reject if ALL their subjects are noise
+        if info["subjects"] and all(is_noise_subject(s) for s in info["subjects"]):
             continue
         candidates.append((em, info))
 
