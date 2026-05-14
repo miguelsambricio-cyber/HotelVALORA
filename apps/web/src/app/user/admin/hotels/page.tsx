@@ -410,12 +410,17 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             >
               <Kpi
                 label="Market KPIs"
-                value={(snap?.totals as { kpi_metrics?: number } | undefined)?.kpi_metrics ?? 0}
+                value={
+                  (snap?.totals.market_snapshots ?? 0) +
+                  (snap?.totals.market_timeseries ?? 0) +
+                  (snap?.totals.transactions ?? 0) +
+                  (snap?.totals.projects ?? 0)
+                }
                 tone="emerald"
                 hint={
                   snap
-                    ? `${snap.totals.market_snapshots ?? 0} geo + ${snap.totals.market_timeseries ?? 0} ts rows · populated cells`
-                    : "populated numeric KPI cells"
+                    ? `${snap.totals.market_snapshots ?? 0} geo · ${snap.totals.market_timeseries ?? 0} ts · ${snap.totals.transactions ?? 0} tx · ${snap.totals.projects ?? 0} proj`
+                    : "geo + time-series + transactions + projects"
                 }
               />
               <Kpi
