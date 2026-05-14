@@ -4,6 +4,53 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Institutional masters populated · HOTELESperMARKET + Booking merge
+
+Operator: "los documentos en services/costar/MASTER están vacíos · faltan datos · y falta un master HOTELESperMARKET con los 364 hoteles + Booking enrichment". The pre-existing `build_masters.py` only wrote schema templates (DATA sheets empty). Reworked to also populate from canonical data sources.
+
+### build_masters.py extension
+- `build_workbook()` and `build_data_sheet()` accept optional `data_rows: list[dict]` · same schema, now populated
+- Added Booking enrichment columns to `HOTELS_BY_MARKET_COLUMNS` (v1.3):
+  - Property additions · `floors_above_ground` · `floors_below_ground` · `gross_building_sqm` · `lot_size_sqm` · `typical_floor_sqm` · `meeting_rooms_count` · `last_sale_date` · `last_sale_price_eur` · `catastro_id`
+  - Booking enrichment · `booking_hotel_id` · `booking_url` · `review_score` · `review_count` · sub-scores (location · comfort · cleanliness · staff · value · facilities) · 8 facility toggles · counts · 5 policies · provenance/confidence/completeness · last scraped timestamp · coords source
+- Total schema: **83 columns** (was 40)
+- Mapper functions: `_market_row_to_pais` · `_market_row_to_mercado` · `_market_row_to_submercado` · `_hotel_to_row` · `_meta_block`
+- Supabase Storage REST integration · downloads `manual_enrichment/*.json` via service-role key (no supabase-py dep · uses urllib + Authorization header)
+- Env resolution · `_supabase_env()` falls back to parsing `apps/web/.env.local` for operator-side CLI runs
+
+### Output (services/costar/MASTER/)
+| File | Rows | Cols | Sheet |
+|---|---|---|---|
+| COSTAR_MASTER_PAIS.xlsx | 44 | 39 | COUNTRY |
+| COSTAR_MASTER_MERCADOS.xlsx | 371 (15 snap + 356 ts) | 40 | MARKET |
+| COSTAR_MASTER_SUBMERCADOS.xlsx | 10 | 41 | SUBMARKET |
+| COSTAR_MASTER_CLASS.xlsx | 6 (derived) | 41 | CLASS |
+| **COSTAR_MASTER_HOTELESperMARKET.xlsx** | **364** | **83** | HOTELS |
+
+CLASS master · CoStar doesn't ship chain-scale aggregated KPIs in our drop · the master is now populated with derived aggregates `(country, market, chain_scale) → (hotel_count, rooms_total)` from the hotel inventory. KPI columns left null with explanatory note in the row.
+
+### auto-rebuild on every ingest
+- `ingest.py` now imports `build_masters.main` and calls it after `write_snapshot` · masters always reflect the canonical state · operator never has to remember a separate rebuild step
+- Logger emits `masters.rebuilt` event when successful · `masters.rebuild_failed` on error (non-fatal · ingest still succeeds)
+
+### AC Hotel validation
+- `hotel_id`: h_204efabe95397fff · CoStar fields populated · Booking enrichment merged
+  - booking_hotel_id: 90810 · review_score: 8.75 · enrichment_sources: rapidapi_booking · profile_completeness_score: 50
+  - meeting_rooms_count: 1 · gross_building_sqm: 5744 · location_score: null (older enrichment without sub-scores · re-run unblocks)
+
+### Operator workflow
+```bash
+# Standalone rebuild after pulling latest snapshot/enrichment
+python services/costar/scripts/build_masters.py
+
+# Or just run a full ingest · masters rebuild automatically at the end
+python services/costar/scripts/ingest.py
+```
+
+The 5 XLSX files are the institutional review surface · operator opens in Excel for audit · regulatory disclosure · data-quality review · cross-reference with CoStar source files.
+
+---
+
 ## 2026-05-14 — Market KPIs · 425 rows recovered · stateful-merge safety added
 
 Operator: "Market KPIs muestra 0 · antes ponía +700". Diagnosis:

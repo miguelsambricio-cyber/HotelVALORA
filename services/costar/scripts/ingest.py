@@ -992,6 +992,16 @@ def main(argv: list[str] | None = None) -> int:
             path=str(SNAPSHOT_PATH.relative_to(REPO_ROOT)),
             totals=snapshot["totals"],
         )
+        # Regenerate institutional XLSX masters · populated review surface
+        # for the administrator. Reads snapshot.json + Supabase manual_
+        # enrichment/* so the Booking-merged HOTELESperMARKET stays in
+        # sync with every ingest run.
+        try:
+            from build_masters import main as build_masters_main
+            build_masters_main()
+            logger.event("info", "masters.rebuilt")
+        except Exception as e:  # noqa: BLE001
+            logger.event("warn", "masters.rebuild_failed", err=str(e))
 
     log_path = logger.flush()
     if log_path:

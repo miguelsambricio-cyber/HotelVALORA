@@ -47,8 +47,14 @@ hotel-specific underwriting outputs rather than market aggregates.
 
 from __future__ import annotations
 
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -261,6 +267,47 @@ HOTELS_BY_MARKET_COLUMNS: list[tuple[str, str, bool, str]] = [
     ("parking_spaces", "int", False, "Total parking spaces."),
     ("score_costar", "numeric", False, "CoStar property score when present (0–5 scale)."),
     ("score_external", "jsonb", False, "External-platform scores (Booking · Tripadvisor) keyed by source."),
+    # Property additions (v1.3 · 2026-05-14)
+    ("floors_above_ground", "int", False, "Floors above grade — CoStar 'Plantas sobre rasante'."),
+    ("floors_below_ground", "int", False, "Floors below grade (basements) — CoStar 'Plantas bajo rasante'."),
+    ("gross_building_sqm", "numeric", False, "Gross built area (m²) — CoStar 'Superficie alquilable del inmueble/SBA'."),
+    ("lot_size_sqm", "numeric", False, "Plot/lot area (m²) — CoStar 'Terreno (m²)'."),
+    ("typical_floor_sqm", "numeric", False, "Typical-floor area (m²) — CoStar 'Planta tipo (m²)'."),
+    ("meeting_rooms_count", "int", False, "Count of distinct meeting rooms — CoStar 'Salas de reuniones'."),
+    ("last_sale_date", "date", False, "Date of last asset sale — CoStar 'Fecha de la última venta'."),
+    ("last_sale_price_eur", "numeric", False, "Last sale price in EUR — CoStar 'Último precio de venta'."),
+    ("catastro_id", "text", False, "Spanish cadastre identifier (manual entry today; Catastro API later)."),
+    # Booking enrichment merge (v1.3 · sourced from RapidAPI booking-com15)
+    ("booking_hotel_id", "int", False, "Booking.com property id from manual_enrichment merge."),
+    ("booking_url", "text", False, "Booking.com canonical URL when matched."),
+    ("review_score", "numeric", False, "Booking overall review score (0–10)."),
+    ("review_count", "int", False, "Booking total review count."),
+    ("location_score", "numeric", False, "Booking sub-score · hotel_location."),
+    ("comfort_score", "numeric", False, "Booking sub-score · hotel_comfort."),
+    ("cleanliness_score", "numeric", False, "Booking sub-score · hotel_clean."),
+    ("staff_score", "numeric", False, "Booking sub-score · hotel_staff."),
+    ("value_score", "numeric", False, "Booking sub-score · hotel_value."),
+    ("facilities_score", "numeric", False, "Booking sub-score · hotel_facilities."),
+    ("has_bar", "bool", False, "Booking · bar present."),
+    ("has_restaurant", "bool", False, "Booking · restaurant present."),
+    ("has_rooftop", "bool", False, "Booking · rooftop present."),
+    ("has_gym", "bool", False, "Booking · gym present."),
+    ("has_spa", "bool", False, "Booking · spa present."),
+    ("has_pool", "bool", False, "Booking · pool present."),
+    ("has_parking", "bool", False, "Booking · parking present."),
+    ("has_meeting", "bool", False, "Booking · meeting rooms present."),
+    ("booking_facilities_count", "int", False, "Count of raw Booking facility strings captured."),
+    ("booking_room_types_count", "int", False, "Count of distinct Booking room types."),
+    ("check_in_time", "text", False, "Booking policy · check-in time."),
+    ("check_out_time", "text", False, "Booking policy · check-out time."),
+    ("pet_policy", "text", False, "Booking policy · pets."),
+    ("cancellation_policy", "text", False, "Booking policy · cancellation/prepayment."),
+    ("smoking_policy", "text", False, "Booking policy · smoking."),
+    ("coords_source", "enum", False, "Provenance of latitude/longitude · CoStar | Booking | null."),
+    ("enrichment_sources", "text", False, "Comma-separated provenance · rapidapi_booking · manual_operator · google_places."),
+    ("enrichment_confidence", "numeric", False, "0–1 match confidence at enrichment time."),
+    ("profile_completeness_score", "numeric", False, "0–100 % of priority enrichment fields populated."),
+    ("last_scraped_at", "timestamp", False, "ISO timestamp of last enrichment scrape."),
     # Commercial context
     ("competitive_set_ids", "text[]", False, "Sibling hotel_ids in the property's competitive set."),
     ("transactions_history_ref", "text", False, "Foreign key into HOTEL_TRANSACCIONES_MASTER when the hotel has known transaction history."),
@@ -303,11 +350,15 @@ def autosize(ws, max_width=44):
         ws.column_dimensions[col_letter].width = min(max(max_len + 2, 12), max_width)
 
 
-def build_data_sheet(ws, title: str, domain_columns):
+def build_data_sheet(ws, title: str, domain_columns, data_rows: list[dict] | None = None):
     ws.title = title
     columns = domain_columns + INGESTION_META_COLUMNS
-    ws.append([name for (name, _t, _r, _n) in columns])
+    column_names = [name for (name, _t, _r, _n) in columns]
+    ws.append(column_names)
     style_header(ws)
+    if data_rows:
+        for row in data_rows:
+            ws.append([row.get(col) for col in column_names])
     autosize(ws)
 
 
@@ -399,9 +450,16 @@ def build_readme_sheet(wb, dataset_label: str, domain_label: str, schema_doc: st
     ws.column_dimensions["A"].width = 110
 
 
-def build_workbook(dataset_label: str, domain_columns, data_sheet_title: str, schema_doc: str, output_path: Path):
+def build_workbook(
+    dataset_label: str,
+    domain_columns,
+    data_sheet_title: str,
+    schema_doc: str,
+    output_path: Path,
+    data_rows: list[dict] | None = None,
+):
     wb = Workbook()
-    build_data_sheet(wb.active, data_sheet_title, domain_columns)
+    build_data_sheet(wb.active, data_sheet_title, domain_columns, data_rows)
     build_dictionary_sheet(wb, "DICTIONARY", domain_columns)
     build_ingestion_log_sheet(wb)
     build_sources_registry_sheet(wb)
@@ -409,41 +467,437 @@ def build_workbook(dataset_label: str, domain_columns, data_sheet_title: str, sc
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
-    print(f"[build_masters] wrote {output_path.relative_to(ROOT.parent.parent)}")
+    rows_written = len(data_rows) if data_rows else 0
+    print(f"[build_masters] wrote {output_path.relative_to(ROOT.parent.parent)} · {rows_written} rows")
+
+
+# ---------------------------------------------------------------------------
+# Data extraction from snapshot.json + Supabase Storage enrichment
+# ---------------------------------------------------------------------------
+SNAPSHOT_PATH = ROOT / "MASTER" / "snapshot.json"
+SUPABASE_BUCKET = "costar-master"
+ENRICHMENT_PREFIX = "manual_enrichment"
+
+
+def _read_env_local() -> dict[str, str]:
+    """Lightweight parser for apps/web/.env.local · KEY=VALUE per line."""
+    env_path = ROOT.parent.parent / "apps" / "web" / ".env.local"
+    if not env_path.exists():
+        return {}
+    out: dict[str, str] = {}
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
+def _supabase_env() -> tuple[str | None, str | None]:
+    url = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if url and key:
+        return url, key
+    env = _read_env_local()
+    return env.get("NEXT_PUBLIC_SUPABASE_URL"), env.get("SUPABASE_SERVICE_ROLE_KEY")
+
+
+def _load_enrichment_from_storage() -> dict[str, dict]:
+    """Returns { hotel_id: payload } · empty dict if Supabase not reachable."""
+    url, key = _supabase_env()
+    if not url or not key:
+        print("[build_masters] Supabase env not set · skipping Booking enrichment merge")
+        return {}
+    try:
+        req = urllib.request.Request(
+            f"{url}/storage/v1/object/list/{SUPABASE_BUCKET}",
+            data=json.dumps({"prefix": ENRICHMENT_PREFIX, "limit": 1000, "offset": 0}).encode("utf-8"),
+            headers={"Authorization": f"Bearer {key}", "apikey": key, "Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            items = json.loads(r.read())
+    except urllib.error.URLError as e:
+        print(f"[build_masters] Supabase list failed: {e} · skipping enrichment merge")
+        return {}
+    out: dict[str, dict] = {}
+    for item in items:
+        name = item.get("name", "")
+        if not name.endswith(".json"):
+            continue
+        hotel_id = name[: -len(".json")]
+        try:
+            dreq = urllib.request.Request(
+                f"{url}/storage/v1/object/{SUPABASE_BUCKET}/{ENRICHMENT_PREFIX}/{name}",
+                headers={"Authorization": f"Bearer {key}", "apikey": key},
+            )
+            with urllib.request.urlopen(dreq, timeout=30) as r:
+                out[hotel_id] = json.loads(r.read())
+        except (urllib.error.URLError, json.JSONDecodeError):
+            continue
+    print(f"[build_masters] loaded {len(out)} Booking enrichment records from Supabase Storage")
+    return out
+
+
+def _round_int(v: Any) -> int | None:
+    if v is None:
+        return None
+    try:
+        return round(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def _yn(v: Any) -> str:
+    return "Y" if v else "N"
+
+
+def _meta_block(snapshot: dict, hotel_id_or_index: Any, source_kind: str = "costar") -> dict:
+    """Common ingestion-meta block · same shape across all masters."""
+    return {
+        "canonical_id": str(hotel_id_or_index),
+        "ingestion_id": snapshot.get("ingestion_batch_id", ""),
+        "source_file": "snapshot.json",
+        "source_kind": source_kind,
+        "source_url": "",
+        "ingested_at": snapshot.get("generated_at", BUILT_AT),
+        "ingested_by": "cli:build_masters",
+        "normalization_version": (snapshot.get("batch") or {}).get("normalization_version", NORMALIZATION_VERSION),
+        "dedup_key": "",
+        "review_required": "TRUE" if hotel_id_or_index else "FALSE",
+        "review_reason": "",
+        "ingestion_status": "ingested",
+        "supersedes_id": "",
+        "notes": "",
+    }
+
+
+def _market_row_to_pais(r: dict, snapshot: dict) -> dict:
+    """Map snapshot market_snapshots row (granularity=country_listing) →
+    COSTAR_MASTER_PAIS canonical row."""
+    return {
+        "country": r.get("country"),
+        "country_name_display": r.get("country") or r.get("market_name"),
+        "period_kind": "ltm",
+        "period_start": "",
+        "period_end": "",
+        "currency": "EUR",
+        "occupancy_pct": (r.get("occupancy_12m") or 0) * 100 if r.get("occupancy_12m") is not None else None,
+        "adr": r.get("adr_12m"),
+        "revpar": r.get("revpar_12m"),
+        "supply_rooms": _round_int(r.get("supply_12m")),
+        "demand_rooms": _round_int(r.get("demand_12m")),
+        "revenue": _round_int(r.get("revenue_12m")),
+        "supply_yoy_pct": (r.get("supply_yoy_12m") or 0) * 100 if r.get("supply_yoy_12m") is not None else None,
+        "demand_yoy_pct": (r.get("demand_yoy_12m") or 0) * 100 if r.get("demand_yoy_12m") is not None else None,
+        "occupancy_yoy_pp": (r.get("occupancy_yoy_12m") or 0) * 100 if r.get("occupancy_yoy_12m") is not None else None,
+        "adr_yoy_pct": (r.get("adr_yoy_12m") or 0) * 100 if r.get("adr_yoy_12m") is not None else None,
+        "revpar_yoy_pct": (r.get("revpar_yoy_12m") or 0) * 100 if r.get("revpar_yoy_12m") is not None else None,
+        "hotel_count": None,
+        "room_count_total": _round_int(r.get("rooms_inventory")),
+        "pipeline_rooms": _round_int(r.get("rooms_under_construction")),
+        "pipeline_hotels": None,
+        **_meta_block(snapshot, r.get("country"), "costar"),
+    }
+
+
+def _market_row_to_mercado(r: dict, snapshot: dict) -> dict:
+    return {
+        "country": r.get("country"),
+        "market_name": r.get("market_name"),
+        "costar_market_code": "",
+        "market_uid": "",
+        "region": "",
+        "period_kind": "ltm" if not r.get("period") else "monthly",
+        "period_start": r.get("period") or "",
+        "period_end": r.get("period") or "",
+        "currency": "EUR",
+        "occupancy_pct": (r.get("occupancy_12m") or 0) * 100 if r.get("occupancy_12m") is not None else None,
+        "adr": r.get("adr_12m"),
+        "revpar": r.get("revpar_12m"),
+        "supply_rooms": _round_int(r.get("supply_12m")),
+        "demand_rooms": _round_int(r.get("demand_12m")),
+        "revenue": _round_int(r.get("revenue_12m")),
+        "supply_yoy_pct": (r.get("supply_yoy_12m") or 0) * 100 if r.get("supply_yoy_12m") is not None else None,
+        "demand_yoy_pct": (r.get("demand_yoy_12m") or 0) * 100 if r.get("demand_yoy_12m") is not None else None,
+        "occupancy_yoy_pp": (r.get("occupancy_yoy_12m") or 0) * 100 if r.get("occupancy_yoy_12m") is not None else None,
+        "adr_yoy_pct": (r.get("adr_yoy_12m") or 0) * 100 if r.get("adr_yoy_12m") is not None else None,
+        "revpar_yoy_pct": (r.get("revpar_yoy_12m") or 0) * 100 if r.get("revpar_yoy_12m") is not None else None,
+        "revpar_index_vs_country": None,
+        "hotel_count": None,
+        "room_count_total": _round_int(r.get("rooms_inventory")),
+        "pipeline_rooms": _round_int(r.get("rooms_under_construction")),
+        "pipeline_hotels": None,
+        "seasonality_index": None,
+        **_meta_block(snapshot, f"{r.get('country')}|{r.get('market_name')}|{r.get('period') or ''}", "costar"),
+    }
+
+
+def _market_row_to_submercado(r: dict, snapshot: dict) -> dict:
+    return {
+        "country": r.get("country"),
+        "market_name": r.get("market_name") or "Madrid",  # Submarket parent
+        "submarket_name": r.get("submarket_name"),
+        "costar_submarket_code": "",
+        "submarket_uid": "",
+        "chain_scale": "",
+        "segment_type": "",
+        "period_kind": "ltm",
+        "period_start": "",
+        "period_end": "",
+        "currency": "EUR",
+        "occupancy_pct": (r.get("occupancy_12m") or 0) * 100 if r.get("occupancy_12m") is not None else None,
+        "adr": r.get("adr_12m"),
+        "revpar": r.get("revpar_12m"),
+        "supply_rooms": _round_int(r.get("supply_12m")),
+        "demand_rooms": _round_int(r.get("demand_12m")),
+        "revenue": _round_int(r.get("revenue_12m")),
+        "supply_yoy_pct": (r.get("supply_yoy_12m") or 0) * 100 if r.get("supply_yoy_12m") is not None else None,
+        "demand_yoy_pct": (r.get("demand_yoy_12m") or 0) * 100 if r.get("demand_yoy_12m") is not None else None,
+        "occupancy_yoy_pp": (r.get("occupancy_yoy_12m") or 0) * 100 if r.get("occupancy_yoy_12m") is not None else None,
+        "adr_yoy_pct": (r.get("adr_yoy_12m") or 0) * 100 if r.get("adr_yoy_12m") is not None else None,
+        "revpar_yoy_pct": (r.get("revpar_yoy_12m") or 0) * 100 if r.get("revpar_yoy_12m") is not None else None,
+        "revpar_index_vs_market": None,
+        "hotel_count": None,
+        "room_count_total": _round_int(r.get("rooms_inventory")),
+        "pipeline_rooms": _round_int(r.get("rooms_under_construction")),
+        "pipeline_hotels": None,
+        **_meta_block(snapshot, f"{r.get('submarket_name')}", "costar"),
+    }
+
+
+def _hotel_to_row(h: dict, enrichment: dict, snapshot: dict) -> dict:
+    """Map snapshot hotel + Booking enrichment → COSTAR_MASTER_HOTELESperMARKET row."""
+    e = enrichment.get(h.get("hotel_id"), {}) or {}
+    p = e.get("profile") or {}
+    meta = e.get("_enrichment_meta") or {}
+    fnb = p.get("fnb") or {}
+    gym = p.get("gym") or {}
+    spa = p.get("spa") or {}
+    pool = p.get("pool") or {}
+    parking = p.get("parking") or {}
+    meeting = p.get("meeting_rooms") or {}
+    rooftop = p.get("rooftop") or {}
+    hmeta = h.get("_meta") or {}
+    needs_review = hmeta.get("needs_review") or []
+
+    lat = h.get("latitude") if h.get("latitude") is not None else p.get("latitude")
+    lng = h.get("longitude") if h.get("longitude") is not None else p.get("longitude")
+    coords_source = (
+        "CoStar" if h.get("latitude") is not None
+        else "Booking" if p.get("latitude") is not None
+        else ""
+    )
+
+    return {
+        # Identification
+        "country": h.get("country"),
+        "market_name": h.get("market_name"),
+        "submarket_name": h.get("submarket_name"),
+        "hotel_id": h.get("hotel_id"),
+        "hotel_id_synthetic": "TRUE" if h.get("hotel_id_synthetic") else "FALSE",
+        "name": h.get("name"),
+        "brand": h.get("brand"),
+        "operator": h.get("operator"),
+        "owner": h.get("owner"),
+        # Property characteristics
+        "chain_scale": h.get("chain_scale"),
+        "category": h.get("category"),
+        "segment_type": h.get("segment_type"),
+        "rooms_count": h.get("rooms_count"),
+        "year_opened": h.get("year_opened"),
+        "year_last_renovated": h.get("year_last_renovated"),
+        "total_floors": h.get("total_floors"),
+        # Location
+        "address_line": h.get("address_line"),
+        "postal_code": h.get("postal_code"),
+        "latitude": lat,
+        "longitude": lng,
+        "neighborhood": h.get("neighborhood"),
+        # Facilities · amenities · scoring (CoStar)
+        "facilities": ", ".join(h.get("facilities") or []),
+        "amenities": ", ".join(h.get("amenities") or []),
+        "meeting_space_sqm": _round_int(h.get("meeting_space_sqm")),
+        "parking_spaces": h.get("parking_spaces"),
+        "score_costar": h.get("score_costar"),
+        "score_external": json.dumps(h.get("score_external") or {}) if h.get("score_external") else "",
+        # v1.3 additions
+        "floors_above_ground": h.get("floors_above_ground"),
+        "floors_below_ground": h.get("floors_below_ground"),
+        "gross_building_sqm": _round_int(h.get("gross_building_sqm")),
+        "lot_size_sqm": _round_int(h.get("lot_size_sqm")),
+        "typical_floor_sqm": _round_int(h.get("typical_floor_sqm")),
+        "meeting_rooms_count": h.get("meeting_rooms_count"),
+        "last_sale_date": h.get("last_sale_date"),
+        "last_sale_price_eur": h.get("last_sale_price_eur"),
+        "catastro_id": h.get("catastro_id"),
+        # Booking enrichment
+        "booking_hotel_id": meta.get("booking_hotel_id"),
+        "booking_url": p.get("booking_url"),
+        "review_score": p.get("review_score"),
+        "review_count": p.get("review_count"),
+        "location_score": p.get("location_score"),
+        "comfort_score": p.get("comfort_score"),
+        "cleanliness_score": p.get("cleanliness_score"),
+        "staff_score": p.get("staff_score"),
+        "value_score": p.get("value_score"),
+        "facilities_score": p.get("facilities_score"),
+        "has_bar": _yn((fnb.get("bars_count") or 0) > 0),
+        "has_restaurant": _yn((fnb.get("restaurants_count") or 0) > 0),
+        "has_rooftop": _yn(rooftop.get("has_rooftop")),
+        "has_gym": _yn(gym.get("has_gym")),
+        "has_spa": _yn(spa.get("has_spa")),
+        "has_pool": _yn(pool.get("has_pool")),
+        "has_parking": _yn(parking.get("has_parking")),
+        "has_meeting": _yn((meeting.get("count") or 0) > 0),
+        "booking_facilities_count": len(p.get("facilities_detailed") or []),
+        "booking_room_types_count": len(p.get("room_types") or []),
+        "check_in_time": p.get("check_in_time"),
+        "check_out_time": p.get("check_out_time"),
+        "pet_policy": p.get("pet_policy"),
+        "cancellation_policy": p.get("cancellation_policy"),
+        "smoking_policy": p.get("smoking_policy"),
+        "coords_source": coords_source,
+        "enrichment_sources": ", ".join(meta.get("enrichment_sources") or []),
+        "enrichment_confidence": meta.get("enrichment_confidence"),
+        "profile_completeness_score": meta.get("profile_completeness_score"),
+        "last_scraped_at": meta.get("last_scraped_at"),
+        # Commercial context
+        "competitive_set_ids": ", ".join(h.get("competitive_set_ids") or []),
+        "transactions_history_ref": h.get("transactions_history_ref"),
+        "notes": h.get("notes"),
+        # Audit meta
+        **_meta_block(snapshot, h.get("hotel_id"), "costar+rapidapi_booking" if e else "costar"),
+        "review_required": "TRUE" if needs_review else "FALSE",
+        "review_reason": ", ".join(needs_review),
+    }
 
 
 def main():
+    """Build all institutional masters · populated with snapshot data
+    when snapshot.json exists. Behaviour:
+
+      - snapshot present + Supabase reachable: full populate including
+        Booking enrichment merge on HOTELESperMARKET
+      - snapshot present + Supabase unreachable: CoStar fields only ·
+        Booking enrichment columns empty
+      - no snapshot: emit headers-only templates (legacy v1.2 behaviour)
+    """
+    snapshot: dict = {}
+    if SNAPSHOT_PATH.exists():
+        snapshot = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+        print(f"[build_masters] snapshot loaded · hotels={len(snapshot.get('hotels') or [])} · "
+              f"market_snapshots={len(snapshot.get('market_snapshots') or [])} · "
+              f"market_timeseries={len(snapshot.get('market_timeseries') or [])}")
+    else:
+        print(f"[build_masters] no snapshot at {SNAPSHOT_PATH} · emitting headers-only templates")
+
+    market_snapshots = snapshot.get("market_snapshots") or []
+    market_timeseries = snapshot.get("market_timeseries") or []
+    hotels = snapshot.get("hotels") or []
+
+    # ── PAIS · country_listing rows from snapshot ──
+    pais_rows = [
+        _market_row_to_pais(r, snapshot)
+        for r in market_snapshots if r.get("granularity") == "country_listing"
+    ]
     build_workbook(
         dataset_label="COSTAR_MASTER_PAIS",
         domain_columns=COUNTRY_COLUMNS,
         data_sheet_title="COUNTRY",
         schema_doc="docs/intelligence/costar-country-schema.md",
         output_path=MASTER_DIR / "COSTAR_MASTER_PAIS.xlsx",
+        data_rows=pais_rows,
     )
+
+    # ── MERCADOS · market snapshots + time-series ──
+    mercados_rows = [
+        _market_row_to_mercado(r, snapshot)
+        for r in market_snapshots if r.get("granularity") == "market"
+    ] + [
+        _market_row_to_mercado(r, snapshot) for r in market_timeseries
+    ]
     build_workbook(
         dataset_label="COSTAR_MASTER_MERCADOS",
         domain_columns=MARKET_COLUMNS,
         data_sheet_title="MARKET",
         schema_doc="docs/intelligence/costar-market-schema.md",
         output_path=MASTER_DIR / "COSTAR_MASTER_MERCADOS.xlsx",
+        data_rows=mercados_rows,
     )
+
+    # ── SUBMERCADOS · submarket rows ──
+    submercados_rows = [
+        _market_row_to_submercado(r, snapshot)
+        for r in market_snapshots if r.get("granularity") == "submarket"
+    ]
     build_workbook(
         dataset_label="COSTAR_MASTER_SUBMERCADOS",
         domain_columns=SUBMARKET_COLUMNS,
         data_sheet_title="SUBMARKET",
         schema_doc="docs/intelligence/costar-submarket-schema.md",
         output_path=MASTER_DIR / "COSTAR_MASTER_SUBMERCADOS.xlsx",
+        data_rows=submercados_rows,
     )
-    # COSTAR_MASTER_CLASS retired in v1.2 — chain-scale is now an attribute
-    # on each hotel record in HOTELESperMARKET, not a separate master.
-    # The legacy COSTAR_MASTER_CLASS.xlsx stays in MASTER/ for archival.
-    # See docs/intelligence/costar-class-schema.md for the deprecation note.
+
+    # ── CLASS · chain-scale aggregates derived from hotel inventory ──
+    class_rows = []
+    by_class: dict[tuple, dict] = {}
+    for h in hotels:
+        scale = h.get("chain_scale")
+        if not scale:
+            continue
+        key = (h.get("country") or "", h.get("market_name") or "", scale)
+        d = by_class.setdefault(key, {"hotel_count": 0, "rooms_total": 0})
+        d["hotel_count"] += 1
+        d["rooms_total"] += int(h.get("rooms_count") or 0)
+    for (country, market, scale), agg in sorted(by_class.items()):
+        class_rows.append({
+            "country": country,
+            "market_name": market,
+            "submarket_name": "",
+            "chain_scale": scale,
+            "class_label_display": scale.replace("_", " ").title(),
+            "segment_type": "",
+            "period_kind": "snapshot",
+            "period_start": "",
+            "period_end": "",
+            "currency": "EUR",
+            "occupancy_pct": None, "adr": None, "revpar": None,
+            "supply_rooms": None, "demand_rooms": None, "revenue": None,
+            "supply_yoy_pct": None, "demand_yoy_pct": None, "occupancy_yoy_pp": None,
+            "adr_yoy_pct": None, "revpar_yoy_pct": None,
+            "revpar_index_vs_country": None, "revpar_index_vs_market": None,
+            "hotel_count": agg["hotel_count"],
+            "room_count_total": agg["rooms_total"],
+            "pipeline_rooms": None, "pipeline_hotels": None,
+            **_meta_block(snapshot, f"{country}|{market}|{scale}", "derived"),
+            "notes": "Derived from hotel inventory · CoStar doesn't ship class-level KPIs in this drop",
+        })
     build_workbook(
-        dataset_label="COSTAR_MASTER_HOTELES_POR_MERCADO",
+        dataset_label="COSTAR_MASTER_CLASS",
+        domain_columns=CLASS_COLUMNS,
+        data_sheet_title="CLASS",
+        schema_doc="docs/intelligence/costar-class-schema.md",
+        output_path=MASTER_DIR / "COSTAR_MASTER_CLASS.xlsx",
+        data_rows=class_rows,
+    )
+
+    # ── HOTELESperMARKET · 364 hotels + Booking enrichment merged ──
+    enrichment = _load_enrichment_from_storage()
+    hotel_rows = [_hotel_to_row(h, enrichment, snapshot) for h in hotels]
+    # Rename to match workspace directory naming · the legacy
+    # COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx stays in MASTER/ for
+    # backward compatibility but the canonical filename going forward
+    # mirrors the INPUT directory (HOTELESperMARKET).
+    build_workbook(
+        dataset_label="COSTAR_MASTER_HOTELESperMARKET",
         domain_columns=HOTELS_BY_MARKET_COLUMNS,
         data_sheet_title="HOTELS",
         schema_doc="docs/intelligence/costar-hotels-by-market-schema.md",
-        output_path=MASTER_DIR / "COSTAR_MASTER_HOTELES_POR_MERCADO.xlsx",
+        output_path=MASTER_DIR / "COSTAR_MASTER_HOTELESperMARKET.xlsx",
+        data_rows=hotel_rows,
     )
 
 
