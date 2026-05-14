@@ -215,11 +215,26 @@ MARKET_HEADER_ALIASES: dict[str, str] = {
     # Time axis (CoStar time-series files carry Periodo)
     "period": "period", "periodo": "period",
     "period_kind": "period_kind",
-    # CoStar ES KPI columns (the "12 m." suffix becomes "_12m" → space-stripped)
-    "ocupacion_12_m": "occupancy_12m", "ocupacion": "occupancy_12m",
+    # CoStar ES KPI columns · CRITICAL · spot vs 12m-rolling are
+    # separate institutional metrics. The "12 m." suffix → _12m;
+    # bare "Ocupación" / "ADR" / "RevPAR" map to *_spot (current-period
+    # snapshot · last reported month).
+    "ocupacion_12_m": "occupancy_12m",
+    "ocupacion": "occupancy_spot",  # spot · current month
     "occupancy": "occupancy_12m", "occ": "occupancy_12m",
-    "adr_12_m": "adr_12m", "adr": "adr_12m", "adr_eur": "adr_12m",
-    "revpar_12_m": "revpar_12m", "revpar": "revpar_12m", "revpar_eur": "revpar_12m",
+    "camb_ocupacion_interanual": "occupancy_yoy_spot",
+    "adr_12_m": "adr_12m",
+    "adr": "adr_spot",  # spot
+    "adr_eur": "adr_12m",
+    "camb_adr_interanual": "adr_yoy_spot",
+    "revpar_12_m": "revpar_12m",
+    "revpar": "revpar_spot",  # spot
+    "revpar_eur": "revpar_12m",
+    "camb_revpar_interanual": "revpar_yoy_spot",
+    # CoStar ES institutional sale + yield columns (MERCADO only · 6 cols)
+    "precio_venta_de_mercado_habitacion": "market_sale_price_per_room",
+    "volumen_ventas_12_m": "sales_volume_12m",
+    "rentabilidad_mercado": "market_yield",
     "habitaciones_inventario": "rooms_inventory",
     "habitaciones_construccion": "rooms_under_construction",
     "habitaciones_entregadas_12_m": "rooms_delivered_12m",

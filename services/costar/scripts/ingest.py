@@ -532,6 +532,7 @@ def _read_market_rows(
             "rooms_inventory": num("rooms_inventory"),
             "rooms_under_construction": num("rooms_under_construction"),
             "rooms_delivered_12m": num("rooms_delivered_12m"),
+            # 12m-rolling KPIs (the institutional headline)
             "occupancy_12m": num("occupancy_12m"),
             "occupancy_yoy_12m": num("occupancy_yoy_12m"),
             "adr_12m": num("adr_12m"),
@@ -544,6 +545,24 @@ def _read_market_rows(
             "demand_yoy_12m": num("demand_yoy_12m"),
             "revenue_12m": num("revenue_12m"),
             "revenue_yoy_12m": num("revenue_yoy_12m"),
+            # Spot KPIs · current month / last reported period (MERCADO only)
+            "occupancy_spot": num("occupancy_spot"),
+            "occupancy_yoy_spot": num("occupancy_yoy_spot"),
+            "adr_spot": num("adr_spot"),
+            "adr_yoy_spot": num("adr_yoy_spot"),
+            "revpar_spot": num("revpar_spot"),
+            "revpar_yoy_spot": num("revpar_yoy_spot"),
+            # MERCADO-specific inventory dynamics
+            "buildings_built": num("buildings_built"),
+            "buildings_under_construction": num("buildings_under_construction"),
+            "avg_rooms_per_building": num("avg_rooms_per_building"),
+            "inventory_growth_12m": num("inventory_growth_12m"),
+            "rooms_opened_12m": num("rooms_opened_12m"),
+            "buildings_opened_12m": num("buildings_opened_12m"),
+            # MERCADO sale + yield columns (v1.3 · 2026-05-14)
+            "market_sale_price_per_room": num("market_sale_price_per_room"),
+            "sales_volume_12m": num("sales_volume_12m"),
+            "market_yield": num("market_yield"),
             "_meta": {
                 "ingestion_batch_id": batch_id,
                 "source_path": str(path.relative_to(REPO_ROOT)),

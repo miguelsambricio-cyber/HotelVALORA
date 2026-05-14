@@ -119,6 +119,9 @@ COUNTRY_COLUMNS: list[tuple[str, str, bool, str]] = [
     ("tourism_arrivals_yoy_pct", "numeric", False, "YoY % change in international tourist arrivals."),
     ("gdp_growth_pct", "numeric", False, "GDP growth — macro context column, optional."),
     ("inflation_rate_pct", "numeric", False, "CPI inflation rate — macro context, optional."),
+    # v1.3 passthrough · CoStar PAIS source columns
+    ("rooms_under_construction", "int", False, "Rooms under construction — 'Habitaciones construcción'."),
+    ("rooms_delivered_12m", "int", False, "Rooms delivered last 12 months — 'Habitaciones entregadas 12 m.'."),
 ]
 
 
@@ -152,6 +155,28 @@ MARKET_COLUMNS: list[tuple[str, str, bool, str]] = [
     ("pipeline_rooms", "int", False, "Pipeline rooms in this market."),
     ("pipeline_hotels", "int", False, "Pipeline hotels in this market."),
     ("seasonality_index", "numeric", False, "Period RevPAR / annual average RevPAR — context for sub-annual rows."),
+    # v1.3 passthrough · CoStar MERCADO source columns
+    ("rooms_under_construction", "int", False, "Rooms under construction — 'Habitaciones construcción'."),
+    ("rooms_delivered_12m", "int", False, "Rooms delivered last 12m — 'Habitaciones entregadas 12 m.'."),
+    ("buildings_built", "int", False, "Total buildings built — 'Edificios construidos'."),
+    ("buildings_under_construction", "int", False, "Buildings under construction — 'Edificios construcción'."),
+    ("avg_rooms_per_building", "numeric", False, "Avg rooms per building — 'Media habitaciones por edificio'."),
+    ("inventory_growth_12m", "numeric", False, "Inventory growth last 12m — 'Crecimiento inventario 12 m.'."),
+    ("rooms_opened_12m", "int", False, "Rooms opened last 12m — 'Habitaciones abiertas 12 m.'."),
+    ("buildings_opened_12m", "int", False, "Buildings opened last 12m — 'Edificios abiertos 12 m.'."),
+    # Spot (current-month) KPIs · separate from 12m-rolling
+    ("occupancy_spot_pct", "numeric", False, "Current-month occupancy % — 'Ocupación' (spot)."),
+    ("occupancy_yoy_spot_pp", "numeric", False, "YoY change in spot occupancy (pp) — 'Camb. ocupación (interanual)'."),
+    ("adr_spot", "numeric", False, "Current-month ADR — 'ADR' (spot)."),
+    ("adr_yoy_spot_pct", "numeric", False, "YoY % change in spot ADR — 'Camb. ADR (interanual)'."),
+    ("revpar_spot", "numeric", False, "Current-month RevPAR — 'RevPAR' (spot)."),
+    ("revpar_yoy_spot_pct", "numeric", False, "YoY % change in spot RevPAR — 'Camb. RevPAR (interanual)'."),
+    # MERCADO sale + yield (CoStar institutional)
+    ("market_sale_price_per_room", "numeric", False, "Market sale price per room — 'Precio venta de mercado/habitación'."),
+    ("sales_volume_12m", "numeric", False, "Sales volume last 12m — 'Volumen ventas 12 m.'."),
+    ("market_yield", "numeric", False, "Market yield/return — 'Rentabilidad mercado'."),
+    # DataTable-only
+    ("period_iso", "text", False, "ISO period for time-series rows · YYYY-MM derived from CoStar 'Periodo'."),
 ]
 
 
@@ -186,6 +211,9 @@ SUBMARKET_COLUMNS: list[tuple[str, str, bool, str]] = [
     ("room_count_total", "int", False, "Room snapshot."),
     ("pipeline_rooms", "int", False, "Submarket pipeline rooms."),
     ("pipeline_hotels", "int", False, "Submarket pipeline hotels."),
+    # v1.3 passthrough · CoStar SUBMERCADO source columns
+    ("rooms_under_construction", "int", False, "Rooms under construction — 'Habitaciones construcción'."),
+    ("rooms_delivered_12m", "int", False, "Rooms delivered last 12m — 'Habitaciones entregadas 12 m.'."),
 ]
 
 
@@ -672,6 +700,9 @@ def _market_row_to_pais(r: dict, snapshot: dict) -> dict:
         "room_count_total": _round_int(r.get("rooms_inventory")),
         "pipeline_rooms": _round_int(r.get("rooms_under_construction")),
         "pipeline_hotels": None,
+        # v1.3 passthrough
+        "rooms_under_construction": _round_int(r.get("rooms_under_construction")),
+        "rooms_delivered_12m": _round_int(r.get("rooms_delivered_12m")),
         **_meta_block(snapshot, r.get("country"), "costar"),
     }
 
@@ -704,6 +735,25 @@ def _market_row_to_mercado(r: dict, snapshot: dict) -> dict:
         "pipeline_rooms": _round_int(r.get("rooms_under_construction")),
         "pipeline_hotels": None,
         "seasonality_index": None,
+        # v1.3 passthrough
+        "rooms_under_construction": _round_int(r.get("rooms_under_construction")),
+        "rooms_delivered_12m": _round_int(r.get("rooms_delivered_12m")),
+        "buildings_built": _round_int(r.get("buildings_built")),
+        "buildings_under_construction": _round_int(r.get("buildings_under_construction")),
+        "avg_rooms_per_building": r.get("avg_rooms_per_building"),
+        "inventory_growth_12m": (r.get("inventory_growth_12m") or 0) * 100 if r.get("inventory_growth_12m") is not None else None,
+        "rooms_opened_12m": _round_int(r.get("rooms_opened_12m")),
+        "buildings_opened_12m": _round_int(r.get("buildings_opened_12m")),
+        "occupancy_spot_pct": (r.get("occupancy_spot") or 0) * 100 if r.get("occupancy_spot") is not None else None,
+        "occupancy_yoy_spot_pp": (r.get("occupancy_yoy_spot") or 0) * 100 if r.get("occupancy_yoy_spot") is not None else None,
+        "adr_spot": r.get("adr_spot"),
+        "adr_yoy_spot_pct": (r.get("adr_yoy_spot") or 0) * 100 if r.get("adr_yoy_spot") is not None else None,
+        "revpar_spot": r.get("revpar_spot"),
+        "revpar_yoy_spot_pct": (r.get("revpar_yoy_spot") or 0) * 100 if r.get("revpar_yoy_spot") is not None else None,
+        "market_sale_price_per_room": r.get("market_sale_price_per_room"),
+        "sales_volume_12m": _round_int(r.get("sales_volume_12m")),
+        "market_yield": (r.get("market_yield") or 0) * 100 if r.get("market_yield") is not None else None,
+        "period_iso": r.get("period"),
         **_meta_block(snapshot, f"{r.get('country')}|{r.get('market_name')}|{r.get('period') or ''}", "costar"),
     }
 
@@ -737,6 +787,9 @@ def _market_row_to_submercado(r: dict, snapshot: dict) -> dict:
         "room_count_total": _round_int(r.get("rooms_inventory")),
         "pipeline_rooms": _round_int(r.get("rooms_under_construction")),
         "pipeline_hotels": None,
+        # v1.3 passthrough
+        "rooms_under_construction": _round_int(r.get("rooms_under_construction")),
+        "rooms_delivered_12m": _round_int(r.get("rooms_delivered_12m")),
         **_meta_block(snapshot, f"{r.get('submarket_name')}", "costar"),
     }
 
