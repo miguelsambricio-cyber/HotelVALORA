@@ -110,11 +110,11 @@ WORKSPACE = HERE.parent  # services/costar
 REPO_ROOT = WORKSPACE.parent.parent
 
 # Time-series history cap · keep the last N calendar years of MERCADO
-# DataTable periods. CoStar exports ~30 years of monthly history but
-# institutional underwriting horizons rarely look beyond a decade.
-# Cap reduces snapshot size, speeds reads, and matches the operator's
-# review window.
-HISTORY_YEARS_LIMIT = 10
+# DataTable periods. CoStar exports ~30 years of monthly history.
+# Operator restored full history (2026-05-14) · institutional review
+# benefits from the long-term cycles (2008 GFC · 2020 COVID · etc).
+# Set to None to disable the cap entirely.
+HISTORY_YEARS_LIMIT: int | None = None
 
 INPUT_HOTELS = WORKSPACE / "HOTELESperMARKET" / "INPUT"
 ARCHIVE_HOTELS = WORKSPACE / "HOTELESperMARKET" / "OLD"
@@ -565,10 +565,14 @@ def _read_market_rows(
         return [], False
 
     out: list[dict[str, Any]] = []
-    # 10-year history cap · MERCADO DataTable rows older than the cutoff
-    # are dropped at ingestion time. Cutoff = current_year - HISTORY_YEARS_LIMIT.
+    # History cap · MERCADO DataTable rows older than the cutoff dropped
+    # at ingestion time. HISTORY_YEARS_LIMIT=None disables the cap.
     import re as _re
-    cutoff_year = datetime.now(timezone.utc).year - HISTORY_YEARS_LIMIT
+    cutoff_year = (
+        datetime.now(timezone.utc).year - HISTORY_YEARS_LIMIT
+        if HISTORY_YEARS_LIMIT is not None
+        else None
+    )
     dropped_old = 0
     for raw in raw_rows:
         market = (raw.get("market_name") or "").strip() or None
@@ -583,7 +587,7 @@ def _read_market_rows(
         if not (market or submarket or period):
             continue
         # Apply history cap on time-series rows (those with a `period`)
-        if period:
+        if period and cutoff_year is not None:
             m = _re.search(r"\b(\d{4})\b", period)
             if m and int(m.group(1)) < cutoff_year:
                 dropped_old += 1

@@ -419,7 +419,7 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
                 tone="emerald"
                 hint={
                   snap
-                    ? `${snap.totals.market_snapshots ?? 0} geo · ${snap.totals.market_timeseries ?? 0} ts · ${snap.totals.transactions ?? 0} tx · ${snap.totals.projects ?? 0} proj`
+                    ? `${snap.totals.market_snapshots ?? 0} geo + ${snap.totals.market_timeseries ?? 0} ts + ${snap.totals.transactions ?? 0} tx + ${snap.totals.projects ?? 0} proj`
                     : "geo + time-series + transactions + projects"
                 }
               />
