@@ -4,6 +4,46 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — CoStar mapping correction · last-sale + Meeting rooms always visible
+
+Operator clarification on which CoStar source columns each property field maps to:
+- Segment → CoStar "Tipo secundario" · values: hotel | apartamento con servicios | Hotel project
+- Categoria → CoStar "Clasificación hotelera"
+- Gross area (m²) → CoStar "Superficie alquilable" (was named "Gross building")
+- Lot size (m²) → CoStar "Terreno (m²)"
+- Typical floor (m²) → CoStar "Planta tipo (m²)"
+
+Plus 3 new things:
+- Add a card to the right of F&B for number of meeting rooms (always visible)
+- Add `Last sale date` and `Last sale price` to Property characteristics
+
+### Python normalization aliases
+- `clasificacion_hotelera` / `clasificacion` → `category`
+- `superficie_alquilable` / `rentable_area` / `leasable_area` → `gross_building_sqm` (additional aliases · the field name stays the same internally)
+- `terreno` / `terreno_m2` → `lot_size_sqm`
+- `planta_tipo_m2` → `typical_floor_sqm`
+- `apartamento_con_servicios` / `apartamentos_con_servicios` / `apart-hotel` → `tourist_apartments` in `_SEGMENT_MAP`
+
+### UI changes
+- "Gross building (m²)" label renamed → "Gross area (m²)" · enum value stays `gross_building_sqm` for stability · only the display string changes
+- `fmtSegment` now renders `tourist_apartments` → "Apartamento con servicios" (was "Tourist apartments") to match CoStar's institutional vocabulary
+- New `fmtPriceEur(n)` helper · compact notation €1.5M / €450K / €120
+- Last sale rows derived from `transactions` array · most-recent `closed_at` with non-null `price_eur` wins · displayed as ISO date + €X.XM
+- Row 2 of enrichment cards now ALWAYS renders Room types · F&B · Meeting rooms (previously each was gated on data) · "—" placeholders for empty data · this anchors Meeting rooms in the canonical column-3 position to the right of F&B regardless of profile state
+- Placeholder text on each card: "no Booking room types yet" · "no F&B data yet" · "no meeting rooms data"
+
+### Validation
+- AC Hotel (h_204efabe95397fff)
+  - Gross area · Lot size · Typical floor render "—" (snapshot doesn't have those columns yet · re-ingest unblocks)
+  - Last sale date · Last sale price render "—" (no transactions linked yet)
+  - Row 2 shows Room types (—) · F&B (—) · Meeting rooms (—) all aligned
+- typecheck clean · HTTP 200 · 153 KB detail page
+
+### Operator action
+- Re-run `python services/costar/scripts/ingest.py` after CoStar XLSX is loaded with the corrected column names (Superficie alquilable / Terreno / Planta tipo / Tipo secundario / Clasificación hotelera) · the aliases now match those headers
+
+---
+
 ## 2026-05-14 — Hotel detail · Property characteristics expanded + Room Mix superficie media
 
 Operator request after the previous overhaul:

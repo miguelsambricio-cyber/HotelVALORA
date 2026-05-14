@@ -155,9 +155,23 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             />
             <Pair label="Year opened" value={fmtNum(hotel.year_opened)} />
             <Pair label="Year last renovated" value={fmtNum(hotel.year_last_renovated)} />
-            <Pair label="Gross building (m²)" value={fmtSqm(hotel.gross_building_sqm)} />
+            <Pair label="Gross area (m²)" value={fmtSqm(hotel.gross_building_sqm)} />
             <Pair label="Lot size (m²)" value={fmtSqm(hotel.lot_size_sqm)} />
             <Pair label="Typical floor (m²)" value={fmtSqm(hotel.typical_floor_sqm)} />
+            {(() => {
+              // Derive last sale from the hotel's transaction history ·
+              // most-recent closed_at with a known price_eur wins
+              const sorted = [...transactions]
+                .filter((t) => t.closed_at && t.price_eur != null)
+                .sort((a, b) => (b.closed_at ?? "").localeCompare(a.closed_at ?? ""));
+              const last = sorted[0];
+              return (
+                <>
+                  <Pair label="Last sale date" value={last?.closed_at ?? "—"} mono />
+                  <Pair label="Last sale price" value={fmtPriceEur(last?.price_eur)} />
+                </>
+              );
+            })()}
           </Section>
 
           <Section title="Location" icon={<MapPin size={14} />}>
@@ -651,39 +665,46 @@ function ProfileEnrichmentSection({ hotel }: { hotel: HotelRecord }) {
             }
             highlight
           />
-          {(profile.room_types?.length ?? 0) > 0 && (
-            <ProfileCard label="Room types">
-              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-                {profile.room_types?.length}
-              </p>
+          {/* Row 2 · always renders all 3 cards so Meeting rooms is
+              anchored to the right of F&B regardless of which fields
+              the profile has populated. "—" placeholder when empty. */}
+          <ProfileCard label="Room types">
+            <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+              {profile.room_types?.length ?? "—"}
+            </p>
+            {(profile.room_types?.length ?? 0) > 0 ? (
               <p className="font-mono text-[10.5px] text-slate-500">
                 {profile.room_types?.slice(0, 2).map((r) => `${r.name}${r.count ? ` (${r.count})` : ""}`).join(" · ")}
                 {(profile.room_types?.length ?? 0) > 2 ? ` · +${(profile.room_types?.length ?? 0) - 2}` : ""}
               </p>
-            </ProfileCard>
-          )}
-          {profile.fnb && (
-            <ProfileCard label="F&B">
-              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-                {(profile.fnb.restaurants_count ?? 0)}R · {(profile.fnb.bars_count ?? 0)}B
-              </p>
-              <p className="font-mono text-[10.5px] text-slate-500">
-                {profile.fnb.breakfast_included ? "breakfast incl. · " : ""}
-                {profile.fnb.michelin_stars ? `${profile.fnb.michelin_stars}★ Michelin` : ""}
-              </p>
-            </ProfileCard>
-          )}
-          {profile.meeting_rooms && (profile.meeting_rooms.count ?? 0) > 0 && (
-            <ProfileCard label="Meeting rooms">
-              <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
-                {profile.meeting_rooms.count}
-              </p>
-              <p className="font-mono text-[10.5px] text-slate-500">
-                {profile.meeting_rooms.total_sqm ? `${profile.meeting_rooms.total_sqm} sqm` : ""}
-                {profile.meeting_rooms.max_capacity ? ` · max ${profile.meeting_rooms.max_capacity}` : ""}
-              </p>
-            </ProfileCard>
-          )}
+            ) : (
+              <p className="font-mono text-[10.5px] text-slate-400">no Booking room types yet</p>
+            )}
+          </ProfileCard>
+          <ProfileCard label="F&B">
+            <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+              {profile.fnb
+                ? `${profile.fnb.restaurants_count ?? 0}R · ${profile.fnb.bars_count ?? 0}B`
+                : "—"}
+            </p>
+            <p className="font-mono text-[10.5px] text-slate-500">
+              {profile.fnb?.breakfast_included ? "breakfast incl. · " : ""}
+              {profile.fnb?.michelin_stars ? `${profile.fnb.michelin_stars}★ Michelin` : ""}
+              {!profile.fnb && <span className="text-slate-400">no F&B data yet</span>}
+            </p>
+          </ProfileCard>
+          <ProfileCard label="Meeting rooms">
+            <p className="font-headline text-xl font-extrabold tabular-nums text-forest-900">
+              {profile.meeting_rooms?.count ?? "—"}
+            </p>
+            <p className="font-mono text-[10.5px] text-slate-500">
+              {profile.meeting_rooms?.total_sqm ? `${profile.meeting_rooms.total_sqm} sqm` : ""}
+              {profile.meeting_rooms?.max_capacity ? ` · max ${profile.meeting_rooms.max_capacity}` : ""}
+              {!profile.meeting_rooms?.count && (
+                <span className="text-slate-400">no meeting rooms data</span>
+              )}
+            </p>
+          </ProfileCard>
           {(profile.sustainability?.length ?? 0) > 0 && (
             <ProfileCard label="Sustainability">
               <p className="font-headline text-[12px] font-extrabold text-emerald-700">
@@ -1031,7 +1052,9 @@ function fmtSegment(s: string | null | undefined): string {
   const map: Record<string, string> = {
     hotel: "Hotel",
     hotel_project: "Hotel project",
-    tourist_apartments: "Tourist apartments",
+    // CoStar canonical label · "Apartamento con servicios" · the
+    // internal enum value remains `tourist_apartments` for stability
+    tourist_apartments: "Apartamento con servicios",
     // Legacy values may still be in older records · render gracefully
     business: "Hotel (business · legacy)",
     leisure: "Hotel (leisure · legacy)",
@@ -1040,6 +1063,15 @@ function fmtSegment(s: string | null | undefined): string {
     convention: "Convention (legacy)",
   };
   return map[s] ?? s;
+}
+
+/** Format a EUR amount as compact institutional notation (e.g.
+ *  €120M / €2.4M / €450K). Null → "—". */
+function fmtPriceEur(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  if (n >= 1_000_000) return `€${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `€${(n / 1_000).toFixed(0)}K`;
+  return `€${n}`;
 }
 
 function fmtFloors(

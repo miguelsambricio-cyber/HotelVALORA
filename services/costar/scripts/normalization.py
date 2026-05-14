@@ -70,6 +70,8 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     #           chain_scale; Escala only catches "Independiente" → independent below.
     "clase": "chain_scale", "escala": "chain_scale_or_affiliation",
     "category": "category", "stars": "category", "estrellas": "category", "star_rating": "category",
+    # CoStar ES: "Clasificación hotelera" (official star rating field)
+    "clasificacion_hotelera": "category", "clasificacion": "category",
     "segment": "segment_type", "segment_type": "segment_type", "segmento": "segment_type", "hotel_segment": "segment_type",
     # CoStar ES: "Tipo de ubicación del hotel" / "Tipo secundario"
     "tipo_de_ubicacion_del_hotel": "segment_type", "tipo_secundario": "segment_type",
@@ -85,16 +87,21 @@ HOTEL_HEADER_ALIASES: dict[str, str] = {
     "plantas_sobre_rasante": "floors_above_ground", "floors_above_ground": "floors_above_ground",
     "plantas_bajo_rasante": "floors_below_ground", "floors_below_ground": "floors_below_ground",
     # Surface fields (CoStar ES institutional underwriting headline)
-    # "Superficie construida" / "Gross Building Area" / "Área construida"
+    # CoStar canonical column: "Superficie alquilable" → gross area (m²)
+    # Also accept "Superficie construida" / "Gross Building Area" / "Área construida"
+    "superficie_alquilable": "gross_building_sqm", "superficie_alquilable_m2": "gross_building_sqm",
+    "rentable_area": "gross_building_sqm", "leasable_area": "gross_building_sqm",
     "superficie_construida": "gross_building_sqm", "area_construida": "gross_building_sqm",
     "gross_building_sqm": "gross_building_sqm", "gross_building_area": "gross_building_sqm",
+    "gross_area": "gross_building_sqm", "gross_area_sqm": "gross_building_sqm",
     "gba": "gross_building_sqm", "superficie_construida_m2": "gross_building_sqm",
-    # "Superficie de la parcela" / "Superficie del terreno" / "Lot size"
+    # CoStar canonical: "Terreno (m²)" → lot_size_sqm
+    "terreno": "lot_size_sqm", "terreno_m2": "lot_size_sqm",
     "superficie_de_la_parcela": "lot_size_sqm", "superficie_del_terreno": "lot_size_sqm",
     "superficie_parcela": "lot_size_sqm", "lot_size": "lot_size_sqm", "lot_size_sqm": "lot_size_sqm",
-    "terreno_m2": "lot_size_sqm",
-    # "Planta tipo" / "Superficie planta tipo" / "Typical floor"
-    "planta_tipo": "typical_floor_sqm", "superficie_planta_tipo": "typical_floor_sqm",
+    # CoStar canonical: "Planta tipo (m²)" → typical_floor_sqm
+    "planta_tipo": "typical_floor_sqm", "planta_tipo_m2": "typical_floor_sqm",
+    "superficie_planta_tipo": "typical_floor_sqm",
     "typical_floor": "typical_floor_sqm", "typical_floor_sqm": "typical_floor_sqm",
     # Facilities / scoring
     "facilities": "facilities_raw", "amenities": "amenities_raw", "servicios": "facilities_raw",
@@ -244,10 +251,12 @@ _SEGMENT_MAP = {
     "en_desarrollo": "hotel_project", "en desarrollo": "hotel_project",
     "in_development": "hotel_project", "under_development": "hotel_project",
     "planned": "hotel_project", "pipeline": "hotel_project",
-    # Tourist apartments / aparthotel
+    # Tourist apartments / aparthotel / apartamento con servicios (CoStar canonical)
     "tourist_apartments": "tourist_apartments", "tourist apartments": "tourist_apartments",
     "apartamentos_turisticos": "tourist_apartments", "apartamentos turisticos": "tourist_apartments",
-    "aparthotel": "tourist_apartments", "apart_hotel": "tourist_apartments",
+    "apartamento_con_servicios": "tourist_apartments", "apartamento con servicios": "tourist_apartments",
+    "apartamentos_con_servicios": "tourist_apartments",
+    "aparthotel": "tourist_apartments", "apart_hotel": "tourist_apartments", "apart-hotel": "tourist_apartments",
     "serviced_apartments": "tourist_apartments", "vacation_rental": "tourist_apartments",
 }
 
