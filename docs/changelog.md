@@ -4,6 +4,36 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-14 — Market KPIs · 425 rows recovered · stateful-merge safety added
+
+Operator: "Market KPIs muestra 0 · antes ponía +700". Diagnosis:
+1. Production snapshot was uploaded before the PAIS/MERCADO/SUBMERCADO XLSX files were ingested · stored `market_timeseries=0, market_snapshots=0` in production.
+2. SUBMERCADO file was never in INPUT during the most recent local ingests · its 10 rows were dropped because the stateful merge in `ingest.py` only carries forward hotels/transactions/compsets, NOT market data.
+3. UI's "Market KPIs" KPI showed only `market_timeseries` (356 rows max) · operator's mental model included the 69 geo-listing rows too · hence "+700" memory.
+
+### Source counts (from CoStar XLSX exports)
+| File | Rows |
+|---|---|
+| PAIS · GeographyList | 44 countries |
+| MERCADO · GeographyList | 15 markets |
+| MERCADO · DataTable | 356 monthly periods |
+| SUBMERCADO · GeographyList | 10 submarkets |
+| **TOTAL KPI** | **425** |
+
+### Fixes shipped
+1. **Re-ingested all 4 KPI XLSX files** · `batch_04ef5ec3e6b54457`
+   - 44 country_listing + 15 market + 10 submarket = 69 `market_snapshots`
+   - 356 `market_timeseries` (Madrid only · 30 years × 12 months)
+   - Total 425 KPI rows · matches source 1:1
+2. **Stateful-merge safety in `ingest.py`** · when current run captures 0 market_snapshots / market_timeseries / projects, carry forward from previous snapshot · prevents data loss when operator forgets to drop files in INPUT
+3. **UI · "Market KPIs" KPI** now shows `market_snapshots + market_timeseries` (425) with hint `"69 geo · 356 time-series"` · matches operator's mental model
+4. **Snapshot uploaded** to Supabase Storage · production reflects within 30s
+
+### Side effect of re-ingest
+Stateful merge preserved · 364 hotels + 661 transactions + 217 Booking enrichment records all carried forward · no data loss · 4 KPI files moved INPUT → OLD.
+
+---
+
 ## 2026-05-14 — Bulk Booking enrichment over 364 Madrid hotels · 217 enriched (60% coverage)
 
 Operator upgraded RapidAPI booking-com15 to Pro tier (35k calls/month) · ran the full bulk over the Madrid inventory.

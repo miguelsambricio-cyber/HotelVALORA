@@ -410,9 +410,13 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
             >
               <Kpi
                 label="Market KPIs"
-                value={snap?.totals.market_timeseries ?? 0}
+                value={(snap?.totals.market_snapshots ?? 0) + (snap?.totals.market_timeseries ?? 0)}
                 tone="emerald"
-                hint="period-indexed"
+                hint={
+                  snap
+                    ? `${snap.totals.market_snapshots ?? 0} geo · ${snap.totals.market_timeseries ?? 0} time-series`
+                    : "geo + period-indexed"
+                }
               />
               <Kpi
                 label="Transactions"

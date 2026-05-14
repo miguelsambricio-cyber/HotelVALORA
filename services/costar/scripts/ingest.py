@@ -844,6 +844,26 @@ def main(argv: list[str] | None = None) -> int:
     market_snapshots, market_timeseries, processed_market, failed_market = ingest_market_data(batch_id, logger)
     projects, processed_projects, failed_projects = ingest_projects(batch_id, logger)
 
+    # Safety · carry forward market data from previous snapshot when the
+    # current run captured 0 rows (operator forgot to drop files into
+    # INPUT). Otherwise the snapshot would lose data the user paid for.
+    if previous:
+        if len(market_snapshots) == 0:
+            prev_ms = previous.get("market_snapshots", [])
+            if len(prev_ms) > 0:
+                market_snapshots = prev_ms
+                logger.event("info", "market.carried_from_previous", kind="snapshots", count=len(prev_ms))
+        if len(market_timeseries) == 0:
+            prev_mt = previous.get("market_timeseries", [])
+            if len(prev_mt) > 0:
+                market_timeseries = prev_mt
+                logger.event("info", "market.carried_from_previous", kind="timeseries", count=len(prev_mt))
+        if len(projects) == 0:
+            prev_pj = previous.get("projects", [])
+            if len(prev_pj) > 0:
+                projects = prev_pj
+                logger.event("info", "projects.carried_from_previous", count=len(prev_pj))
+
     # Phase 2.3.d.6c · Synthetic compset inference — generates a top-4
     # compset per hotel when the operator-confirmed membership isn't
     # available yet (PDF 3.1 not parsed). Every synthetic compset is
