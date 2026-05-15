@@ -375,3 +375,294 @@ export const PNL_BENCHMARKS: PnlLine[] = [
     polarity: "positive",
   },
 ];
+
+
+// ─── P&L Forecast COSTAR · 5-year USALI table ─────────────────────────
+
+/** Geography filter axis values · placeholder · future-wired to CoStar. */
+export const PNL_GEO_FILTERS = {
+  countries: ["España", "Portugal", "France", "Italy", "United Kingdom", "Germany"],
+  markets: [
+    "Madrid", "Barcelona", "Costa del Sol", "Sevilla", "Mallorca", "Canarias",
+    "Bilbao", "Valencia", "Lisboa", "Porto", "Paris", "Roma",
+  ],
+  submarkets: [
+    "Madrid Centro", "Madrid Salamanca", "Madrid Chamberí",
+    "Barcelona Eixample", "Barcelona Born", "Costa del Sol Marbella",
+  ],
+  classes: ["Luxury", "Upper Upscale", "Upscale", "Upper Midscale", "Midscale", "Economy"],
+};
+
+/** One row in the P&L forecast · USALI structure. */
+export interface PnlForecastRow {
+  id: string;
+  section: PnlForecastSectionId;
+  label: string;
+  /** Optional column 2 cell (Assump.). When set, rendered as value+sub. */
+  assump?: { value: string; sub?: string };
+  /** Five year cells · index 0 = Y1. Each cell value plus optional delta annotation. */
+  years: Array<{ value: string; delta?: string }>;
+  /** Visual treatment for subtotals / final lines / margin line. */
+  highlight?: "subtotal" | "final" | "margin";
+}
+
+export type PnlForecastSectionId =
+  | "room_stats"
+  | "operating_revenue"
+  | "departmental"
+  | "undistributed"
+  | "non_operating";
+
+export const PNL_FORECAST_SECTIONS: Array<{ id: PnlForecastSectionId; label: string }> = [
+  { id: "room_stats", label: "Room Statistics" },
+  { id: "operating_revenue", label: "Operating Revenue" },
+  { id: "departmental", label: "Departmental Expenses" },
+  { id: "undistributed", label: "Undistributed Expenses" },
+  { id: "non_operating", label: "Non Operating Charges" },
+];
+
+/**
+ * 5-year USALI forecast · seeded defaults from operator template.
+ * Numbers are display-formatted strings (Spanish locale · M/k suffixes ·
+ * comma decimal). Future Phase D may make these reactive to assumption
+ * inputs (% × Total Revenue).
+ */
+export const PNL_FORECAST_5Y: PnlForecastRow[] = [
+  // ── Room Statistics ──
+  {
+    id: "rooms-count",
+    section: "room_stats",
+    label: "Rooms",
+    years: [
+      { value: "300" }, { value: "300" }, { value: "300" }, { value: "300" }, { value: "300" },
+    ],
+  },
+  {
+    id: "occupancy",
+    section: "room_stats",
+    label: "Occupancy %",
+    assump: { value: "65,0%" },
+    years: [
+      { value: "65,0%" }, { value: "68,0%", delta: "+3pp" }, { value: "70,0%", delta: "+2pp" },
+      { value: "71,0%", delta: "+1pp" }, { value: "71,0%", delta: "0pp" },
+    ],
+  },
+  {
+    id: "adr",
+    section: "room_stats",
+    label: "ADR",
+    assump: { value: "175,00 €" },
+    years: [
+      { value: "175 €" }, { value: "181 €", delta: "+3,6%" }, { value: "187 €", delta: "+2,9%" },
+      { value: "189 €", delta: "+1,5%" }, { value: "194 €", delta: "+2,4%" },
+    ],
+  },
+  {
+    id: "revpar",
+    section: "room_stats",
+    label: "RevPAR",
+    years: [
+      { value: "114 €" }, { value: "123 €", delta: "+8,4%" }, { value: "131 €", delta: "+5,9%" },
+      { value: "134 €", delta: "+2,9%" }, { value: "138 €", delta: "+2,4%" },
+    ],
+  },
+
+  // ── Operating Revenue ──
+  {
+    id: "rev-rooms",
+    section: "operating_revenue",
+    label: "Rooms",
+    assump: { value: "67,1%", sub: "% total rev" },
+    years: [
+      { value: "12,46M €" }, { value: "13,50M €" }, { value: "14,30M €" },
+      { value: "14,72M €" }, { value: "15,07M €" },
+    ],
+  },
+  {
+    id: "rev-fb",
+    section: "operating_revenue",
+    label: "Food & Beverage",
+    assump: { value: "25,0%", sub: "% total rev" },
+    years: [
+      { value: "4,64M €" }, { value: "5,03M €" }, { value: "5,33M €" },
+      { value: "5,48M €" }, { value: "5,62M €" },
+    ],
+  },
+  {
+    id: "rev-meetings",
+    section: "operating_revenue",
+    label: "Meeting Rooms & Events",
+    assump: { value: "3,8%", sub: "% total rev" },
+    years: [
+      { value: "705,4k €" }, { value: "764,5k €" }, { value: "809,8k €" },
+      { value: "833,7k €" }, { value: "853,7k €" },
+    ],
+  },
+  {
+    id: "rev-spa",
+    section: "operating_revenue",
+    label: "Spa & Wellness",
+    assump: { value: "2,2%", sub: "% total rev" },
+    years: [
+      { value: "408,4k €" }, { value: "442,6k €" }, { value: "468,8k €" },
+      { value: "482,7k €" }, { value: "494,3k €" },
+    ],
+  },
+  {
+    id: "rev-other",
+    section: "operating_revenue",
+    label: "Parking & Others",
+    assump: { value: "1,9%", sub: "% total rev" },
+    years: [
+      { value: "352,7k €" }, { value: "382,3k €" }, { value: "404,9k €" },
+      { value: "416,9k €" }, { value: "426,9k €" },
+    ],
+  },
+  {
+    id: "subtotal-revenue",
+    section: "operating_revenue",
+    label: "Total Revenue",
+    highlight: "subtotal",
+    years: [
+      { value: "18,56M €" }, { value: "20,12M €" }, { value: "21,31M €" },
+      { value: "21,94M €" }, { value: "22,47M €" },
+    ],
+  },
+
+  // ── Departmental Expenses ──
+  {
+    id: "exp-rooms",
+    section: "departmental",
+    label: "Rooms",
+    assump: { value: "25,7%", sub: "% rooms rev" },
+    years: [
+      { value: "3,20M €" }, { value: "3,43M €" }, { value: "3,62M €" },
+      { value: "3,74M €" }, { value: "3,86M €" },
+    ],
+  },
+  {
+    id: "exp-fb",
+    section: "departmental",
+    label: "Food & Beverage",
+    assump: { value: "65,0%", sub: "% F&B rev" },
+    years: [
+      { value: "3,02M €" }, { value: "3,23M €" }, { value: "3,41M €" },
+      { value: "3,53M €" }, { value: "3,63M €" },
+    ],
+  },
+  {
+    id: "exp-other",
+    section: "departmental",
+    label: "Other Departments Expenses",
+    assump: { value: "85,0%", sub: "% other rev" },
+    years: [
+      { value: "1,25M €" }, { value: "1,34M €" }, { value: "1,41M €" },
+      { value: "1,46M €" }, { value: "1,50M €" },
+    ],
+  },
+
+  // ── Undistributed Expenses ──
+  {
+    id: "exp-admin",
+    section: "undistributed",
+    label: "Admin & General",
+    assump: { value: "7,2%", sub: "% total rev" },
+    years: [
+      { value: "1,34M €" }, { value: "1,37M €" }, { value: "1,40M €" },
+      { value: "1,44M €" }, { value: "1,48M €" },
+    ],
+  },
+  {
+    id: "exp-sm",
+    section: "undistributed",
+    label: "Sales & Marketing",
+    assump: { value: "6,0%", sub: "% total rev" },
+    years: [
+      { value: "1,11M €" }, { value: "1,14M €" }, { value: "1,17M €" },
+      { value: "1,20M €" }, { value: "1,23M €" },
+    ],
+  },
+  {
+    id: "exp-maint",
+    section: "undistributed",
+    label: "Property & Maint.",
+    assump: { value: "4,5%", sub: "% total rev" },
+    years: [
+      { value: "835,3k €" }, { value: "856,2k €" }, { value: "877,6k €" },
+      { value: "899,6k €" }, { value: "922,0k €" },
+    ],
+  },
+  {
+    id: "exp-utilities",
+    section: "undistributed",
+    label: "Utilities",
+    assump: { value: "2,8%", sub: "% total rev" },
+    years: [
+      { value: "519,8k €" }, { value: "537,9k €" }, { value: "556,8k €" },
+      { value: "576,3k €" }, { value: "596,4k €" },
+    ],
+  },
+  {
+    id: "subtotal-gop",
+    section: "undistributed",
+    label: "GOP",
+    highlight: "subtotal",
+    years: [
+      { value: "7,29M €" }, { value: "8,21M €" }, { value: "8,86M €" },
+      { value: "9,09M €" }, { value: "9,25M €" },
+    ],
+  },
+
+  // ── Non Operating Charges ──
+  {
+    id: "non-mgmt",
+    section: "non_operating",
+    label: "Management fee",
+    assump: { value: "4,6%", sub: "% total rev" },
+    years: [
+      { value: "853,9k €" }, { value: "925,5k €" }, { value: "980,3k €" },
+      { value: "1,01M €" }, { value: "1,03M €" },
+    ],
+  },
+  {
+    id: "non-tax",
+    section: "non_operating",
+    label: "Property tax & insurance",
+    assump: { value: "1,1%", sub: "% total rev" },
+    years: [
+      { value: "204,2k €" }, { value: "209,3k €" }, { value: "214,5k €" },
+      { value: "219,9k €" }, { value: "225,4k €" },
+    ],
+  },
+  {
+    id: "non-ffe",
+    section: "non_operating",
+    label: "FF&E reserve",
+    assump: { value: "4,0%", sub: "% total rev" },
+    years: [
+      { value: "742,5k €" }, { value: "804,7k €" }, { value: "852,4k €" },
+      { value: "877,6k €" }, { value: "898,6k €" },
+    ],
+  },
+  {
+    id: "subtotal-ebitda",
+    section: "non_operating",
+    label: "EBITDA",
+    highlight: "final",
+    years: [
+      { value: "5,49M €" }, { value: "6,27M €" }, { value: "6,81M €" },
+      { value: "6,99M €" }, { value: "7,09M €" },
+    ],
+  },
+  {
+    id: "margin",
+    section: "non_operating",
+    label: "% Margin",
+    highlight: "margin",
+    years: [
+      { value: "29,6%" }, { value: "31,2%" }, { value: "32,0%" },
+      { value: "31,9%" }, { value: "31,6%" },
+    ],
+  },
+];
+
