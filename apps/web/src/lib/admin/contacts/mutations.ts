@@ -485,3 +485,156 @@ export async function updateRelationshipStatusAction(
     return { ok: false, error: redactError(err) };
   }
 }
+
+
+// ─── Manual contact creation ──────────────────────────────────────────
+
+const createSchema = z.object({
+  full_name: z.string().trim().min(1, "Full name required").max(200),
+  email: z.string().trim().email("Invalid email").max(320),
+  company_name: z.string().trim().max(300).nullish().or(z.literal("")),
+  investor_type: z.string().trim().max(120).nullish().or(z.literal("")),
+  title: z.string().trim().max(200).nullish().or(z.literal("")),
+  phone: z.string().trim().max(80).nullish().or(z.literal("")),
+  linkedin: z.string().trim().max(500).nullish().or(z.literal("")),
+  notes_consolidated: z.string().trim().max(10_000).nullish().or(z.literal("")),
+});
+
+/** Detect Next.js redirect throws so we re-throw past the catch. */
+function isNextRedirectError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    typeof (err as { digest?: unknown }).digest === "string" &&
+    (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
+/** 16-char lowercase hex · matches the historical Master master_id shape. */
+function generateMasterId(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Create a new contact manually from the admin/contacts surface.
+ *
+ * Required: full_name + email. Everything else optional. Defaults:
+ *   master_id              = random 16-char hex
+ *   bucket                 = 'active'
+ *   relationship_band      = 'cold'
+ *   email_validity         = 'uncertain' (upgrades on first Gmail signal)
+ *   contact_invitation_status = 'never_invited'
+ *   suppressed_outreach    = false
+ *   contact_category_v2    = 'Uncategorized' (operator can edit later)
+ *
+ * Idempotency: refuses to create if a non-deleted row already has the
+ * same email_lower.
+ *
+ * Company linking is NOT performed here · company_name stored as text.
+ * The next promote_to_supabase.py run reconciles against
+ * relationship_companies if the operator chooses to push the new row
+ * through the canonical pipeline.
+ *
+ * On success: redirects to ?selected=<new-id>&created=1 so the operator
+ * lands on the view drawer of the freshly-created contact.
+ */
+export async function createContactAction(formData: FormData): Promise<void> {
+  let filter_qs = "";
+  try {
+    const ctx = await requireOperator();
+    filter_qs = String(formData.get("filter_qs") ?? "");
+
+    const parsed = createSchema.safeParse({
+      full_name: formData.get("full_name"),
+      email: formData.get("email"),
+      company_name: formData.get("company_name"),
+      investor_type: formData.get("investor_type"),
+      title: formData.get("title"),
+      phone: formData.get("phone"),
+      linkedin: formData.get("linkedin"),
+      notes_consolidated: formData.get("notes_consolidated"),
+    });
+    if (!parsed.success) {
+      const msg = parsed.error.issues.map((i) => i.message).join(" · ");
+      const params = new URLSearchParams(filter_qs);
+      params.set("mode", "create");
+      params.set("error", msg);
+      redirect(`/user/admin/contacts?${params.toString()}`);
+    }
+    const v = parsed.data;
+    const emailLower = v.email.toLowerCase();
+
+    const sb = getSupabaseAdmin();
+
+    const { data: existing } = await sb
+      .from("relationship_contacts")
+      .select("id")
+      .eq("email_lower", emailLower)
+      .is("deleted_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      const params = new URLSearchParams(filter_qs);
+      params.set("mode", "create");
+      params.set("error", `A contact with email ${v.email} already exists.`);
+      redirect(`/user/admin/contacts?${params.toString()}`);
+    }
+
+    const masterId = generateMasterId();
+    const insert = {
+      master_id: masterId,
+      full_name: v.full_name,
+      email: v.email,
+      company_name: v.company_name || null,
+      investor_type: v.investor_type || null,
+      title: v.title || null,
+      phone: v.phone || null,
+      linkedin: v.linkedin || null,
+      notes_consolidated: v.notes_consolidated || null,
+      bucket: "active",
+      relationship_band: "cold",
+      email_validity: "uncertain",
+      contact_invitation_status: "never_invited",
+      suppressed_outreach: false,
+      contact_category_v2: "Uncategorized",
+      source_file: "admin_ui_manual_entry",
+    };
+
+    const { data: inserted, error } = await sb
+      .from("relationship_contacts")
+      .insert(insert as never)
+      .select("id")
+      .single();
+    if (error || !inserted) {
+      const params = new URLSearchParams(filter_qs);
+      params.set("mode", "create");
+      params.set("error", redactError(error ?? "Insert failed"));
+      redirect(`/user/admin/contacts?${params.toString()}`);
+    }
+
+    const contactId = (inserted as { id: string }).id;
+
+    await sb.from("activity_log").insert({
+      actor_id: ctx.userId,
+      entity_id: contactId,
+      entity_type: "relationship_contact",
+      action: "contact.created_manually",
+      metadata: { actor_email: ctx.email, master_id: masterId, email: emailLower },
+    } as never);
+
+    revalidatePath("/user/admin/contacts");
+    const params = new URLSearchParams(filter_qs);
+    params.set("selected", contactId);
+    params.set("created", "1");
+    redirect(`/user/admin/contacts?${params.toString()}`);
+  } catch (err) {
+    if (isNextRedirectError(err)) throw err;
+    const params = new URLSearchParams(filter_qs);
+    params.set("mode", "create");
+    params.set("error", redactError(err));
+    redirect(`/user/admin/contacts?${params.toString()}`);
+  }
+}

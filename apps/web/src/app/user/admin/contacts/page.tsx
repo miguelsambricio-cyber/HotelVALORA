@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import {
   loadContacts,
   loadContactKpis,
@@ -12,6 +12,7 @@ import { ContactsFilters } from "@/components/admin/contacts/contacts-filters";
 import { ContactsTable } from "@/components/admin/contacts/contacts-table";
 import { ContactDetailDrawer } from "@/components/admin/contacts/contact-detail-drawer";
 import { ContactDetailDrawerEdit } from "@/components/admin/contacts/contact-detail-drawer-edit";
+import { ContactCreateDrawer } from "@/components/admin/contacts/contact-create-drawer";
 import { BulkSelectionProvider } from "@/components/admin/contacts/bulk/bulk-selection-context";
 import { SelectAllControls } from "@/components/admin/contacts/bulk/select-all-controls";
 import { BulkActionToolbar } from "@/components/admin/contacts/bulk/bulk-action-toolbar";
@@ -40,6 +41,7 @@ interface PageProps {
     selected?: string;
     mode?: string;
     saved?: string;
+    created?: string;
     error?: string;
     bulk_ok?: string;
     bulk_failed?: string;
@@ -65,7 +67,9 @@ export default async function ContactsPage({ searchParams }: PageProps) {
 
   const selectedId = searchParams.selected || null;
   const editMode = searchParams.mode === "edit";
+  const createMode = searchParams.mode === "create";
   const savedFlag = searchParams.saved === "1";
+  const createdFlag = searchParams.created === "1";
   const drawerError = searchParams.error || null;
 
   // Rebuild the "current filters" search string (without the `selected`
@@ -74,7 +78,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
   const baseParams = new URLSearchParams();
   for (const [k, v] of Object.entries(searchParams)) {
     if (!v) continue;
-    if (["selected", "mode", "saved", "error", "bulk_ok", "bulk_failed", "bulk_verb", "bulk_error"].includes(k)) continue;
+    if (["selected", "mode", "saved", "created", "error", "bulk_ok", "bulk_failed", "bulk_verb", "bulk_error"].includes(k)) continue;
     baseParams.set(k, v);
   }
   const baseSearchString = baseParams.toString();
@@ -111,7 +115,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
   ]);
   const campaigns = ((campaignsResult.data ?? []) as Array<{ id: string; name: string }>);
 
-  const hasDrawer = detail !== null;
+  const hasDrawer = detail !== null || createMode;
 
   return (
     <div className="space-y-6">
@@ -131,9 +135,21 @@ export default async function ContactsPage({ searchParams }: PageProps) {
             Institutional Relationship Console
           </span>
         </div>
-        <h1 className="font-headline text-3xl font-extrabold tracking-tighter text-forest-900 sm:text-[34px]">
-          Contacts
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-headline text-3xl font-extrabold tracking-tighter text-forest-900 sm:text-[34px]">
+            Contacts
+          </h1>
+          <Link
+            href={baseSearchString
+              ? `/user/admin/contacts?${baseSearchString}&mode=create`
+              : "/user/admin/contacts?mode=create"}
+            className="inline-flex items-center gap-1.5 rounded-md bg-forest-900 px-3 py-2 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.2em] text-lime-300 ring-1 ring-lime-300/40 hover:bg-forest-800 hover:text-lime-200"
+            aria-label="Add new contact manually"
+          >
+            <Plus size={13} />
+            New contact
+          </Link>
+        </div>
         <p className="max-w-3xl text-[13.5px] leading-relaxed text-slate-600">
           Canonical hospitality relationship graph · {kpis.total.toLocaleString()} contacts
           across {kpis.principals.toLocaleString()} principals · {kpis.brokers.toLocaleString()} brokers ·
@@ -143,6 +159,12 @@ export default async function ContactsPage({ searchParams }: PageProps) {
           dormant-without-signal rows are excluded from this view.
         </p>
       </header>
+
+      {createdFlag && (
+        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2.5 font-mono text-[11px] text-emerald-200">
+          Contact created · view drawer opened on the right.
+        </div>
+      )}
 
       <ContactsKpis kpis={kpis} />
 
@@ -191,7 +213,14 @@ export default async function ContactsPage({ searchParams }: PageProps) {
             />
             <BulkActionToolbar filterQs={filterQs} campaigns={campaigns} products={products} />
           </div>
-          {hasDrawer && detail && (
+          {createMode && (
+            <ContactCreateDrawer
+              closeHref={closeHref}
+              filterQs={filterQs}
+              errorMessage={drawerError}
+            />
+          )}
+          {!createMode && hasDrawer && detail && (
             editMode
               ? <ContactDetailDrawerEdit detail={detail} closeHref={viewHref} errorMessage={drawerError} />
               : <ContactDetailDrawer
