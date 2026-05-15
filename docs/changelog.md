@@ -4,6 +4,114 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Admin / Financials · new reference page (CAPEX matrix · Financial structure · P&L Forecast COSTAR)
+
+New `/user/admin/financials` surfaces HotelVALORA's institutional defaults for hospitality underwriting. Three cards · all fully editable with explicit Save flow · localStorage-backed (Phase D moves to Supabase admin_financial_settings).
+
+### Sidebar nav
+Added between **Hotels** and **Integrations** (both reference data layers · adjacent placement). `Calculator` icon · Live badge.
+
+### Card 1 · CAPEX
+- 12 line items · 3 groups (Hard cost · Soft cost · Project costs)
+- 9-cell matrix per line: 3 key tiers (0–80 · 80–180 · 180+) × 3 star categories (3* · 4* · 5*)
+- Per-row unit dropdown (€ total · € per key · € per m² · % total · default per key)
+- Editable cells · compact format display (`200k` · `12,6k` · `5,6k`) · permissive parser (accepts `12600` · `12,6k` · `12.6k` · `200k` · `1,5M`)
+- Reset row button · bottom band shows live totals per (tier, *)
+
+### Card 2 · Financial structure
+- 12 institutional baseline parameters: Hold period · LTV · LTC · cost of debt · DSCR · exit cap · Equity IRR · MOIC · fund mgmt fee · carried interest · transaction costs
+- Each `value` cell editable · `label` / `unit` / `description` read-only
+
+### Card 3 · P&L Forecast COSTAR
+- Geo filter chips: País · Mercado · Submercado · Class (placeholder dropdowns · ready for CoStar API wiring)
+- 4 reactive Room Stats boxes below filter row · show Occ% + ADR for the selected value of each dim · seeded `PNL_ROOM_STATS` lookup (6 countries · 12 markets · 6 submarkets · 6 classes)
+- Assumptions-only table · 3 cols (P&L USALI · Assumption editable · Description editable)
+- Sections: Operating Revenue (Rooms · Food · Beverage · Meeting Rooms · Spa · Parking) · Departmental Expenses (Rooms · Food · Beverage · Other) · Undistributed Expenses (Admin · Sales · Maint · Utilities) · Non Operating Charges (Mgmt fee · Property tax · Insurance · FF&E reserve)
+- Subtotals (Total Revenue · GOP · EBITDA · % Margin) and computed lines (Rooms count · RevPAR) hidden from this view · belong in downstream forecast renderer
+
+### Save / persistence model · `useDraftedOverrides` + `SaveBar`
+- Live edits → React draft state · NO localStorage write per keystroke
+- **Save changes** button (lime · forest text) appears in card header when draft differs from saved
+- **Discard** link reverts draft to last saved state
+- **Reset all to defaults** clears localStorage entirely (with confirm modal)
+- **Saved · today HH:MM** indicator in clean state
+- Hydration-safe: starts with defaults · merges localStorage on client-side useEffect · no SSR mismatch
+- Edit semantics per cell: blur or Enter commits to draft · Escape reverts · permissive parsers tolerate Spanish notation (comma decimal, k/M suffixes)
+
+### Files
+**New:**
+- `apps/web/src/app/user/admin/financials/page.tsx` (force-dynamic)
+- `apps/web/src/lib/admin/financials/defaults.ts` (~620 lines · CAPEX_DEFAULTS · FINANCIAL_STRUCTURE_DEFAULTS · PNL_FORECAST_5Y · PNL_GEO_FILTERS · PNL_ROOM_STATS · ROOM_TIERS · STAR_CATEGORIES)
+- `apps/web/src/lib/admin/financials/use-overrides.ts` (useOverrides + useDraftedOverrides + formatSavedAt)
+- `apps/web/src/components/admin/financials/capex-defaults-card.tsx` (client · per-row unit · 9-cell editable matrix · totals band)
+- `apps/web/src/components/admin/financials/financial-structure-card.tsx` (client · value-only editable rows)
+- `apps/web/src/components/admin/financials/pnl-benchmarks-card.tsx` (client · filter chips · reactive stat boxes · USALI assumptions table)
+- `apps/web/src/components/admin/financials/save-bar.tsx` (shared 3-state header control)
+
+**Modified:**
+- `apps/web/src/components/admin/admin-sidebar.tsx` (Financials nav entry · Calculator icon · between Hotels and Integrations)
+
+### Phase D path
+- Migration: `admin_financial_settings (key text, value jsonb, updated_at, updated_by)` so edits propagate across devices and survive cache clears
+- Server actions: `saveFinancialOverride` · `loadFinancialOverrides`
+- localStorage becomes a write-through cache
+- Audit log entries per edit (operator email + before/after JSON)
+- Wire P&L geo filter chips to actual CoStar STR rolling-12-month medians
+- Reactive 5-year forecast renderer powered by saved P&L assumptions + Room Stats lookup
+
+---
+
+## 2026-05-15 — Admin / Contacts · UX iteration session (Bulk Delete · perf · Plus button · NEXT_REDIRECT fix)
+
+Operational iteration on the live `/user/admin/contacts` surface during Phase C operator review. Six commits shipped in tight sequence based on operator feedback.
+
+### Bulk Delete
+- Added Trash2 icon button at far right of bulk action toolbar (separated by vertical divider · `tone="danger"` deeper red than existing rose/amber tones)
+- Initial design: 2-section panel (soft + type-to-confirm permanent) · operator simplified to single inline confirmation: `Delete N contacts? [Cancel] [Delete]`
+- Soft delete only in UI · sets `deleted_at = now()` · idempotent · audit log
+- `bulkHardDeleteAction` server action retained in `bulk.ts` for future per-row drawer use · unwired from bulk toolbar
+- Hard delete guards (preserved in code): refuses `linked_user_id IS NOT NULL` · CASCADE on FK · capped at 100 · type-to-confirm
+- Critical bug fix as side-effect: `loadContacts` + `loadContactKpis` did NOT filter `.is("deleted_at", null)` · added · `liveCount()` helper refactor for the 18-query KPI strip
+
+### Performance · table weight reduction
+Operator: page felt heavy. Three changes ship together:
+- 3 columns dropped (Last email · Gmail labels · Strategic signal) · all preserved in row drawer
+- Default `page_size`: 50 → 10 · operator override via `?page_size=N`
+- Skip labels join in `loadContacts` (drawer fetches its own labels via `loadContactDetail`)
+
+Net: rows fetched/render 50→10 (-80%) · queries/page 2→1 (-50%) · DOM nodes ~1100→~160 (-85%) · payload ~25KB→~5KB (-80%)
+
+### NEXT_REDIRECT swallowed banner · root + defense-in-depth
+Symptom: every bulk action showed "Bulk action failed · Error: NEXT_REDIRECT" banner above the table even though the action itself worked.
+
+Root: Next.js `redirect()` throws a special NEXT_REDIRECT error that the framework catches at the runtime boundary. The bulk*Action try/catch was swallowing it and re-redirecting with the error in the URL.
+
+Fix root: `isNextRedirectError(err)` helper detects via `digest.startsWith("NEXT_REDIRECT")` (canonical Next.js convention) · added to ALL 11 catch blocks in `bulk.ts` · re-throws redirect errors before falling through to `failToList`. Same pattern was already present in `subscriptions/bulk.ts` (using `err.message` check).
+
+Defense-in-depth: page-level red banner now skips render when `bulk_error` matches `/NEXT_REDIRECT/i` · operators with stale URL leftovers see no spurious error.
+
+### Manual contact creation · `+ New contact` button + drawer
+- Plus icon button in page header next to H1 (forest-900 bg · lime-300 text · ring)
+- Click → `?mode=create` → `ContactCreateDrawer` renders in right column (same slot as detail/edit drawers)
+- Form: full_name + email REQUIRED · company · type · title · phone · linkedin · notes optional
+- Type dropdown initially shipped with 16 raw `investor_type` values · operator corrected to **8 canonical buckets** (Principal · Broker · Lender · Operator · Developer · Hotel Supply · IA Supply · Uncategorized · default Uncategorized)
+- Schema field `contact_category_v2` (z.enum on the 8 buckets) · writes directly to canonical column · `investor_type` left null
+- `createContactAction` server action: requireOperator → zod validation → idempotency check (refuse if `email_lower` already exists on non-deleted row) → 16-char hex `master_id` via `crypto.getRandomValues` → defaults applied (bucket=active · band=cold · validity=uncertain · invitation=never_invited · suppressed=false · source=admin_ui_manual_entry) → audit `contact.created_manually` → redirect `?selected=<new-id>&created=1`
+- Success banner: "Contact created · view drawer opened on the right."
+- Idempotent · refuses duplicate emails inline
+- NEXT_REDIRECT re-throw guard same as bulk actions
+
+### Files
+- `apps/web/src/components/admin/contacts/bulk/bulk-action-toolbar.tsx` (Trash icon · simplified delete confirm · count prop threaded · LABELS extended)
+- `apps/web/src/components/admin/contacts/contact-create-drawer.tsx` (NEW · server component · 8-field form · 8-bucket Type dropdown)
+- `apps/web/src/components/admin/contacts/contacts-table.tsx` (3 cols dropped)
+- `apps/web/src/lib/admin/contacts/bulk.ts` (bulkSoftDeleteAction · bulkHardDeleteAction · isNextRedirectError helper · 11 catches patched)
+- `apps/web/src/lib/admin/contacts/live.ts` (deleted_at filter on main query · liveCount() helper · default page_size 10)
+- `apps/web/src/lib/admin/contacts/mutations.ts` (createContactAction · createSchema z.enum · isNextRedirectError helper)
+- `apps/web/src/app/user/admin/contacts/page.tsx` (+ button · createMode wiring · created banner · page_size URL param)
+
+---
+
 ## 2026-05-15 — Contactos · Phase C Steps 1-3 + iter3 + iter3.5 · canonical taxonomy live in Supabase
 
 ### Migration 0023 applied (Step 1)

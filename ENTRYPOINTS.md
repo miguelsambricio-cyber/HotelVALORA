@@ -203,6 +203,38 @@ Maps tasks to exact files. Start here before scanning.
 
 ---
 
+## Domain — Admin / Financials (institutional defaults)
+
+| Task | File(s) |
+|---|---|
+| Admin financials page (CAPEX matrix · Financial structure · P&L Forecast COSTAR) | `apps/web/src/app/user/admin/financials/page.tsx` |
+| Defaults source-of-truth · CAPEX_DEFAULTS · FINANCIAL_STRUCTURE_DEFAULTS · PNL_FORECAST_5Y · PNL_GEO_FILTERS · PNL_ROOM_STATS · ROOM_TIERS · STAR_CATEGORIES | `apps/web/src/lib/admin/financials/defaults.ts` |
+| useOverrides + useDraftedOverrides + formatSavedAt (localStorage persistence with explicit Save flow) | `apps/web/src/lib/admin/financials/use-overrides.ts` |
+| CAPEX defaults card (12 lines · 3 groups · 9-cell editable matrix · per-row unit dropdown · compact format) | `apps/web/src/components/admin/financials/capex-defaults-card.tsx` |
+| Financial structure card (12 baseline parameters · value editable · label/unit/description read-only) | `apps/web/src/components/admin/financials/financial-structure-card.tsx` |
+| P&L Forecast COSTAR card (geo filter chips · 4 reactive Room Stats boxes · USALI assumptions table) | `apps/web/src/components/admin/financials/pnl-benchmarks-card.tsx` |
+| Save bar (3-state header control: hydrating · dirty · clean) | `apps/web/src/components/admin/financials/save-bar.tsx` |
+| Admin sidebar nav (Financials between Hotels and Integrations) | `apps/web/src/components/admin/admin-sidebar.tsx` |
+
+---
+
+## Domain — Admin / Contacts (relationship console)
+
+| Task | File(s) |
+|---|---|
+| Contacts page · Phase A 8-group filter + Phase C contact_category_v2 + bulk delete + manual create | `apps/web/src/app/user/admin/contacts/page.tsx` |
+| Server-side aggregator · loadContacts (deleted_at filter) · loadContactKpis (liveCount helper) · loadContactDetail · GROUP_KEY_TO_V2_BUCKET · RELATIONSHIP_TYPE_GROUPS | `apps/web/src/lib/admin/contacts/live.ts` |
+| Per-contact mutations · updateContact · markInvalid · tag · owner · status · createContactAction (manual entry · 8-bucket Type) · isNextRedirectError helper | `apps/web/src/lib/admin/contacts/mutations.ts` |
+| Bulk operational workflows · 12 actions including bulkSoftDeleteAction + bulkHardDeleteAction · isNextRedirectError guard in 11 catches | `apps/web/src/lib/admin/contacts/bulk.ts` |
+| Filter chip strip (8 Relationship Type groups · canonical taxonomy) | `apps/web/src/components/admin/contacts/contacts-filters.tsx` |
+| Contacts table (8 visible cols post-perf-trim · sticky thead · drawer-driven detail) | `apps/web/src/components/admin/contacts/contacts-table.tsx` |
+| Bulk action toolbar (sticky bottom bar · Trash icon delete · 12 action panels) | `apps/web/src/components/admin/contacts/bulk/bulk-action-toolbar.tsx` |
+| Contact create drawer (Plus button → form · 8 fields · 8 canonical Type bucket dropdown) | `apps/web/src/components/admin/contacts/contact-create-drawer.tsx` |
+| Contact detail drawer (view + edit) | `apps/web/src/components/admin/contacts/contact-detail-drawer.tsx` · `contact-detail-drawer-edit.tsx` |
+| KPI strip (totals + by relationship type 8 buckets) | `apps/web/src/components/admin/contacts/contacts-kpis.tsx` |
+
+---
+
 ## Domain — Report Module
 
 | Task | File(s) |
