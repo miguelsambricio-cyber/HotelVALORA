@@ -451,6 +451,16 @@ def build_contacts_rows(master: list[dict[str, Any]],
             "source_file": clean(r.get("source_file")),
             "first_seen_batch_id": clean(r.get("first_seen_batch_id")),
             "last_seen_batch_id": clean(r.get("last_seen_batch_id")),
+            # Phase C · canonical taxonomy v2 (migration 0023)
+            # Note: relationship_type is intentionally EXCLUDED from this
+            # builder. It is the CRM dimension set by operators in the
+            # admin UI and must NEVER be overwritten by the Master
+            # promote upsert. To preserve operator-set values, we omit
+            # the key entirely (Supabase upsert leaves unspecified
+            # fields untouched).
+            "contact_category_v2": clean(r.get("contact_category_v2")),
+            "original_category_raw": clean(r.get("original_category_raw")),
+            "original_category_source": clean(r.get("original_category_source")),
         })
     return rows
 

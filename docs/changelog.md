@@ -4,6 +4,122 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Contactos · Phase C Steps 1-3 + iter3 + iter3.5 · canonical taxonomy live in Supabase
+
+### Migration 0023 applied (Step 1)
+
+`docs/database/migrations/0023_relationship_contacts_v2_taxonomy.sql` (Supabase migration name `relationship_contacts_v2_taxonomy` · version `20260515023724`). Strictly additive · 4 columns + 1 index added · 0 destruction.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `contact_category_v2` | text · indexed (btree) | Phase C canonical operational taxonomy · 8 buckets · source-of-truth for filter/UI/CRM logic |
+| `relationship_type` | text | CRM dimension · operator-set via UI · NEVER overwritten by promote upsert |
+| `original_category_raw` | text | Provenance audit · NULL unless source-of-record provides real category |
+| `original_category_source` | text | Source attribution for original_category_raw · NULL unless explicitly marked |
+
+`promote_to_supabase.py` extended (file edit only · sentinel-frozen until Step 2): `build_contacts_rows()` now emits `contact_category_v2` + `original_category_raw` + `original_category_source`. `relationship_type` deliberately OMITTED from upsert body — PostgREST `Prefer: resolution=merge-duplicates` resolves to `INSERT ... ON CONFLICT DO UPDATE SET <only-keys-in-body>`, so omitted keys are preserved on conflict (operator-set values never get blown away by a Master re-promote).
+
+### Sentinel-cycled promote (Step 2)
+
+Sentinel briefly lifted (17-second window: 02:42:07Z → 02:42:24Z) · `promote_to_supabase.py` ran clean (4398 contacts upserted · 0 errors) · sentinel re-instated immediately with `BLOCK: promote_to_supabase.py`.
+
+Pre/post-promote diff (4547 rows in both · 14 fields tracked):
+
+- `contact_category_v2` populated: 0 → **4 398** (149 Supabase-only rows correctly NULL)
+- `relationship_type` populated: 0 → **0** (preservation contract honored)
+- `original_category_raw` populated: 0 → **0**
+- `original_category_source` populated: 0 → **0**
+- Other field changes: 1 row (`3dc7f56a65652bc7` · Fernández Canete · `relationship_band` Master had `strategic` · Supabase was lagging on `dormant` · sync corrected · benign)
+
+Phase 2.B.3 audit trail confirmed in Supabase post-promote: `f193186dd9eb0c22` email=`prietose@bancsabadell.com` · `596a76514db8d527` email=`gestiondeactivos2@reyalurbis.com`.
+
+### Step 3 audits
+
+**IA Supply audit (20 rows):** 100% defendible. 0 false positives.
+- Domain detection: Salesforce · STR Global × 7 · Calendly
+- IA_SUPPLY_PATTERN: ALFRED Smart Systems · ATLAS Real Estate Analytics
+- IA_SUPPLY_SEED_COMPANIES: DROOMS × 2 · CLIENTIFY · BLUE CODE × 4 · CPI Technologies · Axcess Merchant
+
+**Operator split audit (711 rows post-iter3.5):**
+- Hotel Chain 634 · Operator 39 · Investor 14 (asset-light operators · CADENA-confirmed) · Developer 12 (Hospitality Group hybrids) · Brand 5 · F&B Operator 5 · Unknown 2
+- Insurance: 0 (iter2 fix confirmed)
+- Clean rate: ~99.6%
+
+### iter3 · FINANCIADORES- substring false positive fix
+
+Plain `if "FINANCIADOR" in gmail_upper` incorrectly matched `FINANCIADORES-INTERESADOS` (Gmail metadata "lenders interested in this contact's project" · external party · NOT the contact's own role) and mis-classified ~13 non-Lender contacts. Fixed with word-boundary regex `\bFINANCIADOR\b` (matches singular FINANCIADOR and FINANCIADOR-RECHAZADO; rejects FINANCIADORES- plural).
+
+13 rows reclassified out of Lender:
+
+| Pre | Post | n | Companies |
+|---|---|---:|---|
+| Lender | Principal | 8 | ARCANO PARTNERS · Continental Property Investment · IBERDROLA INMOBILIARIA · MADISON REAL ESTATE · Midtown Capital Partners · QATAR INVESTMENTS AUTHORITIES · WALTON STREET CAPITAL × 2 |
+| Lender | Broker | 3 | BUILDING CENTER · Boyd Hospitality Advisors · The Baron Group |
+| Lender | Developer | 1 | FERNÁNDEZ MOLINA OBRAS Y SERVICIOS (jfernandez) |
+| Lender | Operator | 1 | FERNÁNDEZ MOLINA OBRAS Y SERVICIOS (jfcanete) — see iter3.5 follow-up |
+
+Sentinel-cycled promote (19s window: 02:53:12Z → 02:53:31Z). Supabase distribution post-iter3 matched Master 1:1.
+
+### iter3.5 · Edge case fixes (Fernández Molina · iTrust)
+
+Operator review of iter3 flagged 2 specific edge cases:
+
+1. **FERNÁNDEZ MOLINA jfcanete** — landed in Operator via gmail label `CADENA-HOTEL-INTERESADA` · operator decision: constructors/promotores must NOT be poached by external CADENA metadata · CADENA gate exclusion extended to `investor_type='Developer'` ONLY (Investor + CADENA stays Operator per iter2 review · those are real asset-light operators like ACCOR INVEST, COVIVIO, VASTINT, etc.).
+2. **iTrust Country Brand Intelligence** — landed in Operator via OPERATOR_PATTERN `brand` keyword · is actually a country brand strategy / data intelligence consultancy · added `country brand intelligence` to `IA_SUPPLY_SEED_COMPANIES`.
+
+2 rows reclassified by iter3.5:
+
+| Pre | Post | Company | Why |
+|---|---|---|---|
+| Operator | Developer | FERNÁNDEZ MOLINA · jfcanete | CADENA gate now excludes Developer |
+| Operator | IA Supply | iTrust Country Brand Intelligence | Added to seed list |
+
+Sentinel-cycled promote (18s window: 03:06:37Z → 03:06:55Z).
+
+### Final Supabase distribution post-Phase-C-iter3.5
+
+| Bucket | n | % of populated |
+|---|---:|---:|
+| Principal | 1 804 | 41.0% |
+| Broker | 906 | 20.6% |
+| Operator | 711 | 16.2% |
+| Developer | 505 | 11.5% |
+| Lender | 341 | 7.8% |
+| Hotel Supply | 92 | 2.1% |
+| IA Supply | 21 | 0.5% |
+| Uncategorized | 18 | 0.4% |
+| **Populated** | **4 398** | **96.7% of Supabase** |
+| NULL (Supabase-only · not in Master) | 149 | 3.3% |
+| **TOTAL** | **4 547** | 100% |
+
+### Sentinel discipline · 3 lift cycles · 54 seconds total exposure
+
+| Cycle | Reason | Lift | Re-instate | Window |
+|---|---|---|---|---|
+| 1 | Step 2 initial promote | 02:42:07Z | 02:42:24Z | 17s |
+| 2 | iter3 promote | 02:53:12Z | 02:53:31Z | 19s |
+| 3 | iter3.5 promote | 03:06:37Z | 03:06:55Z | 18s |
+
+Sentinel currently ACTIVE · `BLOCK: promote_to_supabase.py` · pending Step 4 (UI switch · separate commit).
+
+### Files
+
+**New / modified:**
+- `docs/database/migrations/0023_relationship_contacts_v2_taxonomy.sql` (new · applied to Supabase)
+- `scripts/contactos/promote_to_supabase.py` (3 new fields in upsert body · `relationship_type` intentionally omitted)
+- `scripts/contactos/classify_master.py` (iter3 word-boundary regex · iter3.5 CADENA exclusion for Developer + iTrust seed entry)
+- `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock` (selective filter content updated)
+
+**Snapshots cached:**
+- `supabase-pre-promote-v2-snapshot.jsonl` · `supabase-post-promote-v2-snapshot.jsonl`
+- `master-v2-pre-iter3.json` · `master-v2-pre-iter35.json`
+
+### Step 4 still pending
+
+UI switch in `apps/web/src/lib/admin/contacts/live.ts` from `.in("investor_type", RELATIONSHIP_TYPE_GROUPS[key])` to `.eq("contact_category_v2", CANONICAL_NAME)` with legacy fallback for raw bookmark URLs. Vercel auto-deploys · UX identical to client. Visual validation post-deploy: filters · KPI counts · tabs · search · pagination · empty states · operator split · IA Supply visibility · uncategorized behavior.
+
+---
+
 ## 2026-05-15 — Contactos · Phase B iter2 (Insurance · D-refined · IA Supply seed list)
 
 Operator review of Phase B iter1 distribution flagged 4 boundary refinements before authorising Phase C migration. Iter2 ships them. v2 column re-written in place (idempotent · v1 col 64 still untouched).

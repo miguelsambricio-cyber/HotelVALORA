@@ -309,11 +309,15 @@ PRINCIPAL_PATTERN_V2 = re.compile(
 # a 'why is this in IA Supply' challenge.
 IA_SUPPLY_SEED_COMPANIES = re.compile(
     r"\b("
-    r"drooms|"                 # virtual data room SaaS · M&A tech
-    r"clientify|"              # CRM SaaS for sales teams
-    r"blue code|bluecode|"     # bluecodesolutions.com · tech vendor (operator-confirmed)
-    r"cpi technologies|"       # virtual data room / data tech
-    r"axcess merchant"         # payment processing tech
+    r"drooms|"                          # virtual data room SaaS · M&A tech
+    r"clientify|"                       # CRM SaaS for sales teams
+    r"blue code|bluecode|"              # bluecodesolutions.com · tech vendor (operator-confirmed)
+    r"cpi technologies|"                # virtual data room / data tech
+    r"axcess merchant|"                 # payment processing tech
+    # Phase B iter3.5 (2026-05-15): iTrust Country Brand Intelligence ·
+    # was incorrectly Operator via OPERATOR_PATTERN `brand` keyword ·
+    # actually a country brand strategy / data intelligence consultancy
+    r"country brand intelligence"
     r")\b", re.IGNORECASE)
 
 
@@ -353,7 +357,15 @@ def classify_row_v2(row: dict[str, str | None]) -> str:
         return "IA Supply"
 
     # 2. Lender
-    if "FINANCIADOR" in gmail_upper:
+    # Phase B iter3 (2026-05-15): word-boundary match prevents the
+    # FINANCIADORES- false positive. Plain `"FINANCIADOR" in gmail_upper`
+    # incorrectly matched `FINANCIADORES-INTERESADOS` (Gmail metadata
+    # tag meaning "lenders interested in this contact's project") and
+    # mis-classified ~10 non-Lender contacts (Investor / Broker /
+    # Developer with that tag attached). \bFINANCIADOR\b matches the
+    # singular FINANCIADOR tag and FINANCIADOR-RECHAZADO (boundary at
+    # `-`) but rejects FINANCIADORES- (no boundary between R and E).
+    if re.search(r"\bFINANCIADOR\b", gmail_upper):
         return "Lender"
     if inv_lower == "lender":
         return "Lender"
@@ -373,8 +385,19 @@ def classify_row_v2(row: dict[str, str | None]) -> str:
         return "Broker"
 
     # 4. Operator (split from v1 Principal)
-    if "CADENA" in gmail_upper or "BRANDED" in gmail_upper:
-        return "Operator"
+    # Phase B iter3.5 (2026-05-15): CADENA/BRANDED gmail label match ·
+    # exclusion ONLY for {developer}. For Investor/Insurance the CADENA
+    # signal is intentional (operator confirmed in iter2 review: when
+    # an Investor row has CADENA-HOTEL-INTERESADA tag they are real
+    # asset-light operators: GRUPO URVASCO-SILKEN, VASTINT HOSPITALITY,
+    # United Investments Portugal, VISASUR, etc. — keep as Operator).
+    # For Developer the tag is deal-side metadata ("interested hotel
+    # chain", external party) not the contact's role · should not poach
+    # constructors/promoters into Operator. Example fixed: FERNÁNDEZ
+    # MOLINA OBRAS Y SERVICIOS · jfcanete.
+    if inv_lower != "developer":
+        if "CADENA" in gmail_upper or "BRANDED" in gmail_upper:
+            return "Operator"
     if inv_lower in OPERATOR_INVESTOR_TYPES:
         return "Operator"
     # Phase B iter2 (2026-05-15): D-refined.
