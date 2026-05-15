@@ -20,20 +20,20 @@
 
 // ─── Segmentation taxonomy ────────────────────────────────────────────
 
-/** Hotel size tiers · room-count buckets · drives economies-of-scale. */
+/** Hotel size tiers · key-count buckets · drives economies-of-scale. */
 export const ROOM_TIERS = [
-  { id: "small", label: "0–80 rooms", range: [0, 80] as const },
-  { id: "medium", label: "80–180 rooms", range: [80, 180] as const },
-  { id: "large", label: "180+ rooms", range: [180, Infinity] as const },
+  { id: "small", label: "0–80 keys", range: [0, 80] as const },
+  { id: "medium", label: "80–180 keys", range: [80, 180] as const },
+  { id: "large", label: "180+ keys", range: [180, Infinity] as const },
 ] as const;
 
 export type RoomTierId = (typeof ROOM_TIERS)[number]["id"];
 
 /** Star category · drives positioning + CAPEX intensity. */
 export const STAR_CATEGORIES = [
-  { id: "3star", label: "3 stars", positioning: "Midscale" },
-  { id: "4star", label: "4 stars", positioning: "Upscale" },
-  { id: "5star", label: "5 stars", positioning: "Luxury" },
+  { id: "3star", label: "3*", positioning: "Midscale" },
+  { id: "4star", label: "4*", positioning: "Upscale" },
+  { id: "5star", label: "5*", positioning: "Luxury" },
 ] as const;
 
 export type StarCategoryId = (typeof STAR_CATEGORIES)[number]["id"];
