@@ -148,6 +148,28 @@ function failToList(filter_qs: string, message: string): never {
   redirect(`/user/admin/contacts?${params.toString()}`);
 }
 
+/**
+ * Next.js `redirect()` works by throwing a special NEXT_REDIRECT error
+ * that the framework catches and uses to perform the redirect. Wrapping
+ * a redirect call inside try/catch would swallow it · the catch block
+ * would then re-throw the wrong shape and the operator would see a
+ * misleading "Bulk action failed · Error: NEXT_REDIRECT" banner.
+ *
+ * Every bulk action's outer catch block must re-throw redirect errors
+ * unchanged. Detection is by `digest` field (NEXT_REDIRECT;…) which the
+ * framework attaches to the error object · safe across Next 14+.
+ */
+function isNextRedirectError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    typeof (err as { digest?: unknown }).digest === "string" &&
+    ((err as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
+      (err as { digest: string }).digest === "NEXT_NOT_FOUND")
+  );
+}
+
 // ─── Action implementations ───────────────────────────────────────────
 
 /** Bulk add a tag to N contacts. Idempotent — already-tagged contacts skipped. */
@@ -195,6 +217,7 @@ export async function bulkAddTagAction(formData: FormData): Promise<void> {
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok, verb: "tag_added" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -231,6 +254,7 @@ export async function bulkAssignOwnerAction(formData: FormData): Promise<void> {
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "owner_assigned" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -262,6 +286,7 @@ export async function bulkMarkContactedAction(formData: FormData): Promise<void>
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "marked_contacted" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -297,6 +322,7 @@ export async function bulkMarkInactiveAction(formData: FormData): Promise<void> 
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "marked_inactive" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -334,6 +360,7 @@ export async function bulkMarkInvalidAction(formData: FormData): Promise<void> {
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "invalid_marked" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -366,6 +393,7 @@ export async function bulkSuppressOutreachAction(formData: FormData): Promise<vo
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "outreach_suppressed" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -411,6 +439,7 @@ export async function bulkSoftDeleteAction(formData: FormData): Promise<void> {
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "soft_deleted" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -493,6 +522,7 @@ export async function bulkHardDeleteAction(formData: FormData): Promise<void> {
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: count ?? ids.length, verb: "hard_deleted" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -557,6 +587,7 @@ export async function bulkAssignCampaignAction(formData: FormData): Promise<void
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok: rows.length, verb: "campaign_assigned" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -742,6 +773,7 @@ export async function bulkInviteAction(formData: FormData): Promise<void> {
     revalidatePath("/user/admin/contacts");
     backToList(filter_qs, { ok, failed, verb: "invited" });
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
@@ -774,6 +806,7 @@ export async function bulkExportCsvAction(formData: FormData): Promise<void> {
     else params.set("ids", ids);
     redirect(`/api/admin/contacts/export?${params.toString()}`);
   } catch (err) {
+    if (isNextRedirectError(err)) throw err;
     failToList(filter_qs, redactError(err));
   }
 }
