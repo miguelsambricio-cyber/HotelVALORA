@@ -68,24 +68,17 @@ export function ContactCreateDrawer({
             <Input name="company_name" placeholder="Acme Capital" maxLength={300} />
           </Field>
           <Field label="Type">
-            <Select name="investor_type" defaultValue="">
-              <option value="">— pick —</option>
-              <option value="Investor">Investor</option>
-              <option value="Family Office">Family Office</option>
-              <option value="Fund">Fund</option>
-              <option value="REIT/SOCIMI">REIT/SOCIMI</option>
-              <option value="Owner">Owner</option>
-              <option value="Hotel Chain">Hotel Chain</option>
-              <option value="Operator">Operator</option>
-              <option value="Brand">Brand</option>
-              <option value="F&B Operator">F&B Operator</option>
+            {/* 7 canonical buckets · same set as the chip filter
+                (Phase C contact_category_v2). Defaults to Uncategorized. */}
+            <Select name="contact_category_v2" defaultValue="Uncategorized">
+              <option value="Principal">Principal</option>
               <option value="Broker">Broker</option>
               <option value="Lender">Lender</option>
+              <option value="Operator">Operator</option>
               <option value="Developer">Developer</option>
-              <option value="Service Provider">Service Provider</option>
-              <option value="Media">Media</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Unknown">Unknown</option>
+              <option value="Hotel Supply">Hotel Supply</option>
+              <option value="IA Supply">IA Supply</option>
+              <option value="Uncategorized">Uncategorized</option>
             </Select>
           </Field>
         </div>

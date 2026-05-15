@@ -489,11 +489,23 @@ export async function updateRelationshipStatusAction(
 
 // ─── Manual contact creation ──────────────────────────────────────────
 
+/** 8 canonical buckets · same set the chip filter uses. */
+const CONTACT_CATEGORY_V2_VALUES = [
+  "Principal",
+  "Broker",
+  "Lender",
+  "Operator",
+  "Developer",
+  "Hotel Supply",
+  "IA Supply",
+  "Uncategorized",
+] as const;
+
 const createSchema = z.object({
   full_name: z.string().trim().min(1, "Full name required").max(200),
   email: z.string().trim().email("Invalid email").max(320),
   company_name: z.string().trim().max(300).nullish().or(z.literal("")),
-  investor_type: z.string().trim().max(120).nullish().or(z.literal("")),
+  contact_category_v2: z.enum(CONTACT_CATEGORY_V2_VALUES).default("Uncategorized"),
   title: z.string().trim().max(200).nullish().or(z.literal("")),
   phone: z.string().trim().max(80).nullish().or(z.literal("")),
   linkedin: z.string().trim().max(500).nullish().or(z.literal("")),
@@ -551,7 +563,7 @@ export async function createContactAction(formData: FormData): Promise<void> {
       full_name: formData.get("full_name"),
       email: formData.get("email"),
       company_name: formData.get("company_name"),
-      investor_type: formData.get("investor_type"),
+      contact_category_v2: formData.get("contact_category_v2") || "Uncategorized",
       title: formData.get("title"),
       phone: formData.get("phone"),
       linkedin: formData.get("linkedin"),
@@ -589,7 +601,6 @@ export async function createContactAction(formData: FormData): Promise<void> {
       full_name: v.full_name,
       email: v.email,
       company_name: v.company_name || null,
-      investor_type: v.investor_type || null,
       title: v.title || null,
       phone: v.phone || null,
       linkedin: v.linkedin || null,
@@ -599,7 +610,10 @@ export async function createContactAction(formData: FormData): Promise<void> {
       email_validity: "uncertain",
       contact_invitation_status: "never_invited",
       suppressed_outreach: false,
-      contact_category_v2: "Uncategorized",
+      // Operator picks the canonical bucket directly · investor_type
+      // (legacy raw field) is left null · classifier v2 / promote
+      // pipeline can backfill it later if needed.
+      contact_category_v2: v.contact_category_v2,
       source_file: "admin_ui_manual_entry",
     };
 
