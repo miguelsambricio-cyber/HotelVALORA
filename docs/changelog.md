@@ -100,7 +100,7 @@ Sentinel-cycled promote (18s window: 03:06:37Z → 03:06:55Z).
 | 2 | iter3 promote | 02:53:12Z | 02:53:31Z | 19s |
 | 3 | iter3.5 promote | 03:06:37Z | 03:06:55Z | 18s |
 
-Sentinel currently ACTIVE · `BLOCK: promote_to_supabase.py` · pending Step 4 (UI switch · separate commit).
+Sentinel was held ACTIVE during Phase C iter cycles · `BLOCK: promote_to_supabase.py`. Lifted at 03:21:36Z after Step 4 deploy READY (see "Step 4" subsection below).
 
 ### Files
 
@@ -114,9 +114,20 @@ Sentinel currently ACTIVE · `BLOCK: promote_to_supabase.py` · pending Step 4 (
 - `supabase-pre-promote-v2-snapshot.jsonl` · `supabase-post-promote-v2-snapshot.jsonl`
 - `master-v2-pre-iter3.json` · `master-v2-pre-iter35.json`
 
-### Step 4 still pending
+### Step 4 · UI switch shipped + Vercel deployed + sentinel lifted
 
-UI switch in `apps/web/src/lib/admin/contacts/live.ts` from `.in("investor_type", RELATIONSHIP_TYPE_GROUPS[key])` to `.eq("contact_category_v2", CANONICAL_NAME)` with legacy fallback for raw bookmark URLs. Vercel auto-deploys · UX identical to client. Visual validation post-deploy: filters · KPI counts · tabs · search · pagination · empty states · operator split · IA Supply visibility · uncategorized behavior.
+- Commit `6eeb7cf` · `apps/web/src/lib/admin/contacts/live.ts` switched to `.eq("contact_category_v2", GROUP_KEY_TO_V2_BUCKET[key])` for both filter and KPI counts. Backward compat: raw `?investor_type=Lender` URL bookmarks still resolve via `.eq("investor_type", value)` fallback branch. `apps/web/src/lib/supabase/types.ts` regenerated via Supabase MCP to include the 4 Phase C columns.
+- Vercel deploy `dpl_6yMZ7Ert1QGRtKmcQypRgsWzLu2t` · state READY · build 62s · live at `hotelvalora.com` (+ 4 aliases) · production target.
+- **Sentinel lifted at 2026-05-15T03:21:36Z** · `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock` deleted · `classify_master.py` and `promote_to_supabase.py` both operational again. Phase B-Repair / Phase C governance period closed. Total sentinel-cycled exposure during repair + Phase C: ~14 hours active · 54 seconds of write-window for 3 promotes.
+- 4 Master backups preserved on disk: `BACKUP-pre-cleanup` · `broken-2026-05-15` · `broken-2026-05-15-postswap` · `pre-phase-b-2026-05-15`.
+
+### Phase D (deferred · not in this scope)
+
+`relationship_type` column exists in `relationship_contacts` (Phase C migration 0023 added it · 0/4547 populated · `promote_to_supabase.py` deliberately omits it from upsert body so operator-set values are never overwritten). UI for operator editing of this CRM dimension lands as Phase D — separate scope, separate freeze cycle.
+
+---
+
+## 2026-05-15 — Contactos · Phase C Steps 1-3 + iter3 + iter3.5 · canonical taxonomy live in Supabase
 
 ---
 
