@@ -40,17 +40,7 @@ export default function FinancialsPage() {
           Financials
         </h1>
         <p className="max-w-3xl text-[13.5px] leading-relaxed text-slate-600">
-          HotelVALORA's baseline assumptions for European urban hospitality underwriting.
-          These defaults power the screening scenario shown to operators across
-          asset analysis, CAPEX, and the financials report sections — until per-asset
-          values are captured and override them.
-        </p>
-        <p className="max-w-3xl text-[12px] leading-relaxed text-slate-500">
-          Three reference layers below: <strong>CAPEX defaults</strong> (refurb €/room
-          per room-tier × star category), <strong>basic financial structure</strong>
-          (capital stack · target returns · fees), and <strong>P&L benchmarks</strong>
-          (CoStar STR median % of revenue per star class). All values are indicative
-          and operator-editable.
+          HotelVALORA's baseline assumptions for hospitality underwriting.
         </p>
       </header>
 
