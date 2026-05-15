@@ -182,10 +182,8 @@ export const RELATIONSHIP_TYPE_GROUPS: Record<RelationshipGroupKey, string[]> = 
     "Materials",
     "Hospitality Services",
   ],
-  // IA SUPPLY: no canonical raw `investor_type` value today · classified
-  // via TECH_DOMAINS in classify_master.py and lives in Master's
-  // contact_category column. Phase B promotes this to Supabase. For now
-  // the chip resolves to an explicit empty list (returns 0 results).
+  // IA Supply: legacy investor_type expansion kept for documentation ·
+  // current Phase C filter uses contact_category_v2 directly.
   ia_supply: [],
 };
 
@@ -194,6 +192,34 @@ const GROUP_KEYS = Object.keys(RELATIONSHIP_TYPE_GROUPS) as RelationshipGroupKey
 function isGroupKey(value: string): value is RelationshipGroupKey {
   return (GROUP_KEYS as string[]).includes(value);
 }
+
+/**
+ * Phase C (2026-05-15) · canonical taxonomy active.
+ *
+ * `contact_category_v2` column is now populated in Supabase
+ * (migration 0023 · 4398/4547 rows backfilled). Filters and KPI
+ * counts use single-equality `.eq("contact_category_v2", bucket)`
+ * against this column · cheaper than the Phase A `.in(investor_type,
+ * [array])` mapping AND structurally aligned with the canonical
+ * operational taxonomy from `classify_master.py --scheme=v2`.
+ *
+ * The bucket strings on the right are the canonical Master values ·
+ * any other client (CRM scoring · campaign segmentation · alerts)
+ * should also read these.
+ *
+ * Legacy raw `investor_type=Lender` URLs still resolve via the
+ * fallback branch (preserves bookmark compatibility · backward
+ * compat invariant per operator decision).
+ */
+export const GROUP_KEY_TO_V2_BUCKET: Record<RelationshipGroupKey, string> = {
+  principals:   "Principal",
+  broker:       "Broker",
+  lender:       "Lender",
+  operator:     "Operator",
+  developer:    "Developer",
+  hotel_supply: "Hotel Supply",
+  ia_supply:    "IA Supply",
+};
 
 /**
  * Filter contract · all optional · UI uses query-string state.
@@ -269,17 +295,11 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
   }
   if (filter.investor_type && filter.investor_type !== "all") {
     if (isGroupKey(filter.investor_type)) {
-      const expanded = RELATIONSHIP_TYPE_GROUPS[filter.investor_type];
-      if (expanded.length === 0) {
-        // Empty group (e.g. ia_supply pre-Phase-B) — force zero rows
-        // without throwing. PostgREST `.in('col', [])` would 400, so we
-        // pin a sentinel that cannot match any real value.
-        q = q.eq("investor_type", "__empty_group__");
-      } else {
-        q = q.in("investor_type", expanded);
-      }
+      // Phase C · canonical column · single-equality query
+      q = q.eq("contact_category_v2", GROUP_KEY_TO_V2_BUCKET[filter.investor_type]);
     } else {
-      // Backward compat — raw legacy value still resolves via .eq
+      // Backward compat · raw legacy value (e.g. ?investor_type=Lender
+      // in old bookmarks) still resolves via .eq against legacy column.
       q = q.eq("investor_type", filter.investor_type);
     }
   }
@@ -381,12 +401,10 @@ export async function loadContactKpis(): Promise<ContactKpis> {
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
 
   function countByGroup(key: RelationshipGroupKey) {
-    const arr = RELATIONSHIP_TYPE_GROUPS[key];
-    if (arr.length === 0) {
-      // ia_supply pre-Phase-B — return a query that resolves to 0
-      return sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "__empty_group__");
-    }
-    return sb.from("relationship_contacts").select("id", { count: "exact", head: true }).in("investor_type", arr);
+    // Phase C · counts read the canonical column directly.
+    return sb.from("relationship_contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("contact_category_v2", GROUP_KEY_TO_V2_BUCKET[key]);
   }
 
   const queries = await Promise.all([

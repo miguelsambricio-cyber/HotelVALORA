@@ -2112,6 +2112,7 @@ export type Database = {
           collaboration_potential_score: number
           company_id: string | null
           company_name: string | null
+          contact_category_v2: string | null
           contact_invitation_status: string
           continent: string | null
           country: string | null
@@ -2156,6 +2157,8 @@ export type Database = {
           loi_bid_low: string | null
           master_id: string
           notes_consolidated: string | null
+          original_category_raw: string | null
+          original_category_source: string | null
           phone: string | null
           pipeline_state: string | null
           relationship_band: string | null
@@ -2163,6 +2166,7 @@ export type Database = {
           relationship_owner_email: string | null
           relationship_status: string | null
           relationship_strength: number
+          relationship_type: string | null
           revised_bid_high: string | null
           revised_bid_low: string | null
           role: string | null
@@ -2187,6 +2191,7 @@ export type Database = {
           collaboration_potential_score?: number
           company_id?: string | null
           company_name?: string | null
+          contact_category_v2?: string | null
           contact_invitation_status?: string
           continent?: string | null
           country?: string | null
@@ -2231,6 +2236,8 @@ export type Database = {
           loi_bid_low?: string | null
           master_id: string
           notes_consolidated?: string | null
+          original_category_raw?: string | null
+          original_category_source?: string | null
           phone?: string | null
           pipeline_state?: string | null
           relationship_band?: string | null
@@ -2238,6 +2245,7 @@ export type Database = {
           relationship_owner_email?: string | null
           relationship_status?: string | null
           relationship_strength?: number
+          relationship_type?: string | null
           revised_bid_high?: string | null
           revised_bid_low?: string | null
           role?: string | null
@@ -2262,6 +2270,7 @@ export type Database = {
           collaboration_potential_score?: number
           company_id?: string | null
           company_name?: string | null
+          contact_category_v2?: string | null
           contact_invitation_status?: string
           continent?: string | null
           country?: string | null
@@ -2306,6 +2315,8 @@ export type Database = {
           loi_bid_low?: string | null
           master_id?: string
           notes_consolidated?: string | null
+          original_category_raw?: string | null
+          original_category_source?: string | null
           phone?: string | null
           pipeline_state?: string | null
           relationship_band?: string | null
@@ -2313,6 +2324,7 @@ export type Database = {
           relationship_owner_email?: string | null
           relationship_status?: string | null
           relationship_strength?: number
+          relationship_type?: string | null
           revised_bid_high?: string | null
           revised_bid_low?: string | null
           role?: string | null
