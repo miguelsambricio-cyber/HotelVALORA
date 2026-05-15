@@ -82,12 +82,31 @@ CONTACTOS DATASITE/master/
   .phase_b_repair_in_progress.lock                         (sentinel · still active · see "Freeze status" below)
 ```
 
-### Freeze status
+### Freeze status — LIFTED 2026-05-15 ~01:25 UTC
 
-Sentinel file remains in place. `classify_master.py` and `promote_to_supabase.py` still abort at startup. To lift, delete `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock`. Recommended order before lifting:
-1. Operator visually inspects `metcub-contacts-master.xlsx` in Excel/LibreOffice — confirms 64 cols and 5-10 row spot-check.
-2. Operator approves promotion of the 2 corrected emails to Supabase — `promote_to_supabase.py` will upsert them via `master_id`.
-3. Operator approves Phase B classifier v2 to proceed.
+Operator confirmed visual inspection in Excel passed (rows 504 + 3443 verified · 64-col header alignment · spot-check clean). Sentinel deleted, `classify_master.py` and `promote_to_supabase.py` un-frozen.
+
+`promote_to_supabase.py` ran cleanly · 4398 contacts upserted · 2990 companies · 2990 interactions · 814 labels · 161 health records · 0 errors.
+
+**Pre/post-promote snapshot diff** (4547 Supabase rows in both):
+- 2 rows changed `email` (the intended replacements: crocher→prietose, rodera→gestiondeactivos2) ✓
+- 365 rows changed Gmail-signal-derived fields (`active_threads`, `last_email_date`, `relationship_band`, `email_validity`, `bounce_count`) — benign backlog: `ingest_gmail.py` merged signals into Master at 2026-05-14 18:32 (pre-corruption) but `promote_to_supabase.py` was never re-run between the merge and the corruption. The repair restored Master alignment and this promote propagated the backlog.
+- 0 rows added or removed
+- 0 unexpected fields touched
+
+5 sample changed rows spot-verified: `Jhon Alarcon · john.alarcon@accor.com · Hotel Chain · last_email=2023-12-18 · strategic` · `Antonio Ruiz Lozano · antonioruizlozano@yahoo.es · Broker · last_email=2024-05-22 · warm` · `Francisco Nogueira de Sousa · francisco.sousa@blueshiftportugal.com · Hotel Chain · strategic` · `Jedaiah Gwee · jgwee@highgate.com · Hotel Chain · warm` · `Estela Juaréz · ejuarez@labordemarcet.com · Broker · last_email=2026-04-13 · active`. All semantically correct. All 365 Gmail-merged rows show `gmail_signal_source='gmail-signals-20260514T163229Z.jsonl'` confirming the pre-corruption merge as their origin.
+
+Phase 2.B.3 rows confirmed in Supabase post-promote:
+```
+f193186dd9eb0c22 · email='prietose@bancsabadell.com'        · Concha Rocher Collado · Lender
+596a76514db8d527 · email='gestiondeactivos2@reyalurbis.com' · Pedro Javier Rodera   · Hotel Chain
+```
+
+Snapshots cached at:
+- `CONTACTOS DATASITE/reports/supabase-pre-promote-snapshot.jsonl` (1.46 MB · 4547 rows)
+- `CONTACTOS DATASITE/reports/supabase-post-promote-snapshot.jsonl` (1.47 MB · 4547 rows)
+
+Phase B (classifier v2 · operator split · IA SUPPLY · `original_category_raw`) cleared to proceed.
 
 ### Files
 **New:**
