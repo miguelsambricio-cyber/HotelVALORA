@@ -4,6 +4,77 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Contactos · Phase B iter2 (Insurance · D-refined · IA Supply seed list)
+
+Operator review of Phase B iter1 distribution flagged 4 boundary refinements before authorising Phase C migration. Iter2 ships them. v2 column re-written in place (idempotent · v1 col 64 still untouched).
+
+### Changes
+
+| # | Change | File location |
+|---|---|---|
+| **1** | `Insurance` removed from `PRINCIPAL_INVESTOR_TYPES_V2` · added to Hotel Supply default route alongside Service Provider + Media. Operator decision: insurance contacts in this dataset are typically service providers TO hotel operators (hotel insurance brokers), not institutional investors in hotel real estate. | `classify_master.py` |
+| **2** | D-refined: `OPERATOR_BRANDS` (Marriott · Hilton · Hyatt · Accor · etc. specific brand regex) ALWAYS wins regardless of `investor_type` — these are unambiguously operating brands. Generic `OPERATOR_PATTERN` (group · hotel chain · operator keywords) skipped for `{investor, insurance}` to preserve the false-positive guard. Gmail label `CADENA`/`BRANDED` continues to win first. | `classify_master.py` |
+| **3** | New `IA_SUPPLY_SEED_COMPANIES` regex — operator-curated explicit company-name overrides for tech/SaaS vendors that don't match any heuristic pattern. Initial seed (each defensible against challenge): `drooms` (virtual data room SaaS) · `clientify` (CRM SaaS) · `blue code / bluecode` (bluecodesolutions.com tech) · `cpi technologies` (data room tech) · `axcess merchant` (payments tech). Wired into v2 detection between `IA_SUPPLY_COMPANY_HINTS` and `IA_SUPPLY_PATTERN`. | `classify_master.py` |
+| **4** | Hotel Supply vs Developer boundary: NO code change. Documented that priority order (Developer at step 5 wins over Hotel Supply at step 7) correctly routes architecture/engineering/construction firms to Developer, while interior design / decoration / FF&E / furniture / legal/consulting service providers route to Hotel Supply. The 92 Hotel Supply rows post-iter2 reflect this boundary. | (no code change) |
+
+### Distribution shift (4 398 rows)
+
+| Bucket | iter1 | **iter2** | Δ | Cause |
+|---|---:|---:|---:|---|
+| Principal | 1 804 | 1 796 | −8 | 2 Insurance moved out · slight rebalance from D-refined Investor cases |
+| Operator | 705 | 712 | +7 | D-refined: 9 Investor rows with explicit OPERATOR_BRANDS match correctly become Operator; offset by 2 Insurance rows leaving |
+| Hotel Supply | 100 | 92 | −8 | 9 rows captured by IA Supply seed list · offset by 2 Insurance rows entering |
+| IA Supply | 11 | 20 | +9 | Seed list adds: BLUE CODE × 4 · DROOMS × 2 · CLIENTIFY · CPI Technologies · Axcess Merchant |
+| Broker / Lender / Developer / Uncategorized | unchanged | unchanged | 0 | — |
+
+### IA Supply (20 rows · iter2 final · all defensible)
+
+```
+Salesforce × 1                 (TECH_DOMAINS)
+STR Global × 7                 (str.com domain · data intelligence)
+Calendly × 1                   (calendly.com domain · SaaS scheduling)
+ALFRED Smart Systems × 1       (smart systems pattern)
+Atlas Real Estate Analytics×1  (real estate analytics pattern)
+BLUE CODE × 4                  (seed list · bluecodesolutions.com)
+DROOMS × 2                     (seed list · virtual data room SaaS)
+CLIENTIFY × 1                  (seed list · CRM SaaS)
+CPI Technologies × 1           (seed list · data room tech)
+Axcess Merchant × 1            (seed list · payments tech)
+```
+
+### Hotel Supply (92 rows · iter2 final)
+
+Mix of Service Provider / Media / Insurance defaults plus pattern matches:
+- FF&E / furniture / interior design: APAVISA · ALARWOOL · CARMELA MARTÍ DECORACIÓN · COSENTINO IBERIA · DORMAKABA · STREETSENSE
+- Legal / consulting / audit: DAYA ABOGADOS · CASES & LACAMBRA · MAZARS · DELOITTE
+- Media: AGENTTRAVEL · ALIMARKET · BRAINSRE.NEWS
+- Insurance: 2 rows now correctly here (were Operator iter1 false positives)
+- Other Service Provider defaults: ABSOLUTE INTERNSHIP · Adaptatec · ELOGIA · etc.
+
+### Validation
+
+- `audit_master_alignment.py` post-iter2: shift=0 wins 99.6% match (4380/4398) · 0% drift introduced.
+- Master schema: 67 cols (unchanged from iter1).
+- Row 504 (crocher) integrity: confirmed — original_email + email + investor_type + contact_category + contact_category_v2 all aligned.
+- `original_category_raw` + `original_category_source` still NULL in all 4398 rows (provenance integrity preserved).
+- Sentinel still active · `BLOCK: promote_to_supabase.py` · classifier allowed through.
+
+### Boundary documentation (operator review pending before Phase C)
+
+- **Principal vs Operator** — Operator includes 9 sub-types (Hotel Chain · Operator · Brand · White Label · F&B · Aparthotel · Hostel · Resort · Branded Residence) AND specific OPERATOR_BRANDS (Marriott · Hilton · etc.). Generic OPERATOR_PATTERN excluded for `investor_type ∈ {Investor, Insurance}`. ✅ False positives ≈0.
+- **IA Supply precision** — Detection: TECH_DOMAINS (40+) · IA_SUPPLY_COMPANY_HINTS (specific hospitality tech vendors) · seed list (5 companies) · IA_SUPPLY_PATTERN (PMS · RMS · channel manager · smart systems · real estate analytics · etc.). ✅ Conservative · 0 false positives detected in 20 rows.
+- **Hotel Supply vs Developer boundary** — Developer wins on architecture/engineering/construction keywords (priority 5 > 7). Hotel Supply catches FF&E · furniture · interior design · legal · audit · Service Provider/Media/Insurance defaults. ✅ Boundary stable.
+- **Operator split quality** — 705 → 712 rows. 700 from v1 Principal · 5 from v1 Lender (Hotel Chain investor_type forced via OPERATOR_INVESTOR_TYPES regardless of v1 Lender misclassification) · 1 from v1 Developer · ~5 from v1 Uncategorized.
+
+### Phase C still gated
+
+Sentinel remains active. NO promote · NO Supabase migration · NO UI canonical switch until operator approves iter2 distribution + reviews:
+- 20 random sample rows in `reports/phase_b_classification_report_<TS>.json`
+- Migration matrix
+- 4 boundary documentation points above
+
+---
+
 ## 2026-05-15 — Contactos · Phase B classifier v2 (canonical operational taxonomy)
 
 `scripts/contactos/classify_master.py` ships a `--scheme={v1,v2}` flag. v2 introduces the canonical 8-bucket operational taxonomy aligned 1:1 with the admin/contacts Phase A UI filter. v1 stays unchanged behind default and column 64 (`contact_category`) is never touched by v2 runs — legacy compatibility for existing readers.

@@ -284,10 +284,14 @@ HOTEL_SUPPLY_PATTERN = re.compile(
     r")\b", re.IGNORECASE)
 
 # Principal v2: pure investors / owners / family offices / funds (no ops)
+# Phase B iter2 (2026-05-15): Insurance moved OUT of Principal default ·
+# routes to Hotel Supply per operator decision (insurance contacts in
+# this dataset are typically service providers TO hotel operators rather
+# than institutional investors in hotel assets).
 PRINCIPAL_INVESTOR_TYPES_V2 = {
     "investor", "fund", "family office", "reit/socimi", "reit", "socimi",
     "owner", "asset manager", "hotel owner group", "sovereign wealth",
-    "institutional investor", "insurance", "pension fund",
+    "institutional investor", "pension fund",
 }
 
 PRINCIPAL_PATTERN_V2 = re.compile(
@@ -296,6 +300,21 @@ PRINCIPAL_PATTERN_V2 = re.compile(
     r"reit|socimi|asset management|asset managers|equity partners|"
     r"private equity|hotel investments|hospitality investments|"
     r"hotel owner|hospitality owner|sovereign wealth)\b", re.IGNORECASE)
+
+
+# Phase B iter2 (2026-05-15): IA Supply curated seed list · explicit
+# company-name substrings for vendors that don't match any heuristic
+# pattern but are unambiguously tech / SaaS / data-room / CRM. Operator-
+# curated · expand carefully · each entry should be defensible against
+# a 'why is this in IA Supply' challenge.
+IA_SUPPLY_SEED_COMPANIES = re.compile(
+    r"\b("
+    r"drooms|"                 # virtual data room SaaS · M&A tech
+    r"clientify|"              # CRM SaaS for sales teams
+    r"blue code|bluecode|"     # bluecodesolutions.com · tech vendor (operator-confirmed)
+    r"cpi technologies|"       # virtual data room / data tech
+    r"axcess merchant"         # payment processing tech
+    r")\b", re.IGNORECASE)
 
 
 def classify_row_v2(row: dict[str, str | None]) -> str:
@@ -327,6 +346,9 @@ def classify_row_v2(row: dict[str, str | None]) -> str:
         return "IA Supply"
     if IA_SUPPLY_COMPANY_HINTS.search(company):
         return "IA Supply"
+    # Phase B iter2: curated seed list (explicit company-name overrides)
+    if IA_SUPPLY_SEED_COMPANIES.search(company):
+        return "IA Supply"
     if IA_SUPPLY_PATTERN.search(company) or IA_SUPPLY_PATTERN.search(title):
         return "IA Supply"
 
@@ -355,13 +377,17 @@ def classify_row_v2(row: dict[str, str | None]) -> str:
         return "Operator"
     if inv_lower in OPERATOR_INVESTOR_TYPES:
         return "Operator"
-    # Phase B-tuning D (2026-05-15): when investor_type is explicitly
-    # 'Investor', do NOT poach via company-name pattern. Such rows are
-    # investors in hospitality assets, not operators of them — Principal
-    # owns this classification.
-    if inv_lower != "investor":
-        if OPERATOR_BRANDS.search(company):
-            return "Operator"
+    # Phase B iter2 (2026-05-15): D-refined.
+    # OPERATOR_BRANDS (specific brand names: Marriott, Hilton, etc.)
+    # ALWAYS wins · they're unambiguously operating brands regardless
+    # of investor_type label. Generic OPERATOR_PATTERN (group, hotel
+    # chain, etc. keywords) is skipped for {Investor, Insurance} to
+    # avoid false positives where the company name has hospitality
+    # keywords but the contact is investing/insuring rather than
+    # operating.
+    if OPERATOR_BRANDS.search(company):
+        return "Operator"
+    if inv_lower not in {"investor", "insurance"}:
         if OPERATOR_PATTERN.search(company):
             return "Operator"
 
@@ -389,13 +415,12 @@ def classify_row_v2(row: dict[str, str | None]) -> str:
         return "Hotel Supply"
     if HOTEL_SUPPLY_PATTERN.search(company):
         return "Hotel Supply"
-    # Phase B-tuning A (2026-05-15): default for investor_type
-    # 'Service Provider' and 'Media' (operator decision: media is treated
-    # as a service-provider category, not its own bucket). Reaches here
-    # only AFTER IA Supply / Lender / Broker / Operator / Developer /
-    # Principal had a chance to claim the row, so this default doesn't
+    # Phase B-tuning A (2026-05-15) + iter2 Insurance addition:
+    # default for investor_type 'Service Provider', 'Media', and
+    # 'Insurance'. Reaches here only AFTER IA Supply / Lender / Broker /
+    # Operator / Developer / Principal had a chance, so this doesn't
     # over-classify obvious tech/finance/hospitality companies.
-    if inv_lower in {"service provider", "media"}:
+    if inv_lower in {"service provider", "media", "insurance"}:
         return "Hotel Supply"
 
     return "Uncategorized"
