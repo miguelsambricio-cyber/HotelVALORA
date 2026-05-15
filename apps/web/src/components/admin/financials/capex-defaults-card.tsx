@@ -97,8 +97,7 @@ export function CapexDefaultsCard() {
           CAPEX
         </h2>
         <p className="mt-1 max-w-3xl font-mono text-[11px] text-slate-400">
-          Pick a unit per line · edit cell values inline · session-scoped (resets
-          on hard reload). Values default to € per key for European urban refurb.
+          Values default to € per key for European urban refurb.
         </p>
       </header>
 
@@ -152,19 +151,37 @@ export function CapexDefaultsCard() {
                     {ROOM_TIERS.flatMap((tier) =>
                       STAR_CATEGORIES.map((cat) => {
                         const k = cellKey(line.id, tier.id, cat.id);
+                        const v = values[k];
                         return (
                           <td key={k} className="px-1 py-2">
                             <input
-                              type="number"
-                              inputMode="numeric"
-                              value={values[k]}
-                              min={0}
-                              onChange={(e) => {
-                                const n = Number(e.target.value);
-                                if (Number.isFinite(n) && n >= 0) setCell(line.id, tier.id, cat.id, n);
+                              // Re-mount when value changes externally (reset row,
+                              // unit switch, etc.) so the uncontrolled defaultValue
+                              // re-syncs to the latest formatted state.
+                              key={`${k}-${v}`}
+                              type="text"
+                              inputMode="decimal"
+                              defaultValue={fmt(v)}
+                              onBlur={(e) => {
+                                const parsed = parseCompact(e.target.value);
+                                if (parsed === null) {
+                                  // Unparseable · revert to previous canonical
+                                  e.target.value = fmt(v);
+                                  return;
+                                }
+                                setCell(line.id, tier.id, cat.id, parsed);
+                                e.target.value = fmt(parsed);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                if (e.key === "Escape") {
+                                  (e.target as HTMLInputElement).value = fmt(v);
+                                  (e.target as HTMLInputElement).blur();
+                                }
                               }}
                               className="w-full rounded-md border border-transparent bg-transparent px-1.5 py-1 text-right font-mono text-[11px] text-slate-200 focus:border-lime-300/40 focus:bg-slate-900/60 focus:outline-none hover:border-slate-700/60"
                               aria-label={`${line.label} · ${tier.label} · ${cat.label}`}
+                              title={`Raw: ${v.toLocaleString("es-ES")} · accepts 12600 / 12,6k / 200k / 1,5M`}
                             />
                           </td>
                         );
@@ -216,6 +233,45 @@ function Th({ children, className }: { children: React.ReactNode; className?: st
   return <th className={`px-2 py-2 font-headline text-[9.5px] font-bold uppercase tracking-[0.18em] ${className ?? ""}`}>{children}</th>;
 }
 
+/**
+ * Compact format · Spanish locale (comma decimal):
+ *   200_000 → "200k"
+ *   12_600  → "12,6k"
+ *   5_600   → "5,6k"
+ *   1_000   → "1k"
+ *   800     → "800"
+ *   0       → "0"
+ *   1_500_000 → "1,5M"
+ */
 function fmt(n: number): string {
-  return new Intl.NumberFormat("es-ES").format(Math.round(n));
+  if (!Number.isFinite(n) || n <= 0) return "0";
+  if (n >= 1_000_000) {
+    const m = Math.round((n / 1_000_000) * 10) / 10;
+    return `${String(m).replace(".", ",")}M`;
+  }
+  if (n >= 1_000) {
+    const k = Math.round((n / 1_000) * 10) / 10;
+    return `${String(k).replace(".", ",")}k`;
+  }
+  return String(Math.round(n));
+}
+
+/**
+ * Parse permissive · accepts:
+ *   "12600"   → 12600
+ *   "12,6k"   → 12600
+ *   "12.6k"   → 12600
+ *   "200k"    → 200000
+ *   "1,5M"    → 1500000
+ *   "5.6"     → 5.6 (no suffix)
+ * Returns null on unparseable input.
+ */
+function parseCompact(s: string): number | null {
+  const t = s.trim().toLowerCase().replace(/\s+/g, "").replace(",", ".");
+  if (!t) return 0;
+  const mult = t.endsWith("m") ? 1_000_000 : t.endsWith("k") ? 1_000 : 1;
+  const numPart = t.replace(/[km]$/, "");
+  const n = Number(numPart);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return n * mult;
 }
