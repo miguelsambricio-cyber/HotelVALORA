@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LineChart, Save } from "lucide-react";
+import { LineChart } from "lucide-react";
 import {
   PNL_FORECAST_5Y,
   PNL_FORECAST_SECTIONS,
@@ -11,7 +11,8 @@ import {
   type PnlForecastRow,
   type RoomStat,
 } from "@/lib/admin/financials/defaults";
-import { useOverrides, formatSavedAt } from "@/lib/admin/financials/use-overrides";
+import { useDraftedOverrides } from "@/lib/admin/financials/use-overrides";
+import { SaveBar } from "./save-bar";
 
 /**
  * P&L Forecast COSTAR · ASSUMPTIONS-ONLY view (3 cols).
@@ -51,10 +52,10 @@ export function PnlBenchmarksCard() {
   const [submarket, setSubmarket] = useState("Madrid Centro");
   const [klass, setKlass] = useState("Upscale");
 
-  const ov = useOverrides<PnlState>("admin.financials.pnl.v1", buildDefaultPnlState());
+  const ov = useDraftedOverrides<PnlState>("admin.financials.pnl.v1", buildDefaultPnlState());
 
   function setField(rowId: string, field: keyof PnlAssumption, value: string) {
-    ov.set((prev) => ({
+    ov.setDraft((prev) => ({
       ...prev,
       [rowId]: { ...(prev[rowId] ?? { value: "", sub: "" }), [field]: value },
     }));
@@ -89,27 +90,15 @@ export function PnlBenchmarksCard() {
             CoStar STR median assumptions by geography + class · feeds the 5-year forecast.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="inline-flex items-center gap-1 rounded-md bg-slate-900/60 px-2 py-1 font-mono text-[10px] text-slate-400 ring-1 ring-slate-700/60">
-            <Save size={10} className={ov.lastSavedAt ? "text-lime-300" : "text-slate-600"} />
-            {ov.hydrated
-              ? ov.lastSavedAt
-                ? `Saved on this device · ${formatSavedAt(ov.lastSavedAt)}`
-                : "Defaults · no edits saved"
-              : "…"}
-          </span>
-          {ov.lastSavedAt && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("Reset ALL P&L assumption overrides and clear local storage?")) ov.reset();
-              }}
-              className="font-mono text-[10px] text-slate-500 underline-offset-2 hover:text-rose-300 hover:underline"
-            >
-              Reset all to defaults
-            </button>
-          )}
-        </div>
+        <SaveBar
+          isDirty={ov.isDirty}
+          hydrated={ov.hydrated}
+          lastSavedAt={ov.lastSavedAt}
+          onSave={ov.save}
+          onDiscard={ov.discard}
+          onReset={ov.reset}
+          resetConfirmText="Reset ALL P&L assumption overrides and clear local storage?"
+        />
       </header>
 
       <div className="mb-2 grid gap-2 sm:grid-cols-4">
@@ -151,7 +140,7 @@ export function PnlBenchmarksCard() {
                     <PnlAssumptionRow
                       key={row.id}
                       row={row}
-                      assumption={ov.state[row.id] ?? { value: row.assump?.value ?? "", sub: row.assump?.sub ?? "" }}
+                      assumption={ov.draft[row.id] ?? { value: row.assump?.value ?? "", sub: row.assump?.sub ?? "" }}
                       onChange={(field, v) => setField(row.id, field, v)}
                     />
                   ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Construction, RotateCcw, Save } from "lucide-react";
+import { Construction, RotateCcw } from "lucide-react";
 import {
   CAPEX_DEFAULTS,
   ROOM_TIERS,
@@ -9,7 +9,8 @@ import {
   type RoomTierId,
   type StarCategoryId,
 } from "@/lib/admin/financials/defaults";
-import { useOverrides, formatSavedAt } from "@/lib/admin/financials/use-overrides";
+import { useDraftedOverrides } from "@/lib/admin/financials/use-overrides";
+import { SaveBar } from "./save-bar";
 
 /**
  * CAPEX defaults matrix · 12 line items · 9 cells (3 key tiers × 3 star
@@ -52,22 +53,25 @@ function buildDefaultCapexState(): CapexState {
 }
 
 export function CapexDefaultsCard() {
-  const ov = useOverrides<CapexState>("admin.financials.capex.v1", buildDefaultCapexState());
-  const { units, values } = ov.state;
+  const ov = useDraftedOverrides<CapexState>(
+    "admin.financials.capex.v1",
+    buildDefaultCapexState(),
+  );
+  const { units, values } = ov.draft;
 
   function setUnit(lineId: string, unit: CapexUnit) {
-    ov.set((prev) => ({ ...prev, units: { ...prev.units, [lineId]: unit } }));
+    ov.setDraft((prev) => ({ ...prev, units: { ...prev.units, [lineId]: unit } }));
   }
 
   function setCell(lineId: string, tierId: RoomTierId, catId: StarCategoryId, raw: number) {
-    ov.set((prev) => ({
+    ov.setDraft((prev) => ({
       ...prev,
       values: { ...prev.values, [cellKey(lineId, tierId, catId)]: raw },
     }));
   }
 
   function resetRow(line: CapexLine) {
-    ov.set((prev) => {
+    ov.setDraft((prev) => {
       const nextUnits = { ...prev.units, [line.id]: "per_key" as CapexUnit };
       const nextValues = { ...prev.values };
       for (const tier of ROOM_TIERS) {
@@ -108,27 +112,15 @@ export function CapexDefaultsCard() {
             Values default to € per key for European urban refurb.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className="inline-flex items-center gap-1 rounded-md bg-slate-900/60 px-2 py-1 font-mono text-[10px] text-slate-400 ring-1 ring-slate-700/60">
-            <Save size={10} className={ov.lastSavedAt ? "text-lime-300" : "text-slate-600"} />
-            {ov.hydrated
-              ? ov.lastSavedAt
-                ? `Saved on this device · ${formatSavedAt(ov.lastSavedAt)}`
-                : "Defaults · no edits saved"
-              : "…"}
-          </span>
-          {ov.lastSavedAt && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("Reset ALL CAPEX overrides and clear local storage?")) ov.reset();
-              }}
-              className="font-mono text-[10px] text-slate-500 underline-offset-2 hover:text-rose-300 hover:underline"
-            >
-              Reset all to defaults
-            </button>
-          )}
-        </div>
+        <SaveBar
+          isDirty={ov.isDirty}
+          hydrated={ov.hydrated}
+          lastSavedAt={ov.lastSavedAt}
+          onSave={ov.save}
+          onDiscard={ov.discard}
+          onReset={ov.reset}
+          resetConfirmText="Reset ALL CAPEX overrides and clear local storage?"
+        />
       </header>
 
       {groups.map((g) => (

@@ -540,13 +540,23 @@ export const PNL_FORECAST_5Y: PnlForecastRow[] = [
     ],
   },
   {
-    id: "rev-fb",
+    id: "rev-food",
     section: "operating_revenue",
-    label: "Food & Beverage",
-    assump: { value: "25,0%", sub: "% total rev" },
+    label: "Food",
+    assump: { value: "17,0%", sub: "% total rev" },
     years: [
-      { value: "4,64M €" }, { value: "5,03M €" }, { value: "5,33M €" },
-      { value: "5,48M €" }, { value: "5,62M €" },
+      { value: "3,16M €" }, { value: "3,42M €" }, { value: "3,62M €" },
+      { value: "3,73M €" }, { value: "3,82M €" },
+    ],
+  },
+  {
+    id: "rev-beverage",
+    section: "operating_revenue",
+    label: "Beverage",
+    assump: { value: "8,0%", sub: "% total rev" },
+    years: [
+      { value: "1,48M €" }, { value: "1,61M €" }, { value: "1,71M €" },
+      { value: "1,76M €" }, { value: "1,80M €" },
     ],
   },
   {
@@ -602,13 +612,23 @@ export const PNL_FORECAST_5Y: PnlForecastRow[] = [
     ],
   },
   {
-    id: "exp-fb",
+    id: "exp-food",
     section: "departmental",
-    label: "Food & Beverage",
-    assump: { value: "65,0%", sub: "% F&B rev" },
+    label: "Food",
+    assump: { value: "32,0%", sub: "% food rev" },
     years: [
-      { value: "3,02M €" }, { value: "3,23M €" }, { value: "3,41M €" },
-      { value: "3,53M €" }, { value: "3,63M €" },
+      { value: "1,01M €" }, { value: "1,09M €" }, { value: "1,16M €" },
+      { value: "1,19M €" }, { value: "1,22M €" },
+    ],
+  },
+  {
+    id: "exp-beverage",
+    section: "departmental",
+    label: "Beverage",
+    assump: { value: "22,0%", sub: "% beverage rev" },
+    years: [
+      { value: "326k €" }, { value: "354k €" }, { value: "375k €" },
+      { value: "386k €" }, { value: "395k €" },
     ],
   },
   {
@@ -688,11 +708,21 @@ export const PNL_FORECAST_5Y: PnlForecastRow[] = [
   {
     id: "non-tax",
     section: "non_operating",
-    label: "Property tax & insurance",
-    assump: { value: "1,1%", sub: "% total rev" },
+    label: "Property tax",
+    assump: { value: "0,6%", sub: "% total rev" },
     years: [
-      { value: "204,2k €" }, { value: "209,3k €" }, { value: "214,5k €" },
-      { value: "219,9k €" }, { value: "225,4k €" },
+      { value: "111,4k €" }, { value: "114,2k €" }, { value: "117,0k €" },
+      { value: "120,0k €" }, { value: "123,0k €" },
+    ],
+  },
+  {
+    id: "non-insurance",
+    section: "non_operating",
+    label: "Insurance",
+    assump: { value: "0,5%", sub: "% total rev" },
+    years: [
+      { value: "92,8k €" }, { value: "95,1k €" }, { value: "97,5k €" },
+      { value: "99,9k €" }, { value: "102,4k €" },
     ],
   },
   {
