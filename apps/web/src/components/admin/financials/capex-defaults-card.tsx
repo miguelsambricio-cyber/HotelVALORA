@@ -230,7 +230,7 @@ export function CapexDefaultsCard() {
 
       <div className="mt-4 rounded-md border border-lime-300/30 bg-lime-300/5 p-3">
         <p className="mb-2 font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-lime-300">
-          Total raw inputs · sum of cells per (tier, *) · operator owns interpretation when units mixed
+          Total raw inputs
         </p>
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-9">
           {ROOM_TIERS.flatMap((tier) =>
