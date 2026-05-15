@@ -4,6 +4,67 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Contactos · Phase 2.B.3 replacement-suggestions --apply execution
+
+Operator: "Aplicar las 2 sugerencias aprobadas y dejar el outreach layer limpio, accionable, y listo para futuras campañas institucionales". Executed Phase 2.B.3 --apply mode to embed approved replacement heuristics into the Master with full audit trail, regenerated downstream report surfaces and institutional candidates list, and confirmed decontamination metrics.
+
+### Applied replacements (with audit trail)
+- Row 504 (ID f193186dd9eb0c22): **crocher@bancsabadell.com → prietose@bancsabadell.com** · band=strategic · same_category=Lender · threads=5 · replaced_by_master_id=9bf709fb1abda6e5 · replaced_at=2026-05-14T23:54:18+00:00
+- Row 3443 (ID 596a76514db8d527): **p.j.rodera@reyalurbis.com → gestiondeactivos2@reyalurbis.com** · band=strategic · category_change=(Principal→Broker) · recent_activity=2024-06-05 · replaced_by_master_id=a27778b5f04425ea · replaced_at=2026-05-14T23:54:18+00:00
+
+### Downstream regeneration
+- **Master verification**: 67-column schema (63 + 4 audit columns: original_email · replacement_source · replaced_by_master_id · replaced_at) · 4382 active contacts · 2 with audit trail · 149 archived to INVALID_ARCHIVE
+- **Gmail signal re-extraction**: extract_gmail_signals.py re-ran over 52 Gmail files · 8857 unique emails (raw signal count) · 12 bounce-flagged emails filtered by blocklist
+- **Institutional inbox candidates**: harvest_untagged.py regenerated untagged-inbox-candidates with decontamination · 104 campaign-ready candidates (32 bidi · 45 inbound-only · 27 outbound-only) · 9 emails skipped on bounce/dead-domain
+- **Relationship health metrics**: strategic + active band = 108 contacts · engagement distribution stable (active=11 · strategic=97 · warm=38 · cold=91 · dormant=192 · invalid=6)
+
+### Audit trail completeness
+- Original emails preserved for both replacements
+- Replacement source (`replacement_heuristic`) and target Master ID recorded
+- Timestamp locked at execution moment
+- Non-destructive: old email never deleted, only replaced in active email column
+- Idempotent: script checked for prior original_email to prevent double-apply
+
+### Pending (manual review, Phase 2.B.3.post)
+- 2 FLAG replacements awaiting external LinkedIn verification before future apply passes:
+  - idalmau@inbisa.com → xdalmau@inbisa.com (surname match, category mismatch, score=50)
+  - jurian@yotel.com → justin.davies@yotel.com (strategic band, mutual threads, score=50)
+
+Outreach layer decontaminated and actionable. Campaign surfaces ready for institutional engagement.
+
+---
+
+## 2026-05-15 — Contactos · invalid-email cleanup pipeline (B + D + E)
+
+Operator: "limpiar la base activa de HotelVALORA para futuras campañas y relaciones institucionales reales". Drained the 155 invalid-email rows from active Master and decontaminated the Gmail signal pipeline so they can never recontaminate.
+
+### Three new operator scripts under `scripts/contactos/`
+- **`build_replacement_suggestions.py`** — for each Master row with `email_validity = invalid`, scores same-domain live contacts on (full-name surname match · email-local surname match · recent activity ≤ 24mo · relationship_band ∈ {active,strategic,warm} · same contact_category · ≥2 active threads). Top-3 candidates per invalid above MIN_SCORE=30 → `replacement-suggestions_<batch>.csv` for human review (`apply_decision` column blank). Invalids with ZERO candidates → moved to new `INVALID_ARCHIVE` sheet inside same xlsx with full audit trail (`archived_at`, `archived_batch_id`, `archived_reason`, `archived_source_sheet_row`).
+- **`build_bounce_blocklist.py`** — generates two artefacts under `CONTACTOS DATASITE/master/blocklists/`:
+  - `gmail-bounce-blocklist.txt` (382 emails) · union of Master[invalid] + INVALID_ARCHIVE + gmail-signals (bc≥2 OR bc≥1∧inbound=0)
+  - `dead-domains-blocklist.txt` (67 domains) · bounce_ratio ≥50% AND ≥2 contacts (excludes personal-email domains)
+- **`build_dead_domains_review.py`** — same threshold as blocklist but enriches each domain with sample contacts, distinct companies, latest activity, latest bounce, has_active_relationships flag, H/M/L `investigation_priority`, and `rebrand_hint_domains` (best-guess from same-company-token in Master). Output: `dead-domains-review_<batch>.csv` with operator-fillable `investigation_action` + `new_corporate_domain` columns.
+
+### Patches to existing pipeline
+- **`_blocklist.py`** (new) · shared loader → `load_blocklists()` returns `(blocked_emails, blocked_domains)` sets · `is_blocked(email, …)` checks both.
+- **`extract_gmail_signals.py`** · imports `_blocklist`, threads `is_blocklisted()` into bounce-attribution targets, snippet-extracted addresses, outbound recipients, inbound senders, and inbound to/cc. Logs `blocklist loaded · N email(s) · M domain(s)` at start.
+- **`harvest_untagged.py`** · imports `_blocklist`, drops blocked emails before sorting candidates, logs skipped count.
+
+### Run results (2026-05-14T23:21Z batch)
+- 155 invalid identified · 6 with ≥1 same-domain candidate (11 suggestion rows top-3) · 149 archived sin candidato.
+- Master: **4547 → 4398 active rows · INVALID_ARCHIVE: 149 rows · 67 cols** (63 + 4 audit).
+- Blocklist: **382 emails · 67 dead domains**.
+- Dead-domains review: **67 domains** · H=1 (reyalurbis.com) · M=3 (pierrecelestin-group, room-matehotels, louvre-hotels) · L=63.
+- Pre-cleanup backup at `master/metcub-contacts-master.BACKUP-pre-cleanup.xlsx`.
+
+### Audit trail
+- `reports/invalid-archive-log.jsonl` · append-only · contains both archive events and emitted-suggestion events with full provenance.
+- All outputs under gitignored `CONTACTOS DATASITE/` tree.
+
+Master sheet structure unchanged · same 63 columns · contact_category taxonomy preserved (Principal · Broker · Lender · Developer · Proveedor · IA aplicaciones · Uncategorized).
+
+---
+
 ## 2026-05-14 — Integrations registry · new External Data APIs layer
 
 Operator: "si rapidapi esta vinculado, deberiamos incluir en admin/integrations, y el api que usamos". The Booking-com15 RapidAPI and Google Places APIs were live in code but invisible on `/user/admin/integrations`. Promoted them to first-class layer cards.

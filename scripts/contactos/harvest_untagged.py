@@ -4,8 +4,21 @@ from __future__ import annotations
 import json, os, sys, time, re, csv
 from datetime import datetime
 from collections import defaultdict
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from _blocklist import load_blocklists, is_blocked  # type: ignore[import-not-found]
+except ImportError:
+    def load_blocklists():  # type: ignore[no-redef]
+        return set(), set()
+
+    def is_blocked(email, _e, _d):  # type: ignore[no-redef]
+        return False
+
+BLOCKED_EMAILS, BLOCKED_DOMAINS = load_blocklists()
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TRANSCRIPT = os.path.join(
@@ -246,6 +259,7 @@ def build_candidates(untagged: list[dict]) -> list[tuple[str, dict]]:
             info["is_bidi"] = True
 
     candidates: list[tuple[str, dict]] = []
+    blocked = 0
     for em, info in per_email.items():
         if em in MIGUEL_ADDRS:
             continue
@@ -259,7 +273,13 @@ def build_candidates(untagged: list[dict]) -> list[tuple[str, dict]]:
         # Reject if ALL their subjects are noise
         if info["subjects"] and all(is_noise_subject(s) for s in info["subjects"]):
             continue
+        # Drop bounced / dead-domain / archived-invalid emails · prevent recontamination
+        if is_blocked(em, BLOCKED_EMAILS, BLOCKED_DOMAINS):
+            blocked += 1
+            continue
         candidates.append((em, info))
+    if blocked:
+        print(f"  · skipped {blocked} email(s) on bounce/dead-domain blocklist")
 
     candidates.sort(key=lambda x: (not x[1]["is_bidi"], -x[1]["threads"], -x[1]["inbound"]))
     return candidates

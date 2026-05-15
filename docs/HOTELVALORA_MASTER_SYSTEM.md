@@ -4,7 +4,9 @@
 > Cross-references every other doc in `/docs/*` and the four AI-context files at
 > repo root (`AI_CONTEXT.md`, `RULES.md`, `ENTRYPOINTS.md`, `README.md`).
 
-**Last refreshed:** 2026-05-14 — keep this date current after structural updates.
+**Last refreshed:** 2026-05-15 — keep this date current after structural updates.
+
+> **2026-05-15 · Contactos Phase 2.B.3 complete.** Applied 2 approved replacement suggestions (crocher→prietose · rodera→gestiondeactivos2) with full audit trail (original_email preserved, replaced_by_master_id recorded, replaced_at timestamped). Master schema expanded to 67 columns (63 canonical + 4 audit). Downstream surfaces regenerated: Gmail signals re-extracted (8857 unique emails), institutional inbox candidates refreshed (104 campaign-ready), health metrics revalidated (strategic + active = 108). Decontamination filters operational (9 bounce-flagged emails skipped during harvest). Two FLAG replacements pending manual LinkedIn verification. Outreach layer clean and actionable.
 
 > **2026-05-14 · COSTAR ingestion architecture shift.** Two distinct datasets now flow through `services/costar/`: **Market Performance** (PAIS/MERCADO/SUBMERCADO KPIs) and **Hotel-by-Market Inventory** (HOTELESperMARKET — replaces the retired CLASS granularity). Madrid + Madrid Centro drops landed alongside private transactions + COMPSET. New admin surface `/user/admin/hotels` scaffolds the hotel registry; COSTAR Admin Agent renamed to **COSTAR & Hotel Reference Agent** with reconciliation-queue duties. See `docs/intelligence/costar-hotels-by-market-schema.md` for the new schema and `services/costar/README.md` for the workspace contract.
 

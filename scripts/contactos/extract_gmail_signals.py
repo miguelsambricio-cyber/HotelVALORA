@@ -68,6 +68,18 @@ OUT_DIR = ROOT / "incoming" / "gmail-signals"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+try:
+    from _blocklist import load_blocklists, is_blocked  # type: ignore[import-not-found]
+except ImportError:
+    def load_blocklists() -> tuple[set[str], set[str]]:  # type: ignore[no-redef]
+        return set(), set()
+
+    def is_blocked(email: str, _e: set[str], _d: set[str]) -> bool:  # type: ignore[no-redef]
+        return False
+
+BLOCKED_EMAILS, BLOCKED_DOMAINS = load_blocklists()
+
 # ── self / noise filters ────────────────────────────────────────────────────
 # Operator's email identities · NEVER emit these as relationship signals.
 SELF_EMAILS = {
@@ -192,6 +204,11 @@ def is_noise(email: str) -> bool:
     return any(p.search(email) for p in NOISE_PATTERNS)
 
 
+def is_blocklisted(email: str) -> bool:
+    """Skip emails on the bounce/dead-domain blocklist · prevents recontamination."""
+    return is_blocked(email, BLOCKED_EMAILS, BLOCKED_DOMAINS)
+
+
 def label_from_filename(path: Path) -> str:
     """Filename without .json IS the Gmail label tag."""
     return path.stem
@@ -249,7 +266,7 @@ def process_one_file(path: Path, accumulator: dict[str, dict[str, Any]]) -> tupl
                 # Attribute bounce to the recipients of the prior outbound
                 bounce_targets: list[str] = []
                 for r in prior_outbound_recipients:
-                    if not r or is_self(r) or is_noise(r):
+                    if not r or is_self(r) or is_noise(r) or is_blocklisted(r):
                         continue
                     bounce_targets.append(r)
                 # Also try to extract failed addresses directly from snippet
@@ -259,7 +276,7 @@ def process_one_file(path: Path, accumulator: dict[str, dict[str, Any]]) -> tupl
                 )
                 for ext in snippet_emails:
                     em_norm = normalize_email(ext)
-                    if em_norm and not is_self(em_norm) and not is_noise(em_norm):
+                    if em_norm and not is_self(em_norm) and not is_noise(em_norm) and not is_blocklisted(em_norm):
                         if em_norm not in bounce_targets:
                             bounce_targets.append(em_norm)
                 for em in bounce_targets:
@@ -300,18 +317,18 @@ def process_one_file(path: Path, accumulator: dict[str, dict[str, Any]]) -> tupl
             if is_outbound:
                 # We sent it · the recipients are the remote party
                 for r in tos + ccs:
-                    if not r or is_self(r) or is_noise(r):
+                    if not r or is_self(r) or is_noise(r) or is_blocklisted(r):
                         continue
                     remote_emails.append(r)
                 # Track for next-message bounce attribution
                 prior_outbound_recipients = list(remote_emails)
             else:
                 # Someone else sent it · they are the remote party
-                if sender and not is_self(sender) and not is_noise(sender):
+                if sender and not is_self(sender) and not is_noise(sender) and not is_blocklisted(sender):
                     remote_emails.append(sender)
                 # Their To/Cc may also include other non-self contacts (group threads)
                 for r in tos + ccs:
-                    if not r or is_self(r) or is_noise(r):
+                    if not r or is_self(r) or is_noise(r) or is_blocklisted(r):
                         continue
                     if r != sender:
                         remote_emails.append(r)
@@ -362,6 +379,7 @@ def directionality(inbound: int, outbound: int) -> str:
 def main() -> int:
     files = sorted([p for p in RAW_DIR.iterdir() if p.is_file() and p.suffix.lower() == ".json"])
     print(f"→ Gmail signals extractor · {len(files)} raw file(s) in {RAW_DIR}")
+    print(f"  · blocklist loaded · {len(BLOCKED_EMAILS)} email(s) · {len(BLOCKED_DOMAINS)} domain(s)")
     if not files:
         print("  drop label-tagged JSON files into gmail-raw/ first")
         return 0

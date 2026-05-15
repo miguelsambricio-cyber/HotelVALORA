@@ -151,6 +151,21 @@ Maps tasks to exact files. Start here before scanning.
 | CoStar market schema (full reference) | `docs/intelligence/costar-market-schema.md` |
 | CoStar submarket schema (full reference) | `docs/intelligence/costar-submarket-schema.md` |
 | CoStar class schema (chain-scale aggregates) | `docs/intelligence/costar-class-schema.md` |
+| **CONTACTOS · institutional graph + Gmail signal pipeline** | `CONTACTOS DATASITE/` (gitignored data tree) + `scripts/contactos/` |
+| Master xlsx (63 cols · 5 sheets · INVALID_ARCHIVE side-sheet for retired bounces) | `CONTACTOS DATASITE/master/metcub-contacts-master.xlsx` |
+| Bounce + dead-domain blocklists (regenerated · honoured by extract + harvest) | `CONTACTOS DATASITE/master/blocklists/{gmail-bounce-blocklist,dead-domains-blocklist}.txt` |
+| Datasite ingester (xlsm → Master · dedup · merge · provenance) | `scripts/contactos/ingest.py` |
+| Gmail signal extractor (raw label JSONs → JSONL · honours blocklist) | `scripts/contactos/extract_gmail_signals.py` |
+| Gmail signal merger (JSONL → Master rows · preserves bounce_count) | `scripts/contactos/ingest_gmail.py` |
+| Untagged-inbox harvester (institutional candidate CSV · honours blocklist) | `scripts/contactos/harvest_untagged.py` |
+| Master classifier (contact_category taxonomy: Principal · Broker · Lender · Developer · Proveedor · IA aplicaciones) | `scripts/contactos/classify_master.py` |
+| Relationship-health report (11-section md + per-batch correction CSV) | `scripts/contactos/build_health_report.py` |
+| **Replacement heuristics + INVALID_ARCHIVE mover (B)** | `scripts/contactos/build_replacement_suggestions.py` |
+| **Bounce + dead-domain blocklist generator (D)** | `scripts/contactos/build_bounce_blocklist.py` |
+| **Dead-domains review CSV with rebrand hints (E)** | `scripts/contactos/build_dead_domains_review.py` |
+| Shared blocklist loader (used by extract + harvest) | `scripts/contactos/_blocklist.py` |
+| Inbox organizer (per-thread label routing) | `scripts/contactos/inbox_organizer.py` |
+| Supabase contact promoter (Master → contacts table) | `scripts/contactos/promote_to_supabase.py` |
 | **Operational CompSet workspace** | `services/compset/` |
 | CompSet MASTER (48c · subject+compset KPIs + MPI/ARI/RGI) | `services/compset/MASTER/COMPSET_MASTER.xlsx` |
 | Hotel Positioning MASTER (55c · per-hotel underwriting snapshots) | `services/compset/MASTER/HOTEL_POSITIONING_MASTER.xlsx` |
