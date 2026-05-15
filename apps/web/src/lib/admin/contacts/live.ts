@@ -352,7 +352,7 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
 
   // ── pagination ────────────────────────────────────────────────────────
   const page = filter.page ?? 0;
-  const size = filter.page_size ?? 50;
+  const size = filter.page_size ?? 10;
   const from = page * size;
   const to = from + size - 1;
   q = q.range(from, to);
@@ -364,22 +364,14 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
   }
   const contacts = (data ?? []) as unknown as Omit<ContactRow, "labels">[];
 
-  // Fetch labels for this page only (efficient · max page_size lookups)
-  const ids = contacts.map((c) => c.id);
-  let labelsByContact: Record<string, string[]> = {};
-  if (ids.length > 0) {
-    const { data: labelData } = await sb
-      .from("relationship_labels")
-      .select("contact_id, label")
-      .in("contact_id", ids);
-    for (const row of (labelData ?? []) as Array<{ contact_id: string; label: string }>) {
-      (labelsByContact[row.contact_id] ??= []).push(row.label);
-    }
-  }
-
+  // Labels join skipped at the list level (Gmail labels column was
+  // removed from the table for weight reduction · 2026-05-15). The
+  // detail drawer fetches labels per contact via loadContactDetail
+  // when opened, so no UX regression. Saves one round-trip + payload
+  // per page render.
   const rows: ContactRow[] = contacts.map((c) => ({
     ...c,
-    labels: labelsByContact[c.id] ?? [],
+    labels: [],
   }));
 
   return { rows, total: count ?? rows.length, filter };

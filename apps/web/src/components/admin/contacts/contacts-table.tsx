@@ -55,10 +55,9 @@ export function ContactsTable({
                 <Th right>Band</Th>
                 <Th right>Strength</Th>
                 <Th right>Collab</Th>
-                <Th right>Last email</Th>
-                <Th>Gmail labels</Th>
                 <Th right>Email health</Th>
-                <Th>Strategic signal</Th>
+                {/* Last email · Gmail labels · Strategic signal hidden by default
+                    for table weight; full detail available in row drawer. */}
               </tr>
             </thead>
             <tbody>
@@ -189,57 +188,7 @@ function Row({
         </span>
       </td>
       <td className="px-2 py-3 text-right">
-        <span className="font-mono text-[10.5px] text-slate-400">
-          {row.last_email_date || "—"}
-        </span>
-        {row.email_directionality && row.email_directionality !== "none" && (
-          <p className="mt-0.5 font-mono text-[9.5px] text-slate-500">
-            {row.email_directionality}
-          </p>
-        )}
-      </td>
-      <td className="px-2 py-3 max-w-[200px]">
-        {row.labels.length === 0 ? (
-          <span className="font-mono text-[10px] text-slate-600">—</span>
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {row.labels.slice(0, 3).map((label) => (
-              <span
-                key={label}
-                className="inline-flex items-center rounded bg-slate-800/60 px-1.5 py-0.5 font-mono text-[9.5px] text-slate-300 ring-1 ring-slate-700/60"
-                title={label}
-              >
-                {label.length > 22 ? `${label.slice(0, 22)}…` : label}
-              </span>
-            ))}
-            {row.labels.length > 3 && (
-              <span className="font-mono text-[9.5px] text-slate-500">+{row.labels.length - 3}</span>
-            )}
-          </div>
-        )}
-      </td>
-      <td className="px-2 py-3 text-right">
         <HealthBadge validity={row.email_validity} bounces={row.bounce_count} flagged={row.flagged_for_correction} />
-      </td>
-      <td className="px-2 py-3 max-w-[180px]">
-        {row.inferred_relationship_stage && (
-          <p className="font-headline text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/80">
-            {row.inferred_relationship_stage}
-          </p>
-        )}
-        {row.latest_deal_stage && (
-          <p className="mt-0.5 font-mono text-[10px] text-slate-400">
-            Datasite: {row.latest_deal_stage}
-          </p>
-        )}
-        {row.pipeline_state && row.pipeline_state !== "Active" && (
-          <p className="mt-0.5 font-mono text-[10px] text-amber-200/70">
-            {row.pipeline_state}
-          </p>
-        )}
-        {!row.inferred_relationship_stage && !row.latest_deal_stage && (
-          <span className="font-mono text-[10px] text-slate-600">—</span>
-        )}
       </td>
     </tr>
   );

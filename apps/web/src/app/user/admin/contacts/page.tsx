@@ -35,6 +35,7 @@ interface PageProps {
     hide_invalid?: string;
     recently_active_only?: string;
     page?: string;
+    page_size?: string;
     sort?: string;
     selected?: string;
     mode?: string;
@@ -56,7 +57,9 @@ export default async function ContactsPage({ searchParams }: PageProps) {
     hide_invalid: searchParams.hide_invalid !== "1",
     recently_active_only: searchParams.recently_active_only === "1",
     page: Number.parseInt(searchParams.page ?? "0", 10) || 0,
-    page_size: 50,
+    // Smaller default · drawer holds the full detail per row.
+    // Operators can override via `?page_size=50` if they need a wider view.
+    page_size: Number.parseInt(searchParams.page_size ?? "10", 10) || 10,
     sort: (searchParams.sort as ContactsFilter["sort"]) || "collab",
   };
 
@@ -182,7 +185,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
               rows={rows}
               total={total}
               page={filter.page ?? 0}
-              pageSize={filter.page_size ?? 50}
+              pageSize={filter.page_size ?? 10}
               selectedId={selectedId}
               baseSearchParams={baseSearchString}
             />
