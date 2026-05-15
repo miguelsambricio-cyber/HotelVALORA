@@ -31,15 +31,16 @@ export function ContactsKpis({ kpis }: { kpis: ContactKpis }) {
 
       <div className="mt-4 border-t border-slate-800/60 pt-3">
         <p className="mb-2 font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-500">
-          By institutional type
+          By relationship type
         </p>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 lg:grid-cols-7">
-          <Totem label="Investors" value={kpis.investors} compact />
-          <Totem label="Operators" value={kpis.operators} compact />
-          <Totem label="Lenders" value={kpis.lenders} compact />
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4 lg:grid-cols-8">
+          <Totem label="Principals" value={kpis.principals} compact />
           <Totem label="Brokers" value={kpis.brokers} compact />
-          <Totem label="Family Office" value={kpis.family_offices} compact />
-          <Totem label="REIT / SOCIMI" value={kpis.reits_socimis} compact />
+          <Totem label="Lenders" value={kpis.lenders} compact />
+          <Totem label="Operators" value={kpis.operators} compact />
+          <Totem label="Developers" value={kpis.developers} compact />
+          <Totem label="Hotel Supply" value={kpis.hotel_supply} compact />
+          <Totem label="IA Supply" value={kpis.ia_supply} compact />
           <Totem label="Bidirectional" value={kpis.bidirectional_threads} compact />
         </dl>
       </div>

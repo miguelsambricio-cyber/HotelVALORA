@@ -4,6 +4,45 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Admin / Contacts · Relationship Type 8-group filter (Phase A · UI mapping layer)
+
+Operator: "Los contactos hay que organizarlos en 8 grandes grupos. No destruyas las categorías antiguas todavía: crear mapping layer · mantener backward compatibility · migrar progresivamente · guardar `original_category_raw`." Phase A ships the UI / server mapping; Phases B (Master classifier v2) + C (DB schema + `relationship_type` CRM dimension) remain pending operator green-light.
+
+### What shipped
+- **Filter rename:** "Institutional type" → **"Relationship type"** (chip-strip label · KPI strip subhead · doc).
+- **8 chips replace 11 flat values:** ALL · PRINCIPALS · BROKER · LENDER · OPERATOR · DEVELOPER · HOTEL SUPPLY · IA SUPPLY. Each chip key maps to a list of raw `investor_type` values via `RELATIONSHIP_TYPE_GROUPS` in `apps/web/src/lib/admin/contacts/live.ts` and explodes server-side to a single `.in("investor_type", [...])` query.
+- **Backward compat preserved:** raw legacy values (`investor_type=Lender` etc.) still resolve via `.eq` for any existing bookmark / script. URL param key remains `investor_type` until Phase C renames the DB column.
+- **KPI strip realigned:** bottom totem row is now Principals · Brokers · Lenders · Operators · Developers · Hotel Supply · IA Supply · Bidirectional (8 totems instead of 7). Same `RELATIONSHIP_TYPE_GROUPS` arrays drive both filter and counts so they cannot drift. Legacy `kpis.investors / family_offices / reits_socimis` retained on the typed contract for backward compat (deprecated · `investors` aliased to `principals`).
+- **Header prose:** "X investors · Y operators · Z lenders · W brokers" → "X principals · Y brokers · Z lenders · W operators · V developers".
+- **Dead code removed:** `loadInvestorTypes` no longer awaited on the page (still exported for future Phase B/C use); `investorTypes` prop dropped from `<ContactsFilters>`.
+
+### Counts (Supabase production · 4 547 contacts)
+| Group | Count | Composition |
+|---|---|---|
+| Principals | ~1921 | Investor 1836 + Family Office 59 + Owner 17 + Sovereign Wealth 3 + REIT/SOCIMI 2 + Insurance 2 + Inst. Investor 1 + Fund 1 |
+| Broker | 905 | Broker 905 |
+| Lender | 334 | Lender 334 |
+| Operator | 719 | Hotel Chain 669 + Operator 40 + Brand 5 + F&B Op 5 |
+| Developer | 521 | Developer 521 |
+| Hotel Supply | 112 | Service Provider 112 |
+| IA Supply | 0 | Pending Phase B promotion of `contact_category` from Master xlsx |
+
+### Why IA SUPPLY shows 0
+`relationship_contacts.investor_type` has no canonical "IA"/"AI Supply" value today. The IA SUPPLY classification already exists in Master's `contact_category` column (column 63 · written by `classify_master.py` via TECH_DOMAINS heuristic). Phase B promotes that column to Supabase as a separate column (`contact_category_canonical`) so all 8 chips report real numbers. Until then the chip is wired and visible — clicking it returns 0 deliberately.
+
+### Files
+- `apps/web/src/lib/admin/contacts/live.ts` — added `RELATIONSHIP_TYPE_GROUPS` + `RelationshipGroupKey` + `isGroupKey` · expanded `loadContacts` filter · realigned `loadContactKpis` (18 parallel counts) · expanded `ContactKpis` interface
+- `apps/web/src/components/admin/contacts/contacts-filters.tsx` — rebuilt chip strip (8 group chips, label "Relationship type"); `investorTypes` prop removed
+- `apps/web/src/components/admin/contacts/contacts-kpis.tsx` — bottom totem row rebuilt around the 8 groups
+- `apps/web/src/app/user/admin/contacts/page.tsx` — header prose realigned · `loadInvestorTypes` await removed
+- `docs/integrations/datasite-contacts.md` — Phase A taxonomy + server-lib note
+
+### Phase B / C (pending operator green-light)
+- **B (Master classifier v2):** add Operator as separate bucket in `classify_master.py` (split from Principal); save `original_category_raw` column; rerun classifier with `--scheme=v2` flag preserving v1 column.
+- **C (DB schema + CRM `relationship_type`):** migration adds `relationship_contacts.{company_type_canonical, relationship_type, original_category_raw}`. `relationship_type` is the CRM dimension (strategic_partner / commercial_target / inactive / etc.) · separate from the descriptive `company_type_canonical` (operator/broker/etc.) and from the signal-driven `relationship_band` (active/warm/strategic/cold/dormant). Backfill from `investor_type` via mapping. UI filter switches to single `.eq` against the canonical column. Promote step picks up `contact_category` from Master.
+
+---
+
 ## 2026-05-15 — Contactos · Phase 2.B.3 replacement-suggestions --apply execution
 
 Operator: "Aplicar las 2 sugerencias aprobadas y dejar el outreach layer limpio, accionable, y listo para futuras campañas institucionales". Executed Phase 2.B.3 --apply mode to embed approved replacement heuristics into the Master with full audit trail, regenerated downstream report surfaces and institutional candidates list, and confirmed decontamination metrics.

@@ -21,10 +21,9 @@ export interface ContactsFiltersProps {
     search: string;
     sort: string;
   };
-  investorTypes: string[];
 }
 
-export function ContactsFilters({ current, investorTypes }: ContactsFiltersProps) {
+export function ContactsFilters({ current }: ContactsFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -91,21 +90,27 @@ export function ContactsFilters({ current, investorTypes }: ContactsFiltersProps
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-800/60 pt-3">
         <span className="font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
-          Institutional type
+          Relationship type
         </span>
         <Chip
           active={current.investor_type === "all"}
           onClick={() => update({ investor_type: "all" })}
           label="All"
         />
-        {["Investor", "Family Office", "Fund", "REIT/SOCIMI", "Lender",
-          "Hotel Chain", "Operator", "Brand", "Broker", "Developer",
-          "Owner"].map((t) => (
+        {([
+          ["principals",   "Principals"],
+          ["broker",       "Broker"],
+          ["lender",       "Lender"],
+          ["operator",     "Operator"],
+          ["developer",    "Developer"],
+          ["hotel_supply", "Hotel Supply"],
+          ["ia_supply",    "IA Supply"],
+        ] as Array<[string, string]>).map(([value, label]) => (
           <Chip
-            key={t}
-            active={current.investor_type === t}
-            onClick={() => update({ investor_type: t })}
-            label={t}
+            key={value}
+            active={current.investor_type === value}
+            onClick={() => update({ investor_type: value })}
+            label={label}
           />
         ))}
       </div>

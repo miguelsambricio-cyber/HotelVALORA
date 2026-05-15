@@ -84,14 +84,115 @@ export interface ContactKpis {
   cold_with_signal: number;
   dormant: number;
   invalid_or_flagged: number;
+  /** @deprecated Phase A — use `principals` instead. Kept for backward compat. */
   investors: number;
-  operators: number;
-  lenders: number;
-  brokers: number;
+  /** @deprecated Phase A — kept for backward compat. */
   family_offices: number;
+  /** @deprecated Phase A — kept for backward compat. */
   reits_socimis: number;
+  /** Phase A · 7 group counts mirroring the Relationship Type chip strip. */
+  principals: number;
+  brokers: number;
+  lenders: number;
+  operators: number;
+  developers: number;
+  hotel_supply: number;
+  ia_supply: number;
   recently_active_90d: number;
   bidirectional_threads: number;
+}
+
+/**
+ * Relationship Type groups · Phase A mapping layer over the legacy
+ * `investor_type` column. The UI exposes 8 chips (ALL + 7 groups); each
+ * group key explodes to a list of raw `investor_type` values via
+ * `RELATIONSHIP_TYPE_GROUPS` so the filter stays a single `.in(...)`.
+ *
+ * Migration posture (per operator instruction · 2026-05-15):
+ *   - DO NOT destroy or rename the legacy `investor_type` column / values
+ *   - Mapping is layered on top — backward compatible
+ *   - Phase B promotes a `contact_category_canonical` column populated
+ *     from Master (`classify_master.py` v2) so IA SUPPLY actually
+ *     populates · until then IA SUPPLY chip resolves to 0 results
+ *   - `original_category_raw` will be persisted in the next phase
+ */
+export type RelationshipGroupKey =
+  | "principals"
+  | "broker"
+  | "lender"
+  | "operator"
+  | "developer"
+  | "hotel_supply"
+  | "ia_supply";
+
+export const RELATIONSHIP_TYPE_GROUPS: Record<RelationshipGroupKey, string[]> = {
+  principals: [
+    "Investor",
+    "Family Office",
+    "Fund",
+    "REIT/SOCIMI",
+    "Owner",
+    "Sovereign Wealth",
+    "Institutional Investor",
+    "Insurance",
+    "Pension Fund",
+    "Asset Manager",
+    "Hotel Owner Group",
+  ],
+  broker: [
+    "Broker",
+    "Consultant",
+    "Advisor",
+    "Investment Sales",
+    "Capital Markets",
+    "Hospitality Consultant",
+  ],
+  lender: [
+    "Lender",
+    "Bank",
+    "Debt Fund",
+    "Alternative Lender",
+    "Financial Advisor",
+    "Structured Finance",
+  ],
+  operator: [
+    "Operator",
+    "Hotel Chain",
+    "Brand",
+    "White Label Operator",
+    "F&B Operator",
+  ],
+  developer: [
+    "Developer",
+    "Promoter",
+    "Constructor",
+    "Project Manager",
+    "Architecture",
+    "Engineering",
+    "Architecture / Engineering",
+  ],
+  hotel_supply: [
+    "Service Provider",
+    "FF&E",
+    "Furniture",
+    "Technology",
+    "Hospitality Equipment",
+    "Procurement",
+    "Interior Design",
+    "Materials",
+    "Hospitality Services",
+  ],
+  // IA SUPPLY: no canonical raw `investor_type` value today · classified
+  // via TECH_DOMAINS in classify_master.py and lives in Master's
+  // contact_category column. Phase B promotes this to Supabase. For now
+  // the chip resolves to an explicit empty list (returns 0 results).
+  ia_supply: [],
+};
+
+const GROUP_KEYS = Object.keys(RELATIONSHIP_TYPE_GROUPS) as RelationshipGroupKey[];
+
+function isGroupKey(value: string): value is RelationshipGroupKey {
+  return (GROUP_KEYS as string[]).includes(value);
 }
 
 /**
@@ -101,7 +202,11 @@ export interface ContactKpis {
  *   bucket = 'active' AND email_validity != 'invalid' AND
  *   flagged_for_correction = false AND NOT (band = 'dormant' AND active_threads = 0)
  *
- * Operator can override with explicit values.
+ * `investor_type` accepts either a `RelationshipGroupKey` (preferred —
+ * explodes via `.in(...)`) or a raw legacy investor_type value
+ * (preserved for backward compat with bookmarks / scripts that still
+ * pass `investor_type=Lender` etc.). Operator can override with explicit
+ * values.
  */
 export interface ContactsFilter {
   band?: RelationshipBand | "all";
@@ -163,7 +268,20 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
     q = q.eq("relationship_band", filter.band);
   }
   if (filter.investor_type && filter.investor_type !== "all") {
-    q = q.eq("investor_type", filter.investor_type);
+    if (isGroupKey(filter.investor_type)) {
+      const expanded = RELATIONSHIP_TYPE_GROUPS[filter.investor_type];
+      if (expanded.length === 0) {
+        // Empty group (e.g. ia_supply pre-Phase-B) — force zero rows
+        // without throwing. PostgREST `.in('col', [])` would 400, so we
+        // pin a sentinel that cannot match any real value.
+        q = q.eq("investor_type", "__empty_group__");
+      } else {
+        q = q.in("investor_type", expanded);
+      }
+    } else {
+      // Backward compat — raw legacy value still resolves via .eq
+      q = q.eq("investor_type", filter.investor_type);
+    }
   }
   if (filter.bucket && filter.bucket !== "all") {
     q = q.eq("bucket", filter.bucket);
@@ -246,8 +364,13 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
 
 
 /**
- * KPIs strip · 6 + 8 totem counts. Computed via parallel queries so the
- * page renders without waterfalls.
+ * KPIs strip · band counts + 7 group counts (Phase A) + activity totems.
+ * Computed via parallel queries so the page renders without waterfalls.
+ *
+ * The 7 group counts mirror the Relationship Type chip strip 1:1 — each
+ * uses the same `RELATIONSHIP_TYPE_GROUPS[key]` array as the filter, so
+ * UI filter ↔ KPI count never drift. Legacy field names (`investors`,
+ * `family_offices`, `reits_socimis`) are derived from the new arrays.
  */
 export async function loadContactKpis(): Promise<ContactKpis> {
   const sb = getSupabaseAdmin();
@@ -256,6 +379,15 @@ export async function loadContactKpis(): Promise<ContactKpis> {
   // pattern for count-only queries in supabase-js).
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
+
+  function countByGroup(key: RelationshipGroupKey) {
+    const arr = RELATIONSHIP_TYPE_GROUPS[key];
+    if (arr.length === 0) {
+      // ia_supply pre-Phase-B — return a query that resolves to 0
+      return sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "__empty_group__");
+    }
+    return sb.from("relationship_contacts").select("id", { count: "exact", head: true }).in("investor_type", arr);
+  }
 
   const queries = await Promise.all([
     // total
@@ -267,11 +399,15 @@ export async function loadContactKpis(): Promise<ContactKpis> {
     sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "cold").gt("active_threads", 0),
     sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "dormant"),
     sb.from("relationship_contacts").select("id", { count: "exact", head: true }).or("email_validity.eq.invalid,flagged_for_correction.eq.true"),
-    // by investor type
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).in("investor_type", ["Investor","Family Office","Fund","REIT/SOCIMI","Institutional Investor","Sovereign Wealth","Pension Fund"]),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).in("investor_type", ["Operator","Hotel Chain","Brand"]),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "Lender"),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "Broker"),
+    // by Relationship Type group · same arrays as the chip filter
+    countByGroup("principals"),
+    countByGroup("broker"),
+    countByGroup("lender"),
+    countByGroup("operator"),
+    countByGroup("developer"),
+    countByGroup("hotel_supply"),
+    countByGroup("ia_supply"),
+    // legacy compat — Family Office + REIT/SOCIMI singletons
     sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "Family Office"),
     sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "REIT/SOCIMI"),
     // recent activity
@@ -281,13 +417,17 @@ export async function loadContactKpis(): Promise<ContactKpis> {
 
   const [
     total, active, warm, strategic, cold_with_signal, dormant, invalid_or_flagged,
-    investors, operators, lenders, brokers, family_offices, reits_socimis,
+    principals, brokers, lenders, operators, developers, hotel_supply, ia_supply,
+    family_offices, reits_socimis,
     recently_active_90d, bidirectional_threads,
   ] = queries.map((q) => q.count ?? 0);
 
   return {
     total, active, warm, strategic, cold_with_signal, dormant, invalid_or_flagged,
-    investors, operators, lenders, brokers, family_offices, reits_socimis,
+    principals, brokers, lenders, operators, developers, hotel_supply, ia_supply,
+    // Legacy aliases retained for backward compat (KPI strip uses new names)
+    investors: principals,
+    family_offices, reits_socimis,
     recently_active_90d, bidirectional_threads,
   };
 }

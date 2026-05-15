@@ -5,7 +5,6 @@ import {
   loadContacts,
   loadContactKpis,
   loadContactDetail,
-  loadInvestorTypes,
   type ContactsFilter,
 } from "@/lib/admin/contacts/live";
 import { ContactsKpis } from "@/components/admin/contacts/contacts-kpis";
@@ -96,10 +95,9 @@ export default async function ContactsPage({ searchParams }: PageProps) {
     : "/user/admin/contacts";
 
   const sb = getSupabaseAdmin();
-  const [kpis, { rows, total }, investorTypes, detail, campaignsResult, products] = await Promise.all([
+  const [kpis, { rows, total }, detail, campaignsResult, products] = await Promise.all([
     loadContactKpis(),
     loadContacts(filter),
-    loadInvestorTypes(),
     selectedId ? loadContactDetail(selectedId) : Promise.resolve(null),
     sb.from("campaigns")
       .select("id, name")
@@ -135,8 +133,9 @@ export default async function ContactsPage({ searchParams }: PageProps) {
         </h1>
         <p className="max-w-3xl text-[13.5px] leading-relaxed text-slate-600">
           Canonical hospitality relationship graph · {kpis.total.toLocaleString()} contacts
-          across {kpis.investors.toLocaleString()} investors · {kpis.operators.toLocaleString()} operators ·
-          {' '}{kpis.lenders.toLocaleString()} lenders · {kpis.brokers.toLocaleString()} brokers.
+          across {kpis.principals.toLocaleString()} principals · {kpis.brokers.toLocaleString()} brokers ·
+          {' '}{kpis.lenders.toLocaleString()} lenders · {kpis.operators.toLocaleString()} operators ·
+          {' '}{kpis.developers.toLocaleString()} developers.
           Quality-first filter active by default — invalid emails, bounced contacts, and
           dormant-without-signal rows are excluded from this view.
         </p>
@@ -153,7 +152,6 @@ export default async function ContactsPage({ searchParams }: PageProps) {
           search: filter.search ?? "",
           sort: filter.sort ?? "collab",
         }}
-        investorTypes={investorTypes}
       />
 
       {searchParams.bulk_ok && (

@@ -257,10 +257,22 @@ service-role server lib reads these tables.
   Collab · Last email (with directionality) · Gmail labels (max 3 chips
   + count) · Email health · Strategic signal (inferred stage + Datasite
   stage + pipeline state when non-Active)
-- URL-driven filter state — band chips · institutional type chips ·
-  "Show invalid" + "Recently active · 90d" toggles · sort (Collab /
-  Strength / Recent / A-Z) · debounced search across name + email +
-  company
+- URL-driven filter state — band chips · **Relationship Type chips
+  (8 groups · Phase A · 2026-05-15)** · "Show invalid" + "Recently
+  active · 90d" toggles · sort (Collab / Strength / Recent / A-Z) ·
+  debounced search across name + email + company
+- **Relationship Type taxonomy (Phase A · 2026-05-15):** ALL ·
+  PRINCIPALS · BROKER · LENDER · OPERATOR · DEVELOPER · HOTEL SUPPLY ·
+  IA SUPPLY. Each chip key explodes via `RELATIONSHIP_TYPE_GROUPS` in
+  `live.ts` to a `.in("investor_type", [...])` query — single
+  round-trip, no client-side filtering. Backward compat preserved: raw
+  legacy values (`investor_type=Lender` etc.) still resolve via `.eq`
+  for existing bookmarks / scripts. URL param key remains
+  `investor_type` until Phase C renames the DB column. **IA SUPPLY**
+  is wired but resolves to 0 today — its source-of-truth lives in
+  Master `contact_category` (column 63 · classify_master.py · already
+  uses TECH_DOMAINS heuristic) and will populate after Phase B
+  promotes that column to `relationship_contacts`.
 - Quality-first default filter active: `bucket = 'active'` AND
   `hide_invalid` AND no-Gmail-activity dormant rows hidden. Operator
   flips the toggle to widen.
@@ -270,7 +282,13 @@ service-role server lib reads these tables.
 
 **Server lib:** `apps/web/src/lib/admin/contacts/live.ts`
 - `loadContacts(filter)` · `loadContactKpis()` · `loadInvestorTypes()`
-- 15 parallel count queries for the KPI strip (no waterfall)
+- `RELATIONSHIP_TYPE_GROUPS` (Phase A) · 7-key map exploding each
+  chip key to a list of raw `investor_type` values. Same arrays
+  power both filter `.in(...)` and KPI `countByGroup(...)` so
+  filter ↔ totem counts can never drift.
+- 18 parallel count queries for the KPI strip (no waterfall): 6 band
+  + 7 group + 2 legacy-compat singletons (Family Office, REIT/SOCIMI)
+  + 2 activity totems + 1 total
 - joins `relationship_labels` for the visible page only (max
   `page_size` lookups)
 
