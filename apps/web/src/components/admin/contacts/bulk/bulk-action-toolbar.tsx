@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Tag, UserCheck, Megaphone, CheckCircle, AlertCircle, ArchiveX, EyeOff, FileDown, X, CreditCard, Ban, Trash2, AlertTriangle } from "lucide-react";
+import { Mail, Tag, UserCheck, Megaphone, CheckCircle, AlertCircle, ArchiveX, EyeOff, FileDown, X, CreditCard, Ban, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBulkSelection } from "./bulk-selection-context";
 import {
@@ -15,7 +15,6 @@ import {
   bulkMarkInvalidAction,
   bulkSuppressOutreachAction,
   bulkSoftDeleteAction,
-  bulkHardDeleteAction,
 } from "@/lib/admin/contacts/bulk";
 import {
   bulkAssignSubscriptionAction,
@@ -71,6 +70,7 @@ export function BulkActionToolbar({
           products={products}
           selMode={filtered ? "filtered" : "explicit"}
           idsCsv={sel.idsCsv}
+          count={sel.count}
           close={() => setActive(null)}
         />
       )}
@@ -154,6 +154,7 @@ function BulkActionPanel({
   products,
   selMode,
   idsCsv,
+  count,
   close,
 }: {
   active: Exclude<ActiveAction, null>;
@@ -166,6 +167,7 @@ function BulkActionPanel({
   }>;
   selMode: "explicit" | "filtered";
   idsCsv: string;
+  count: number;
   close: () => void;
 }) {
   return (
@@ -329,10 +331,12 @@ function BulkActionPanel({
       )}
 
       {active === "delete" && (
-        <DeletePanel
+        <DeleteConfirm
           selMode={selMode}
           idsCsv={idsCsv}
           filterQs={filterQs}
+          count={count}
+          close={close}
         />
       )}
     </div>
@@ -340,85 +344,59 @@ function BulkActionPanel({
 }
 
 /**
- * Delete panel · TWO clearly-separated sub-actions in one panel:
- *   1. SOFT delete (reversible · sets deleted_at · contacts vanish from
- *      every default query · operator can restore by clearing the field)
- *   2. PERMANENT delete (irreversible · DELETE FROM relationship_contacts ·
- *      CASCADE drops invitations/labels/health · refuses linked_user_id ·
- *      requires type-to-confirm "DELETE PERMANENTLY" · capped at 100/batch)
+ * Delete confirmation · single confirm step · soft-delete only.
+ * Click trash icon → this panel → Cancel or Confirm. That's it.
  *
- * Visual hierarchy: soft section is the default safe choice (rose tone) ·
- * permanent section is the destructive escape hatch (deep red · warning
- * banner · explicit type-to-confirm input separate from the submit).
+ * Soft delete sets deleted_at=now() · row vanishes from every default
+ * query (loadContacts + loadContactKpis filter .is("deleted_at", null))
+ * · reversible by clearing the field in the DB.
+ *
+ * Permanent (hard) delete remains available as bulkHardDeleteAction in
+ * the server module · not surfaced in this toolbar (per operator UX
+ * decision · simplicity > power-user features). Future per-row drawer
+ * action could expose it for individual contacts.
  */
-function DeletePanel({
+function DeleteConfirm({
   selMode,
   idsCsv,
   filterQs,
+  count,
+  close,
 }: {
   selMode: "explicit" | "filtered";
   idsCsv: string;
   filterQs: string;
+  count: number;
+  close: () => void;
 }) {
+  const label = selMode === "filtered"
+    ? "all filtered contacts"
+    : `${count} contact${count === 1 ? "" : "s"}`;
   return (
-    <div className="grid gap-4">
-      {/* SOFT delete (reversible · default safe choice) */}
-      <section className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3">
-        <div className="mb-2 flex items-center gap-2">
-          <Trash2 size={12} className="text-rose-300" />
-          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-rose-200">
-            Soft delete · reversible
-          </p>
-        </div>
-        <p className="mb-2 font-mono text-[10.5px] leading-relaxed text-slate-400">
-          Sets <code className="text-rose-200">deleted_at = now()</code> on every selected contact. Rows
-          disappear from the default view, all bulk actions, the KPI counts, and the table. Restorable by
-          clearing <code>deleted_at</code> in the DB (no UI for restore yet — manual Supabase intervention).
-          Audit trail written. Idempotent.
-        </p>
-        <BulkForm action={bulkSoftDeleteAction} selMode={selMode} idsCsv={idsCsv} filterQs={filterQs}>
-          <Input name="reason" placeholder="reason (optional) · ≤ 500 chars" maxLength={500} />
-          <Submit label="Soft delete selection" tone="rose" />
-        </BulkForm>
-      </section>
-
-      {/* PERMANENT delete (irreversible · destructive escape hatch) */}
-      <section className="rounded-md border-2 border-red-500/60 bg-red-700/15 p-3">
-        <div className="mb-2 flex items-center gap-2">
-          <AlertTriangle size={13} className="text-red-300" />
-          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-red-200">
-            Permanent delete · IRREVERSIBLE
-          </p>
-        </div>
-        <ul className="mb-3 space-y-1 font-mono text-[10.5px] leading-relaxed text-red-100/80">
-          <li>· Hard <code>DELETE FROM relationship_contacts</code>. Row gone forever.</li>
-          <li>· CASCADE drops <code>relationship_labels</code>, <code>relationship_health</code>, <code>contact_invitations</code> for the contact.</li>
-          <li>· Refuses any contact with <code>linked_user_id IS NOT NULL</code> (preserves growth funnel · soft-delete those instead).</li>
-          <li>· Capped at 100 contacts per batch.</li>
-          <li>· Audit log written BEFORE delete — entity_id becomes a dangling forensic reference.</li>
-        </ul>
-        <form action={bulkHardDeleteAction} className="grid gap-2">
-          <input type="hidden" name="sel_mode" value={selMode} />
-          <input type="hidden" name="ids" value={idsCsv} />
-          <input type="hidden" name="filter_qs" value={filterQs} />
-          <Input name="reason" placeholder="reason (REQUIRED for forensics) · ≤ 500 chars" maxLength={500} required />
-          <label className="block">
-            <span className="block font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-red-300">
-              Type-to-confirm · enter exactly: DELETE PERMANENTLY
-            </span>
-            <input
-              name="confirm_token"
-              type="text"
-              placeholder="DELETE PERMANENTLY"
-              required
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border-2 border-red-500/50 bg-slate-950/80 px-2.5 py-1.5 font-mono text-[11px] text-red-100 placeholder:text-red-300/40 focus:border-red-400 focus:outline-none"
-            />
-          </label>
-          <Submit label="Permanently delete · IRREVERSIBLE" tone="danger" />
-        </form>
-      </section>
-    </div>
+    <form action={bulkSoftDeleteAction} className="flex flex-wrap items-center gap-3">
+      <input type="hidden" name="sel_mode" value={selMode} />
+      <input type="hidden" name="ids" value={idsCsv} />
+      <input type="hidden" name="filter_qs" value={filterQs} />
+      <Trash2 size={14} className="text-red-300" />
+      <p className="font-mono text-[11px] text-slate-200">
+        Delete {label}? Rows disappear from the list. Restorable from the database.
+      </p>
+      <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={close}
+          className="rounded-md px-3 py-1.5 font-headline text-[10.5px] font-bold uppercase tracking-[0.18em] text-slate-300 ring-1 ring-slate-700/60 hover:bg-slate-800/60"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="rounded-md bg-red-700/60 px-3 py-1.5 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.2em] text-white ring-2 ring-red-500/70 hover:bg-red-600/80"
+        >
+          Delete
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -487,7 +465,7 @@ const LABELS: Record<Exclude<ActiveAction, null>, string> = {
   subscribe: "Assign subscription to onboarded users",
   revoke: "Revoke pending invitations",
   export: "Export CSV",
-  delete: "Delete contacts · soft (reversible) or permanent (irreversible)",
+  delete: "Delete contacts",
 };
 
 function BulkForm({
