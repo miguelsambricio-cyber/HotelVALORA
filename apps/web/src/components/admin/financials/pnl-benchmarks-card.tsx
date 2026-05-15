@@ -6,7 +6,10 @@ import {
   PNL_FORECAST_5Y,
   PNL_FORECAST_SECTIONS,
   PNL_GEO_FILTERS,
+  PNL_ROOM_STATS,
+  PNL_ROOM_STATS_FALLBACK,
   type PnlForecastRow,
+  type RoomStat,
 } from "@/lib/admin/financials/defaults";
 import { useOverrides, formatSavedAt } from "@/lib/admin/financials/use-overrides";
 
@@ -57,8 +60,19 @@ export function PnlBenchmarksCard() {
     }));
   }
 
-  // Only rows that HAVE an assumption (skip subtotals + computed lines)
-  const editableRows = PNL_FORECAST_5Y.filter((r) => !!r.assump && !r.highlight);
+  // Only rows that HAVE an assumption (skip subtotals + computed lines).
+  // Also skip room_stats · those are now surfaced as 4 stat boxes above
+  // the table, scoped to the filter selection.
+  const editableRows = PNL_FORECAST_5Y.filter(
+    (r) => !!r.assump && !r.highlight && r.section !== "room_stats",
+  );
+
+  const stats = {
+    country: PNL_ROOM_STATS.countries[country] ?? PNL_ROOM_STATS_FALLBACK,
+    market: PNL_ROOM_STATS.markets[market] ?? PNL_ROOM_STATS_FALLBACK,
+    submarket: PNL_ROOM_STATS.submarkets[submarket] ?? PNL_ROOM_STATS_FALLBACK,
+    klass: PNL_ROOM_STATS.classes[klass] ?? PNL_ROOM_STATS_FALLBACK,
+  };
 
   return (
     <section className="rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
@@ -98,11 +112,19 @@ export function PnlBenchmarksCard() {
         </div>
       </header>
 
-      <div className="mb-4 grid gap-2 sm:grid-cols-4">
+      <div className="mb-2 grid gap-2 sm:grid-cols-4">
         <FilterSelect label="País" value={country} onChange={setCountry} options={PNL_GEO_FILTERS.countries} />
         <FilterSelect label="Mercado" value={market} onChange={setMarket} options={PNL_GEO_FILTERS.markets} />
         <FilterSelect label="Submercado" value={submarket} onChange={setSubmarket} options={PNL_GEO_FILTERS.submarkets} />
         <FilterSelect label="Class" value={klass} onChange={setKlass} options={PNL_GEO_FILTERS.classes} />
+      </div>
+
+      {/* Room Statistics · 4 stat boxes · reactive to filter selection */}
+      <div className="mb-4 grid gap-2 sm:grid-cols-4">
+        <RoomStatBox dim="País" value={country} stat={stats.country} />
+        <RoomStatBox dim="Mercado" value={market} stat={stats.market} />
+        <RoomStatBox dim="Submercado" value={submarket} stat={stats.submarket} />
+        <RoomStatBox dim="Class" value={klass} stat={stats.klass} />
       </div>
 
       <div className="overflow-x-auto rounded-md border border-slate-800/60">
@@ -194,6 +216,35 @@ function PnlAssumptionRow({
         />
       </td>
     </tr>
+  );
+}
+
+function RoomStatBox({
+  dim,
+  value,
+  stat,
+}: {
+  dim: string;
+  value: string;
+  stat: RoomStat;
+}) {
+  return (
+    <div className="rounded-md border border-slate-700/60 bg-slate-900/40 px-2.5 py-1.5">
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+        {dim}
+      </p>
+      <p className="mt-0.5 font-mono text-[10.5px] text-slate-300">{value}</p>
+      <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-slate-800/60 pt-1">
+        <div>
+          <p className="font-headline text-[8.5px] font-bold uppercase tracking-[0.18em] text-slate-500">Occ</p>
+          <p className="font-mono text-[12px] font-extrabold text-lime-200">{stat.occupancy.toFixed(1).replace(".", ",")}%</p>
+        </div>
+        <div className="text-right">
+          <p className="font-headline text-[8.5px] font-bold uppercase tracking-[0.18em] text-slate-500">ADR</p>
+          <p className="font-mono text-[12px] font-extrabold text-lime-200">{stat.adr} €</p>
+        </div>
+      </div>
+    </div>
   );
 }
 

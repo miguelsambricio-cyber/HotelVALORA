@@ -393,6 +393,67 @@ export const PNL_GEO_FILTERS = {
   classes: ["Luxury", "Upper Upscale", "Upscale", "Upper Midscale", "Midscale", "Economy"],
 };
 
+/**
+ * Per-filter-value occupancy + ADR · placeholder defaults · future-wired
+ * to CoStar STR rolling-12-month medians by geography + class.
+ *
+ * Each box on the P&L page displays the entry matching the operator's
+ * current filter selection. Fallback used when an option isn't in the
+ * lookup (e.g. operator picks a market we haven't seeded yet).
+ */
+export interface RoomStat {
+  occupancy: number;
+  adr: number;
+}
+
+export const PNL_ROOM_STATS_FALLBACK: RoomStat = { occupancy: 65.0, adr: 175 };
+
+export const PNL_ROOM_STATS: {
+  countries: Record<string, RoomStat>;
+  markets: Record<string, RoomStat>;
+  submarkets: Record<string, RoomStat>;
+  classes: Record<string, RoomStat>;
+} = {
+  countries: {
+    "España": { occupancy: 65.0, adr: 175 },
+    "Portugal": { occupancy: 62.5, adr: 145 },
+    "France": { occupancy: 71.2, adr: 215 },
+    "Italy": { occupancy: 68.4, adr: 198 },
+    "United Kingdom": { occupancy: 73.5, adr: 235 },
+    "Germany": { occupancy: 67.8, adr: 165 },
+  },
+  markets: {
+    "Madrid": { occupancy: 70.0, adr: 195 },
+    "Barcelona": { occupancy: 72.5, adr: 215 },
+    "Costa del Sol": { occupancy: 64.0, adr: 185 },
+    "Sevilla": { occupancy: 65.5, adr: 155 },
+    "Mallorca": { occupancy: 73.0, adr: 245 },
+    "Canarias": { occupancy: 78.0, adr: 165 },
+    "Bilbao": { occupancy: 68.0, adr: 175 },
+    "Valencia": { occupancy: 66.5, adr: 145 },
+    "Lisboa": { occupancy: 70.0, adr: 165 },
+    "Porto": { occupancy: 68.0, adr: 135 },
+    "Paris": { occupancy: 76.0, adr: 285 },
+    "Roma": { occupancy: 72.0, adr: 235 },
+  },
+  submarkets: {
+    "Madrid Centro": { occupancy: 73.0, adr: 215 },
+    "Madrid Salamanca": { occupancy: 71.5, adr: 245 },
+    "Madrid Chamberí": { occupancy: 70.0, adr: 195 },
+    "Barcelona Eixample": { occupancy: 75.0, adr: 235 },
+    "Barcelona Born": { occupancy: 74.5, adr: 225 },
+    "Costa del Sol Marbella": { occupancy: 68.0, adr: 295 },
+  },
+  classes: {
+    "Luxury": { occupancy: 68.0, adr: 425 },
+    "Upper Upscale": { occupancy: 70.0, adr: 245 },
+    "Upscale": { occupancy: 71.5, adr: 175 },
+    "Upper Midscale": { occupancy: 72.0, adr: 125 },
+    "Midscale": { occupancy: 70.0, adr: 95 },
+    "Economy": { occupancy: 68.0, adr: 65 },
+  },
+};
+
 /** One row in the P&L forecast · USALI structure. */
 export interface PnlForecastRow {
   id: string;
