@@ -165,7 +165,7 @@ export default async function ContactsPage({ searchParams }: PageProps) {
           ) : null}
         </div>
       )}
-      {searchParams.bulk_error && (
+      {searchParams.bulk_error && !/NEXT_REDIRECT/i.test(searchParams.bulk_error) && (
         <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-2.5 font-mono text-[11px] text-rose-200">
           Bulk action failed · {searchParams.bulk_error}
         </div>
