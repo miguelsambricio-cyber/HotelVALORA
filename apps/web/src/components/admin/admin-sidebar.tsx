@@ -63,14 +63,16 @@ const PRIMARY_NAV: NavItem[] = [
   // Reference data backbone — sits next to AI Operations because the COSTAR
   // & Hotel Reference Agent owns the integrity of this data plane.
   { href: "/user/admin/hotels", label: "Hotels", icon: Hotel, badge: "Beta", tone: "beta" },
+  // Reference data · institutional underwriting defaults (CAPEX matrix ·
+  // capital structure · P&L benchmarks). Adjacent to Hotels in the
+  // sidebar because both are reference layers consumed by valuation
+  // and underwriting downstream.
+  { href: "/user/admin/financials", label: "Financials", icon: Calculator, badge: "Live", tone: "live" },
   { href: "/user/admin/integrations", label: "Integrations", icon: Plug, badge: "Live", tone: "live" },
   { href: "/user/admin/campaigns", label: "Campaigns", icon: Megaphone, badge: "Live", tone: "live" },
   { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },
   { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live", tone: "live" },
   { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live", tone: "live" },
-  // Reference data · institutional underwriting defaults (CAPEX matrix ·
-  // capital structure · P&L benchmarks). Read-only screening scenario.
-  { href: "/user/admin/financials", label: "Financials", icon: Calculator, badge: "Live", tone: "live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [
