@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Construction, RotateCcw } from "lucide-react";
+import { Construction, RotateCcw, Save } from "lucide-react";
 import {
   CAPEX_DEFAULTS,
   ROOM_TIERS,
@@ -10,6 +9,7 @@ import {
   type RoomTierId,
   type StarCategoryId,
 } from "@/lib/admin/financials/defaults";
+import { useOverrides, formatSavedAt } from "@/lib/admin/financials/use-overrides";
 
 /**
  * CAPEX defaults matrix · 12 line items · 9 cells (3 key tiers × 3 star
@@ -33,42 +33,49 @@ type CellKey = string;
 const cellKey = (lineId: string, tierId: RoomTierId, catId: StarCategoryId): CellKey =>
   `${lineId}::${tierId}::${catId}`;
 
-export function CapexDefaultsCard() {
-  // Per-row unit · default per_key (matches the seeded values in defaults.ts).
-  const [units, setUnits] = useState<Record<string, CapexUnit>>(() =>
-    Object.fromEntries(CAPEX_DEFAULTS.map((l) => [l.id, "per_key" as CapexUnit])),
-  );
-  // Per-cell value · seeded from defaults.ts.
-  const [values, setValues] = useState<Record<CellKey, number>>(() => {
-    const out: Record<CellKey, number> = {};
-    for (const line of CAPEX_DEFAULTS) {
-      for (const tier of ROOM_TIERS) {
-        for (const cat of STAR_CATEGORIES) {
-          out[cellKey(line.id, tier.id, cat.id)] = line.defaults[tier.id][cat.id];
-        }
+interface CapexState {
+  units: Record<string, CapexUnit>;
+  values: Record<CellKey, number>;
+}
+
+function buildDefaultCapexState(): CapexState {
+  const units = Object.fromEntries(CAPEX_DEFAULTS.map((l) => [l.id, "per_key" as CapexUnit]));
+  const values: Record<CellKey, number> = {};
+  for (const line of CAPEX_DEFAULTS) {
+    for (const tier of ROOM_TIERS) {
+      for (const cat of STAR_CATEGORIES) {
+        values[cellKey(line.id, tier.id, cat.id)] = line.defaults[tier.id][cat.id];
       }
     }
-    return out;
-  });
+  }
+  return { units, values };
+}
+
+export function CapexDefaultsCard() {
+  const ov = useOverrides<CapexState>("admin.financials.capex.v1", buildDefaultCapexState());
+  const { units, values } = ov.state;
 
   function setUnit(lineId: string, unit: CapexUnit) {
-    setUnits((prev) => ({ ...prev, [lineId]: unit }));
+    ov.set((prev) => ({ ...prev, units: { ...prev.units, [lineId]: unit } }));
   }
 
   function setCell(lineId: string, tierId: RoomTierId, catId: StarCategoryId, raw: number) {
-    setValues((prev) => ({ ...prev, [cellKey(lineId, tierId, catId)]: raw }));
+    ov.set((prev) => ({
+      ...prev,
+      values: { ...prev.values, [cellKey(lineId, tierId, catId)]: raw },
+    }));
   }
 
   function resetRow(line: CapexLine) {
-    setUnit(line.id, "per_key");
-    setValues((prev) => {
-      const next = { ...prev };
+    ov.set((prev) => {
+      const nextUnits = { ...prev.units, [line.id]: "per_key" as CapexUnit };
+      const nextValues = { ...prev.values };
       for (const tier of ROOM_TIERS) {
         for (const cat of STAR_CATEGORIES) {
-          next[cellKey(line.id, tier.id, cat.id)] = line.defaults[tier.id][cat.id];
+          nextValues[cellKey(line.id, tier.id, cat.id)] = line.defaults[tier.id][cat.id];
         }
       }
-      return next;
+      return { units: nextUnits, values: nextValues };
     });
   }
 
@@ -88,17 +95,40 @@ export function CapexDefaultsCard() {
 
   return (
     <section className="rounded-2xl border border-slate-800/60 bg-gradient-to-b from-forest-900 to-slate-950 p-5 shadow-sm">
-      <header className="mb-4">
-        <p className="flex items-center gap-1.5 font-headline text-[10px] font-extrabold uppercase tracking-[0.25em] text-lime-300/80">
-          <Construction size={11} />
-          CAPEX
-        </p>
-        <h2 className="mt-1 font-headline text-xl font-extrabold tracking-tight text-white">
-          CAPEX
-        </h2>
-        <p className="mt-1 max-w-3xl font-mono text-[11px] text-slate-400">
-          Values default to € per key for European urban refurb.
-        </p>
+      <header className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 font-headline text-[10px] font-extrabold uppercase tracking-[0.25em] text-lime-300/80">
+            <Construction size={11} />
+            CAPEX
+          </p>
+          <h2 className="mt-1 font-headline text-xl font-extrabold tracking-tight text-white">
+            CAPEX
+          </h2>
+          <p className="mt-1 max-w-3xl font-mono text-[11px] text-slate-400">
+            Values default to € per key for European urban refurb.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-900/60 px-2 py-1 font-mono text-[10px] text-slate-400 ring-1 ring-slate-700/60">
+            <Save size={10} className={ov.lastSavedAt ? "text-lime-300" : "text-slate-600"} />
+            {ov.hydrated
+              ? ov.lastSavedAt
+                ? `Saved on this device · ${formatSavedAt(ov.lastSavedAt)}`
+                : "Defaults · no edits saved"
+              : "…"}
+          </span>
+          {ov.lastSavedAt && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Reset ALL CAPEX overrides and clear local storage?")) ov.reset();
+              }}
+              className="font-mono text-[10px] text-slate-500 underline-offset-2 hover:text-rose-300 hover:underline"
+            >
+              Reset all to defaults
+            </button>
+          )}
+        </div>
       </header>
 
       {groups.map((g) => (
