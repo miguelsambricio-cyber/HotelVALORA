@@ -36,6 +36,10 @@ from typing import Any
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
+from _phase_b_repair_freeze import abort_if_frozen
+
+abort_if_frozen("promote_to_supabase.py")
+
 try:
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")

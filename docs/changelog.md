@@ -4,6 +4,118 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Contactos · Phase 2.B.3-correction · Master alignment repair + replacement re-application
+
+> **Note:** This entry corrects the record left by the prior Phase 2.B.3 entry below (commit 2dd5010). That entry is preserved as written for historical accuracy. The events documented here are what actually happened — both the silent failure of the original --apply and the successful repair/recovery 18 hours later.
+
+### Root cause
+`build_replacement_suggestions.py` --apply (commit 2dd5010 · 2026-05-14 23:54) inserted a new audit column `original_email` at position 0 of every Master xlsx data row (line 274: `row_data.insert(0, None)`) but updated only the header row, not the schema invariant. The result on disk:
+- Header gained `original_email` at col 1, plus 3 unnamed slots at cols 65-67 for the other planned audit fields (replacement_source, replaced_by_master_id, replaced_at).
+- Data rows had `None` inserted at position 1 (between original_email and master_id) so all canonical values shifted RIGHT by 1 column relative to the header labels.
+- The two replacement writes themselves silently no-op'd: `email_idx_adjusted` resolved to the wrong cell, so `prietose@bancsabadell.com` and `gestiondeactivos2@reyalurbis.com` were never written. Both rows still carried their original emails. The audit JSONL (`replacement-archive.jsonl`) recorded "applied" events that didn't reflect the disk state.
+
+### Blast radius
+- **Master xlsx**: header at 68 cols (4 unnamed) · data effectively at 65 cols · header[N] != data[N] across all 4398 rows.
+- **Every header-name reader was reading the wrong cell**: `classify_master.py`, `extract_gmail_signals.py`, `harvest_untagged.py`, `ingest.py`, `build_health_report.py`. None of these ran post-corruption (the operator caught it first).
+- **Supabase rows for crocher (f193186dd9eb0c22) and rodera (596a76514db8d527)** still carry the ORIGINAL emails — `promote_to_supabase.py` was never run after the broken apply, so Supabase preserves the pre-corruption canonical state. Cross-verified with a fresh REST API dump (4547 rows, 605 KB) before any repair work.
+- **Phase 2.B.3 changelog claims** (audit trail · 67-col schema · downstream regeneration) were aspirational, not factual. The downstream re-extracts that supposedly ran on the broken Master either did nothing or wrote to wrong fields.
+
+### Repair strategy (operator-approved Option A · 2026-05-15)
+1. **Backup** — copy current Master to `metcub-contacts-master.broken-2026-05-15.xlsx` before any analysis. Pre-Phase-2.B.3 backup `metcub-contacts-master.BACKUP-pre-cleanup.xlsx` (2026-05-15 01:21 · 63 cols clean) preserved as ground truth reference.
+2. **Audit script** (`scripts/contactos/audit_master_alignment.py`) — read-only diagnostic. Cross-references each Master row against a Supabase canonical snapshot (`relationship_contacts.{master_id, full_name, email, investor_type}` · 4547 rows · cached at `reports/supabase-canonical-snapshot.jsonl`). Scores 4 shift hypotheses (-1, 0, +1, +2) by matching on (full_name + email + investor_type).
+3. **Audit verdict** — shift=-1 (data shifted RIGHT by 1 vs header) wins with **4 382 / 4 398 = 99.6%** match. Margin over runner-up: 99.6 percentage points. HIGH confidence.
+4. **Freeze locks** (`scripts/contactos/_phase_b_repair_freeze.py`) — sentinel-file based abort guard added to `classify_master.py` and `promote_to_supabase.py`. Sentinel: `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock`. Both scripts hard-abort at startup until operator deletes the file.
+5. **Fix script** (`scripts/contactos/fix_master_alignment.py`) — for each row build `new_row = [row[0]] + row[2:65]` (preserve col 1 original_email · drop position 1 spurious None · keep cols 3-65 → cols 2-64). Header rebuilt to 64-col canonical: `original_email + master_id + … + contact_category`. Writes to NEW file `metcub-contacts-master.repaired-2026-05-15.xlsx` (no overwrite). Side-sheets (Contacts · Companies · Activities · Summary · INVALID_ARCHIVE) preserved verbatim.
+6. **Fix verification** — `pre-fix populated cells: 98,753 · post-fix: 98,753 · cells dropped: 0` · all dropped positions empty for all 4 398 rows. Zero data loss.
+7. **Re-audit on repaired file** — shift=0 wins with 99.6% match · shift=-1 collapses to 0%. Schema confirmed: 64 cols · header[0]=`original_email` · header[1]=`master_id` · header[63]=`contact_category`.
+8. **Atomic swap** — current `metcub-contacts-master.xlsx` → `metcub-contacts-master.broken-2026-05-15-postswap.xlsx` (preserves the 02:34 modification time for forensics) · `metcub-contacts-master.repaired-2026-05-15.xlsx` → `metcub-contacts-master.xlsx`. Three backups remain on disk.
+9. **Replacement re-application v2** (`scripts/contactos/apply_phase_2b3_replacements_v2.py`) — file-only write of `email ← new_email` and `original_email ← old_email` for both approved rows. Idempotent (refuses to overwrite if `original_email` already populated). Refuses to write if current `email` doesn't match the expected old value. Audit trail appended to `reports/phase_2b3_apply_log.jsonl`. Result: both rows now carry the new email AND preserve the original in the audit field.
+10. **Final validation** (`scripts/contactos/final_repair_validation.py`) — re-runs shift=0 audit · confirms Phase 2.B.3 row state · samples 5 random rows pre/post.
+
+### Validation evidence
+
+**Headline:** 4 380 / 4 398 (99.6%) of Master rows match Supabase exactly on `full_name + email + investor_type` post-repair. Of the 18 mismatches: 2 are the now-correctly-replaced rows (Supabase still has the pre-replacement emails because `promote_to_supabase.py` is frozen pending operator green-light · expected) · 16 are pre-existing legitimate Master↔Supabase drift (all show `email=None` on both sides; differ in `full_name` casing or `investor_type`).
+
+**Phase 2.B.3 replacement rows post-repair:**
+```
+master_id f193186dd9eb0c22 · sheet_row 504 · Concha Rocher Collado
+  email          = 'prietose@bancsabadell.com'        ← new
+  original_email = 'crocher@bancsabadell.com'         ← original (audit)
+  investor_type  = 'Lender'
+
+master_id 596a76514db8d527 · sheet_row 3443 · Pedro Javier Rodera
+  email          = 'gestiondeactivos2@reyalurbis.com' ← new
+  original_email = 'p.j.rodera@reyalurbis.com'        ← original (audit)
+  investor_type  = 'Hotel Chain'
+```
+
+**5 BEFORE/AFTER samples** (random rows · before = broken file under header[N]=data[N] · after = canonical file under header[N]=data[N]):
+
+| Row | Field | BEFORE (broken) | AFTER (repaired) | SUPABASE |
+|---|---|---|---|---|
+| 4174 | full_name | `'2a0daaa397322ec5'` (master_id-hash) | `'John Keeling'` | `'john keeling'` ✓ |
+| 4174 | email | `'John Keeling'` (a name) | `'jkeeling@valenciagroup.com'` | match ✓ |
+| 4174 | investor_type | `'Valencia Hotel Group'` (company name) | `'Hotel Chain'` | match ✓ |
+| 1561 | full_name | `'2b83771ecbaba1f5'` | `'Gabriel Petersen'` | match ✓ |
+| 1561 | email | `'Gabriel Petersen'` | `'gabriel.petersen@eventhotels.com'` | match ✓ |
+| 1561 | investor_type | `'EVENT HOTELS'` | `'Investor'` | match ✓ |
+| 3873 | full_name | `'b6b9803b6ba459df'` | `'Claus Dieter Handel'` | match ✓ |
+| 3873 | email | `'Claus Dieter Handel'` | `'claus-dieter.jandel@steigenbergerhotelgroup.com'` | match ✓ |
+| 3873 | investor_type | `'Steigenberger Hotel AG'` | `'Hotel Chain'` | match ✓ |
+| 3957 | full_name | `'ccfc24fe457f1259'` | `'Fernando Hortigüela'` | match ✓ |
+| 3957 | email | `'Fernando Hortigüela'` | `'f.hortiguela@tcapital.es'` | match ✓ |
+| 3957 | investor_type | `'TENDENCIAS CAPITAL INVESTMENTS'` | `'Broker'` | match ✓ |
+| 3050 | full_name | `'d0de3f9717f0c86b'` | `'Dan Konzelmann'` | match ✓ |
+| 3050 | email | `'Dan Konzelmann'` | `'daniel.konzelmann@nobleinvestment.com'` | match ✓ |
+| 3050 | investor_type | `'Noble Investment Group'` | `'Investor'` | match ✓ |
+
+All 5 random samples + both Phase 2.B.3 rows post-validation match Supabase canonical exactly.
+
+### State on disk after repair
+
+```
+CONTACTOS DATASITE/master/
+  metcub-contacts-master.xlsx                              (64c · canonical · post-repair · post-replay)
+  metcub-contacts-master.BACKUP-pre-cleanup.xlsx           (63c · pre-Phase-2.B.3 ground truth)
+  metcub-contacts-master.broken-2026-05-15.xlsx            (68c · audit-time copy of broken file)
+  metcub-contacts-master.broken-2026-05-15-postswap.xlsx   (68c · forensic copy with original 02:34 mtime)
+  .phase_b_repair_in_progress.lock                         (sentinel · still active · see "Freeze status" below)
+```
+
+### Freeze status
+
+Sentinel file remains in place. `classify_master.py` and `promote_to_supabase.py` still abort at startup. To lift, delete `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock`. Recommended order before lifting:
+1. Operator visually inspects `metcub-contacts-master.xlsx` in Excel/LibreOffice — confirms 64 cols and 5-10 row spot-check.
+2. Operator approves promotion of the 2 corrected emails to Supabase — `promote_to_supabase.py` will upsert them via `master_id`.
+3. Operator approves Phase B classifier v2 to proceed.
+
+### Files
+**New:**
+- `scripts/contactos/_phase_b_repair_freeze.py` (freeze guard module)
+- `scripts/contactos/audit_master_alignment.py` (read-only alignment diagnostic · CLI path arg)
+- `scripts/contactos/fix_master_alignment.py` (atomic shift-left repair)
+- `scripts/contactos/apply_phase_2b3_replacements_v2.py` (idempotent replacement re-applier)
+- `scripts/contactos/final_repair_validation.py` (closeout validation)
+- `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock` (sentinel)
+- `CONTACTOS DATASITE/reports/supabase-canonical-snapshot.jsonl` (4547 rows · ground-truth cache)
+- `CONTACTOS DATASITE/reports/master-alignment-audit_<TS>.json` (pre-fix audit report)
+- `CONTACTOS DATASITE/reports/master-alignment-fix_<TS>.json` (fix diff report)
+- `CONTACTOS DATASITE/reports/phase_b_repair_final_<TS>.json` (final validation)
+- `CONTACTOS DATASITE/reports/phase_2b3_apply_log.jsonl` (correct audit trail · timestamped)
+
+**Modified:**
+- `scripts/contactos/classify_master.py` (freeze import + abort_if_frozen call)
+- `scripts/contactos/promote_to_supabase.py` (freeze import + abort_if_frozen call)
+
+**Backups created:**
+- `CONTACTOS DATASITE/master/metcub-contacts-master.broken-2026-05-15.xlsx`
+- `CONTACTOS DATASITE/master/metcub-contacts-master.broken-2026-05-15-postswap.xlsx`
+
+### Phase B (still pending)
+Master alignment is now sound. Phase B (Master classifier v2 with operator split + IA SUPPLY mapping + `original_category_raw`) can proceed once the freeze sentinel is lifted. The DB schema migration (Phase C · `company_type_canonical` + `relationship_type` CRM dimension) remains unchanged in scope.
+
+---
+
 ## 2026-05-15 — Admin / Contacts · Relationship Type 8-group filter (Phase A · UI mapping layer)
 
 Operator: "Los contactos hay que organizarlos en 8 grandes grupos. No destruyas las categorías antiguas todavía: crear mapping layer · mantener backward compatibility · migrar progresivamente · guardar `original_category_raw`." Phase A ships the UI / server mapping; Phases B (Master classifier v2) + C (DB schema + `relationship_type` CRM dimension) remain pending operator green-light.

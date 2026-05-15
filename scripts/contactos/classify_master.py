@@ -27,6 +27,10 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
+from _phase_b_repair_freeze import abort_if_frozen
+
+abort_if_frozen("classify_master.py")
+
 sys.stdout.reconfigure(encoding='utf-8')
 
 ROOT = Path(__file__).resolve().parent.parent.parent
