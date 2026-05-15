@@ -11,7 +11,11 @@ export const metadata: Metadata = {
     "HotelVALORA institutional defaults · CAPEX matrix · capital structure · P&L benchmarks · operator-validatable.",
 };
 
-export const dynamic = "force-static";
+// MUST be force-dynamic · the admin layout above runs requireOperator()
+// which calls cookies() · static prerender fails the operator check at
+// build time and bakes a 404 into the cache · breaks production access
+// for legitimate operators. Same pattern as /user/admin/contacts.
+export const dynamic = "force-dynamic";
 
 export default function FinancialsPage() {
   return (
