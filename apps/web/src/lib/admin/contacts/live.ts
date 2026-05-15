@@ -289,6 +289,9 @@ export async function loadContacts(rawFilter: ContactsFilter = {}): Promise<{
     { count: "exact" },
   );
 
+  // Soft-deleted contacts always hidden from this surface.
+  q = q.is("deleted_at", null);
+
   // ── filters ───────────────────────────────────────────────────────────
   if (filter.band && filter.band !== "all") {
     q = q.eq("relationship_band", filter.band);
@@ -400,23 +403,28 @@ export async function loadContactKpis(): Promise<ContactKpis> {
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10);
 
-  function countByGroup(key: RelationshipGroupKey) {
-    // Phase C · counts read the canonical column directly.
+  // Every KPI count excludes soft-deleted contacts.
+  function liveCount() {
     return sb.from("relationship_contacts")
       .select("id", { count: "exact", head: true })
-      .eq("contact_category_v2", GROUP_KEY_TO_V2_BUCKET[key]);
+      .is("deleted_at", null);
+  }
+
+  function countByGroup(key: RelationshipGroupKey) {
+    // Phase C · counts read the canonical column directly.
+    return liveCount().eq("contact_category_v2", GROUP_KEY_TO_V2_BUCKET[key]);
   }
 
   const queries = await Promise.all([
     // total
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }),
+    liveCount(),
     // by band
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "active"),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "warm"),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "strategic"),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "cold").gt("active_threads", 0),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("relationship_band", "dormant"),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).or("email_validity.eq.invalid,flagged_for_correction.eq.true"),
+    liveCount().eq("relationship_band", "active"),
+    liveCount().eq("relationship_band", "warm"),
+    liveCount().eq("relationship_band", "strategic"),
+    liveCount().eq("relationship_band", "cold").gt("active_threads", 0),
+    liveCount().eq("relationship_band", "dormant"),
+    liveCount().or("email_validity.eq.invalid,flagged_for_correction.eq.true"),
     // by Relationship Type group · same arrays as the chip filter
     countByGroup("principals"),
     countByGroup("broker"),
@@ -426,11 +434,11 @@ export async function loadContactKpis(): Promise<ContactKpis> {
     countByGroup("hotel_supply"),
     countByGroup("ia_supply"),
     // legacy compat — Family Office + REIT/SOCIMI singletons
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "Family Office"),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("investor_type", "REIT/SOCIMI"),
+    liveCount().eq("investor_type", "Family Office"),
+    liveCount().eq("investor_type", "REIT/SOCIMI"),
     // recent activity
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).gte("last_email_date", ninetyDaysAgo),
-    sb.from("relationship_contacts").select("id", { count: "exact", head: true }).eq("email_directionality", "bidirectional"),
+    liveCount().gte("last_email_date", ninetyDaysAgo),
+    liveCount().eq("email_directionality", "bidirectional"),
   ]);
 
   const [

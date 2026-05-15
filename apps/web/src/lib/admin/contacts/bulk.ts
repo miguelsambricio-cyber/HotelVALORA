@@ -370,6 +370,133 @@ export async function bulkSuppressOutreachAction(formData: FormData): Promise<vo
   }
 }
 
+// ─── Delete actions (soft + hard) ─────────────────────────────────────
+
+/** Smaller cap for hard-delete · destructive · prefer narrow batches. */
+const MAX_HARD_DELETE = 100;
+
+/** Type-to-confirm token required for hard delete. */
+const HARD_DELETE_CONFIRM_TOKEN = "DELETE PERMANENTLY";
+
+/**
+ * Bulk SOFT delete · sets `deleted_at = now()`. Reversible (clear
+ * the field to restore). Idempotent — already-deleted rows ignored.
+ * The default `loadContacts` filter and every other bulk action filter
+ * `.is("deleted_at", null)` so the contacts disappear from the surface.
+ */
+export async function bulkSoftDeleteAction(formData: FormData): Promise<void> {
+  let filter_qs = "";
+  try {
+    const ctx = await requireOperator();
+    filter_qs = String(formData.get("filter_qs") ?? "");
+    const reason = String(formData.get("reason") ?? "").trim().slice(0, 500);
+    const ids = await resolveSelection(formData);
+    if (ids.length === 0) return failToList(filter_qs, "No contacts in selection.");
+
+    const sb = getSupabaseAdmin();
+    const { error, count } = await sb
+      .from("relationship_contacts")
+      .update({ deleted_at: new Date().toISOString() } as never, { count: "exact" })
+      .in("id", ids)
+      .is("deleted_at", null);
+    if (error) return failToList(filter_qs, redactError(error));
+
+    await writeBulkAudit({
+      contactIds: ids,
+      action: "contact.bulk_soft_deleted",
+      actorId: ctx.userId,
+      actorEmail: ctx.email,
+      metadata: { reason: reason || null },
+    });
+    revalidatePath("/user/admin/contacts");
+    backToList(filter_qs, { ok: count ?? ids.length, verb: "soft_deleted" });
+  } catch (err) {
+    failToList(filter_qs, redactError(err));
+  }
+}
+
+/**
+ * Bulk HARD delete · IRREVERSIBLE. Refuses any contact with a non-null
+ * `linked_user_id` (preserves growth-funnel attribution). Requires a
+ * type-to-confirm `confirm_token = 'DELETE PERMANENTLY'`. Capped at
+ * MAX_HARD_DELETE per batch (smaller than other bulk actions).
+ *
+ * FK cascade behavior (verified 2026-05-15):
+ *   - contact_invitations.contact_id      → CASCADE (deleted)
+ *   - relationship_health.contact_id      → CASCADE (deleted)
+ *   - relationship_labels.contact_id      → CASCADE (deleted)
+ *   - users.linked_contact_id             → SET NULL (rejected upstream)
+ *
+ * Audit log written BEFORE the delete so the record survives the row
+ * being gone (entity_id becomes a dangling reference, intentional · the
+ * activity_log preserves "this id existed and was hard-deleted at T").
+ */
+export async function bulkHardDeleteAction(formData: FormData): Promise<void> {
+  let filter_qs = "";
+  try {
+    const ctx = await requireOperator();
+    filter_qs = String(formData.get("filter_qs") ?? "");
+    const reason = String(formData.get("reason") ?? "").trim().slice(0, 500);
+    const confirmToken = String(formData.get("confirm_token") ?? "").trim();
+
+    if (confirmToken !== HARD_DELETE_CONFIRM_TOKEN) {
+      return failToList(
+        filter_qs,
+        `Hard delete refused · type "${HARD_DELETE_CONFIRM_TOKEN}" exactly to confirm.`,
+      );
+    }
+
+    const ids = await resolveSelection(formData);
+    if (ids.length === 0) return failToList(filter_qs, "No contacts in selection.");
+    if (ids.length > MAX_HARD_DELETE) {
+      return failToList(
+        filter_qs,
+        `Hard delete capped at ${MAX_HARD_DELETE} per batch (got ${ids.length}). Narrow the selection first.`,
+      );
+    }
+
+    const sb = getSupabaseAdmin();
+
+    // Refuse any contact linked to an onboarded user · preserves growth funnel.
+    const { data: linked, error: linkErr } = await sb
+      .from("relationship_contacts")
+      .select("id, full_name, email, linked_user_id")
+      .in("id", ids)
+      .not("linked_user_id", "is", null);
+    if (linkErr) return failToList(filter_qs, redactError(linkErr));
+    if (linked && linked.length > 0) {
+      const sample = (linked[0] as { email: string | null; id: string }).email
+        ?? (linked[0] as { id: string }).id;
+      return failToList(
+        filter_qs,
+        `Hard delete refused · ${linked.length} contact${linked.length === 1 ? "" : "s"} linked to onboarded user${linked.length === 1 ? "" : "s"} (e.g. ${sample}). Soft delete instead, or unlink user first.`,
+      );
+    }
+
+    // Audit FIRST · entity_id will dangle after delete (intentional).
+    await writeBulkAudit({
+      contactIds: ids,
+      action: "contact.bulk_hard_deleted",
+      actorId: ctx.userId,
+      actorEmail: ctx.email,
+      metadata: { reason: reason || null, irreversible: true, confirm_token: HARD_DELETE_CONFIRM_TOKEN },
+    });
+
+    // CASCADE handles invitations + labels + health. Users.linked_contact_id
+    // already verified null above so SET NULL is a no-op.
+    const { error, count } = await sb
+      .from("relationship_contacts")
+      .delete({ count: "exact" })
+      .in("id", ids);
+    if (error) return failToList(filter_qs, redactError(error));
+
+    revalidatePath("/user/admin/contacts");
+    backToList(filter_qs, { ok: count ?? ids.length, verb: "hard_deleted" });
+  } catch (err) {
+    failToList(filter_qs, redactError(err));
+  }
+}
+
 /**
  * Bulk assign to a campaign. Creates one `contact_invitations` row per
  * contact with `status='pending'` (the row will flip to `sent` if/when

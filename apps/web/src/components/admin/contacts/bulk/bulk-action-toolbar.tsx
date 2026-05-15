@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Tag, UserCheck, Megaphone, CheckCircle, AlertCircle, ArchiveX, EyeOff, FileDown, X, CreditCard, Ban } from "lucide-react";
+import { Mail, Tag, UserCheck, Megaphone, CheckCircle, AlertCircle, ArchiveX, EyeOff, FileDown, X, CreditCard, Ban, Trash2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBulkSelection } from "./bulk-selection-context";
 import {
@@ -14,6 +14,8 @@ import {
   bulkMarkInactiveAction,
   bulkMarkInvalidAction,
   bulkSuppressOutreachAction,
+  bulkSoftDeleteAction,
+  bulkHardDeleteAction,
 } from "@/lib/admin/contacts/bulk";
 import {
   bulkAssignSubscriptionAction,
@@ -90,6 +92,9 @@ export function BulkActionToolbar({
           <ToolBtn icon={<AlertCircle size={11} />} label="Invalid" onClick={() => setActive("invalid")} tone="rose" />
           <ToolBtn icon={<EyeOff size={11} />} label="Suppress" onClick={() => setActive("suppress")} tone="amber" />
           <ToolBtn icon={<FileDown size={11} />} label="Export CSV" onClick={() => setActive("export")} />
+          {/* Destructive delete · placed at far right · separated by a divider · darker red than status actions */}
+          <span className="mx-1 h-4 w-px bg-slate-700/60" aria-hidden />
+          <ToolBtn icon={<Trash2 size={11} />} label="Delete" onClick={() => setActive("delete")} tone="danger" />
           <button
             type="button"
             onClick={sel.clear}
@@ -107,7 +112,8 @@ export function BulkActionToolbar({
 type ActiveAction =
   | null
   | "invite" | "subscribe" | "tag" | "owner" | "campaign"
-  | "contacted" | "revoke" | "inactive" | "invalid" | "suppress" | "export";
+  | "contacted" | "revoke" | "inactive" | "invalid" | "suppress" | "export"
+  | "delete";
 
 function ToolBtn({
   icon,
@@ -118,12 +124,13 @@ function ToolBtn({
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
-  tone?: "lime" | "amber" | "rose";
+  tone?: "lime" | "amber" | "rose" | "danger";
 }) {
   const t =
     tone === "lime" ? "bg-lime-300/20 text-lime-100 ring-lime-300/40 hover:bg-lime-300/30"
     : tone === "amber" ? "bg-amber-500/15 text-amber-200 ring-amber-500/30 hover:bg-amber-500/25"
     : tone === "rose" ? "bg-rose-500/15 text-rose-200 ring-rose-500/30 hover:bg-rose-500/25"
+    : tone === "danger" ? "bg-red-700/30 text-red-100 ring-red-500/60 hover:bg-red-600/40 hover:text-white"
     : "bg-slate-800/60 text-slate-200 ring-slate-700/60 hover:bg-slate-700/60";
   return (
     <button
@@ -320,6 +327,97 @@ function BulkActionPanel({
           <SubSubmit label="Revoke selection's pending invitations" tone="amber" />
         </form>
       )}
+
+      {active === "delete" && (
+        <DeletePanel
+          selMode={selMode}
+          idsCsv={idsCsv}
+          filterQs={filterQs}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Delete panel · TWO clearly-separated sub-actions in one panel:
+ *   1. SOFT delete (reversible · sets deleted_at · contacts vanish from
+ *      every default query · operator can restore by clearing the field)
+ *   2. PERMANENT delete (irreversible · DELETE FROM relationship_contacts ·
+ *      CASCADE drops invitations/labels/health · refuses linked_user_id ·
+ *      requires type-to-confirm "DELETE PERMANENTLY" · capped at 100/batch)
+ *
+ * Visual hierarchy: soft section is the default safe choice (rose tone) ·
+ * permanent section is the destructive escape hatch (deep red · warning
+ * banner · explicit type-to-confirm input separate from the submit).
+ */
+function DeletePanel({
+  selMode,
+  idsCsv,
+  filterQs,
+}: {
+  selMode: "explicit" | "filtered";
+  idsCsv: string;
+  filterQs: string;
+}) {
+  return (
+    <div className="grid gap-4">
+      {/* SOFT delete (reversible · default safe choice) */}
+      <section className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <Trash2 size={12} className="text-rose-300" />
+          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-rose-200">
+            Soft delete · reversible
+          </p>
+        </div>
+        <p className="mb-2 font-mono text-[10.5px] leading-relaxed text-slate-400">
+          Sets <code className="text-rose-200">deleted_at = now()</code> on every selected contact. Rows
+          disappear from the default view, all bulk actions, the KPI counts, and the table. Restorable by
+          clearing <code>deleted_at</code> in the DB (no UI for restore yet — manual Supabase intervention).
+          Audit trail written. Idempotent.
+        </p>
+        <BulkForm action={bulkSoftDeleteAction} selMode={selMode} idsCsv={idsCsv} filterQs={filterQs}>
+          <Input name="reason" placeholder="reason (optional) · ≤ 500 chars" maxLength={500} />
+          <Submit label="Soft delete selection" tone="rose" />
+        </BulkForm>
+      </section>
+
+      {/* PERMANENT delete (irreversible · destructive escape hatch) */}
+      <section className="rounded-md border-2 border-red-500/60 bg-red-700/15 p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <AlertTriangle size={13} className="text-red-300" />
+          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-red-200">
+            Permanent delete · IRREVERSIBLE
+          </p>
+        </div>
+        <ul className="mb-3 space-y-1 font-mono text-[10.5px] leading-relaxed text-red-100/80">
+          <li>· Hard <code>DELETE FROM relationship_contacts</code>. Row gone forever.</li>
+          <li>· CASCADE drops <code>relationship_labels</code>, <code>relationship_health</code>, <code>contact_invitations</code> for the contact.</li>
+          <li>· Refuses any contact with <code>linked_user_id IS NOT NULL</code> (preserves growth funnel · soft-delete those instead).</li>
+          <li>· Capped at 100 contacts per batch.</li>
+          <li>· Audit log written BEFORE delete — entity_id becomes a dangling forensic reference.</li>
+        </ul>
+        <form action={bulkHardDeleteAction} className="grid gap-2">
+          <input type="hidden" name="sel_mode" value={selMode} />
+          <input type="hidden" name="ids" value={idsCsv} />
+          <input type="hidden" name="filter_qs" value={filterQs} />
+          <Input name="reason" placeholder="reason (REQUIRED for forensics) · ≤ 500 chars" maxLength={500} required />
+          <label className="block">
+            <span className="block font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-red-300">
+              Type-to-confirm · enter exactly: DELETE PERMANENTLY
+            </span>
+            <input
+              name="confirm_token"
+              type="text"
+              placeholder="DELETE PERMANENTLY"
+              required
+              autoComplete="off"
+              className="mt-1 w-full rounded-md border-2 border-red-500/50 bg-slate-950/80 px-2.5 py-1.5 font-mono text-[11px] text-red-100 placeholder:text-red-300/40 focus:border-red-400 focus:outline-none"
+            />
+          </label>
+          <Submit label="Permanently delete · IRREVERSIBLE" tone="danger" />
+        </form>
+      </section>
     </div>
   );
 }
@@ -389,6 +487,7 @@ const LABELS: Record<Exclude<ActiveAction, null>, string> = {
   subscribe: "Assign subscription to onboarded users",
   revoke: "Revoke pending invitations",
   export: "Export CSV",
+  delete: "Delete contacts · soft (reversible) or permanent (irreversible)",
 };
 
 function BulkForm({
@@ -468,11 +567,12 @@ function Select({
   );
 }
 
-function Submit({ label, tone }: { label: string; tone?: "lime" | "rose" | "amber" }) {
+function Submit({ label, tone }: { label: string; tone?: "lime" | "rose" | "amber" | "danger" }) {
   const t =
     tone === "lime" ? "bg-lime-300 text-forest-900 hover:bg-lime-200"
     : tone === "rose" ? "bg-rose-500/30 text-rose-100 ring-1 ring-rose-500/50 hover:bg-rose-500/40"
     : tone === "amber" ? "bg-amber-500/25 text-amber-100 ring-1 ring-amber-500/50 hover:bg-amber-500/35"
+    : tone === "danger" ? "bg-red-700/60 text-white ring-2 ring-red-500/70 hover:bg-red-600/80"
     : "bg-slate-200 text-forest-900 hover:bg-white";
   return (
     <div className="col-span-full">
