@@ -18,6 +18,7 @@ import {
   Megaphone,
   CreditCard,
   Hotel,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,9 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/user/admin/subscriptions", label: "Subscriptions", icon: CreditCard, badge: "Live", tone: "live" },
   { href: "/user/admin/users", label: "Users", icon: UserCircle2, badge: "Live", tone: "live" },
   { href: "/user/admin/contacts", label: "Contacts", icon: Users, badge: "Live", tone: "live" },
+  // Reference data · institutional underwriting defaults (CAPEX matrix ·
+  // capital structure · P&L benchmarks). Read-only screening scenario.
+  { href: "/user/admin/financials", label: "Financials", icon: Calculator, badge: "Live", tone: "live" },
 ];
 
 const PLANNED_NAV: NavItem[] = [
