@@ -4,6 +4,92 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-15 — Contactos · Phase B classifier v2 (canonical operational taxonomy)
+
+`scripts/contactos/classify_master.py` ships a `--scheme={v1,v2}` flag. v2 introduces the canonical 8-bucket operational taxonomy aligned 1:1 with the admin/contacts Phase A UI filter. v1 stays unchanged behind default and column 64 (`contact_category`) is never touched by v2 runs — legacy compatibility for existing readers.
+
+### v2 buckets
+
+`Principal · Broker · Lender · Operator · Developer · Hotel Supply · IA Supply · Uncategorized`
+
+The `Operator` bucket is the load-bearing addition: a clean split from v1 `Principal` capturing hotel chains, brands, white-label operators, aparthotel/hostel/F&B/resort/branded-residence operators. Hospitality investors (`investor_type='Investor'`) are explicitly held back from Operator's company-name pattern detection — they belong to `Principal`.
+
+`IA Supply` (renamed from v1 `IA aplicaciones`) covers AI vendors, SaaS, hospitality tech (PMS/RMS/channel managers/CRM), data intelligence, revenue tech. Detection by domain (TECH_DOMAINS expanded with hospitality-tech vendors + data providers + Calendly etc.) AND conservative keyword patterns (smart systems, real estate analytics, hospitality analytics) — deliberately under-eager to avoid false positives in generic B2B vendors.
+
+`Hotel Supply` (renamed from v1 `Proveedor`) covers FF&E, furniture, interior design, hospitality services, materials, plus a default route for `investor_type ∈ {'Service Provider', 'Media'}` after IA Supply / Lender / Broker / Operator / Developer / Principal had a chance to claim. Per operator decision: media is treated as a service-provider category, not its own bucket.
+
+### New columns (additive · v1 untouched)
+
+| Col | Header | Contents |
+|---|---|---|
+| 65 | `contact_category_v2` | The new canonical bucket (operational taxonomy source-of-truth) |
+| 66 | `original_category_raw` | NULL for all 4398 rows · provenance integrity (no inference backfill — source xlsm has no canonical category field) |
+| 67 | `original_category_source` | NULL for all 4398 rows · only ever populated by future ingestion if it carries a real category snapshot from source-of-record |
+
+`contact_category_v2` becomes the operational source-of-truth. v1 `contact_category` is now legacy compatibility only — future filters / UI / CRM logic should read v2.
+
+### Distribution (4 398 rows)
+
+| Bucket | v1 | v2 | Δ | Notes |
+|---|---:|---:|---:|---|
+| Principal | 2 736 | 1 804 | −932 | Operator split + reclassifications to Lender/Broker/Developer |
+| Broker | 99 | 903 | +804 | v2 rescues 724 brokers v1 had marked Uncategorized |
+| Lender | 155 | 354 | +199 | v2 rescues 192 lenders from Uncategorized |
+| **Operator** | 0 | 705 | +705 | NEW · split from v1 Principal (Hotel Chain 634 · Operator 39 · Developer-classed 12 · Investor-classed 6 · F&B Op 5 · Brand 5 · Insurance 2 · Unknown 2) |
+| Developer | 93 | 503 | +410 | v2 rescues 386 developers from Uncategorized |
+| **Hotel Supply** | 0 | 100 | +100 | Service Provider + Media defaults active |
+| **IA Supply** | 0 | 11 | +11 | STR Global × 7 + Salesforce + ALFRED Smart Systems + Atlas Real Estate Analytics + Calendly |
+| Uncategorized | 1 306 | **18** | −1 288 | **29.7% → 0.4%** · all residuals have investor_type='Unknown' (legitimately unclassifiable from source) |
+
+### Tuning iterations applied (operator decisions)
+
+| # | Change | Impact |
+|---|---|---|
+| **A** | `investor_type ∈ {Service Provider, Media}` → Hotel Supply default (after IA Supply check) | Hotel Supply 5 → 100 |
+| **B-conservative** | IA Supply patterns expanded with: `smart systems`, `smart hospitality`, `data analytics`, `real estate analytics`, `hospitality analytics`. Domains added: `calendly.com`. Deliberately conservative to avoid false-positive tech classifications in generic B2B vendors (BLUE CODE, Adaptatec, etc. correctly stay in Hotel Supply) | IA Supply 8 → 11 |
+| **D** | Operator company-name pattern detection skipped when `investor_type='Investor'` | Operator 745 → 705 (40 false positives correctly returned to Principal) |
+
+Media bucket idea (9th bucket) explicitly rejected per operator: "media es proveedor de servicios" → routed through Hotel Supply default.
+
+### Validation
+
+- `audit_master_alignment.py` re-run post-Phase-B: shift=0 still wins 99.6% match against Supabase canonical (4380/4398). 0% drift introduced.
+- Row 504 (crocher · post-Phase-2.B.3-correction): all 67 cols correctly populated — `original_email='crocher@bancsabadell.com'` · `email='prietose@bancsabadell.com'` · `investor_type='Lender'` · `contact_category='Lender'` · `contact_category_v2='Lender'` · `original_category_raw=None` · `original_category_source=None`.
+- `original_category_raw` and `original_category_source` confirmed NULL for all 4398 rows (no inference backfill performed).
+
+### Freeze status
+
+Sentinel `CONTACTOS DATASITE/master/.phase_b_repair_in_progress.lock` re-created post-classifier with selective filter:
+- Reason: "Phase B classifier v2 in progress · pending operator validation before promote"
+- `BLOCK: promote_to_supabase.py` — promote stays blocked
+- `classify_master.py` allowed through (this script just ran)
+
+`_phase_b_repair_freeze.py` extended to support `BLOCK: <script>` lines (selective freeze) while preserving default-deny when no filter is present.
+
+### Phase C (still pending operator green-light)
+
+- DB schema migration: add `relationship_contacts.contact_category_v2` (or `company_type_canonical`) + `relationship_type` (CRM dimension) + `original_category_raw` + `original_category_source`. Backfill from Master via `promote_to_supabase.py` v2.
+- Switch admin/contacts UI filter from `.in("investor_type", [...])` (Phase A mapping) to `.eq("contact_category_v2", ...)` (single-equality query · cheaper).
+- Update `loadContactKpis` to read v2 column.
+- The 4 areas operator wants to review before Phase C: Principals vs Operators boundary · IA Supply precision · Hotel Supply vs Developer boundary · false-positive tech classifications. Phase B report (`reports/phase_b_classification_report_<TS>.json`) provides per-bucket sample lists for each.
+
+### Files
+
+**Modified:**
+- `scripts/contactos/classify_master.py` — full rewrite around `--scheme={v1,v2}` argparse · header-aware column writes · v1 logic preserved verbatim · v2 with 8 buckets + tuning iterations A/B-conservative/D
+- `scripts/contactos/_phase_b_repair_freeze.py` — `BLOCK: <script>` line support for selective freezing
+
+**New:**
+- `scripts/contactos/phase_b_classification_report.py` — read-only report: distribution side-by-side · migration matrix · operator-split breakdown · IA Supply / Hotel Supply / Operator / Uncategorized samples · 20 random rows for human review
+
+**Backups:**
+- `CONTACTOS DATASITE/master/metcub-contacts-master.pre-phase-b-2026-05-15.xlsx`
+
+**Reports:**
+- `CONTACTOS DATASITE/reports/phase_b_classification_report_<TS>.json`
+
+---
+
 ## 2026-05-15 — Contactos · Phase 2.B.3-correction · Master alignment repair + replacement re-application
 
 > **Note:** This entry corrects the record left by the prior Phase 2.B.3 entry below (commit 2dd5010). That entry is preserved as written for historical accuracy. The events documented here are what actually happened — both the silent failure of the original --apply and the successful repair/recovery 18 hours later.
