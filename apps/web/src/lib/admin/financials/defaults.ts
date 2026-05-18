@@ -219,7 +219,7 @@ export const FINANCIAL_STRUCTURE_DEFAULTS: FinancialStructureLine[] = [
   { id: "rate", label: "All-in cost of debt", value: "Euribor 6M + 250–400", unit: "bps", description: "Senior secured · spread depends on asset quality + sponsor track record" },
   { id: "amort", label: "Amortisation", value: "Interest-only", unit: "5y bullet", description: "Bullet structure · principal at exit · refinance flexibility" },
   { id: "dscr", label: "DSCR covenant", value: "≥ 1.30×", unit: "min", description: "Debt-service coverage ratio · trailing 12-month basis" },
-  { id: "exit-cap", label: "Exit cap rate", value: "5.50–7.00", unit: "%", description: "Stabilised yield at exit · varies by location and class · prime urban < secondary" },
+  // Exit cap rate retired · now lives in the Dynamic Cap Rate panel below.
   { id: "irr-target", label: "Equity IRR target", value: "15–20", unit: "% net", description: "Levered IRR after fees · institutional minimum for value-add hospitality" },
   { id: "moic", label: "MOIC target", value: "1.8–2.3", unit: "× equity", description: "Multiple on invested capital over hold period" },
   { id: "fees-mgmt", label: "Fund management fee", value: "1.50", unit: "% AUM", description: "Annual · charged on committed capital during investment period · invested capital after" },

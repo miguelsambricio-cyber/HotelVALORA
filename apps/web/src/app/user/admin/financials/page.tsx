@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { CapexDefaultsCard } from "@/components/admin/financials/capex-defaults-card";
 import { FinancialStructureCard } from "@/components/admin/financials/financial-structure-card";
+import { DynamicCapRateCard } from "@/components/admin/financials/dynamic-cap-rate-card";
 import { PnlBenchmarksCard } from "@/components/admin/financials/pnl-benchmarks-card";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function FinancialsPage() {
 
       <CapexDefaultsCard />
       <FinancialStructureCard />
+      <DynamicCapRateCard />
       <PnlBenchmarksCard />
 
       <footer className="rounded-md border border-slate-700/60 bg-slate-900/40 p-3 font-mono text-[10.5px] leading-relaxed text-slate-400">
