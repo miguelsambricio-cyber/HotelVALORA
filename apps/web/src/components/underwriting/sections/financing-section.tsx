@@ -1,5 +1,4 @@
 import { SectionShell } from "../primitives/section-shell";
-import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiTile } from "../primitives/kpi-hero";
 import { RiskIndicator } from "../primitives/risk-indicator";
 import { YearGrid } from "../primitives/year-grid";
@@ -52,59 +51,49 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "Debt-committee ready", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Block A · Debt stack composition */}
-          <MemorandumBlock number="A" title="Debt stack" subtitle="Tranche hierarchy · principal at origination">
-            <DebtStackVisualization tranches={f.tranches} totalPrincipal={f.total_principal} totalInvestment={investment.total_building_cost} />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {f.tranches.map((t) => (
-                <TrancheTile key={t.tranche_id} tranche={t} totalPrincipal={f.total_principal} />
-              ))}
-            </div>
-          </MemorandumBlock>
+          {/* Headline KPI strip · the financing essentials at a glance */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            <KpiTile label="Total Principal" value={fmtEUR(f.total_principal)} sub={`${f.tranches.length} tranche${f.tranches.length === 1 ? "" : "s"}`} highlight />
+            <KpiTile label="Euribor 12M" value={fmtPct(inputs.euribor_12m_pct)} sub="reference rate" />
+            <KpiTile label="Blended effective" value={fmtPct(blendedRate)} sub="weighted by principal" />
+            <KpiTile label="Interest Y1" value={fmtEUR(f.total_interest_expense[1] ?? 0)} sub="grace year · interest only" />
+            <KpiTile label="Worst DSCR" value={worstDscrPeriod > 0 ? `${worstDscr.toFixed(2)}×` : "—"} sub={worstDscrPeriod > 0 ? `Y${worstDscrPeriod}` : "above 1.0× throughout"} tone={worstDscr >= 1.2 ? "ok" : worstDscr >= 1.0 ? "warn" : "negative"} />
+            <KpiTile label="Peak LTV" value={fmtPct(peakLtv * 100)} sub="origination · de-leverages" tone={peakLtv <= 0.65 ? "ok" : peakLtv <= 0.75 ? "warn" : "negative"} />
+            <KpiTile label="ICR Y1" value={`${(f.icr[1] ?? 0).toFixed(2)}×`} sub="interest cover" tone={(f.icr[1] ?? 0) >= 2 ? "ok" : "warn"} />
+          </div>
 
-          {/* Block B · Rate stack + portfolio amortization */}
-          <MemorandumBlock number="B" title="Rate stack & amortization" subtitle="Floating-rate composition · debt service profile">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <KpiTile label="Euribor 12M" value={fmtPct(inputs.euribor_12m_pct)} sub="reference rate" />
-              <KpiTile label="Blended margin" value={fmtPct(blendedRate - inputs.euribor_12m_pct)} sub="spread over Euribor" />
-              <KpiTile label="Blended effective" value={fmtPct(blendedRate)} sub="weighted by principal" highlight />
-              <KpiTile label="Interest Y1" value={fmtEUR(f.total_interest_expense[1] ?? 0)} sub="grace year · interest only" />
-            </div>
-            <PortfolioScheduleSummary financing={f} exitYear={exitYear} />
-          </MemorandumBlock>
+          {/* Debt stack visualisation + per-tranche tiles */}
+          <DebtStackVisualization tranches={f.tranches} totalPrincipal={f.total_principal} totalInvestment={investment.total_building_cost} />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {f.tranches.map((t) => (
+              <TrancheTile key={t.tranche_id} tranche={t} totalPrincipal={f.total_principal} />
+            ))}
+          </div>
 
-          {/* Block C · Covenant health */}
-          <MemorandumBlock number="C" title="Covenant health" subtitle="DSCR · ICR · LTV per period · pre-exit only">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <KpiTile label="Worst DSCR" value={worstDscrPeriod > 0 ? `${worstDscr.toFixed(2)}×` : "—"} sub={worstDscrPeriod > 0 ? `Y${worstDscrPeriod}` : "above 1.0× throughout"} tone={worstDscr >= 1.2 ? "ok" : worstDscr >= 1.0 ? "warn" : "negative"} />
-              <KpiTile label="Peak LTV" value={fmtPct(peakLtv * 100)} sub="origination · de-leverages over time" tone={peakLtv <= 0.65 ? "ok" : peakLtv <= 0.75 ? "warn" : "negative"} />
-              <KpiTile label="ICR Y1" value={`${(f.icr[1] ?? 0).toFixed(2)}×`} sub="interest cover · stabilising" tone={(f.icr[1] ?? 0) >= 2 ? "ok" : "warn"} />
-            </div>
-            <CovenantStrip dscr={f.dscr} icr={f.icr} ltv={f.ltv_pct} exitYear={exitYear} />
-          </MemorandumBlock>
+          {/* Amortization narrative + covenant strip */}
+          <PortfolioScheduleSummary financing={f} exitYear={exitYear} />
+          <CovenantStrip dscr={f.dscr} icr={f.icr} ltv={f.ltv_pct} exitYear={exitYear} />
 
-          {/* Block D · Detail schedule */}
-          <MemorandumBlock number="D" title="Portfolio schedule" subtitle="Full per-period debt-service table">
-            <YearGrid periods={periods} caption="Financing · Portfolio schedule">
-              <DivisionRow label="Rate stack" columnCount={cols} />
-              <YearRow label="Euribor 12 months" values={ratePlaceholder.map(() => inputs.euribor_12m_pct / 100)} format="percent" indent={1} kind="muted" />
-              <YearRow label="Blended effective" values={ratePlaceholder.map(() => blendedRate / 100)} format="percent" indent={1} kind="subgroup" />
-              <DivisionRow label="Debt service · portfolio" columnCount={cols} />
-              <YearRow label="BoFY Balance" values={f.total_bofy_balance} />
-              <SubtotalRow label="Payment" values={f.total_payment} tone="subtotal" />
-              <YearRow label="Interest Expense" values={f.total_interest_expense} kind="negative" indent={1} />
-              <YearRow label="Loan Principal" values={f.total_loan_principal} kind="negative" indent={1} />
-              <YearRow label="Bullet Principal" values={f.total_bullet_principal} kind="negative" indent={1} />
-              <YearRow label="Drawdown" values={f.total_drawdown} kind="positive" indent={1} />
-              <SubtotalRow label="EoFY Balance" values={f.total_eofy_balance} tone="result" />
-              <DivisionRow label="Covenants" columnCount={cols} />
-              <YearRow label="DSCR" values={f.dscr} format="ratio" kind="subgroup" />
-              <YearRow label="ICR" values={f.icr} format="ratio" kind="subgroup" />
-              <YearRow label="LTV" values={f.ltv_pct} format="percent" kind="subgroup" />
-            </YearGrid>
-          </MemorandumBlock>
+          {/* Full per-period schedule */}
+          <YearGrid periods={periods} caption="Financing · Portfolio schedule">
+            <DivisionRow label="Rate stack" columnCount={cols} />
+            <YearRow label="Euribor 12 months" values={ratePlaceholder.map(() => inputs.euribor_12m_pct / 100)} format="percent" indent={1} kind="muted" />
+            <YearRow label="Blended effective" values={ratePlaceholder.map(() => blendedRate / 100)} format="percent" indent={1} kind="subgroup" />
+            <DivisionRow label="Debt service · portfolio" columnCount={cols} />
+            <YearRow label="BoFY Balance" values={f.total_bofy_balance} />
+            <SubtotalRow label="Payment" values={f.total_payment} tone="subtotal" />
+            <YearRow label="Interest Expense" values={f.total_interest_expense} kind="negative" indent={1} />
+            <YearRow label="Loan Principal" values={f.total_loan_principal} kind="negative" indent={1} />
+            <YearRow label="Bullet Principal" values={f.total_bullet_principal} kind="negative" indent={1} />
+            <YearRow label="Drawdown" values={f.total_drawdown} kind="positive" indent={1} />
+            <SubtotalRow label="EoFY Balance" values={f.total_eofy_balance} tone="result" />
+            <DivisionRow label="Covenants" columnCount={cols} />
+            <YearRow label="DSCR" values={f.dscr} format="ratio" kind="subgroup" />
+            <YearRow label="ICR" values={f.icr} format="ratio" kind="subgroup" />
+            <YearRow label="LTV" values={f.ltv_pct} format="percent" kind="subgroup" />
+          </YearGrid>
 
-          {/* Refinance readiness placeholder · Block 9+ */}
+          {/* Refinance readiness · institutional context */}
           <div className="flex flex-wrap gap-2 border-t border-slate-800/60 pt-3 print:border-slate-300">
             <RiskIndicator severity="info" label="Refinance readiness" detail="Bullet repayment scheduled at maturity · refinance modelling in Block 9" />
             <RiskIndicator severity="info" label={`Asset · ${asset.submarket}`} detail={`${asset.rooms} keys · ${asset.category.replace("star", "*")}`} />

@@ -1,5 +1,4 @@
 import { SectionShell } from "../primitives/section-shell";
-import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
@@ -37,42 +36,37 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "Operating truth · engine-driven", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <MemorandumBlock number="A" title="Operating headline" subtitle={`Stabilised metrics at Y${stabilisedYr}`}>
-            <KpiHero
-              tiles={[
-                { label: "Total Revenue · Y1", value: fmtEUR(totalRevY1), sub: "departmental P&L sum" },
-                { label: "Stabilised GOP", value: fmtEUR(stabilisedGop), sub: `Y${stabilisedYr} · pre owner costs` },
-                { label: "Stabilised EBITDA", value: fmtEUR(stabilisedEbitda), sub: `Y${stabilisedYr} · post replacement`, highlight: true },
-                { label: "EBITDA margin", value: fmtPct(stabilisedGopMarginPct), sub: "% of GOP", tone: marginTone(stabilisedGopMarginPct) },
-                { label: "Net Income · stabilised", value: fmtEUR(stabilisedNi), sub: `Y${stabilisedYr} · after CIT`, tone: stabilisedNi > 0 ? "ok" : "warn" },
-                { label: "Cumulative NI", value: fmtEUR(p.total_net_income[exitYear] ?? 0), sub: `through Y${exitYear} hold` },
-              ]}
-            />
-          </MemorandumBlock>
-
-          <MemorandumBlock number="B" title="Detail schedule" subtitle="USALI · Revenue → Costs → EBITDA → D&A → EBIT → FinExp → EBT → CIT → NI">
-            <YearGrid periods={periods} caption="P&L · PropCo without Exit Strategy">
-              <DivisionRow label="Revenue" columnCount={cols} />
-              <YearRow label="Hotel" values={p.hotel} indent={1} />
-              <YearRow label="F&B" values={p.fb} indent={1} />
-              <YearRow label="Other departments" values={p.other_departments} indent={1} />
-              <SubtotalRow label="Gross Operating Profit" values={p.gross_operating_profit} tone="subtotal" />
-              <DivisionRow label="Costs" columnCount={cols} />
-              <YearRow label="Management Fee" values={p.mgmt_fee} indent={1} kind="negative" />
-              <YearRow label="Property Taxes" values={p.property_taxes} indent={1} kind="negative" />
-              <YearRow label="Property Insurance" values={p.property_insurance} indent={1} kind="negative" />
-              <YearRow label="FF&E Reserve" values={p.ffe_reserve} indent={1} kind="negative" />
-              <SubtotalRow label="EBITDA after Replacement" values={p.ebitda_after_replacement} tone="result" />
-              <DivisionRow label="Below-the-line" columnCount={cols} />
-              <YearRow label="D&A" values={p.da} kind="negative" />
-              <SubtotalRow label="EBIT" values={p.ebit} tone="subtotal" />
-              <YearRow label="Financial Expenses" values={p.financial_expenses} kind="negative" />
-              <SubtotalRow label="EBT" values={p.ebt} tone="subtotal" />
-              <YearRow label="CIT" values={p.cit} kind="negative" />
-              <SubtotalRow label="Net Income" values={p.net_income} tone="result" />
-              <YearRow label="Total Net Income (cumulative)" values={p.total_net_income} kind="muted" />
-            </YearGrid>
-          </MemorandumBlock>
+          <KpiHero
+            tiles={[
+              { label: "Total Revenue · Y1", value: fmtEUR(totalRevY1), sub: "departmental P&L sum" },
+              { label: "Stabilised GOP", value: fmtEUR(stabilisedGop), sub: `Y${stabilisedYr} · pre owner costs` },
+              { label: "Stabilised EBITDA", value: fmtEUR(stabilisedEbitda), sub: `Y${stabilisedYr} · post replacement`, highlight: true },
+              { label: "EBITDA margin", value: fmtPct(stabilisedGopMarginPct), sub: "% of GOP", tone: marginTone(stabilisedGopMarginPct) },
+              { label: "Net Income · stabilised", value: fmtEUR(stabilisedNi), sub: `Y${stabilisedYr} · after CIT`, tone: stabilisedNi > 0 ? "ok" : "warn" },
+              { label: "Cumulative NI", value: fmtEUR(p.total_net_income[exitYear] ?? 0), sub: `through Y${exitYear} hold` },
+            ]}
+          />
+          <YearGrid periods={periods} caption="P&L · PropCo without Exit Strategy">
+            <DivisionRow label="Revenue" columnCount={cols} />
+            <YearRow label="Hotel" values={p.hotel} indent={1} />
+            <YearRow label="F&B" values={p.fb} indent={1} />
+            <YearRow label="Other departments" values={p.other_departments} indent={1} />
+            <SubtotalRow label="Gross Operating Profit" values={p.gross_operating_profit} tone="subtotal" />
+            <DivisionRow label="Costs" columnCount={cols} />
+            <YearRow label="Management Fee" values={p.mgmt_fee} indent={1} kind="negative" />
+            <YearRow label="Property Taxes" values={p.property_taxes} indent={1} kind="negative" />
+            <YearRow label="Property Insurance" values={p.property_insurance} indent={1} kind="negative" />
+            <YearRow label="FF&E Reserve" values={p.ffe_reserve} indent={1} kind="negative" />
+            <SubtotalRow label="EBITDA after Replacement" values={p.ebitda_after_replacement} tone="result" />
+            <DivisionRow label="Below-the-line" columnCount={cols} />
+            <YearRow label="D&A" values={p.da} kind="negative" />
+            <SubtotalRow label="EBIT" values={p.ebit} tone="subtotal" />
+            <YearRow label="Financial Expenses" values={p.financial_expenses} kind="negative" />
+            <SubtotalRow label="EBT" values={p.ebt} tone="subtotal" />
+            <YearRow label="CIT" values={p.cit} kind="negative" />
+            <SubtotalRow label="Net Income" values={p.net_income} tone="result" />
+            <YearRow label="Total Net Income (cumulative)" values={p.total_net_income} kind="muted" />
+          </YearGrid>
         </div>
       }
     />

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { SectionShell } from "../primitives/section-shell";
-import { MemorandumBlock } from "../primitives/memorandum-block";
 import { RiskIndicator, parseReconciliationWarning } from "../primitives/risk-indicator";
 import type { UnderwritingBundle, UnderwritingInputs } from "@/lib/underwriting/types";
 import type { ScenarioCatalogEntry } from "@/lib/underwriting/defaults";
@@ -61,38 +60,37 @@ export function ExecutiveSummarySection({
       status={{ label: "Investment committee draft", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <MemorandumBlock number="A" title="Headline metrics" subtitle="Underwriting configuration drivers">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              <EditableKeysTile
-                value={asset.rooms}
-                onChange={(rooms) => onAssetChange({ rooms })}
-              />
-              <DriverTile label="Total Investment" value={fmtEUR(inv.total_building_cost)} sub={`${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`} highlight />
-              <DriverTile label="Equity Investment" value={fmtEUR(exit.equity_investment)} sub={`${fmtPct((exit.equity_investment / Math.max(inv.total_building_cost, 1)) * 100)} of total`} />
-              <DriverTile label="% LTC" value={fmtPct(ltcPct)} sub={fmtEUR(c.financing.total_principal)} />
-              <DriverTile label="Dynamic Cap Rate" value={fmtPct(capEntry.used_pct)} sub={capEntry.source === "dynamic" ? "Dynamic · entry" : "Manual override"} />
-              <DriverTile label="Hold Period" value={`${exit.exit_year}y`} sub={`Exit Y${exit.exit_year}`} />
-            </div>
-          </MemorandumBlock>
-
-          <MemorandumBlock number="B" title="Returns" subtitle="Underwriting conclusions · scenario-sensitive">
-            <ScenarioStrip
-              catalog={scenarioCatalog}
-              activeId={scenarioId}
-              onChange={onScenarioChange}
+          {/* Drivers · editable N° Keys + investment + LTC + cap + hold */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <EditableKeysTile
+              value={asset.rooms}
+              onChange={(rooms) => onAssetChange({ rooms })}
             />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <ResultTile label="Project IRR" value={fmtPct(exit.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(exit.project_irr_pct, 8)} />
-              <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
-              <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
-              <ResultTile label="Stabilised Yield" value={fmtPct(stabilisedYield * 100)} sub={`Year ${exit.exit_year}`} />
-              <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtPct(capExit.used_pct)} exit cap · ${fmtEUR(exit.exit_price_per_room)} / key`} />
-            </div>
-          </MemorandumBlock>
+            <DriverTile label="Total Investment" value={fmtEUR(inv.total_building_cost)} sub={`${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`} highlight />
+            <DriverTile label="Equity Investment" value={fmtEUR(exit.equity_investment)} sub={`${fmtPct((exit.equity_investment / Math.max(inv.total_building_cost, 1)) * 100)} of total`} />
+            <DriverTile label="% LTC" value={fmtPct(ltcPct)} sub={fmtEUR(c.financing.total_principal)} />
+            <DriverTile label="Dynamic Cap Rate" value={fmtPct(capEntry.used_pct)} sub={capEntry.source === "dynamic" ? "Dynamic · entry" : "Manual override"} />
+            <DriverTile label="Hold Period" value={`${exit.exit_year}y`} sub={`Exit Y${exit.exit_year}`} />
+          </div>
 
-          <MemorandumBlock number="C" title="Risk indicators" subtitle="Reconciliation + covenant signals">
-            <RiskIndicatorsPanel warnings={c.reconciliation.warnings} />
-          </MemorandumBlock>
+          {/* Scenario picker · drives the engine re-price */}
+          <ScenarioStrip
+            catalog={scenarioCatalog}
+            activeId={scenarioId}
+            onChange={onScenarioChange}
+          />
+
+          {/* Returns · scenario-sensitive */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <ResultTile label="Project IRR" value={fmtPct(exit.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(exit.project_irr_pct, 8)} />
+            <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
+            <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
+            <ResultTile label="Stabilised Yield" value={fmtPct(stabilisedYield * 100)} sub={`Year ${exit.exit_year}`} />
+            <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtPct(capExit.used_pct)} exit cap · ${fmtEUR(exit.exit_price_per_room)} / key`} />
+          </div>
+
+          {/* Risk indicators · reconciliation + covenant signals */}
+          <RiskIndicatorsPanel warnings={c.reconciliation.warnings} />
         </div>
       }
     />

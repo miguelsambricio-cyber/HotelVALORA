@@ -1,5 +1,4 @@
 import { SectionShell } from "../primitives/section-shell";
-import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
@@ -46,21 +45,18 @@ export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "IC narrative · disposition committee", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Block A · Returns headline */}
-          <MemorandumBlock number="A" title="Returns" subtitle="Project · equity · multiple · cash on cash">
-            <KpiHero
-              tiles={[
-                { label: "Project IRR", value: fmtPct(e.project_irr_pct), sub: "unlevered · pre-tax", tone: irrTone(e.project_irr_pct, 8) },
-                { label: "Equity IRR", value: fmtPct(e.equity_irr_pct), sub: "levered · post-tax", highlight: true, tone: irrTone(e.equity_irr_pct, 12) },
-                { label: "MOIC", value: `${e.moic.toFixed(2)}×`, sub: "equity multiple", tone: moicTone(e.moic) },
-                { label: "Profit share", value: fmtEUR(e.profit_share), sub: "equity gain", tone: e.profit_share > 0 ? "ok" : "warn" },
-              ]}
-            />
-          </MemorandumBlock>
+          {/* Returns headline */}
+          <KpiHero
+            tiles={[
+              { label: "Project IRR", value: fmtPct(e.project_irr_pct), sub: "unlevered · pre-tax", tone: irrTone(e.project_irr_pct, 8) },
+              { label: "Equity IRR", value: fmtPct(e.equity_irr_pct), sub: "levered · post-tax", highlight: true, tone: irrTone(e.equity_irr_pct, 12) },
+              { label: "MOIC", value: `${e.moic.toFixed(2)}×`, sub: "equity multiple", tone: moicTone(e.moic) },
+              { label: "Profit share", value: fmtEUR(e.profit_share), sub: "equity gain", tone: e.profit_share > 0 ? "ok" : "warn" },
+            ]}
+          />
 
-          {/* Block B · Entry vs Exit valuation */}
-          <MemorandumBlock number="B" title="Entry vs exit valuation" subtitle="Pricing arc · value creation bridge">
-            <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr]">
+          {/* Entry vs exit valuation arc */}
+          <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr]">
               <ValuationCard
                 label="Entry"
                 year="Y0"
@@ -91,43 +87,36 @@ export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
                 tone="highlight"
               />
             </div>
-            <ValueCreationBridge
-              entryValue={entryValue}
-              exitValue={e.exit_price}
-              noiGrowth={noiGrowth}
-              yieldCompression={yieldCompressionValue}
-              capRateEntry={capEntry.used_pct}
-              capRateExit={capExit.used_pct}
-            />
-          </MemorandumBlock>
+          <ValueCreationBridge
+            entryValue={entryValue}
+            exitValue={e.exit_price}
+            noiGrowth={noiGrowth}
+            yieldCompression={yieldCompressionValue}
+            capRateEntry={capEntry.used_pct}
+            capRateExit={capExit.used_pct}
+          />
 
-          {/* Block C · Cap rate rationale */}
-          <MemorandumBlock number="C" title="Cap rate rationale" subtitle="HotelVALORA Dynamic Cap Rate · exit yield">
-            <CapRateRationaleStrip dynamic={capExit.dynamic} usedPct={capExit.used_pct} />
-          </MemorandumBlock>
+          {/* Cap rate rationale · exit yield */}
+          <CapRateRationaleStrip dynamic={capExit.dynamic} usedPct={capExit.used_pct} />
 
-          {/* Block D · Equity waterfall (cash timeline) */}
-          <MemorandumBlock number="D" title="Equity cash flow timeline" subtitle="Ready for LP/GP waterfall split · Block 9">
-            <EquityTimeline equityCf={e.equity_cash_flow} exitYear={e.exit_year} />
-            <div className="grid gap-3 sm:grid-cols-3">
-              <SummaryStat label="Equity contributed" value={fmtEUR(e.equity_investment)} />
-              <SummaryStat label="Net exit proceeds" value={fmtEUR(netEquityProceeds)} tone="ok" />
-              <SummaryStat label="Total distributions (cum.)" value={fmtEUR(e.profit_share + e.equity_investment)} tone="ok" />
-            </div>
-          </MemorandumBlock>
+          {/* Equity cash flow timeline */}
+          <EquityTimeline equityCf={e.equity_cash_flow} exitYear={e.exit_year} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <SummaryStat label="Equity contributed" value={fmtEUR(e.equity_investment)} />
+            <SummaryStat label="Net exit proceeds" value={fmtEUR(netEquityProceeds)} tone="ok" />
+            <SummaryStat label="Total distributions (cum.)" value={fmtEUR(e.profit_share + e.equity_investment)} tone="ok" />
+          </div>
 
-          {/* Block E · Detail schedule */}
-          <MemorandumBlock number="E" title="Detail schedule" subtitle="Project + Equity Cash Flows per period">
-            <YearGrid periods={periods} caption="Exit Strategy · Project + Equity Cash Flows">
-              <DivisionRow label="Project Cash Flow" columnCount={cols} />
-              <YearRow label="Operating Cash Flow" values={bundle.computed.cash_flow.operating_cash_flow} indent={1} />
-              <YearRow label="Exit Price (net of fees)" values={exitPriceSeries} indent={1} kind="positive" />
-              <SubtotalRow label="Project Cash Flow" values={e.project_cash_flow} tone="result" />
-              <DivisionRow label="Equity Cash Flow" columnCount={cols} />
-              <YearRow label="Debt Cash Flows" values={e.debt_cash_flow} indent={1} />
-              <SubtotalRow label="Equity Cash Flow" values={e.equity_cash_flow} tone="result" />
-            </YearGrid>
-          </MemorandumBlock>
+          {/* Project + Equity Cash Flows · per period */}
+          <YearGrid periods={periods} caption="Exit Strategy · Project + Equity Cash Flows">
+            <DivisionRow label="Project Cash Flow" columnCount={cols} />
+            <YearRow label="Operating Cash Flow" values={bundle.computed.cash_flow.operating_cash_flow} indent={1} />
+            <YearRow label="Exit Price (net of fees)" values={exitPriceSeries} indent={1} kind="positive" />
+            <SubtotalRow label="Project Cash Flow" values={e.project_cash_flow} tone="result" />
+            <DivisionRow label="Equity Cash Flow" columnCount={cols} />
+            <YearRow label="Debt Cash Flows" values={e.debt_cash_flow} indent={1} />
+            <SubtotalRow label="Equity Cash Flow" values={e.equity_cash_flow} tone="result" />
+          </YearGrid>
         </div>
       }
     />

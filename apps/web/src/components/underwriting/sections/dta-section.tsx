@@ -1,5 +1,4 @@
 import { SectionShell } from "../primitives/section-shell";
-import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
@@ -40,40 +39,35 @@ export function DtaSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "Accounting-grade · roll-forward consistent", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <MemorandumBlock number="A" title="Tax separation headline" subtitle="Accounting · Cash · Deferred">
-            <KpiHero
-              tiles={[
-                { label: "Peak DTA balance", value: fmtEUR(peakDta), sub: `Y${peakDtaYear} · tax €`, highlight: true },
-                { label: "DTA accruals (hold)", value: fmtEUR(totalDtaIncreases), sub: "non-deductible interest × 25%" },
-                { label: "DTA released (hold)", value: fmtEUR(totalDtaDecreases), sub: "compensated against capacity", tone: "ok" },
-                { label: "Cash tax paid (hold)", value: fmtEUR(totalCashTax), sub: "CF outflow · 25% × fiscal EBT" },
-                { label: "Accounting tax (hold)", value: fmtEUR(totalAccountingTax), sub: "P&L line · current − deferred" },
-                { label: "DTA at exit", value: fmtEUR(d.dta_end[exitYear] ?? 0), sub: "absorbed by gain on sale" },
-              ]}
-            />
-          </MemorandumBlock>
-
-          <MemorandumBlock number="B" title="Detail schedule" subtitle="P&L feeds → limits → DTA roll-forward → CIT">
-            <YearGrid periods={periods} caption="DTA · PropCo without Exit Strategy">
-              <DivisionRow label="P&L feeds" columnCount={cols} />
-              <YearRow label="EBIT" values={d.ebit} indent={1} />
-              <YearRow label="EBITDA (Bº Operativo s/Ley IS)" values={d.ebitda} indent={1} />
-              <DivisionRow label="Ley IS limits" columnCount={cols} />
-              <YearRow label="Limit · 30% EBITDA" values={d.limit_ebitda_30pct} indent={1} kind="muted" />
-              <YearRow label="Limit · finexp deduction cap" values={d.limit_finexp_floor} indent={1} kind="muted" />
-              <YearRow label="Deductible Financial Expenses" values={d.financial_expenses_after_limits} indent={1} />
-              <SubtotalRow label="Fiscal EBT (after limits)" values={d.ebt_after_limits} tone="subtotal" />
-              <DivisionRow label="DTA roll-forward (tax €)" columnCount={cols} />
-              <YearRow label="DTA Beginning" values={d.dta_beginning} kind="muted" />
-              <YearRow label="Increases" values={d.dta_increases} kind="positive" />
-              <YearRow label="Decreases (compensation)" values={d.dta_decreases} kind="negative" />
-              <SubtotalRow label="DTA End" values={d.dta_end} tone="result" />
-              <DivisionRow label="CIT calculation + Tax Payment" columnCount={cols} />
-              <YearRow label="CIT (P&L · accounting)" values={d.cit_pl} kind="negative" />
-              <YearRow label="DTA compensation applied" values={d.dta_compensation} kind="muted" />
-              <SubtotalRow label="Cash Tax Payment" values={d.tax_payment} tone="warning" />
-            </YearGrid>
-          </MemorandumBlock>
+          <KpiHero
+            tiles={[
+              { label: "Peak DTA balance", value: fmtEUR(peakDta), sub: `Y${peakDtaYear} · tax €`, highlight: true },
+              { label: "DTA accruals (hold)", value: fmtEUR(totalDtaIncreases), sub: "non-deductible interest × 25%" },
+              { label: "DTA released (hold)", value: fmtEUR(totalDtaDecreases), sub: "compensated against capacity", tone: "ok" },
+              { label: "Cash tax paid (hold)", value: fmtEUR(totalCashTax), sub: "CF outflow · 25% × fiscal EBT" },
+              { label: "Accounting tax (hold)", value: fmtEUR(totalAccountingTax), sub: "P&L line · current − deferred" },
+              { label: "DTA at exit", value: fmtEUR(d.dta_end[exitYear] ?? 0), sub: "absorbed by gain on sale" },
+            ]}
+          />
+          <YearGrid periods={periods} caption="DTA · PropCo without Exit Strategy">
+            <DivisionRow label="P&L feeds" columnCount={cols} />
+            <YearRow label="EBIT" values={d.ebit} indent={1} />
+            <YearRow label="EBITDA (Bº Operativo s/Ley IS)" values={d.ebitda} indent={1} />
+            <DivisionRow label="Ley IS limits" columnCount={cols} />
+            <YearRow label="Limit · 30% EBITDA" values={d.limit_ebitda_30pct} indent={1} kind="muted" />
+            <YearRow label="Limit · finexp deduction cap" values={d.limit_finexp_floor} indent={1} kind="muted" />
+            <YearRow label="Deductible Financial Expenses" values={d.financial_expenses_after_limits} indent={1} />
+            <SubtotalRow label="Fiscal EBT (after limits)" values={d.ebt_after_limits} tone="subtotal" />
+            <DivisionRow label="DTA roll-forward (tax €)" columnCount={cols} />
+            <YearRow label="DTA Beginning" values={d.dta_beginning} kind="muted" />
+            <YearRow label="Increases" values={d.dta_increases} kind="positive" />
+            <YearRow label="Decreases (compensation)" values={d.dta_decreases} kind="negative" />
+            <SubtotalRow label="DTA End" values={d.dta_end} tone="result" />
+            <DivisionRow label="CIT calculation + Tax Payment" columnCount={cols} />
+            <YearRow label="CIT (P&L · accounting)" values={d.cit_pl} kind="negative" />
+            <YearRow label="DTA compensation applied" values={d.dta_compensation} kind="muted" />
+            <SubtotalRow label="Cash Tax Payment" values={d.tax_payment} tone="warning" />
+          </YearGrid>
         </div>
       }
     />

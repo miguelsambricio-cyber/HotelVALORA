@@ -1,5 +1,4 @@
 import { SectionShell } from "../primitives/section-shell";
-import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
@@ -34,47 +33,34 @@ export function CashFlowSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "Reconciled to BS · ±0 €", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <MemorandumBlock number="A" title="Cash bridge headline" subtitle="4-section institutional structure">
-            <KpiHero
-              tiles={[
-                { label: "Y0 Investment outlay", value: fmtEUR(Math.abs(investmentY0)), sub: "acquisition + CAPEX + fees", tone: "neutral" },
-                { label: "Y0 Debt drawn", value: fmtEUR(financingY0), sub: "senior secured + CAPEX line", tone: "ok" },
-                { label: "Y0 Equity drawn", value: fmtEUR(equityY0), sub: "sponsor equity injection", tone: "neutral" },
-                { label: "Cash at exit", value: fmtEUR(totalCashAtExit), sub: `cumulative through Y${exitYear}`, highlight: true },
-              ]}
-            />
-          </MemorandumBlock>
-
-          <MemorandumBlock number="B" title="Operating Cash Flow" subtitle="EBITDA after replacement · less cash tax">
-            <YearGrid periods={periods} caption="Operating">
-              <YearRow label="EBITDA after Replacement" values={cf.ebitda_after_replacement} />
-              <YearRow label="Yield (NOI / total investment)" values={cf.yield_net} format="percent" indent={1} kind="muted" />
-              <YearRow label="Tax Payment" values={cf.tax_payment} kind="negative" />
-              <SubtotalRow label="Operating Cash Flow" values={cf.operating_cash_flow} tone="result" />
-            </YearGrid>
-          </MemorandumBlock>
-
-          <MemorandumBlock number="C" title="Investment Cash Flow" subtitle="One-shot Y0 outflows · acquisition + CAPEX">
-            <YearGrid periods={periods} caption="Investment">
-              <YearRow label="Acquisition" values={cf.acquisition} kind="negative" indent={1} />
-              <YearRow label="CAPEX" values={cf.capex} kind="negative" indent={1} />
-              <YearRow label="Contingency + Insurance" values={cf.contingency_insurance} kind="negative" indent={1} />
-              <YearRow label="Acquisition Fees + Taxes" values={cf.acquisition_fees_taxes} kind="negative" indent={1} />
-            </YearGrid>
-          </MemorandumBlock>
-
-          <MemorandumBlock number="D" title="Financing & Equity Cash Flow" subtitle="Senior debt drawdowns · debt service · equity injection">
-            <YearGrid periods={periods} caption="Financing + Equity">
-              <DivisionRow label="Financing" columnCount={cols} />
-              <YearRow label="Debt Drawn" values={cf.debt_drawn} kind="positive" indent={1} />
-              <YearRow label="Interest Expense" values={cf.interest_expense} kind="negative" indent={1} />
-              <YearRow label="Loan Principal + Bullet" values={cf.loan_principal} kind="negative" indent={1} />
-              <DivisionRow label="Equity" columnCount={cols} />
-              <YearRow label="Equity Drawn" values={cf.equity_drawn} kind="positive" indent={1} />
-              <SubtotalRow label="Net Cash Flow" values={cf.net_cash_flow} tone="result" />
-              <YearRow label="Change in BS Cash" values={cf.change_in_cash_bs} kind="muted" />
-            </YearGrid>
-          </MemorandumBlock>
+          <KpiHero
+            tiles={[
+              { label: "Y0 Investment outlay", value: fmtEUR(Math.abs(investmentY0)), sub: "acquisition + CAPEX + fees", tone: "neutral" },
+              { label: "Y0 Debt drawn", value: fmtEUR(financingY0), sub: "senior secured + CAPEX line", tone: "ok" },
+              { label: "Y0 Equity drawn", value: fmtEUR(equityY0), sub: "sponsor equity injection", tone: "neutral" },
+              { label: "Cash at exit", value: fmtEUR(totalCashAtExit), sub: `cumulative through Y${exitYear}`, highlight: true },
+            ]}
+          />
+          <YearGrid periods={periods} caption="Cash Flow · Operating · Investment · Financing · Equity">
+            <DivisionRow label="Operating" columnCount={cols} />
+            <YearRow label="EBITDA after Replacement" values={cf.ebitda_after_replacement} />
+            <YearRow label="Yield (NOI / total investment)" values={cf.yield_net} format="percent" indent={1} kind="muted" />
+            <YearRow label="Tax Payment" values={cf.tax_payment} kind="negative" />
+            <SubtotalRow label="Operating Cash Flow" values={cf.operating_cash_flow} tone="subtotal" />
+            <DivisionRow label="Investment" columnCount={cols} />
+            <YearRow label="Acquisition" values={cf.acquisition} kind="negative" indent={1} />
+            <YearRow label="CAPEX" values={cf.capex} kind="negative" indent={1} />
+            <YearRow label="Contingency + Insurance" values={cf.contingency_insurance} kind="negative" indent={1} />
+            <YearRow label="Acquisition Fees + Taxes" values={cf.acquisition_fees_taxes} kind="negative" indent={1} />
+            <DivisionRow label="Financing" columnCount={cols} />
+            <YearRow label="Debt Drawn" values={cf.debt_drawn} kind="positive" indent={1} />
+            <YearRow label="Interest Expense" values={cf.interest_expense} kind="negative" indent={1} />
+            <YearRow label="Loan Principal + Bullet" values={cf.loan_principal} kind="negative" indent={1} />
+            <DivisionRow label="Equity" columnCount={cols} />
+            <YearRow label="Equity Drawn" values={cf.equity_drawn} kind="positive" indent={1} />
+            <SubtotalRow label="Net Cash Flow" values={cf.net_cash_flow} tone="result" />
+            <YearRow label="Change in BS Cash" values={cf.change_in_cash_bs} kind="muted" />
+          </YearGrid>
         </div>
       }
     />

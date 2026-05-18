@@ -36,7 +36,7 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
       subtitle="Acquisition rationale · pricing justification · institutional underwriting narrative"
       status={{ label: "Memorandum view · Block 3 wires CAPEX phasing", tone: "info" }}
       summary={
-        <div className="space-y-3">
+        <div className="space-y-6 print:space-y-4">
           <HeadlineStack
             asset={asset}
             siteAcquisition={investment.site_acquisition_total}
@@ -47,90 +47,54 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
             <ReconciliationBadge status="info" label="Cap Rate engine · placeholder rationale" detail="Block 6 wires MarketEvidence" />
             <ReconciliationBadge status="info" label="CAPEX phasing · single phase MVP" detail="Block 3 phases drawdowns" />
           </div>
-        </div>
-      }
-      detail={
-        <div className="space-y-7 print:space-y-5">
-          <MemorandumBlock number="A" title="Site Acquisition" subtitle="Pricing · cap-rate rationale · acquisition costs">
-            <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
-              <AcquisitionSummary
-                askingPrice={investment.asking_price}
-                hotelValue={investment.hotel_value}
-                capRateEntry={cap_rate.entry.used_pct}
-                rooms={asset.rooms}
-                totalSqm={asset.total_sqm}
-              />
-              <CapRateRationale dynamic={cap_rate.entry.dynamic} finalPct={cap_rate.entry.used_pct} />
-            </div>
-            <AcquisitionCostsItemized lines={investment.acquisition} acqCostsTotal={investment.acquisition_fees_taxes} />
-          </MemorandumBlock>
 
-          <MemorandumBlock number="B" title="CAPEX Breakdown" subtitle="Hard cost · soft cost · per-key / per-m² traceability">
-            <CapexCategoryTable
-              title="Hard Cost"
-              lines={investment.capex_hard_cost}
-              groupTotal={sumLines(investment.capex_hard_cost)}
-            />
-            <CapexCategoryTable
-              title="Soft Cost"
-              lines={investment.capex_soft_cost}
-              groupTotal={sumLines(investment.capex_soft_cost)}
-            />
-            <CapexPhasesBanner phases={investment.capex_phases} />
-          </MemorandumBlock>
-
-          <MemorandumBlock number="C" title="Total Investment" subtitle="Composition · stabilised yield progression">
-            <TotalInvestmentHero
-              siteAcquisition={investment.site_acquisition_total}
-              capexTotal={investment.capex_total}
-              contingencyInsurance={investment.contingency_insurance}
-              acquisitionFeesTaxes={investment.acquisition_fees_taxes}
-              totalInvestment={investment.total_building_cost}
+          {/* Site acquisition · pricing + cap-rate rationale + costs */}
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
+            <AcquisitionSummary
+              askingPrice={investment.asking_price}
+              hotelValue={investment.hotel_value}
+              capRateEntry={cap_rate.entry.used_pct}
               rooms={asset.rooms}
               totalSqm={asset.total_sqm}
             />
-            <StabilisedYieldProgression series={stabilisedY1ToY5} fullSeries={stabilised} />
-          </MemorandumBlock>
+            <CapRateRationale dynamic={cap_rate.entry.dynamic} finalPct={cap_rate.entry.used_pct} />
+          </div>
+          <AcquisitionCostsItemized lines={investment.acquisition} acqCostsTotal={investment.acquisition_fees_taxes} />
 
-          <MemorandumBlock number="D" title="Depreciation & Amortization" subtitle="Building · MEP · straight-line per useful life">
-            <DASchedule bundle={bundle} />
-          </MemorandumBlock>
+          {/* CAPEX breakdown · hard + soft */}
+          <CapexCategoryTable
+            title="Hard Cost"
+            lines={investment.capex_hard_cost}
+            groupTotal={sumLines(investment.capex_hard_cost)}
+          />
+          <CapexCategoryTable
+            title="Soft Cost"
+            lines={investment.capex_soft_cost}
+            groupTotal={sumLines(investment.capex_soft_cost)}
+          />
+          <CapexPhasesBanner phases={investment.capex_phases} />
+
+          {/* Total investment hero + stabilised yield */}
+          <TotalInvestmentHero
+            siteAcquisition={investment.site_acquisition_total}
+            capexTotal={investment.capex_total}
+            contingencyInsurance={investment.contingency_insurance}
+            acquisitionFeesTaxes={investment.acquisition_fees_taxes}
+            totalInvestment={investment.total_building_cost}
+            rooms={asset.rooms}
+            totalSqm={asset.total_sqm}
+          />
+          <StabilisedYieldProgression series={stabilisedY1ToY5} fullSeries={stabilised} />
+
+          {/* D&A schedule */}
+          <DASchedule bundle={bundle} />
         </div>
       }
     />
   );
 }
 
-// ─── Memorandum primitives ────────────────────────────────────────────
-
-function MemorandumBlock({
-  number,
-  title,
-  subtitle,
-  children,
-}: {
-  number: string;
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-md border border-slate-800/60 bg-slate-950/40 p-5 print:break-inside-avoid print:border-slate-300 print:bg-white">
-      <header className="mb-4 flex items-baseline gap-3 border-b border-slate-800/60 pb-3 print:border-slate-300">
-        <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.32em] text-lime-300/80 print:text-emerald-700">
-          Block {number}
-        </span>
-        <h3 className="font-headline text-[16px] font-extrabold text-slate-100 print:text-slate-900">
-          {title}
-        </h3>
-        <span className="ml-auto hidden font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500 sm:inline">
-          {subtitle}
-        </span>
-      </header>
-      <div className="space-y-5 print:space-y-3">{children}</div>
-    </section>
-  );
-}
+// ─── Internal primitives ─────────────────────────────────────────────
 
 function HeadlineStack({
   asset,
