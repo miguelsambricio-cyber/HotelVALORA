@@ -162,10 +162,20 @@ export interface UnderwritingInputOverrides {
   hotel_value?: number;
   /** Exit · year (1-10). */
   exit_year?: number;
+  /** Exit · disposition fee · percentage points (e.g. 1.5 = 1.5%). */
+  exit_fee_pct?: number;
   /** Senior tranche · LTV percentage points (e.g. 65 = 65%). */
   ltv_pct?: number;
   /** Corporate income tax rate · percentage points (e.g. 25 = 25%). */
   cit_rate_pct?: number;
+  /** Ley IS · EBITDA deduction limit · percentage points (e.g. 30 = 30%). */
+  ebitda_limit_pct?: number;
+  /** Ley IS · financial-expense deduction floor · euros (e.g. 1_000_000). */
+  finexp_floor_eur?: number;
+  /** Depreciation · building useful life · years (e.g. 25). */
+  building_years?: number;
+  /** Depreciation · MEP useful life · years (e.g. 7). */
+  mep_years?: number;
 }
 
 /**
@@ -243,6 +253,21 @@ function applyOverrides(
   if (overrides.cit_rate_pct !== undefined) {
     // CIT stored as decimal (0.25 = 25%) · UI passes percentage points.
     cloned.tax.cit_rate_pct = overrides.cit_rate_pct / 100;
+  }
+  if (overrides.ebitda_limit_pct !== undefined) {
+    cloned.tax.ebitda_limit_pct = overrides.ebitda_limit_pct / 100;
+  }
+  if (overrides.finexp_floor_eur !== undefined && overrides.finexp_floor_eur >= 0) {
+    cloned.tax.finexp_floor_eur = overrides.finexp_floor_eur;
+  }
+  if (overrides.exit_fee_pct !== undefined && overrides.exit_fee_pct >= 0) {
+    cloned.exit.fee_pct = overrides.exit_fee_pct / 100;
+  }
+  if (overrides.building_years !== undefined && overrides.building_years > 0) {
+    cloned.depreciation.building_years = Math.round(overrides.building_years);
+  }
+  if (overrides.mep_years !== undefined && overrides.mep_years > 0) {
+    cloned.depreciation.mep_years = Math.round(overrides.mep_years);
   }
   return cloned;
 }

@@ -1,11 +1,16 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { SectionShell } from "../primitives/section-shell";
 import { ReconciliationBadge } from "../primitives/reconciliation-badge";
+import { cn } from "@/lib/utils";
 import type {
   BreakdownLine,
   CapexPhase,
   DynamicCapRateResult,
   UnderwritingBundle,
 } from "@/lib/underwriting/types";
+import type { UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 
 /**
  * Section 06 · Investment · CAPEX · D&A.
@@ -22,9 +27,16 @@ import type {
  * Print-ready: edit controls hidden under `print:hidden`, all rationale
  * + outputs render landscape committee-grade.
  */
-export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
+export function InvestmentSection({
+  bundle,
+  onOverrideChange,
+}: {
+  bundle: UnderwritingBundle;
+  onOverrideChange: (patch: UnderwritingInputOverrides) => void;
+}) {
   const { cap_rate, investment, periods } = bundle.computed;
   const asset = bundle.inputs.asset;
+  const depreciation = bundle.inputs.depreciation;
   const stabilised = investment.stabilized_yield_progression;
   const stabilisedY1ToY5 = stabilised.slice(1, 6);
 
@@ -34,21 +46,25 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
       anchorId="investment"
       title="Investment · CAPEX · D&A"
       subtitle="Acquisition rationale · pricing justification · institutional underwriting narrative"
-      status={{ label: "Memorandum view · Block 3 wires CAPEX phasing", tone: "info" }}
+      status={{ label: "Memorandum view · 4 logical groups", tone: "info" }}
       summary={
-        <div className="space-y-6 print:space-y-4">
+        <div className="space-y-7 print:space-y-5">
           <HeadlineStack
             asset={asset}
             siteAcquisition={investment.site_acquisition_total}
             capexTotal={investment.capex_total}
             totalInvestment={investment.total_building_cost}
+            buildingYears={depreciation.building_years}
+            mepYears={depreciation.mep_years}
+            onYearsChange={(patch) => onOverrideChange(patch)}
           />
           <div className="flex flex-wrap gap-2">
             <ReconciliationBadge status="info" label="Cap Rate engine · placeholder rationale" detail="Block 6 wires MarketEvidence" />
             <ReconciliationBadge status="info" label="CAPEX phasing · single phase MVP" detail="Block 3 phases drawdowns" />
           </div>
 
-          {/* Site acquisition · pricing + cap-rate rationale + costs */}
+          {/* 1 · Cap Rate Engine ──────────────────────────────────── */}
+          <GroupHeader number="1" title="Cap Rate Engine" subtitle="Pricing rationale · evidence-driven valuation" />
           <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
             <AcquisitionSummary
               askingPrice={investment.asking_price}
@@ -59,9 +75,9 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
             />
             <CapRateRationale dynamic={cap_rate.entry.dynamic} finalPct={cap_rate.entry.used_pct} />
           </div>
-          <AcquisitionCostsItemized lines={investment.acquisition} acqCostsTotal={investment.acquisition_fees_taxes} />
 
-          {/* CAPEX breakdown · hard + soft */}
+          {/* 2 · CAPEX ────────────────────────────────────────────── */}
+          <GroupHeader number="2" title="CAPEX" subtitle="Hard cost · soft cost · phasing · institutional breakdown" />
           <CapexCategoryTable
             title="Hard Cost"
             lines={investment.capex_hard_cost}
@@ -74,7 +90,9 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
           />
           <CapexPhasesBanner phases={investment.capex_phases} />
 
-          {/* Total investment hero + stabilised yield */}
+          {/* 3 · Investment ──────────────────────────────────────── */}
+          <GroupHeader number="3" title="Investment" subtitle="Acquisition costs · total stack · stabilised yield" />
+          <AcquisitionCostsItemized lines={investment.acquisition} acqCostsTotal={investment.acquisition_fees_taxes} />
           <TotalInvestmentHero
             siteAcquisition={investment.site_acquisition_total}
             capexTotal={investment.capex_total}
@@ -86,11 +104,109 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
           />
           <StabilisedYieldProgression series={stabilisedY1ToY5} fullSeries={stabilised} />
 
-          {/* D&A schedule */}
+          {/* 4 · D&A ─────────────────────────────────────────────── */}
+          <GroupHeader number="4" title="Depreciation & Amortization" subtitle="Building · MEP · straight-line per useful life" />
           <DASchedule bundle={bundle} />
         </div>
       }
     />
+  );
+}
+
+// ─── Group header · subtle eyebrow + divider · NOT a box ──────────────
+
+function GroupHeader({ number, title, subtitle }: { number: string; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-baseline gap-3 border-t border-slate-800/60 pt-4 print:border-slate-300">
+      <span className="font-headline text-[10px] font-extrabold uppercase tracking-[0.32em] text-lime-300/80 print:text-emerald-700">
+        {number}
+      </span>
+      <h3 className="font-headline text-[15px] font-extrabold text-slate-100 print:text-slate-900">
+        {title}
+      </h3>
+      {subtitle && (
+        <span className="ml-auto hidden font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500 sm:inline">
+          {subtitle}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Editable depreciation-years tile (used inside HeadlineStack) ────
+
+function DepreciationYearsTile({
+  buildingYears,
+  mepYears,
+  onChange,
+}: {
+  buildingYears: number;
+  mepYears: number;
+  onChange: (patch: UnderwritingInputOverrides) => void;
+}) {
+  const [bDraft, setBDraft] = useState(String(buildingYears));
+  const [mDraft, setMDraft] = useState(String(mepYears));
+  useEffect(() => { setBDraft(String(buildingYears)); }, [buildingYears]);
+  useEffect(() => { setMDraft(String(mepYears)); }, [mepYears]);
+
+  const commitB = () => {
+    const v = parseInt(bDraft.replace(/[^0-9]/g, ""), 10);
+    if (Number.isFinite(v) && v > 0 && v !== buildingYears) onChange({ building_years: v });
+    else setBDraft(String(buildingYears));
+  };
+  const commitM = () => {
+    const v = parseInt(mDraft.replace(/[^0-9]/g, ""), 10);
+    if (Number.isFinite(v) && v > 0 && v !== mepYears) onChange({ mep_years: v });
+    else setMDraft(String(mepYears));
+  };
+
+  return (
+    <div className="rounded-md border border-lime-300/40 bg-lime-300/5 p-3 print:border-emerald-500 print:bg-emerald-50">
+      <p className="flex items-center justify-between font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+        <span>Depreciation years</span>
+        <span className="rounded bg-lime-300/15 px-1 font-mono text-[8.5px] text-lime-200 ring-1 ring-lime-300/30 print:hidden">
+          Edit
+        </span>
+      </p>
+      <div className="mt-1 flex items-baseline gap-2 font-mono text-[16px] font-extrabold tabular-nums text-lime-200 print:text-emerald-700">
+        <YearsInput value={bDraft} onChange={setBDraft} onCommit={commitB} aria="Building useful life years" />
+        <span className="text-slate-500">/</span>
+        <YearsInput value={mDraft} onChange={setMDraft} onCommit={commitM} aria="MEP useful life years" />
+      </div>
+      <p className="mt-0.5 font-mono text-[9.5px] text-slate-500 print:text-slate-600">
+        Building · Installations (MEP)
+      </p>
+    </div>
+  );
+}
+
+function YearsInput({
+  value,
+  onChange,
+  onCommit,
+  aria,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+  aria: string;
+}) {
+  return (
+    <span className="inline-flex items-baseline">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="w-8 rounded-sm border border-transparent bg-transparent px-0 py-0 text-right font-mono text-[16px] font-extrabold tabular-nums text-lime-200 focus:border-lime-300/40 focus:bg-slate-900/60 focus:outline-none print:text-emerald-700"
+        aria-label={aria}
+      />
+      <span className={cn("ml-0.5 text-[14px] text-slate-400 print:text-slate-600")}>y</span>
+    </span>
   );
 }
 
@@ -101,19 +217,26 @@ function HeadlineStack({
   siteAcquisition,
   capexTotal,
   totalInvestment,
+  buildingYears,
+  mepYears,
+  onYearsChange,
 }: {
   asset: UnderwritingBundle["inputs"]["asset"];
   siteAcquisition: number;
   capexTotal: number;
   totalInvestment: number;
+  buildingYears: number;
+  mepYears: number;
+  onYearsChange: (patch: UnderwritingInputOverrides) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <HeadlineTile label="Site Acquisition" value={fmtEUR(siteAcquisition)} sub={`${pct(siteAcquisition, totalInvestment)} of total`} />
       <HeadlineTile label="CAPEX" value={fmtEUR(capexTotal)} sub={`${pct(capexTotal, totalInvestment)} of total`} />
       <HeadlineTile label="Total Investment" value={fmtEUR(totalInvestment)} highlight />
       <HeadlineTile label="€ / key" value={fmtEUR(div(totalInvestment, asset.rooms))} sub={`${asset.rooms} keys`} />
       <HeadlineTile label="€ / m²" value={fmtEUR(div(totalInvestment, asset.total_sqm))} sub={`${fmtInt(asset.total_sqm)} m²`} />
+      <DepreciationYearsTile buildingYears={buildingYears} mepYears={mepYears} onChange={onYearsChange} />
     </div>
   );
 }

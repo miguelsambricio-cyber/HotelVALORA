@@ -39,6 +39,9 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
     return buildBundleForScenario(scenarioId, hasOverrides ? overrides : undefined);
   }, [scenarioId, overrides, hasOverrides, initialBundle]);
 
+  const onOverrideChange = (patch: UnderwritingInputOverrides) =>
+    setOverrides((prev) => ({ ...prev, ...patch }));
+
   const kpiItems = useMemo(() => buildKpiItems(bundle), [bundle]);
 
   return (
@@ -50,18 +53,15 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
         scenarioId={scenarioId}
         scenarioCatalog={SCENARIO_CATALOG}
         onScenarioChange={setScenarioId}
-        onOverrideChange={(patch) => setOverrides((prev) => ({ ...prev, ...patch }))}
+        onOverrideChange={onOverrideChange}
       />
-      <PnlSection
-        bundle={bundle}
-        onOverrideChange={(patch) => setOverrides((prev) => ({ ...prev, ...patch }))}
-      />
+      <PnlSection bundle={bundle} onOverrideChange={onOverrideChange} />
       <BalanceSheetSection bundle={bundle} />
       <CashFlowSection bundle={bundle} />
-      <DtaSection bundle={bundle} />
-      <InvestmentSection bundle={bundle} />
+      <DtaSection bundle={bundle} onOverrideChange={onOverrideChange} />
+      <InvestmentSection bundle={bundle} onOverrideChange={onOverrideChange} />
       <FinancingSection bundle={bundle} />
-      <ExitSection bundle={bundle} />
+      <ExitSection bundle={bundle} onOverrideChange={onOverrideChange} />
     </div>
   );
 }

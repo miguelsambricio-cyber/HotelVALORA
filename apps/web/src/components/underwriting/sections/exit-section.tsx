@@ -1,9 +1,11 @@
 import { SectionShell } from "../primitives/section-shell";
-import { KpiHero } from "../primitives/kpi-hero";
+import { KpiTile } from "../primitives/kpi-hero";
+import { EditableTile } from "../primitives/editable-tile";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
+import type { UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 
 /**
  * Section 08 · Exit Strategy · the strongest narrative piece.
@@ -14,7 +16,13 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
  *   D · Equity waterfall (cash flow timeline · ready for Block 9 split)
  *   E · Detail schedule (full Project + Equity CF series)
  */
-export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
+export function ExitSection({
+  bundle,
+  onOverrideChange,
+}: {
+  bundle: UnderwritingBundle;
+  onOverrideChange: (patch: UnderwritingInputOverrides) => void;
+}) {
   const e = bundle.computed.exit;
   const inv = bundle.computed.investment;
   const fin = bundle.computed.financing;
@@ -23,6 +31,7 @@ export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
   const asset = bundle.inputs.asset;
   const capEntry = bundle.computed.cap_rate.entry;
   const capExit = bundle.computed.cap_rate.exit;
+  const exitFeePct = bundle.inputs.exit.fee_pct * 100;
 
   const exitPriceNetOfFees = e.exit_price * (1 - bundle.inputs.exit.fee_pct);
   const debtBalanceAfterScheduled = fin.total_eofy_balance[e.exit_year] ?? 0;
@@ -45,15 +54,32 @@ export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "IC narrative · disposition committee", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Returns headline */}
-          <KpiHero
-            tiles={[
-              { label: "Project IRR", value: fmtPct(e.project_irr_pct), sub: "unlevered · pre-tax", tone: irrTone(e.project_irr_pct, 8) },
-              { label: "Equity IRR", value: fmtPct(e.equity_irr_pct), sub: "levered · post-tax", highlight: true, tone: irrTone(e.equity_irr_pct, 12) },
-              { label: "MOIC", value: `${e.moic.toFixed(2)}×`, sub: "equity multiple", tone: moicTone(e.moic) },
-              { label: "Profit share", value: fmtEUR(e.profit_share), sub: "equity gain", tone: e.profit_share > 0 ? "ok" : "warn" },
-            ]}
-          />
+          {/* Returns headline · 4 results + 3 exit assumption tiles */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            <KpiTile label="Project IRR" value={fmtPct(e.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(e.project_irr_pct, 8)} />
+            <KpiTile label="Equity IRR" value={fmtPct(e.equity_irr_pct)} sub="levered · post-tax" highlight tone={irrTone(e.equity_irr_pct, 12)} />
+            <KpiTile label="MOIC" value={`${e.moic.toFixed(2)}×`} sub="equity multiple" tone={moicTone(e.moic)} />
+            <KpiTile label="Profit share" value={fmtEUR(e.profit_share)} sub="equity gain" tone={e.profit_share > 0 ? "ok" : "warn"} />
+            <EditableTile
+              label="Exit year"
+              value={e.exit_year}
+              format="years"
+              min={1}
+              max={10}
+              onCommit={(exit_year) => onOverrideChange({ exit_year })}
+              sub="hold period · 1-10y"
+            />
+            <KpiTile label="Exit cap rate" value={fmtPct(capExit.used_pct)} sub={capExit.source === "dynamic" ? "Dynamic · exit yield" : "Manual override"} />
+            <EditableTile
+              label="Exit fee"
+              value={exitFeePct}
+              format="percent"
+              min={0}
+              max={10}
+              onCommit={(exit_fee_pct) => onOverrideChange({ exit_fee_pct })}
+              sub="disposition fee · % of exit price"
+            />
+          </div>
 
           {/* Entry vs exit valuation arc */}
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr]">

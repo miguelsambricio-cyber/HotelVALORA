@@ -29,18 +29,18 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
   const blendedRate = f.tranches.length > 0
     ? f.tranches.reduce((acc, t) => acc + (t.effective_rate_pct[0] ?? 0) * t.principal_amount, 0) / Math.max(1, f.total_principal)
     : 0;
-
-  // Find the worst DSCR + LTV pre-exit (excluding post-exit zeros)
   const exitYear = bundle.computed.exit.exit_year || periods.length - 1;
-  let worstDscr = Number.POSITIVE_INFINITY;
-  let worstDscrPeriod = -1;
-  for (let t = 1; t <= exitYear; t++) {
-    if (f.dscr[t] > 0 && f.dscr[t] < worstDscr) {
-      worstDscr = f.dscr[t];
-      worstDscrPeriod = t;
-    }
-  }
-  const peakLtv = f.ltv_pct[0] ?? 0;
+
+  // Pull tranche-level params for the new headline strip.
+  const senior = inputs.tranches.find((t) => t.kind === "senior_secured");
+  const capex = inputs.tranches.find((t) => t.kind === "senior_capex");
+  const seniorLtvPct = senior && senior.principal.kind === "ltv_of_value" ? senior.principal.ltv_pct : 0;
+  const seniorYears = senior?.amortization.years ?? 0;
+  const seniorBulletPct = senior?.amortization.kind === "bullet" ? (senior.amortization.bullet_pct ?? 0) : 0;
+  const seniorGrace = senior?.grace_periods ?? 0;
+  const capexLtcPct = capex && capex.principal.kind === "ltc_of_total" ? capex.principal.ltc_pct : 0;
+  const capexYears = capex?.amortization.years ?? 0;
+  const seniorMarginPct = senior?.rate.kind === "floating" ? senior.rate.margin_pct : 0;
 
   return (
     <SectionShell
@@ -51,15 +51,17 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "Debt-committee ready", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Headline KPI strip · the financing essentials at a glance */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            <KpiTile label="Total Principal" value={fmtEUR(f.total_principal)} sub={`${f.tranches.length} tranche${f.tranches.length === 1 ? "" : "s"}`} highlight />
+          {/* Headline KPI strip · debt-structure parameters in operator order */}
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
+            <KpiTile label="Senior Acquisition %" value={fmtPct(seniorLtvPct)} sub="LTV of hotel value" />
+            <KpiTile label="Asset loan years" value={`${seniorYears}y`} sub="maturity · senior" />
+            <KpiTile label="Senior CAPEX %" value={fmtPct(capexLtcPct)} sub="LTC of CAPEX only" />
+            <KpiTile label="CAPEX loan years" value={`${capexYears}y`} sub="maturity · CAPEX line" />
+            <KpiTile label="Total debt" value={fmtEUR(f.total_principal)} sub={`${f.tranches.length} tranche${f.tranches.length === 1 ? "" : "s"}`} highlight />
             <KpiTile label="Euribor 12M" value={fmtPct(inputs.euribor_12m_pct)} sub="reference rate" />
-            <KpiTile label="Blended effective" value={fmtPct(blendedRate)} sub="weighted by principal" />
-            <KpiTile label="Interest Y1" value={fmtEUR(f.total_interest_expense[1] ?? 0)} sub="grace year · interest only" />
-            <KpiTile label="Worst DSCR" value={worstDscrPeriod > 0 ? `${worstDscr.toFixed(2)}×` : "—"} sub={worstDscrPeriod > 0 ? `Y${worstDscrPeriod}` : "above 1.0× throughout"} tone={worstDscr >= 1.2 ? "ok" : worstDscr >= 1.0 ? "warn" : "negative"} />
-            <KpiTile label="Peak LTV" value={fmtPct(peakLtv * 100)} sub="origination · de-leverages" tone={peakLtv <= 0.65 ? "ok" : peakLtv <= 0.75 ? "warn" : "negative"} />
-            <KpiTile label="ICR Y1" value={`${(f.icr[1] ?? 0).toFixed(2)}×`} sub="interest cover" tone={(f.icr[1] ?? 0) >= 2 ? "ok" : "warn"} />
+            <KpiTile label="Interest rate" value={fmtPct(seniorMarginPct)} sub={`+${fmtPct(inputs.euribor_12m_pct)} · blended effective ${fmtPct(blendedRate)}`} />
+            <KpiTile label="Bullet" value={fmtPct(seniorBulletPct)} sub={`Y${seniorYears} · senior`} />
+            <KpiTile label="Grace period" value={`${seniorGrace}y`} sub="no principal · interest only" />
           </div>
 
           {/* Debt stack visualisation + per-tranche tiles */}
@@ -70,9 +72,8 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
             ))}
           </div>
 
-          {/* Amortization narrative + covenant strip */}
+          {/* Amortization narrative (CovenantStrip removed · duplicated with year-grid DSCR/ICR/LTV rows below) */}
           <PortfolioScheduleSummary financing={f} exitYear={exitYear} />
-          <CovenantStrip dscr={f.dscr} icr={f.icr} ltv={f.ltv_pct} exitYear={exitYear} />
 
           {/* Full per-period schedule */}
           <YearGrid periods={periods} caption="Financing · Portfolio schedule">
@@ -249,84 +250,6 @@ function SummaryItem({ label, value, tone = "neutral" }: { label: string; value:
       <span className="font-headline text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 print:text-slate-600">{label}</span>
       <span className={`font-mono text-[13px] font-extrabold tabular-nums ${colour}`}>{value}</span>
     </li>
-  );
-}
-
-function CovenantStrip({
-  dscr,
-  icr,
-  ltv,
-  exitYear,
-}: {
-  dscr: number[];
-  icr: number[];
-  ltv: number[];
-  exitYear: number;
-}) {
-  const years = Array.from({ length: Math.min(exitYear, 10) }, (_, i) => i + 1);
-  return (
-    <div className="overflow-x-auto rounded-md border border-slate-800/40 bg-slate-900/30 p-3 print:border-slate-300 print:bg-white">
-      <p className="mb-2 font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-400 print:text-slate-700">
-        Covenant strip · Y1 → Y{exitYear}
-      </p>
-      <table className="w-full text-[11px]">
-        <thead>
-          <tr className="text-slate-500 print:text-slate-600">
-            <th className="py-1 pr-2 text-left font-headline text-[9px] font-bold uppercase tracking-[0.18em]">Metric</th>
-            {years.map((y) => (
-              <th key={y} className="px-2 py-1 text-right font-headline text-[9px] font-bold uppercase tracking-[0.18em]">
-                Y{y}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <CovenantRow label="DSCR" series={dscr} years={years} formatter={(v) => `${v.toFixed(2)}×`} thresholdGood={1.2} thresholdWarn={1.0} />
-          <CovenantRow label="ICR" series={icr} years={years} formatter={(v) => `${v.toFixed(2)}×`} thresholdGood={2.0} thresholdWarn={1.5} />
-          <CovenantRow label="LTV" series={ltv} years={years} formatter={(v) => `${(v * 100).toFixed(1)}%`} thresholdGood={0.65} thresholdWarn={0.75} reverse />
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function CovenantRow({
-  label,
-  series,
-  years,
-  formatter,
-  thresholdGood,
-  thresholdWarn,
-  reverse = false,
-}: {
-  label: string;
-  series: number[];
-  years: number[];
-  formatter: (v: number) => string;
-  thresholdGood: number;
-  thresholdWarn: number;
-  /** When true, LOWER is better (LTV) so the comparison flips. */
-  reverse?: boolean;
-}) {
-  return (
-    <tr className="border-t border-slate-800/40 print:border-slate-200">
-      <td className="py-1 pr-2 font-headline text-[11px] font-bold text-slate-200 print:text-slate-900">{label}</td>
-      {years.map((y) => {
-        const v = series[y] ?? 0;
-        const isGood = reverse ? v <= thresholdGood : v >= thresholdGood;
-        const isWarn = reverse ? v <= thresholdWarn : v >= thresholdWarn;
-        const colour =
-          v === 0 ? "text-slate-600"
-          : isGood ? "text-emerald-200 print:text-emerald-700"
-          : isWarn ? "text-amber-200 print:text-amber-700"
-          : "text-rose-200 print:text-rose-700";
-        return (
-          <td key={y} className={`px-2 py-1 text-right font-mono text-[10.5px] tabular-nums ${colour}`}>
-            {v === 0 ? "·" : formatter(v)}
-          </td>
-        );
-      })}
-    </tr>
   );
 }
 
