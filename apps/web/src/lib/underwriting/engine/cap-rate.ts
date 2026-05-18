@@ -1,82 +1,67 @@
 import type { EngineModule } from "./_types";
-import type { DynamicCapRateResult, UnderwritingComputed, UnderwritingInputs } from "../types";
+import type { UnderwritingComputed } from "../types";
+import { DEFAULT_RATES_REGIME, SEEDED_HOTEL_COMPS, runDynamicCapRate } from "../cap-rate-engine";
 
 /**
  * Module · cap_rate (entry + exit).
  *
- * BLOCK 6 wires the CORE IP · MarketEvidence · AdjustmentLogic ·
- * ConfidenceEngine · OverrideLayer. Until then this module emits a
- * deterministic narrative-shaped placeholder so the Section 6
- * "investment memorandum" view already renders a complete cap-rate
- * rationale stack (base market yield → adjustments → recommended).
+ * Delegates to the Dynamic Cap Rate Engine (`lib/underwriting/cap-rate-engine`).
+ * The engine runs the 5-layer architecture:
+ *   1. Market Evidence    · seeded comps + rates regime + filtering
+ *   2. Adjustment Policy  · category / size / renovation / operator /
+ *                           macro / liquidity / scenario / side deltas
+ *   3. Confidence         · 4 sub-scores → composite 0-100
+ *   4. Rationale          · structured trace + narrative
+ *   5. Override           · operator manual_override_pct, audit trail
+ *
+ * Entry vs Exit: exit adds a terminal-yield hedge (+20 bps default)
+ * configured in `adjustments/index.ts`. Both sides share the same
+ * evidence + scenario context · diverge only on the `side` flag.
+ *
+ * Block 7 swaps SEEDED_HOTEL_COMPS for a Supabase Intelligence Layer
+ * query and adds a Cap Rate Policy Editor (admin) for tuning weights.
  */
-
-function buildPlaceholder(
-  asset: UnderwritingInputs["asset"],
-  scenario_id: string,
-  finalPct: number,
-  side: "entry" | "exit",
-): DynamicCapRateResult {
-  // Reverse-engineer the adjustment stack so the sum lands on finalPct.
-  // Base yield is a stylised "Madrid Centro / market" figure; deltas
-  // mirror the institutional rationale shown in the operator memo.
-  const baseMarketYield = 5.85;
-  const categoryDelta = asset.category === "5star" ? -0.15 : asset.category === "4star" ? 0 : 0.20;
-  const sizeDelta = asset.rooms >= 200 ? 0.10 : asset.rooms >= 100 ? 0 : 0.15;
-  const stateDelta = asset.state === "renovated" ? 0 : asset.state === "needs_work" ? 0.30 : -0.10;
-  const scenarioDelta = scenario_id === "downside" ? 0.25 : scenario_id === "upside" ? -0.20 : 0.30;
-  // Force closure so the recommendation ties to the operator override.
-  const sumAdjustments = categoryDelta + sizeDelta + stateDelta + scenarioDelta;
-  const residual = round2(finalPct - baseMarketYield - sumAdjustments);
-
-  return {
-    recommended_pct: finalPct,
-    band: { low_pct: round2(finalPct - 0.20), high_pct: round2(finalPct + 0.20) },
-    base_pct: baseMarketYield,
-    evidence: {
-      comp_count: 0,
-      median_pct: baseMarketYield,
-      p25_pct: round2(baseMarketYield - 0.30),
-      p75_pct: round2(baseMarketYield + 0.30),
-      stddev_pct: 0.45,
-      most_recent_date: null,
-    },
-    adjustments: [
-      { label: `Base Market Yield · ${asset.submarket || asset.market}`, delta_pct: baseMarketYield, rationale: "Median observed yield in scope · pre-asset adjustments" },
-      { label: `Category · ${asset.category.replace("star", "*")} ${asset.category === "5star" ? "Luxury" : asset.category === "4star" ? "Upscale" : "Midscale"}`, delta_pct: categoryDelta, rationale: "Brand positioning premium / discount vs base" },
-      { label: `Size · ${asset.rooms} keys`, delta_pct: sizeDelta, rationale: asset.rooms >= 200 ? "Institutional scale · large-deal liquidity premium" : "Smaller asset · narrower buyer pool" },
-      { label: `Renovation state · ${asset.state === "renovated" ? "Renovated · Non-CAPEX" : asset.state === "needs_work" ? "Reposition · CAPEX-heavy" : "Newly built"}`, delta_pct: stateDelta, rationale: "Capex execution risk priced into yield" },
-      { label: `Scenario · ${scenario_id === "downside" ? "Conservative" : scenario_id === "upside" ? "Optimistic" : "Base"}`, delta_pct: scenarioDelta, rationale: side === "exit" ? "Terminal-yield stress for exit hedging" : "Underwriting conservatism" },
-      ...(Math.abs(residual) > 0.005 ? [{ label: "Closure to operator override", delta_pct: residual, rationale: "Residual reconciling adjustments to operator-locked rate" }] : []),
-    ],
-    confidence: {
-      level: "low",
-      reasons: ["Block 6 not yet implemented · adjustments shown as narrative placeholders · MarketEvidence + ConfidenceEngine pending"],
-    },
-  };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
 export const capRateModule: EngineModule<"cap_rate"> = {
   key: "cap_rate",
   dependsOn: [],
   compute({ inputs }): UnderwritingComputed["cap_rate"] {
-    const entryOverride = inputs.acquisition.cap_rate.manual_override_pct ?? 6.25;
-    const exitOverride = inputs.exit.cap_rate.manual_override_pct ?? 6.25;
+    const entryOverride = inputs.acquisition.cap_rate;
+    const exitOverride = inputs.exit.cap_rate;
+
+    const ratesRegime = {
+      ...DEFAULT_RATES_REGIME,
+      euribor_12m_pct: inputs.financing.euribor_12m_pct,
+    };
+
+    const entry = runDynamicCapRate({
+      asset: inputs.asset,
+      scenario_id: inputs.scenario_id,
+      override: {
+        enabled: !entryOverride.use_dynamic && entryOverride.manual_override_pct !== null,
+        manual_value_pct: entryOverride.manual_override_pct ?? undefined,
+        operator_rationale: "Operator-pinned entry yield · scenario default",
+      },
+      rates_regime: ratesRegime,
+      comparables: SEEDED_HOTEL_COMPS,
+      side: "entry",
+    });
+
+    const exit = runDynamicCapRate({
+      asset: inputs.asset,
+      scenario_id: inputs.scenario_id,
+      override: {
+        enabled: !exitOverride.use_dynamic && exitOverride.manual_override_pct !== null,
+        manual_value_pct: exitOverride.manual_override_pct ?? undefined,
+        operator_rationale: "Operator-pinned exit yield · terminal value lock",
+      },
+      rates_regime: ratesRegime,
+      comparables: SEEDED_HOTEL_COMPS,
+      side: "exit",
+    });
+
     return {
-      entry: {
-        dynamic: buildPlaceholder(inputs.asset, inputs.scenario_id, entryOverride, "entry"),
-        used_pct: entryOverride,
-        source: inputs.acquisition.cap_rate.use_dynamic ? "dynamic" : "override",
-      },
-      exit: {
-        dynamic: buildPlaceholder(inputs.asset, inputs.scenario_id, exitOverride, "exit"),
-        used_pct: exitOverride,
-        source: inputs.exit.cap_rate.use_dynamic ? "dynamic" : "override",
-      },
+      entry: { dynamic: entry, used_pct: entry.used_pct, source: entry.source },
+      exit: { dynamic: exit, used_pct: exit.used_pct, source: exit.source },
     };
   },
 };

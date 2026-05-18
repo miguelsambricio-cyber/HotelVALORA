@@ -28,6 +28,7 @@
 import type { Period, PeriodSeries } from "./temporal";
 import type { DebtTranche, FinancingPortfolioSchedule } from "./financing-tranches";
 import type { VersionTag } from "./versioning";
+import type { DynamicCapRateResult as _DynamicCapRateResult } from "./cap-rate-engine/types";
 
 // ─── Scenarios ────────────────────────────────────────────────────────
 
@@ -76,6 +77,9 @@ export interface CapRateContext {
   comparables: CapRateComparable[];
 }
 
+// Legacy alias for backward-compat with code that imported the
+// 9-field shape. New code should import directly from
+// `lib/underwriting/cap-rate-engine`.
 export interface CapRateComparable {
   transaction_id: string;
   market: string;
@@ -88,36 +92,25 @@ export interface CapRateComparable {
   source: string;
 }
 
-export interface CapRateAdjustment {
-  label: string;
-  delta_pct: number;
-  rationale: string;
-}
-
-export interface DynamicCapRateResult {
-  /** Final recommended cap rate · base + sum(adjustments). */
-  recommended_pct: number;
-  /** Band around recommended · widens when confidence is low. */
-  band: { low_pct: number; high_pct: number };
-  /** Median of comparable transactions · pre-adjustment. */
-  base_pct: number;
-  /** Comp count + variability metrics. */
-  evidence: {
-    comp_count: number;
-    median_pct: number;
-    p25_pct: number;
-    p75_pct: number;
-    stddev_pct: number;
-    most_recent_date: string | null;
-  };
-  /** Ordered list of additive adjustments applied. */
-  adjustments: CapRateAdjustment[];
-  /** Confidence scoring for the recommendation. */
-  confidence: {
-    level: "low" | "medium" | "high";
-    reasons: string[]; // human-readable explanation
-  };
-}
+// Re-export the rich 5-layer types from the Dynamic Cap Rate Engine.
+// Section 6 + engine module consume DynamicCapRateResult shape from here.
+export type {
+  CapRateAdjustment,
+  ConfidenceScore,
+  ConfidenceBand,
+  ConfidenceSubScore,
+  DynamicCapRateResult,
+  MarketEvidence,
+  RationaleTrace,
+  CapRateOverride,
+  CompTransaction,
+  RatesRegime,
+  LiquidityMetrics,
+  ExcludedComp,
+  AdjustmentCategory,
+  AdjustmentSource,
+  CapRateEngineContext,
+} from "./cap-rate-engine/types";
 
 export interface CapRateInputs {
   /** Operator override · null means "use dynamic". */
@@ -223,8 +216,8 @@ export interface UnderwritingComputed {
 
   // Cap rate engine outputs
   cap_rate: {
-    entry: { dynamic: DynamicCapRateResult; used_pct: number; source: "dynamic" | "override" };
-    exit: { dynamic: DynamicCapRateResult; used_pct: number; source: "dynamic" | "override" };
+    entry: { dynamic: _DynamicCapRateResult; used_pct: number; source: "dynamic" | "override" };
+    exit: { dynamic: _DynamicCapRateResult; used_pct: number; source: "dynamic" | "override" };
   };
 
   // Cross-checks · zero-tolerance institutional invariants

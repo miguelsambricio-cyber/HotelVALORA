@@ -4,6 +4,119 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-18 — Underwriting OS · Block 6 · Dynamic Cap Rate Engine (CORE IP · market intelligence layer)
+
+Built the proprietary intelligence layer that converts comparable-transaction evidence into a defensible cap-rate recommendation with rationale, confidence and audit trail. This is HotelVALORA's commercial moat vs spreadsheets / generic underwriting apps / Argus-lite clones.
+
+### Module · `lib/underwriting/cap-rate-engine/`
+5-layer architecture · pure functions · deterministic:
+
+```
+cap-rate-engine/
+├── index.ts                  · runDynamicCapRate(ctx)
+├── types.ts                  · single source of truth
+├── evidence/
+│   ├── index.ts              · buildMarketEvidence · filter + scope + derive
+│   └── seeded-comps.ts       · 12 Madrid + BCN + MRB transactions (MVP)
+├── adjustments/
+│   └── index.ts              · 8 named policy adjustments
+├── confidence/
+│   └── index.ts              · 4 sub-scores → composite 0-100
+├── rationale/
+│   └── index.ts              · structured trace + auto narrative
+└── overrides/
+    └── index.ts              · operator audit trail
+```
+
+### Layer 1 · Market Evidence
+- Filter: staleness > 36m · category gap > 1* · size ratio > 5×
+- Scope: submarket → market → national fallback
+- Derive: median · mean · IQR · stddev · liquidity 12m/24m metrics
+- Every exclusion captured in `comparables_excluded[]` with reason
+
+### Layer 2 · Adjustment Policy (proprietary IP)
+8 named adjustments · each typed CapRateAdjustment:
+- `base` · median of in-scope comps
+- `category` · 5* −25 bps · 4* 0 · 3* +25 bps
+- `size` · ≥200 keys −10 bps · 100-199 0 · <100 +20 bps
+- `renovation` · new −10 bps · renovated 0 · needs_work +50 bps
+- `operator` · branded chain −10 bps (default)
+- `macro` · per 100 bps Euribor above LT mean → +20 bps
+- `liquidity` · ≥6 deals/12m −5 bps · <3 +20 bps
+- `scenario` · downside +30 bps · base 0 · upside −20 bps · stress +60 bps
+- `side` · exit +20 bps (terminal hedge)
+
+### Layer 3 · Confidence Engine
+Composite 0-100 weighted blend:
+- Sufficiency 30% · # of comps surviving filter
+- Volatility 25% · IQR spread / median
+- Staleness 20% · age of most recent comp
+- Coverage 25% · submarket + category match share
+
+Bands: very_low (<30) · low (30-50) · medium (50-70) · high (70-85) · very_high (≥85)
+
+### Layer 4 · Explainability
+- Structured RationaleTrace · base + adjustments + recommended + band + evidence_used + evidence_excluded + confidence
+- Auto-generated narrative · one paragraph operator-grade text · "5 comparable transactions in Madrid Centro (4*) cluster around 6.20% (IQR 6.10% — 6.30%). After applying Macro · Euribor 12m at 2.75% (+0.25pp) · Liquidity · 2 deals last 12m (+0.20pp) · Size · 256 keys (-0.10pp), the engine recommends 6.45% with high confidence (score 80/100)."
+
+### Layer 5 · Override
+- `enabled` · `manual_value_pct` · `operator_rationale` · `operator_email` · `applied_at` · `delta_vs_recommended_pct`
+- Audit-grade trail for committee defence
+- Section 6 (Block 7) will render "Override engaged" badge with delta
+
+### Wiring
+- `engine/cap-rate.ts` now delegates to the new engine via `runDynamicCapRate(ctx)` for both entry + exit
+- Seeded comps from `SEEDED_HOTEL_COMPS` (Block 7 swaps for Supabase Intelligence Layer query)
+- `inputs.financing.euribor_12m_pct` flows into the macro adjustment
+- `inputs.scenario_id` drives scenario overlay (entry + exit both react)
+
+### Section 6 · UI updates
+- `CapRateRationale` block now renders 5-layer richer shape:
+  - Confidence score `X/100 (band)` color-coded (emerald/amber/rose)
+  - Each adjustment row with category tag + label + rationale + signed Δ
+  - New `EvidencePanel` below rationale: comp count · median · IQR · date range · liquidity 12m · 4-component confidence breakdown · excluded comps summary
+- Helper formatters `fmtPctPoints` / `fmtPctPointsDelta` (adjustments now in percentage points, not decimals)
+
+### Type contracts (`lib/underwriting/types.ts`)
+- `DynamicCapRateResult` now re-exports the rich 5-layer shape from `cap-rate-engine/types`
+- Added re-exports for `MarketEvidence`, `ConfidenceScore`, `RationaleTrace`, `CapRateOverride`, `CompTransaction`, `RatesRegime`, etc.
+- Legacy `CapRateComparable` kept for backward compat
+
+### Engine outputs · base scenario (Madrid Centro · 4* · 256 keys)
+
+| Metric | Value | Source |
+|---|---:|---|
+| Entry cap rate (used) | **6.45 %** | dynamic (override disabled) |
+| Exit cap rate (used) | **6.65 %** | dynamic (override disabled) |
+| Band (entry) | 6.15 — 6.75 % | confidence-widened |
+| Confidence | **80/100 (high)** | sufficiency 50 · volatility 95 · staleness 95 · coverage 90 |
+| Comps in scope | 5 | submarket+category exact match |
+| Comps excluded | 7 | 4 stale · 3 outside submarket |
+| Median of in-scope | 6.20 % | 5 Madrid Centro 4* transactions |
+
+Downstream: equity IRR re-prices from 9.40% → 7.84% (lower exit price at 6.65% vs the previous 6.25% override). The engine actively shapes underwriting outcomes instead of being a static input.
+
+### Inspection tooling
+- `scripts/cap-rate-inspect.mjs` · per-side breakdown of evidence + adjustments + confidence + narrative + override (runnable via `npx tsx`)
+- `scripts/engine-parity-check.mjs` · BS still balances perfectly with new cap rate engine driving exit
+
+### Documentation
+- `docs/underwriting/dynamic-cap-rate-engine.md` · full 5-layer architecture spec · default policy calibration table · confidence weighting · filtering rules · Block 7 evolution path
+
+### Block 7+ deliberately NOT in scope
+- Cap Rate Policy Editor (admin UI for tuning weights)
+- Live Supabase Intelligence Layer query (swaps SEEDED_HOTEL_COMPS)
+- Sensitivity matrix (recommended × scenario × evidence subset)
+- Promote-waterfall integration (LP/GP tranches)
+- Comparable-transaction map (visual evidence overlay)
+
+### Verification
+- `npm run typecheck` · 0 errors
+- `engine-parity-check.mjs` · all 6 hard invariants PASS · BS balances all 11 periods Δ = 0.00 €
+- `cap-rate-inspect.mjs` · institutional-grade narrative + traceable evidence
+
+---
+
 ## 2026-05-18 — Underwriting OS · Block 3B · accounting + valuation truth (DTA · Exit · CF · BS · reconciliation hardening)
 
 Closed the accounting / valuation / balance-sheet / reconciliation layer of the underwriting OS. All 6 hard invariants pass · BS balances to subEuro across all 11 periods · cash bridge perfect.

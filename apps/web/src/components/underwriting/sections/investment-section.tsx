@@ -234,6 +234,12 @@ function PriceRow({ label, value, sub, muted = false }: { label: string; value: 
 }
 
 function CapRateRationale({ dynamic, finalPct }: { dynamic: DynamicCapRateResult; finalPct: number }) {
+  const confidenceBandLabel = dynamic.confidence.band.replace("_", " ");
+  const confidenceColor =
+    dynamic.confidence.score_0_100 >= 70 ? "text-emerald-300 print:text-emerald-700"
+    : dynamic.confidence.score_0_100 >= 50 ? "text-amber-300 print:text-amber-700"
+    : "text-rose-300 print:text-rose-700";
+
   return (
     <div className="rounded-md border border-slate-800/40 bg-slate-900/30 p-4 print:border-slate-300 print:bg-white">
       <div className="mb-3 flex items-baseline justify-between">
@@ -241,13 +247,16 @@ function CapRateRationale({ dynamic, finalPct }: { dynamic: DynamicCapRateResult
           Cap-rate rationale
         </p>
         <span className="font-mono text-[9.5px] text-slate-500 print:text-slate-600">
-          Confidence · {dynamic.confidence.level}
+          Confidence ·{" "}
+          <span className={`font-bold ${confidenceColor}`}>
+            {dynamic.confidence.score_0_100.toFixed(0)}/100 · {confidenceBandLabel}
+          </span>
         </span>
       </div>
       <ol className="space-y-1.5">
         {dynamic.adjustments.map((adj, idx) => (
           <li
-            key={idx}
+            key={adj.id}
             className="grid grid-cols-[24px_1fr_64px] items-start gap-2 border-b border-slate-800/40 pb-1.5 last:border-b-0 print:border-slate-200"
           >
             <span className="mt-1 inline-flex h-4 w-4 items-center justify-center rounded-sm bg-slate-800/80 font-mono text-[9px] font-bold text-slate-300 print:bg-slate-200 print:text-slate-700">
@@ -259,10 +268,10 @@ function CapRateRationale({ dynamic, finalPct }: { dynamic: DynamicCapRateResult
             </div>
             <span
               className={`text-right font-mono text-[12px] font-bold tabular-nums ${
-                idx === 0 ? "text-slate-100 print:text-slate-900" : adj.delta_pct >= 0 ? "text-amber-200 print:text-amber-700" : "text-emerald-200 print:text-emerald-700"
+                adj.category === "base" ? "text-slate-100 print:text-slate-900" : adj.delta_pct >= 0 ? "text-amber-200 print:text-amber-700" : "text-emerald-200 print:text-emerald-700"
               }`}
             >
-              {idx === 0 ? fmtPct(adj.delta_pct) : fmtPctDelta(adj.delta_pct)}
+              {adj.category === "base" ? fmtPctPoints(adj.delta_pct) : fmtPctPointsDelta(adj.delta_pct)}
             </span>
           </li>
         ))}
@@ -276,8 +285,58 @@ function CapRateRationale({ dynamic, finalPct }: { dynamic: DynamicCapRateResult
           </span>
         </li>
       </ol>
+      <EvidencePanel dynamic={dynamic} />
     </div>
   );
+}
+
+function EvidencePanel({ dynamic }: { dynamic: DynamicCapRateResult }) {
+  const e = dynamic.evidence;
+  const r = dynamic.rationale;
+  const c = dynamic.confidence;
+  const fmtMmYy = (iso: string | null) => iso ? new Date(iso).toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—";
+  return (
+    <div className="mt-3 grid gap-2 border-t border-slate-800/40 pt-3 sm:grid-cols-2 print:border-slate-300">
+      <div>
+        <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-700">
+          Market Evidence
+        </p>
+        <ul className="mt-1 space-y-0.5 font-mono text-[10px] text-slate-400 print:text-slate-700">
+          <li>{e.comp_count} comps in scope · median {e.median_cap_pct.toFixed(2)}% · IQR {e.p25_cap_pct.toFixed(2)}%-{e.p75_cap_pct.toFixed(2)}%</li>
+          <li>{r.evidence_used.submarket_match_count}/{e.comp_count} submarket match · {r.evidence_used.category_match_count}/{e.comp_count} category match</li>
+          <li>Dates: {fmtMmYy(e.oldest_in_scope_date)} → {fmtMmYy(e.most_recent_date)}</li>
+          <li>Liquidity 12m: {e.liquidity_metrics.transactions_last_12m} deals · {fmtVolume(e.liquidity_metrics.total_volume_last_12m_eur)}</li>
+        </ul>
+      </div>
+      <div>
+        <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-700">
+          Confidence components
+        </p>
+        <ul className="mt-1 space-y-0.5 font-mono text-[10px] text-slate-400 print:text-slate-700">
+          <li>Sufficiency · {c.components.sufficiency.score}/100 · {c.components.sufficiency.explanation}</li>
+          <li>Volatility · {c.components.volatility.score}/100 · {c.components.volatility.explanation}</li>
+          <li>Staleness · {c.components.staleness.score}/100 · {c.components.staleness.explanation}</li>
+          <li>Coverage · {c.components.coverage.score}/100 · {c.components.coverage.explanation}</li>
+        </ul>
+      </div>
+      {r.evidence_excluded.count > 0 && (
+        <div className="sm:col-span-2">
+          <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-700">
+            Excluded comps · {r.evidence_excluded.count}
+          </p>
+          <p className="mt-0.5 font-mono text-[9.5px] text-slate-500 print:text-slate-600">
+            {r.evidence_excluded.reasons.join(" · ")}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function fmtVolume(v: number): string {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1).replace(".", ",")}B €`;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(0)}M €`;
+  return `${(v / 1_000).toFixed(0)}k €`;
 }
 
 function AcquisitionCostsItemized({ lines, acqCostsTotal }: { lines: BreakdownLine[]; acqCostsTotal: number }) {
@@ -617,7 +676,14 @@ function fmtPct(n: number): string {
   return `${(n * 100).toFixed(1).replace(".", ",")}%`;
 }
 
-function fmtPctDelta(n: number): string {
+/** Format raw percentage points (e.g. 6.25 → "6,25%"). */
+function fmtPctPoints(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return "—";
+  return `${n.toFixed(2).replace(".", ",")}%`;
+}
+
+/** Format raw percentage-point delta (signed). */
+function fmtPctPointsDelta(n: number): string {
   if (!Number.isFinite(n) || n === 0) return "—";
   const sign = n > 0 ? "+" : "";
   return `${sign}${n.toFixed(2).replace(".", ",")}%`;
