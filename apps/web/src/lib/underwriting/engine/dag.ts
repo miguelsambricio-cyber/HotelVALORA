@@ -35,9 +35,9 @@ export const ENGINE_DAG: DagNode[] = [
   { key: "financing", dependsOn: ["investment"] },
   { key: "pnl", dependsOn: ["investment", "financing"] },
   { key: "dta", dependsOn: ["pnl"] },
-  { key: "exit", dependsOn: ["cap_rate", "pnl", "financing"] },
+  { key: "exit", dependsOn: ["cap_rate", "pnl", "dta", "financing", "investment"] },
   { key: "cash_flow", dependsOn: ["pnl", "financing", "dta", "investment", "exit"] },
-  { key: "balance_sheet", dependsOn: ["pnl", "financing", "dta", "cash_flow", "investment"] },
+  { key: "balance_sheet", dependsOn: ["pnl", "financing", "dta", "cash_flow", "investment", "exit"] },
   { key: "reconciliation", dependsOn: ["balance_sheet", "cash_flow", "financing"] },
 ];
 

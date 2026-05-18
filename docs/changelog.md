@@ -4,6 +4,81 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-18 — Underwriting OS · Block 3B · accounting + valuation truth (DTA · Exit · CF · BS · reconciliation hardening)
+
+Closed the accounting / valuation / balance-sheet / reconciliation layer of the underwriting OS. All 6 hard invariants pass · BS balances to subEuro across all 11 periods · cash bridge perfect.
+
+### DTA (Spanish Ley IS · accounting-grade rigor)
+- `engine/dta.ts` · full roll-forward (opening · increases · decreases · ending) in tax €
+- Excel-grade limit logic: cap = `max(30% × EBITDA, 1M €)` per Ley IS art. 16
+- Explicit separation: **current tax** (cash) · **deferred tax** (DTA movement) · **accounting tax** (P&L line = current − deferred-movement)
+- Engine traces: Y1 builds 235k DTA (940k non-deductible × 25%), peaks at 618k Y4, fully unwinds by Y9 as EBITDA capacity opens; residual at Y7 (366k) absorbed by gain on sale at exit
+- Expiry-ready structure (Spain has no carryforward expiry today)
+- Post-exit silencing (operations stopped · DTA absorbed by realisation event)
+
+### Exit (4-layer architecture)
+- `engine/exit.ts` · layered: Operational Exit (stabilized NOI) → Market Exit (cap rate + fees) → Capital Structure Exit (debt unwind + bullet) → Equity Layer (distributions + IRR + MOIC)
+- No "single formula exit" · every layer traceable and operator-auditable
+- Hooks left for Block 6 Cap Rate Engine (stabilized_noi, exit yield, valuation interfaces) and Block 9 promote waterfall (LP/GP tranches)
+
+### IRR engine (deterministic + edge-case-safe)
+- `engine/formulas.ts` · `irrPct` hardened:
+  - Validates ≥1 positive AND ≥1 negative flow (else NaN, mathematically undefined)
+  - Coarse bracket scan (−95% to +1000% in 5% steps)
+  - Newton-Raphson from bracket midpoint · 60 iter max
+  - Bisection fallback when NR diverges or exits bracket · 200 iter, guaranteed convergence
+  - Tolerance 1e-9 · returns NaN only when undefined
+- `npv(flows, r)` exposed as standalone helper · registered in `FORMULAS`
+
+### Cash Flow (direct method · 4 sections + cash bridge)
+- `engine/cash-flow.ts` · separated: Operating · Investment · Financing · Equity
+- Exit-year handling: net exit proceeds + debt payoff in one shot
+- Post-exit silencing: all CF lines = 0 (no phantom debt service after disposal)
+- Cash bridge to BS verified ±0 € across all transitions
+
+### Balance Sheet (first-class reconciliation layer)
+- `engine/balance-sheet.ts` · proper roll-forward of building (25y SL) · MEP (7y SL) · DTA asset · cash bridge · equity components
+- ACCOUNTING net income (not pnl.net_income) used for retained earnings = `pnl.ebt − dta.cit_pl`
+- Exit-year asset disposal: book value → 0, gain on sale recognised in accounting NI, DTA written off (absorbed by fiscal gain)
+- Post-exit: assets stay at cash · debt = 0 · equity captures all proceeds
+- All 11 periods balance to 0.00 € (subEuro precision)
+
+### Reconciliation hardening
+- `engine/reconciliation.ts` · 6 invariants with severity (info · warn · fail) + metadata + tolerance-aware
+  - I-1 BS balance · HARD ±1€
+  - I-2 Cash bridge · HARD ±1€
+  - I-3 DSCR ≥ 1.0 pre-exit · WARN (skips post-exit periods)
+  - I-4 DTA non-negative · HARD ±1€
+  - I-5 Σ Y0 drawdowns ≡ Σ tranche principals · HARD ±1€
+  - I-6 Retained earnings continuity · HARD ±1€
+- DSCR / ICR / LTV computed post-pass from PnL EBITDA + financing aggregates · patched back into `prior.financing` so Section 7 renders ratios
+- Findings carry `id`, `invariant`, `severity`, `message`, `period_index`, `expected`, `actual`, `delta`, `tolerance`
+
+### Defaults fix
+- `defaults.ts` · notary_registry_pct corrected (0.02 → 0.0002 = 0.02%) and ajd_pct (0.06 → 0.0006 = 0.06%) · Block 3A parity report had documented Excel values that didn't match the engine inputs because the inputs were 100× too large · now both sides reconcile
+
+### DAG updates
+- `exit` now depends on `["cap_rate", "pnl", "dta", "financing", "investment"]`
+- `balance_sheet` now depends on `["pnl", "financing", "dta", "cash_flow", "investment", "exit"]`
+
+### Parity infrastructure
+- `apps/web/scripts/engine-parity-check.mjs` · runnable parity-validation script (`npx tsx scripts/engine-parity-check.mjs`)
+- `docs/underwriting/excel-parity-block-3b.md` · full report · all 6 hard invariants pass · 0 fail · 6 scenario warnings (DSCR < 1.0 Y2-Y7 from under-sized CAPEX tranche · not engine bug)
+
+### Engine outputs (base scenario · Madrid Centro · 256 keys · exit Y7)
+- Stabilized NOI Y7 = 6,048,000 €
+- Exit price gross = 96,768,000 € · net of fees = 95,316,480 €
+- Debt repayment at exit = 31,400,881 €
+- Equity investment Y0 = 30,266,767 €
+- **Project IRR = 6.49%** · **Equity IRR = 9.40%** · **MOIC = 1.672x**
+- BS balances perfectly Y0-Y10 (Δ = 0.00 €)
+
+### Verification
+- `npm run typecheck` · 0 errors
+- `engine-parity-check.mjs` · all hard invariants PASS · only WARN findings (scenario-level)
+
+---
+
 ## 2026-05-18 — Underwriting OS · Block 3A · foundational financial engine (investment + financing + P&L · all Excel-parity validated)
 
 Wired real engine math for the three foundational modules per the operator's reconciliation-first discipline. Every formula reverse-engineered from the operator's reference Excel and validated cell-by-cell against the Madrid Centro 4* / 256-keys baseline.

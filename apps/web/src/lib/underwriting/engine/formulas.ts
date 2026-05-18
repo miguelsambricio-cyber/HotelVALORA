@@ -61,28 +61,104 @@ export function moic(flows: PeriodSeries): number {
 }
 
 /**
- * IRR via Newton-Raphson · returns percentage value (e.g. 12.5 not 0.125).
- * Returns NaN if no convergence in 100 iterations · caller must defend.
+ * NPV of a flow series at decimal rate `r`. Helper for IRR routines.
+ * Returns NaN on overflow / non-finite inputs · caller must defend.
  */
-export function irrPct(flows: PeriodSeries, guess = 0.1): number {
-  const maxIter = 100;
-  const tol = 1e-7;
-  let rate = guess;
+export function npv(flows: PeriodSeries, r: number): number {
+  let acc = 0;
+  for (let t = 0; t < flows.length; t++) {
+    const denom = Math.pow(1 + r, t);
+    if (!Number.isFinite(denom) || denom === 0) return NaN;
+    acc += flows[t] / denom;
+  }
+  return acc;
+}
 
-  for (let iter = 0; iter < maxIter; iter++) {
-    let npv = 0;
-    let dnpv = 0;
+/**
+ * IRR · deterministic, bounded, edge-case-safe.
+ *
+ * Strategy:
+ *   1. Validate the series has at least one positive AND one negative
+ *      flow (else IRR is mathematically undefined · return NaN).
+ *   2. Bracket the root by scanning a coarse rate grid.
+ *   3. Run Newton-Raphson from the midpoint of the bracket for fast
+ *      convergence (typically < 10 iterations).
+ *   4. If NR diverges, falls outside the bracket, or oscillates,
+ *      fall back to bisection inside the bracket (guaranteed
+ *      convergence in ≤ 60 iterations to 1e-9 precision).
+ *
+ * Returns percentage value (e.g. 12.5 not 0.125). NaN means the IRR
+ * is mathematically undefined (no sign change OR cash-flows fully
+ * uniform) · caller MUST handle NaN explicitly in display.
+ */
+export function irrPct(flows: PeriodSeries, guess = 0.10): number {
+  if (!flows.length) return NaN;
+  let positives = 0;
+  let negatives = 0;
+  for (const v of flows) {
+    if (!Number.isFinite(v)) return NaN;
+    if (v > 0) positives++;
+    if (v < 0) negatives++;
+  }
+  if (positives === 0 || negatives === 0) return NaN;
+
+  // Coarse bracket scan · rates from −95% to +1,000%.
+  const grid: number[] = [];
+  for (let r = -0.95; r <= 10; r += 0.05) grid.push(r);
+  let bracketLo: number | null = null;
+  let bracketHi: number | null = null;
+  let prevR = grid[0];
+  let prevNpv = npv(flows, prevR);
+  for (let i = 1; i < grid.length; i++) {
+    const r = grid[i];
+    const n = npv(flows, r);
+    if (Number.isFinite(prevNpv) && Number.isFinite(n) && prevNpv * n < 0) {
+      bracketLo = prevR;
+      bracketHi = r;
+      break;
+    }
+    prevR = r;
+    prevNpv = n;
+  }
+  if (bracketLo === null || bracketHi === null) return NaN;
+
+  // Newton-Raphson from bracket midpoint.
+  const tol = 1e-9;
+  const maxIterNR = 60;
+  let rate = (bracketLo + bracketHi) / 2;
+  for (let iter = 0; iter < maxIterNR; iter++) {
+    let f = 0;
+    let df = 0;
+    let valid = true;
     for (let t = 0; t < flows.length; t++) {
       const denom = Math.pow(1 + rate, t);
-      npv += flows[t] / denom;
-      dnpv += (-t * flows[t]) / (denom * (1 + rate));
+      if (!Number.isFinite(denom) || denom === 0) { valid = false; break; }
+      f += flows[t] / denom;
+      df += (-t * flows[t]) / (denom * (1 + rate));
     }
-    if (dnpv === 0) return NaN;
-    const newRate = rate - npv / dnpv;
+    if (!valid || df === 0 || !Number.isFinite(df)) break;
+    const newRate = rate - f / df;
+    if (newRate <= bracketLo || newRate >= bracketHi || !Number.isFinite(newRate)) break;
     if (Math.abs(newRate - rate) < tol) return newRate * 100;
     rate = newRate;
   }
-  return NaN;
+
+  // Bisection fallback · guaranteed inside the bracket.
+  let lo = bracketLo;
+  let hi = bracketHi;
+  let fLo = npv(flows, lo);
+  for (let iter = 0; iter < 200; iter++) {
+    const mid = (lo + hi) / 2;
+    const fMid = npv(flows, mid);
+    if (Math.abs(fMid) < 1e-6 || (hi - lo) / 2 < tol) return mid * 100;
+    if (fLo * fMid < 0) {
+      hi = mid;
+    } else {
+      lo = mid;
+      fLo = fMid;
+    }
+  }
+  return ((lo + hi) / 2) * 100;
 }
 
 // ─── Tax · Spanish Ley IS ─────────────────────────────────────────────
@@ -138,6 +214,7 @@ export const FORMULAS = {
   exitNetProceeds,
   moic,
   irrPct,
+  npv,
   spanishFinexpDeductionCap,
   corporateIncomeTax,
   straightLineDepreciation,

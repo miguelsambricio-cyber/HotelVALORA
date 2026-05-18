@@ -87,6 +87,38 @@ export const pnlModule: EngineModule<"pnl"> = {
       totalNetIncome[i] = cum;
     }
 
+    // ─── Post-exit silencing ──────────────────────────────────────
+    // Operations stop at exit · zero every operating line so the BS
+    // doesn't carry phantom EBIT post-realisation. Operator sees a
+    // clean "model ends at exit" series for any hold length.
+    const exitYear = inputs.exit.year;
+    if (exitYear > 0) {
+      for (let t = exitYear + 1; t < periods.length; t++) {
+        hotel[t] = 0;
+        fb[t] = 0;
+        other[t] = 0;
+        gross[t] = 0;
+        mgmtFee[t] = 0;
+        propTax[t] = 0;
+        propIns[t] = 0;
+        ffeReserve[t] = 0;
+        totalCosts[t] = 0;
+        ebitda[t] = 0;
+        da[t] = 0;
+        ebit[t] = 0;
+        finExp[t] = 0;
+        ebt[t] = 0;
+        cit[t] = 0;
+        netIncome[t] = 0;
+      }
+      // Recompute cumulative NI with post-exit zeros honoured.
+      let cum2 = 0;
+      for (let i = 0; i < periods.length; i++) {
+        cum2 += netIncome[i];
+        totalNetIncome[i] = cum2;
+      }
+    }
+
     return {
       hotel,
       fb,

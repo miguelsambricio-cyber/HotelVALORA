@@ -67,8 +67,10 @@ const INPUTS_BASE: UnderwritingInputs = {
     hotel_value: 83_383_058,
     cap_rate: { manual_override_pct: 6.25, use_dynamic: true },
     costs: {
-      notary_registry_pct: 0.02,
-      ajd_pct: 0.06,
+      // Spanish acquisition-cost percentages · stored as decimals.
+      // Excel shows them as 0.02% and 0.06% · we store the decimal (0.0002 = 0.02%).
+      notary_registry_pct: 0.0002,
+      ajd_pct: 0.0006,
       itp_pct: 0,
       acquisition_fee_pct: 0,
       key_money_total: 0,
