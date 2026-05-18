@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { AcquisitionCostsCard } from "@/components/admin/financials/acquisition-costs-card";
 import { CapexDefaultsCard } from "@/components/admin/financials/capex-defaults-card";
 import { FinancialStructureCard } from "@/components/admin/financials/financial-structure-card";
 import { DynamicCapRateCard } from "@/components/admin/financials/dynamic-cap-rate-card";
@@ -45,9 +46,11 @@ export default function FinancialsPage() {
         </p>
       </header>
 
-      <CapexDefaultsCard />
-      <FinancialStructureCard />
+      {/* Acquisition friction → pricing → financing → investment deployment */}
+      <AcquisitionCostsCard />
       <DynamicCapRateCard />
+      <FinancialStructureCard />
+      <CapexDefaultsCard />
       <PnlBenchmarksCard />
 
       <footer className="rounded-md border border-slate-700/60 bg-slate-900/40 p-3 font-mono text-[10.5px] leading-relaxed text-slate-400">
