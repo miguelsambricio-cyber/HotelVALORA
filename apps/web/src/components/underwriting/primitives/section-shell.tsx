@@ -26,6 +26,7 @@ export function SectionShell({
   detail,
   assumptions,
   printIncludeDetail = true,
+  hideDetailToggle = false,
 }: {
   /** Section ordinal in the scroll (1..8). */
   number: number;
@@ -42,6 +43,15 @@ export function SectionShell({
   assumptions?: React.ReactNode;
   /** When true, detail is force-rendered for the print layout. */
   printIncludeDetail?: boolean;
+  /**
+   * When true, the "Detail schedule" trigger is hidden and the detail
+   * content renders inline as a continuous narrative (no accordion
+   * chrome). Used by Executive Summary · the IC opener reads as a
+   * single editorial flow rather than collapsible SaaS panels.
+   * Lazy-mount + print logic are preserved · only the trigger UI is
+   * suppressed.
+   */
+  hideDetailToggle?: boolean;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailWasOpened, setDetailWasOpened] = useState(false);
@@ -87,7 +97,14 @@ export function SectionShell({
 
       <div className="space-y-3">{summary}</div>
 
-      {detail && (
+      {detail && hideDetailToggle && (
+        // Continuous editorial flow · no accordion chrome · detail
+        // content renders inline directly under the summary so the
+        // section reads as a single investment-memo narrative.
+        <div className="pt-1">{detail}</div>
+      )}
+
+      {detail && !hideDetailToggle && (
         <div className="rounded-md border border-slate-800/60 bg-slate-900/30">
           <button
             type="button"

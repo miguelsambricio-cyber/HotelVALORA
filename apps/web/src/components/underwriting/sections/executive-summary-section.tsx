@@ -34,6 +34,7 @@ export function ExecutiveSummarySection({ bundle }: { bundle: UnderwritingBundle
       title="Executive Summary"
       subtitle={`${asset.hotel_name ?? "Unnamed asset"} · ${asset.submarket} · ${asset.rooms} keys · ${asset.category.replace("star", "*")} ${tierLabel(asset.category)}`}
       status={{ label: "Investment committee draft", tone: "info" }}
+      hideDetailToggle
       summary={
         <NarrativeParagraph eyebrow="Investment thesis">
           {asset.rooms}-key {tierLabel(asset.category).toLowerCase()} {actionLabel(asset.state)} opportunity in{" "}
