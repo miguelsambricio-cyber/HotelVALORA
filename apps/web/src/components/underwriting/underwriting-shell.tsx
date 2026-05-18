@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import type { UnderwritingBundle, UnderwritingInputs } from "@/lib/underwriting/types";
 import { SCENARIO_CATALOG, buildBundleForScenario } from "@/lib/underwriting/defaults";
-import { StickySectionNav, type NavItem } from "./primitives/sticky-section-nav";
 import { FloatingKpiStrip, type KpiItem } from "./primitives/floating-kpi-strip";
 import { ExecutiveSummarySection } from "./sections/executive-summary-section";
 import { PnlSection } from "./sections/pnl-section";
@@ -17,27 +16,18 @@ import { ExitSection } from "./sections/exit-section";
 /**
  * UnderwritingShell · single-scroll investment-memo layout.
  *
+ * No left rail · no sticky nav · the page is a continuous scroll where
+ * the 8 sections render top-to-bottom. The operator scrolls naturally
+ * the same way they would read an IC memo or a lender deck.
+ *
  * Owns the live engine inputs the operator can drive from inside the
  * memo flow:
  *   · scenarioId         · Conservador / Mercado / Optimista (lives inside Block B Returns)
  *   · assetOverrides     · per-driver overrides (e.g. N° Keys edited inline in Block A)
  *
  * Both flow through `buildBundleForScenario` which re-runs the engine
- * deterministically. No floating toolbar · the controls live inside the
- * relevant memorandum blocks so the page reads as one institutional
- * narrative rather than a SaaS dashboard.
+ * deterministically.
  */
-
-const NAV_ITEMS: NavItem[] = [
-  { number: 1, label: "Executive Summary", anchorId: "executive-summary", hint: "Drivers · returns · risk" },
-  { number: 2, label: "P&L", anchorId: "pnl", hint: "PropCo without Exit Strategy · Y0–Y10" },
-  { number: 3, label: "Balance Sheet", anchorId: "balance-sheet", hint: "Assets · Equity · Debt · reconciled" },
-  { number: 4, label: "Cash Flow", anchorId: "cash-flow", hint: "Operating · Investment · Financing · Equity" },
-  { number: 5, label: "DTA", anchorId: "dta", hint: "Tax shield · Ley IS · EBITDA 30% limit" },
-  { number: 6, label: "Investment · CAPEX", anchorId: "investment", hint: "Acquisition · CAPEX · D&A · Dynamic Cap Rate" },
-  { number: 7, label: "Financing", anchorId: "financing", hint: "Senior · CAPEX tranche · bullet · DSCR" },
-  { number: 8, label: "Exit Strategy", anchorId: "exit", hint: "Terminal · Project IRR · Equity IRR" },
-];
 
 export function UnderwritingShell({ bundle: initialBundle }: { bundle: UnderwritingBundle }) {
   const [scenarioId, setScenarioId] = useState<string>(initialBundle.inputs.scenario_id || "base");
@@ -52,29 +42,23 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
   const kpiItems = useMemo(() => buildKpiItems(bundle), [bundle]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
-      <aside className="min-w-0">
-        <StickySectionNav items={NAV_ITEMS} />
-      </aside>
+    <div className="space-y-6">
+      <FloatingKpiStrip items={kpiItems} />
 
-      <div className="min-w-0 space-y-6">
-        <FloatingKpiStrip items={kpiItems} />
-
-        <ExecutiveSummarySection
-          bundle={bundle}
-          scenarioId={scenarioId}
-          scenarioCatalog={SCENARIO_CATALOG}
-          onScenarioChange={setScenarioId}
-          onAssetChange={(patch) => setAssetOverrides((prev) => ({ ...prev, ...patch }))}
-        />
-        <PnlSection bundle={bundle} />
-        <BalanceSheetSection bundle={bundle} />
-        <CashFlowSection bundle={bundle} />
-        <DtaSection bundle={bundle} />
-        <InvestmentSection bundle={bundle} />
-        <FinancingSection bundle={bundle} />
-        <ExitSection bundle={bundle} />
-      </div>
+      <ExecutiveSummarySection
+        bundle={bundle}
+        scenarioId={scenarioId}
+        scenarioCatalog={SCENARIO_CATALOG}
+        onScenarioChange={setScenarioId}
+        onAssetChange={(patch) => setAssetOverrides((prev) => ({ ...prev, ...patch }))}
+      />
+      <PnlSection bundle={bundle} />
+      <BalanceSheetSection bundle={bundle} />
+      <CashFlowSection bundle={bundle} />
+      <DtaSection bundle={bundle} />
+      <InvestmentSection bundle={bundle} />
+      <FinancingSection bundle={bundle} />
+      <ExitSection bundle={bundle} />
     </div>
   );
 }
