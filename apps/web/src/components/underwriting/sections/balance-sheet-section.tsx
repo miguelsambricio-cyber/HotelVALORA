@@ -1,6 +1,5 @@
 import { SectionShell } from "../primitives/section-shell";
 import { KpiHero } from "../primitives/kpi-hero";
-import { RiskIndicator } from "../primitives/risk-indicator";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
@@ -8,10 +7,7 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
 
 /**
  * Section 03 · Balance Sheet · first-class reconciliation layer.
- *
- *   A · Capital structure snapshot (Y0 vs exit)
- *   B · Reconciliation invariants
- *   C · Detail schedule (always open)
+ * Capital structure snapshot + detail schedule.
  */
 export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) {
   const bs = bundle.computed.balance_sheet;
@@ -21,7 +17,6 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
   const recon = bundle.computed.reconciliation;
 
   const totalAssetsY0 = bs.total_assets[0] ?? 0;
-  const totalAssetsExit = bs.total_assets[exitYear] ?? 0;
   const equityY0 = bs.equity[0] ?? 0;
   const equityExit = bs.equity[exitYear] ?? 0;
   const debtY0 = bs.debt[0] ?? 0;
@@ -43,24 +38,9 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
               { label: "Total Assets · Y0", value: fmtEUR(totalAssetsY0), sub: "building + MEP at cost", highlight: true },
               { label: "Equity · Y0", value: fmtEUR(equityY0), sub: `${fmtPct((equityY0 / Math.max(totalAssetsY0, 1)) * 100)} of total` },
               { label: "Debt · Y0", value: fmtEUR(debtY0), sub: `${fmtPct((debtY0 / Math.max(totalAssetsY0, 1)) * 100)} of total` },
-              { label: "Total Assets · exit", value: fmtEUR(totalAssetsExit), sub: `Y${exitYear} · post-disposal`, highlight: true },
               { label: "Equity · exit", value: fmtEUR(equityExit), sub: `Δ ${signed(equityExit - equityY0)}${fmtEUR(Math.abs(equityExit - equityY0))}`, tone: equityExit > equityY0 ? "ok" : "warn" },
             ]}
           />
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <RiskIndicator
-              severity={allBalanced ? "ok" : "stress"}
-              label="I-1 · Balance Sheet balance"
-              detail={allBalanced ? `All ${periods.length} periods · ±1 €` : `${recon.bs_balanced.filter((b) => !b).length} period(s) break`}
-            />
-            <RiskIndicator
-              severity={cashOk ? "ok" : "stress"}
-              label="I-2 · Cash bridge"
-              detail={cashOk ? "ΔBS.cash ≡ CF.change · all periods" : "Cash bridge break detected"}
-            />
-            <RiskIndicator severity="ok" label="I-4 · DTA non-negative" detail="Spanish Ley IS · roll-forward consistent" />
-            <RiskIndicator severity="ok" label="I-6 · Retained earnings continuity" detail="reserves[t] ≡ reserves[t-1] + NI[t-1]" />
-          </div>
           <YearGrid periods={periods} caption="Balance Sheet · PropCo without Exit Strategy">
             <DivisionRow label="Assets" columnCount={cols} />
             <SubtotalRow label="Non Current Assets" values={bs.non_current_assets} tone="subtotal" />
