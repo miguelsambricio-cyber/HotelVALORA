@@ -1,31 +1,56 @@
+"use client";
+
+import { useState } from "react";
 import { SectionShell } from "../primitives/section-shell";
 import { MemorandumBlock } from "../primitives/memorandum-block";
-import { KpiHero } from "../primitives/kpi-hero";
-import { NarrativeParagraph, NarrativeMetric } from "../primitives/narrative-paragraph";
 import { RiskIndicator, parseReconciliationWarning } from "../primitives/risk-indicator";
-import type { UnderwritingBundle } from "@/lib/underwriting/types";
+import type { UnderwritingBundle, UnderwritingInputs } from "@/lib/underwriting/types";
+import type { ScenarioCatalogEntry } from "@/lib/underwriting/defaults";
+import { cn } from "@/lib/utils";
 
 /**
- * Section 01 · Executive Summary · the IC opener.
+ * Section 01 · Executive Summary · institutional underwriting control layer.
  *
- * Memorandum architecture · 3 blocks:
- *   A · Investment thesis (narrative + headline KPIs)
- *   B · Returns (Project + Equity IRR + MOIC + composition)
- *   C · Risk indicators (reconciliation warnings as institutional badges)
+ * 3 blocks · drivers → results → risk · NO narrative · NO accordion chrome.
  *
- * Every output is wired to the engine · no placeholders. The narrative
- * paragraph reads like a Blackstone IC memo opener · short, dense,
- * defendable.
+ *   A · Headline Metrics (DRIVERS)
+ *       N° Keys (editable) · Total Investment · Equity · % LTC ·
+ *       Dynamic Cap Rate · Hold Period
+ *
+ *   B · Returns (RESULTS · with inline scenario picker)
+ *       Project IRR · Equity IRR · MOIC · Cap Rate Scenario picker ·
+ *       Stabilized Yield · Exit Price
+ *
+ *   C · Risk Indicators
+ *       Reconciliation + covenant warnings in wrap-friendly cards
+ *
+ * All content lives in `summary` slot · no detail accordion · no
+ * "Detail schedule" gray bar. The page reads as a single editorial
+ * institutional layer.
  */
-export function ExecutiveSummarySection({ bundle }: { bundle: UnderwritingBundle }) {
+export function ExecutiveSummarySection({
+  bundle,
+  scenarioId,
+  scenarioCatalog,
+  onScenarioChange,
+  onAssetChange,
+}: {
+  bundle: UnderwritingBundle;
+  scenarioId: string;
+  scenarioCatalog: ScenarioCatalogEntry[];
+  onScenarioChange: (id: string) => void;
+  onAssetChange: (patch: Partial<UnderwritingInputs["asset"]>) => void;
+}) {
   const asset = bundle.inputs.asset;
   const c = bundle.computed;
   const exit = c.exit;
   const inv = c.investment;
-  const capExit = c.cap_rate.exit;
   const capEntry = c.cap_rate.entry;
+  const capExit = c.cap_rate.exit;
   const stabilisedYield = inv.stabilized_yield_progression[exit.exit_year] ?? 0;
-  const confidence = capEntry.dynamic.confidence;
+  const ltcPct = inv.total_building_cost > 0
+    ? (c.financing.total_principal / inv.total_building_cost) * 100
+    : 0;
 
   return (
     <SectionShell
@@ -34,56 +59,38 @@ export function ExecutiveSummarySection({ bundle }: { bundle: UnderwritingBundle
       title="Executive Summary"
       subtitle={`${asset.hotel_name ?? "Unnamed asset"} · ${asset.submarket} · ${asset.rooms} keys · ${asset.category.replace("star", "*")} ${tierLabel(asset.category)}`}
       status={{ label: "Investment committee draft", tone: "info" }}
-      hideDetailToggle
       summary={
-        <NarrativeParagraph eyebrow="Investment thesis">
-          {asset.rooms}-key {tierLabel(asset.category).toLowerCase()} {actionLabel(asset.state)} opportunity in{" "}
-          {asset.submarket} targeting stabilised <NarrativeMetric>{fmtPct(stabilisedYield * 100)}</NarrativeMetric>{" "}
-          yield and <NarrativeMetric>{fmtPct(exit.equity_irr_pct)}</NarrativeMetric> levered IRR over a{" "}
-          <NarrativeMetric>{exit.exit_year}-year</NarrativeMetric> hold. Exit valuation underpinned by a{" "}
-          <NarrativeMetric>{fmtPct(capExit.used_pct)}</NarrativeMetric> institutional cap rate with{" "}
-          {confidence.band.replace("_", "-")} confidence supported by{" "}
-          {capEntry.dynamic.evidence.comp_count} comparable transactions in {asset.submarket}.
-        </NarrativeParagraph>
-      }
-      detail={
         <div className="space-y-6 print:space-y-4">
-          <MemorandumBlock number="A" title="Headline metrics" subtitle="Investment composition · pricing · yield">
-            <KpiHero
-              tiles={[
-                { label: "Total Investment", value: fmtEUR(inv.total_building_cost), sub: `${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`, highlight: true },
-                { label: "Equity Investment", value: fmtEUR(exit.equity_investment), sub: `${fmtPct((exit.equity_investment / inv.total_building_cost) * 100)} of total` },
-                { label: "Total Debt", value: fmtEUR(c.financing.total_principal), sub: `${fmtPct((c.financing.total_principal / inv.total_building_cost) * 100)} LTC` },
-                { label: "Entry Cap Rate", value: fmtPct(capEntry.used_pct), sub: capEntry.source === "dynamic" ? "Dynamic" : "Manual override" },
-                { label: "Hold Period", value: `${exit.exit_year} years`, sub: `Exit Y${exit.exit_year}` },
-                { label: "Confidence", value: `${confidence.score_0_100.toFixed(0)}/100`, sub: confidence.band.replace("_", " "), tone: confidenceTone(confidence.score_0_100) },
-              ]}
-            />
-          </MemorandumBlock>
-
-          <MemorandumBlock number="B" title="Returns" subtitle="Project · equity · multiple">
-            <KpiHero
-              tiles={[
-                { label: "Project IRR", value: fmtPct(exit.project_irr_pct), sub: "unlevered · pre-tax", tone: irrTone(exit.project_irr_pct, 8) },
-                { label: "Equity IRR", value: fmtPct(exit.equity_irr_pct), sub: "levered · post-tax", tone: irrTone(exit.equity_irr_pct, 12), highlight: true },
-                { label: "MOIC", value: `${exit.moic.toFixed(2)}×`, sub: "equity multiple", tone: moicTone(exit.moic) },
-                { label: "Stabilised Yield", value: fmtPct(stabilisedYield * 100), sub: `Year ${exit.exit_year}` },
-                { label: "Exit Cap Rate", value: fmtPct(capExit.used_pct), sub: `Band ${fmtPct(capExit.dynamic.band.low_pct)}–${fmtPct(capExit.dynamic.band.high_pct)}` },
-                { label: "Exit Price", value: fmtEUR(exit.exit_price), sub: `${fmtEUR(exit.exit_price_per_room)} / key` },
-              ]}
-            />
-            <div className="grid gap-3 sm:grid-cols-3">
-              <DistributionTile label="Equity contributed" value={exit.equity_investment} />
-              <DistributionTile label="Net exit proceeds" value={exit.exit_price * (1 - bundle.inputs.exit.fee_pct) - exit.debt_repayment_at_exit + (c.financing.total_eofy_balance[exit.exit_year] ?? 0)} />
-              <DistributionTile
-                label="Profit share to equity"
-                value={exit.profit_share}
-                tone={exit.profit_share > 0 ? "ok" : "warn"}
+          <MemorandumBlock number="A" title="Headline metrics" subtitle="Underwriting configuration drivers">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <EditableKeysTile
+                value={asset.rooms}
+                onChange={(rooms) => onAssetChange({ rooms })}
               />
+              <DriverTile label="Total Investment" value={fmtEUR(inv.total_building_cost)} sub={`${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`} highlight />
+              <DriverTile label="Equity Investment" value={fmtEUR(exit.equity_investment)} sub={`${fmtPct((exit.equity_investment / Math.max(inv.total_building_cost, 1)) * 100)} of total`} />
+              <DriverTile label="% LTC" value={fmtPct(ltcPct)} sub={fmtEUR(c.financing.total_principal)} />
+              <DriverTile label="Dynamic Cap Rate" value={fmtPct(capEntry.used_pct)} sub={capEntry.source === "dynamic" ? "Dynamic · entry" : "Manual override"} />
+              <DriverTile label="Hold Period" value={`${exit.exit_year}y`} sub={`Exit Y${exit.exit_year}`} />
             </div>
           </MemorandumBlock>
 
-          <MemorandumBlock number="C" title="Risk indicators" subtitle="Institutional reconciliation signals">
+          <MemorandumBlock number="B" title="Returns" subtitle="Underwriting conclusions · scenario-sensitive">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <ResultTile label="Project IRR" value={fmtPct(exit.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(exit.project_irr_pct, 8)} />
+              <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
+              <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
+              <ScenarioPickerTile
+                catalog={scenarioCatalog}
+                activeId={scenarioId}
+                onChange={onScenarioChange}
+              />
+              <ResultTile label="Stabilised Yield" value={fmtPct(stabilisedYield * 100)} sub={`Year ${exit.exit_year}`} />
+              <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtPct(capExit.used_pct)} exit cap · ${fmtEUR(exit.exit_price_per_room)} / key`} />
+            </div>
+          </MemorandumBlock>
+
+          <MemorandumBlock number="C" title="Risk indicators" subtitle="Reconciliation + covenant signals">
             <RiskIndicatorsPanel warnings={c.reconciliation.warnings} />
           </MemorandumBlock>
         </div>
@@ -92,33 +99,211 @@ export function ExecutiveSummarySection({ bundle }: { bundle: UnderwritingBundle
   );
 }
 
-// ─── Sub-primitives ──────────────────────────────────────────────────
+// ─── Driver tile (Block A · neutral institutional) ───────────────────
 
-function DistributionTile({ label, value, tone = "neutral" }: { label: string; value: number; tone?: "ok" | "warn" | "neutral" }) {
-  const colour = tone === "ok" ? "text-emerald-200 print:text-emerald-700"
-    : tone === "warn" ? "text-amber-200 print:text-amber-700"
-    : "text-slate-100 print:text-slate-900";
+function DriverTile({
+  label,
+  value,
+  sub,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  highlight?: boolean;
+}) {
   return (
-    <div className="rounded-md border border-slate-800/60 bg-slate-900/40 p-3 print:border-slate-300 print:bg-white">
-      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">{label}</p>
-      <p className={`mt-1 font-mono text-[15px] font-extrabold tabular-nums ${colour}`}>{fmtEUR(value)}</p>
+    <div
+      className={cn(
+        "rounded-md border p-3 print:break-inside-avoid",
+        highlight
+          ? "border-lime-300/40 bg-lime-300/5 print:border-emerald-500 print:bg-emerald-50"
+          : "border-slate-800/60 bg-slate-900/40 print:border-slate-300 print:bg-white",
+      )}
+    >
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1 font-mono text-[17px] font-extrabold tabular-nums",
+          highlight ? "text-lime-200 print:text-emerald-700" : "text-white print:text-slate-900",
+        )}
+      >
+        {value}
+      </p>
+      {sub && (
+        <p className="mt-0.5 truncate font-mono text-[9.5px] text-slate-500 print:text-slate-600">
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
 
+// ─── Editable N° Keys tile · drives engine re-run ────────────────────
+
+function EditableKeysTile({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (rooms: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const commit = () => {
+    const parsed = parseInt(draft.replace(/[^0-9]/g, ""), 10);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed !== value) {
+      onChange(parsed);
+    } else {
+      setDraft(String(value));
+    }
+  };
+  return (
+    <div className="rounded-md border border-lime-300/40 bg-lime-300/5 p-3 print:break-inside-avoid print:border-emerald-500 print:bg-emerald-50">
+      <p className="flex items-center justify-between font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+        <span>N° Keys</span>
+        <span className="rounded bg-lime-300/15 px-1 font-mono text-[8.5px] text-lime-200 ring-1 ring-lime-300/30 print:hidden">
+          Edit
+        </span>
+      </p>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setDraft(String(value));
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+        className="mt-1 w-full rounded-sm border border-transparent bg-transparent px-0 py-0 font-mono text-[17px] font-extrabold tabular-nums text-lime-200 focus:border-lime-300/40 focus:bg-slate-900/60 focus:outline-none print:text-emerald-700"
+        aria-label="Number of keys"
+      />
+      <p className="mt-0.5 font-mono text-[9.5px] text-slate-500 print:text-slate-600">
+        re-prices the underwriting
+      </p>
+    </div>
+  );
+}
+
+// ─── Result tile (Block B · tone-aware) ──────────────────────────────
+
+function ResultTile({
+  label,
+  value,
+  sub,
+  tone = "neutral",
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "neutral" | "ok" | "warn" | "negative";
+  highlight?: boolean;
+}) {
+  const valueTone =
+    tone === "ok" ? "text-emerald-300 print:text-emerald-700"
+    : tone === "warn" ? "text-amber-300 print:text-amber-700"
+    : tone === "negative" ? "text-rose-300 print:text-rose-700"
+    : highlight ? "text-lime-200 print:text-emerald-700"
+    : "text-white print:text-slate-900";
+  return (
+    <div
+      className={cn(
+        "rounded-md border p-3 print:break-inside-avoid",
+        highlight
+          ? "border-lime-300/40 bg-lime-300/5 print:border-emerald-500 print:bg-emerald-50"
+          : "border-slate-800/60 bg-slate-900/40 print:border-slate-300 print:bg-white",
+      )}
+    >
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+        {label}
+      </p>
+      <p className={cn("mt-1 font-mono text-[17px] font-extrabold tabular-nums", valueTone)}>{value}</p>
+      {sub && (
+        <p className="mt-0.5 truncate font-mono text-[9.5px] text-slate-500 print:text-slate-600">{sub}</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Scenario picker tile · sits inside Block B Returns ──────────────
+
+function ScenarioPickerTile({
+  catalog,
+  activeId,
+  onChange,
+}: {
+  catalog: ScenarioCatalogEntry[];
+  activeId: string;
+  onChange: (id: string) => void;
+}) {
+  const active = catalog.find((s) => s.id === activeId);
+  return (
+    <div className="rounded-md border border-slate-800/60 bg-slate-900/40 p-3 print:break-inside-avoid print:border-slate-300 print:bg-white">
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+        Cap Rate Scenario
+      </p>
+      <div
+        role="radiogroup"
+        aria-label="Cap rate scenario"
+        className="mt-1.5 inline-flex w-full rounded-md border border-slate-700/60 bg-slate-950/60 p-0.5 print:hidden"
+      >
+        {catalog.map((s) => {
+          const isActive = s.id === activeId;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="radio"
+              aria-checked={isActive}
+              onClick={() => onChange(s.id)}
+              title={s.hint}
+              className={cn(
+                "flex-1 rounded-sm px-2 py-1 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.16em] transition-colors",
+                isActive
+                  ? "bg-lime-300 text-forest-900"
+                  : "text-slate-300 hover:bg-slate-800/80 hover:text-white",
+              )}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+      {/* Print-only: render the active scenario as plain text */}
+      <p className="mt-1 hidden font-mono text-[15px] font-extrabold tabular-nums text-emerald-700 print:block">
+        {active?.label ?? activeId}
+      </p>
+      <p className="mt-1 truncate font-mono text-[9.5px] text-slate-500 print:text-slate-600">
+        {active?.hint ?? "scenario adjustment applied"}
+      </p>
+    </div>
+  );
+}
+
+// ─── Risk indicators panel · grid layout · wrap-friendly ─────────────
+
 function RiskIndicatorsPanel({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) {
     return (
-      <div className="flex flex-wrap gap-2">
-        <RiskIndicator severity="ok" label="All institutional invariants pass" detail="BS balanced · cash bridge OK · DSCR ≥ 1.0 · DTA ≥ 0 · drawdown ≡ principal · reserves continuous" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <RiskIndicator
+          severity="ok"
+          label="All institutional invariants pass"
+          detail="BS balanced · cash bridge OK · DSCR ≥ 1.0 · DTA ≥ 0 · drawdown ≡ principal · reserves continuous"
+        />
       </div>
     );
   }
   const parsed = warnings.map(parseReconciliationWarning);
-  // Group by severity for visual cadence: stress first, then watch, then info.
   const grouped = [...parsed].sort((a, b) => sevOrder(a.severity) - sevOrder(b.severity));
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {grouped.map((p, i) => (
         <RiskIndicator key={i} {...p} />
       ))}
@@ -134,14 +319,6 @@ function sevOrder(s: "ok" | "watch" | "stress" | "info"): number {
 
 function tierLabel(c: "3star" | "4star" | "5star"): string {
   return c === "5star" ? "Luxury" : c === "4star" ? "Upscale" : "Midscale";
-}
-
-function actionLabel(s: "new" | "renovated" | "needs_work"): string {
-  return s === "new" ? "newly built" : s === "renovated" ? "repositioning" : "value-add reposition";
-}
-
-function confidenceTone(score: number): "ok" | "warn" | "negative" {
-  return score >= 70 ? "ok" : score >= 50 ? "warn" : "negative";
 }
 
 function irrTone(irr: number, target: number): "ok" | "warn" | "negative" {

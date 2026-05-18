@@ -147,13 +147,25 @@ export const SCENARIO_CATALOG: ScenarioCatalogEntry[] = [
 ];
 
 /**
- * Build a fresh UnderwritingBundle for a given scenarioId · re-runs the
- * engine deterministically. Used by the Scenario UI to re-price the
- * whole report reactively when the operator switches scenarios.
+ * Build a fresh UnderwritingBundle for a given scenarioId + optional
+ * asset overrides · re-runs the engine deterministically.
+ *
+ * Used by the underwriting page when operators:
+ *   · switch scenario (Conservador / Mercado / Optimista)
+ *   · edit N° Keys (and any other asset-level driver in the future)
+ *
+ * Override merge is shallow into `inputs.asset` (Partial<AssetBasics>).
  */
-export function buildBundleForScenario(scenarioId: string): UnderwritingBundle {
+export function buildBundleForScenario(
+  scenarioId: string,
+  assetOverrides?: Partial<UnderwritingInputs["asset"]>,
+): UnderwritingBundle {
   const entry = SCENARIO_CATALOG.find((s) => s.id === scenarioId);
-  const inputs: UnderwritingInputs = { ...INPUTS_BASE, scenario_id: scenarioId };
+  const inputs: UnderwritingInputs = {
+    ...INPUTS_BASE,
+    scenario_id: scenarioId,
+    asset: { ...INPUTS_BASE.asset, ...(assetOverrides ?? {}) },
+  };
   return {
     ...currentVersionTag(),
     meta: {
