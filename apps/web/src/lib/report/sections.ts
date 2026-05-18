@@ -80,6 +80,7 @@ export const REPORT_SECTIONS: ReportSection[] = [
     subItems: [
       { href: "#structure", label: "Finance structure" },
       { href: "/report/financials/pl", label: "5-Year P&L" },
+      { href: "/report/financials/underwriting", label: "Underwriting" },
       { href: "#irr", label: "Underwriting IRR" },
     ],
   },
