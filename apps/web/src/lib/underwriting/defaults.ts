@@ -127,3 +127,41 @@ export const SCENARIO_BASE: UnderwritingBundle = {
   inputs: INPUTS_BASE,
   computed: runEngine(INPUTS_BASE),
 };
+
+// ─── Scenario catalog · drives the Scenario UI picker ────────────────
+//
+// The cap-rate-engine's adjustment policy maps scenario_id substrings
+// to deltas (downside/conservative → +0.30 pp · upside/aggressive → -0.20 pp).
+// The IDs below match those substrings so the engine reacts correctly.
+
+export interface ScenarioCatalogEntry {
+  id: string;
+  label: string;
+  hint: string;
+}
+
+export const SCENARIO_CATALOG: ScenarioCatalogEntry[] = [
+  { id: "downside", label: "Conservador", hint: "+0,30pp · underwriting prudence" },
+  { id: "base", label: "Mercado", hint: "Base case · no scenario overlay" },
+  { id: "upside", label: "Optimista", hint: "−0,20pp · aggressive pricing" },
+];
+
+/**
+ * Build a fresh UnderwritingBundle for a given scenarioId · re-runs the
+ * engine deterministically. Used by the Scenario UI to re-price the
+ * whole report reactively when the operator switches scenarios.
+ */
+export function buildBundleForScenario(scenarioId: string): UnderwritingBundle {
+  const entry = SCENARIO_CATALOG.find((s) => s.id === scenarioId);
+  const inputs: UnderwritingInputs = { ...INPUTS_BASE, scenario_id: scenarioId };
+  return {
+    ...currentVersionTag(),
+    meta: {
+      id: scenarioId,
+      label: entry?.label ?? scenarioId,
+      description: entry?.hint ?? SCENARIO_BASE_META.description,
+    },
+    inputs,
+    computed: runEngine(inputs),
+  };
+}
