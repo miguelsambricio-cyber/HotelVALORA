@@ -4,6 +4,80 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-18 — Underwriting OS · Block 5 · Memorandum Experience Layer (all 7 sections IC-ready)
+
+Elevated `/report/financials/underwriting` from "engine-facing tables" to a coherent institutional investment memorandum. Applies the same memorandum treatment Section 6 already had (4 blocks · narrative-first · KPI hero · grouped detail · risk indicators) to the remaining 7 sections. No engine changes · pure presentation-quality block.
+
+### Shared primitives (4 new files)
+- `primitives/memorandum-block.tsx` — Block A/B/C wrapper with number + title + subtitle · sticky border + print:break-inside-avoid
+- `primitives/narrative-paragraph.tsx` — IC-grade prose block with eyebrow tag + inline `<NarrativeMetric>` highlight
+- `primitives/kpi-hero.tsx` — KpiHero + KpiTile · tone-aware (neutral/ok/warn/negative/highlight) · 4-6 tiles per row · dark→light inversion
+- `primitives/risk-indicator.tsx` — Institutional risk badges (NOT errors) · severity ok/watch/stress/info · `parseReconciliationWarning` helper converts engine warnings to badge props
+
+### Section 01 · Executive Summary (was placeholder · now bookend)
+- Narrative thesis: "256-key Upscale repositioning opportunity in Madrid Centro targeting stabilised 6.46% yield and 7.84% levered IRR over a 7-year hold..."
+- Block A · Headline metrics (Total Investment · Equity Investment · Total Debt · Entry Cap · Hold Period · Confidence)
+- Block B · Returns (Project IRR · Equity IRR · MOIC · Stabilised Yield · Exit Cap Band · Exit Price) + distribution tiles (Equity contributed / Net exit proceeds / Profit share)
+- Block C · Risk indicators · consumes `bundle.computed.reconciliation.warnings` via `parseReconciliationWarning` · severity-sorted (stress first)
+
+### Section 07 · Financing (debt-committee aesthetic)
+- Narrative capital stack with worst-DSCR callout
+- Block A · Debt stack visualization (horizontal bar with per-tranche colour + share %) + per-tranche tiles
+- Block B · Rate stack (Euribor + blended margin + blended effective + Y1 interest) + amortization narrative summary (total interest paid + principal repaid + balance at exit)
+- Block C · Covenant health (worst DSCR + peak LTV + ICR Y1 tone-coded) + CovenantStrip table (DSCR/ICR/LTV per year tone-coded ok/warn/stress)
+- Block D · Full portfolio schedule (existing YearGrid retained)
+- Refinance readiness placeholder (Block 9+) + asset tag
+
+### Section 08 · Exit Strategy (strongest narrative piece)
+- Narrative exit story with exit_price + cap rate band + confidence + net proceeds + MOIC + IRR
+- Block A · Returns (Project IRR · Equity IRR · MOIC · Profit share · tone-coded)
+- Block B · Entry vs Exit valuation (3-col layout · Entry card + Hold tile + Exit card highlighted) + ValueCreationBridge (Entry → NOI growth → Yield compression → Exit)
+- Block C · Cap rate rationale strip (consumes `cap_rate.exit.dynamic.adjustments` from Dynamic Cap Rate Engine)
+- Block D · Equity cash flow timeline (vertical bars · positive emerald · negative rose) + summary stats (equity contributed / net exit proceeds / total distributions cum.)
+- Block E · Detail schedule (full Project + Equity CF year grid)
+
+### Section 04 · Cash Flow (4 sections separated)
+- Narrative cash arc with Y0 deployment + hold operating + cash at exit
+- Block A · Cash bridge headline (Y0 outlay / Y0 debt / Y0 equity / Cash at exit)
+- Block B · Operating CF (EBITDA + tax + operating CF subtotal in own block)
+- Block C · Investment CF (acquisition + capex + contingency + fees · all one-shot Y0)
+- Block D · Financing + Equity CF (debt drawdowns + service · equity drawn · net CF result + BS change)
+
+### Section 02 · P&L (USALI hierarchy)
+- Narrative GOP ramp + EBITDA margin + first positive NI year
+- Block A · Operating headline (Total Revenue Y1 / Stabilised GOP / Stabilised EBITDA / EBITDA margin / Net Income stabilised / Cumulative NI)
+- Block B · Detail schedule with Revenue → Costs → EBITDA → Below-the-line (D&A → EBIT → FinExp → EBT → CIT → NI) grouped via DivisionRow
+
+### Section 03 · Balance Sheet (first-class reconciliation layer)
+- Narrative capital structure arc Y0 → exit with realised cash + debt repaid
+- Block A · Capital structure snapshot (Total Assets / Equity / Debt at Y0 + at exit · 6 tiles)
+- Block B · Reconciliation invariants as RiskIndicator badges (I-1 BS balance · I-2 cash bridge · I-4 DTA ≥ 0 · I-6 reserves continuity) · all ok in baseline
+- Block C · Detail schedule (Assets group + Equity+Debt group · same YearGrid)
+
+### Section 05 · DTA (Spanish Ley IS accounting-grade)
+- Narrative fiscal mechanics with cumulative DTA accruals + decreases + cash tax vs accounting tax
+- Block A · Tax separation headline (6 tiles · Peak DTA · DTA accruals · DTA released · Cash tax · Accounting tax · DTA at exit)
+- Block B · Detail schedule (P&L feeds → Ley IS limits → DTA roll-forward → CIT)
+
+### Design discipline
+- Lime accent (`text-lime-300/80`) for institutional eyebrows · `print:text-emerald-700` inversion
+- All blocks `print:break-inside-avoid` for landscape PDF rendering
+- KPI tones (`ok`/`warn`/`negative`) drive contextual color · stays subtle, never alarming
+- Risk indicators rendered as institutional risk SIGNALS (sophistication marker), not error states
+- Narrative paragraphs use border-left lime accent + headline font · feel like IC prose not body text
+
+### Engine integration (existing engine outputs · zero new math)
+- Wires `exit.project_irr_pct`, `exit.equity_irr_pct`, `exit.moic`, `cap_rate.entry/exit.used_pct`, `cap_rate.exit.dynamic.adjustments`, `cap_rate.entry.dynamic.confidence`, `investment.stabilized_yield_progression`, `financing.dscr/icr/ltv_pct`, `reconciliation.warnings`
+- Section 8 Cap Rate Rationale block consumes the 5-layer adjustment stack directly from the Dynamic Cap Rate Engine
+- Section 1 Risk Indicators panel renders reconciliation warnings via severity-sorted badges (stress → watch → info)
+
+### Verification
+- `npm run typecheck` · 0 errors
+- `engine-parity-check.mjs` · all 6 hard invariants PASS · BS balances 0.00 € all 11 periods (no engine touched)
+- All 7 redesigned sections + Section 6 reference render coherently · same visual language · same print discipline
+
+---
+
 ## 2026-05-18 — Underwriting OS · Block 6 · Dynamic Cap Rate Engine (CORE IP · market intelligence layer)
 
 Built the proprietary intelligence layer that converts comparable-transaction evidence into a defensible cap-rate recommendation with rationale, confidence and audit trail. This is HotelVALORA's commercial moat vs spreadsheets / generic underwriting apps / Argus-lite clones.
