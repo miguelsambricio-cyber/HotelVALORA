@@ -1,31 +1,52 @@
 import { SectionShell } from "../primitives/section-shell";
-import { KpiHero } from "../primitives/kpi-hero";
+import { KpiTile, type KpiTileProps } from "../primitives/kpi-hero";
+import { EditableTile } from "../primitives/editable-tile";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
+import type { UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 
 /**
- * Section 02 · P&L · USALI structure · memorandum view.
+ * Section 02 · P&L · USALI structure · institutional headline + detail.
  *
- *   A · Operating headline (KPIs · always visible)
- *   B · Detail schedule (full USALI per-period table · always open)
- *
- * No thesis narrative · no accordion chrome · institutional control layer.
+ * Headline KPIs (operator priority set · 2026-05-18):
+ *   1. Stabilised GOP
+ *   2. GOP margin               · GOP / Total Revenue
+ *   3. Stabilised EBITDA
+ *   4. EBITDA margin            · EBITDA / Total Revenue
+ *   5. EBITDA per key
+ *   6. CIT %                    · editable · drives engine re-price
  */
-export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
+export function PnlSection({
+  bundle,
+  onOverrideChange,
+}: {
+  bundle: UnderwritingBundle;
+  onOverrideChange: (patch: UnderwritingInputOverrides) => void;
+}) {
   const p = bundle.computed.pnl;
   const periods = bundle.computed.periods;
   const cols = 1 + periods.length;
   const exitYear = bundle.computed.exit.exit_year;
+  const rooms = bundle.inputs.asset.rooms;
+  const citRatePct = bundle.inputs.tax.cit_rate_pct * 100; // decimal → percentage points
+
   const stabilisedYr = Math.max(1, exitYear);
+  const stabilisedRevenue =
+    (p.hotel[stabilisedYr] ?? 0) +
+    (p.fb[stabilisedYr] ?? 0) +
+    (p.other_departments[stabilisedYr] ?? 0);
   const stabilisedGop = p.gross_operating_profit[stabilisedYr] ?? 0;
   const stabilisedEbitda = p.ebitda_after_replacement[stabilisedYr] ?? 0;
-  const stabilisedNi = p.net_income[stabilisedYr] ?? 0;
-  const stabilisedGopMarginPct = stabilisedGop > 0
-    ? (stabilisedEbitda / stabilisedGop) * 100
+
+  const gopMarginPct = stabilisedRevenue > 0
+    ? (stabilisedGop / stabilisedRevenue) * 100
     : 0;
-  const totalRevY1 = (p.hotel[1] ?? 0) + (p.fb[1] ?? 0) + (p.other_departments[1] ?? 0);
+  const ebitdaMarginPct = stabilisedRevenue > 0
+    ? (stabilisedEbitda / stabilisedRevenue) * 100
+    : 0;
+  const ebitdaPerKey = rooms > 0 ? stabilisedEbitda / rooms : 0;
 
   return (
     <SectionShell
@@ -36,16 +57,22 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
       status={{ label: "Operating truth · engine-driven", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <KpiHero
-            tiles={[
-              { label: "Total Revenue · Y1", value: fmtEUR(totalRevY1), sub: "departmental P&L sum" },
-              { label: "Stabilised GOP", value: fmtEUR(stabilisedGop), sub: `Y${stabilisedYr} · pre owner costs` },
-              { label: "Stabilised EBITDA", value: fmtEUR(stabilisedEbitda), sub: `Y${stabilisedYr} · post replacement`, highlight: true },
-              { label: "EBITDA margin", value: fmtPct(stabilisedGopMarginPct), sub: "% of GOP", tone: marginTone(stabilisedGopMarginPct) },
-              { label: "Net Income · stabilised", value: fmtEUR(stabilisedNi), sub: `Y${stabilisedYr} · after CIT`, tone: stabilisedNi > 0 ? "ok" : "warn" },
-              { label: "Cumulative NI", value: fmtEUR(p.total_net_income[exitYear] ?? 0), sub: `through Y${exitYear} hold` },
-            ]}
-          />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <PnlKpi label="Stabilised GOP" value={fmtEUR(stabilisedGop)} sub={`Y${stabilisedYr} · pre owner costs`} highlight />
+            <PnlKpi label="GOP margin" value={fmtPct(gopMarginPct)} sub="% of total revenue" tone={marginTone(gopMarginPct, 30)} />
+            <PnlKpi label="Stabilised EBITDA" value={fmtEUR(stabilisedEbitda)} sub={`Y${stabilisedYr} · post replacement`} highlight />
+            <PnlKpi label="EBITDA margin" value={fmtPct(ebitdaMarginPct)} sub="% of total revenue" tone={marginTone(ebitdaMarginPct, 25)} />
+            <PnlKpi label="EBITDA per key" value={fmtEUR(ebitdaPerKey)} sub={`${rooms} keys`} />
+            <EditableTile
+              label="CIT %"
+              value={citRatePct}
+              format="percent"
+              min={0}
+              max={100}
+              onCommit={(cit_rate_pct) => onOverrideChange({ cit_rate_pct })}
+              sub="Spanish Ley IS · 25% standard"
+            />
+          </div>
           <YearGrid periods={periods} caption="P&L · PropCo without Exit Strategy">
             <DivisionRow label="Revenue" columnCount={cols} />
             <YearRow label="Hotel" values={p.hotel} indent={1} />
@@ -73,8 +100,12 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
   );
 }
 
-function marginTone(pct: number): "ok" | "warn" | "negative" {
-  return pct >= 70 ? "ok" : pct >= 50 ? "warn" : "negative";
+function PnlKpi(props: KpiTileProps) {
+  return <KpiTile {...props} />;
+}
+
+function marginTone(pct: number, target: number): "ok" | "warn" | "negative" {
+  return pct >= target ? "ok" : pct >= target * 0.7 ? "warn" : "negative";
 }
 
 function fmtEUR(n: number): string {

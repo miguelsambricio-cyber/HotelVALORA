@@ -147,25 +147,45 @@ export const SCENARIO_CATALOG: ScenarioCatalogEntry[] = [
 ];
 
 /**
+ * Operator-editable input overrides · drive the live underwriting page.
+ * Each field maps to an institutional driver the operator can change
+ * inline, triggering a full engine re-price.
+ */
+export interface UnderwritingInputOverrides {
+  /** Asset · N° Keys. */
+  rooms?: number;
+  /** Asset · gross sqm. */
+  total_sqm?: number;
+  /** Acquisition · asking price (€). */
+  asking_price?: number;
+  /** Acquisition · appraised hotel value (€). */
+  hotel_value?: number;
+  /** Exit · year (1-10). */
+  exit_year?: number;
+  /** Senior tranche · LTV percentage points (e.g. 65 = 65%). */
+  ltv_pct?: number;
+  /** Corporate income tax rate · percentage points (e.g. 25 = 25%). */
+  cit_rate_pct?: number;
+}
+
+/**
  * Build a fresh UnderwritingBundle for a given scenarioId + optional
- * asset overrides · re-runs the engine deterministically.
+ * input overrides · re-runs the engine deterministically.
  *
  * Used by the underwriting page when operators:
  *   · switch scenario (Conservador / Mercado / Optimista)
- *   · edit N° Keys (and any other asset-level driver in the future)
+ *   · edit any institutional driver inline (N° Keys · Asking Price ·
+ *     Exit Year · LTV % · CIT % · etc.)
  *
- * Override merge is shallow into `inputs.asset` (Partial<AssetBasics>).
+ * Overrides are applied to a deep clone of INPUTS_BASE · mutations
+ * stay isolated and the base scenario remains pristine.
  */
 export function buildBundleForScenario(
   scenarioId: string,
-  assetOverrides?: Partial<UnderwritingInputs["asset"]>,
+  overrides?: UnderwritingInputOverrides,
 ): UnderwritingBundle {
   const entry = SCENARIO_CATALOG.find((s) => s.id === scenarioId);
-  const inputs: UnderwritingInputs = {
-    ...INPUTS_BASE,
-    scenario_id: scenarioId,
-    asset: { ...INPUTS_BASE.asset, ...(assetOverrides ?? {}) },
-  };
+  const inputs = applyOverrides(INPUTS_BASE, scenarioId, overrides);
   return {
     ...currentVersionTag(),
     meta: {
@@ -176,4 +196,53 @@ export function buildBundleForScenario(
     inputs,
     computed: runEngine(inputs),
   };
+}
+
+function applyOverrides(
+  base: UnderwritingInputs,
+  scenarioId: string,
+  overrides: UnderwritingInputOverrides | undefined,
+): UnderwritingInputs {
+  // Clone the bundle's inputs so the base scenario stays pristine
+  // across re-renders (overrides mutate the clone only).
+  const cloned: UnderwritingInputs = JSON.parse(JSON.stringify(base));
+  cloned.scenario_id = scenarioId;
+
+  if (!overrides) return cloned;
+
+  if (overrides.rooms !== undefined && overrides.rooms > 0) {
+    cloned.asset.rooms = Math.round(overrides.rooms);
+  }
+  if (overrides.total_sqm !== undefined && overrides.total_sqm > 0) {
+    cloned.asset.total_sqm = Math.round(overrides.total_sqm);
+  }
+  if (overrides.asking_price !== undefined && overrides.asking_price > 0) {
+    cloned.acquisition.asking_price = overrides.asking_price;
+    // If hotel_value not separately overridden, scale it proportionally
+    // (preserves the operator's hotel_value-to-asking ratio).
+    if (overrides.hotel_value === undefined) {
+      const ratio = base.acquisition.hotel_value / base.acquisition.asking_price;
+      cloned.acquisition.hotel_value = overrides.asking_price * ratio;
+    }
+  }
+  if (overrides.hotel_value !== undefined && overrides.hotel_value > 0) {
+    cloned.acquisition.hotel_value = overrides.hotel_value;
+  }
+  if (overrides.exit_year !== undefined) {
+    cloned.exit.year = Math.max(1, Math.min(10, Math.round(overrides.exit_year)));
+  }
+  if (overrides.ltv_pct !== undefined) {
+    // Mutate the senior tranche's LTV-of-value principal spec.
+    cloned.financing.tranches = cloned.financing.tranches.map((t) => {
+      if (t.kind === "senior_secured" && t.principal.kind === "ltv_of_value") {
+        return { ...t, principal: { ...t.principal, ltv_pct: overrides.ltv_pct! } };
+      }
+      return t;
+    });
+  }
+  if (overrides.cit_rate_pct !== undefined) {
+    // CIT stored as decimal (0.25 = 25%) · UI passes percentage points.
+    cloned.tax.cit_rate_pct = overrides.cit_rate_pct / 100;
+  }
+  return cloned;
 }

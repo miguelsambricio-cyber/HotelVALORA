@@ -25,7 +25,6 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
   const equityY0 = bs.equity[0] ?? 0;
   const equityExit = bs.equity[exitYear] ?? 0;
   const debtY0 = bs.debt[0] ?? 0;
-  const debtExit = bs.debt[exitYear] ?? 0;
 
   const allBalanced = recon.bs_balanced.every((b) => b);
   const cashOk = recon.cash_matches_cf;
@@ -46,7 +45,6 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
               { label: "Debt · Y0", value: fmtEUR(debtY0), sub: `${fmtPct((debtY0 / Math.max(totalAssetsY0, 1)) * 100)} of total` },
               { label: "Total Assets · exit", value: fmtEUR(totalAssetsExit), sub: `Y${exitYear} · post-disposal`, highlight: true },
               { label: "Equity · exit", value: fmtEUR(equityExit), sub: `Δ ${signed(equityExit - equityY0)}${fmtEUR(Math.abs(equityExit - equityY0))}`, tone: equityExit > equityY0 ? "ok" : "warn" },
-              { label: "Debt · exit", value: fmtEUR(debtExit), sub: "repaid in full at sale", tone: "ok" },
             ]}
           />
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

@@ -23,6 +23,10 @@ export function CashFlowSection({ bundle }: { bundle: UnderwritingBundle }) {
   const financingY0 = (cf.debt_drawn[0] ?? 0) + (cf.interest_expense[0] ?? 0) + (cf.loan_principal[0] ?? 0);
   const equityY0 = cf.equity_drawn[0] ?? 0;
   const totalCashAtExit = cf.net_cash_flow.slice(0, exitYear + 1).reduce((a, b) => a + b, 0);
+  // % LTC = debt drawn at Y0 / total investment outlay at Y0
+  const ltcPct = Math.abs(investmentY0) > 0
+    ? (cf.debt_drawn[0] ?? 0) / Math.abs(investmentY0) * 100
+    : 0;
 
   return (
     <SectionShell
@@ -37,6 +41,7 @@ export function CashFlowSection({ bundle }: { bundle: UnderwritingBundle }) {
             tiles={[
               { label: "Y0 Investment outlay", value: fmtEUR(Math.abs(investmentY0)), sub: "acquisition + CAPEX + fees", tone: "neutral" },
               { label: "Y0 Debt drawn", value: fmtEUR(financingY0), sub: "senior secured + CAPEX line", tone: "ok" },
+              { label: "% LTC", value: `${ltcPct.toFixed(1).replace(".", ",")}%`, sub: "debt drawn / investment outlay" },
               { label: "Y0 Equity drawn", value: fmtEUR(equityY0), sub: "sponsor equity injection", tone: "neutral" },
               { label: "Cash at exit", value: fmtEUR(totalCashAtExit), sub: `cumulative through Y${exitYear}`, highlight: true },
             ]}

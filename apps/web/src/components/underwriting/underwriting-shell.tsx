@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { UnderwritingBundle, UnderwritingInputs } from "@/lib/underwriting/types";
-import { SCENARIO_CATALOG, buildBundleForScenario } from "@/lib/underwriting/defaults";
+import type { UnderwritingBundle } from "@/lib/underwriting/types";
+import { SCENARIO_CATALOG, buildBundleForScenario, type UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 import { FloatingKpiStrip, type KpiItem } from "./primitives/floating-kpi-strip";
 import { ExecutiveSummarySection } from "./sections/executive-summary-section";
 import { PnlSection } from "./sections/pnl-section";
@@ -31,13 +31,13 @@ import { ExitSection } from "./sections/exit-section";
 
 export function UnderwritingShell({ bundle: initialBundle }: { bundle: UnderwritingBundle }) {
   const [scenarioId, setScenarioId] = useState<string>(initialBundle.inputs.scenario_id || "base");
-  const [assetOverrides, setAssetOverrides] = useState<Partial<UnderwritingInputs["asset"]>>({});
+  const [overrides, setOverrides] = useState<UnderwritingInputOverrides>({});
 
-  const hasOverrides = Object.keys(assetOverrides).length > 0;
+  const hasOverrides = Object.keys(overrides).length > 0;
   const bundle = useMemo(() => {
     if (scenarioId === initialBundle.inputs.scenario_id && !hasOverrides) return initialBundle;
-    return buildBundleForScenario(scenarioId, hasOverrides ? assetOverrides : undefined);
-  }, [scenarioId, assetOverrides, hasOverrides, initialBundle]);
+    return buildBundleForScenario(scenarioId, hasOverrides ? overrides : undefined);
+  }, [scenarioId, overrides, hasOverrides, initialBundle]);
 
   const kpiItems = useMemo(() => buildKpiItems(bundle), [bundle]);
 
@@ -50,9 +50,12 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
         scenarioId={scenarioId}
         scenarioCatalog={SCENARIO_CATALOG}
         onScenarioChange={setScenarioId}
-        onAssetChange={(patch) => setAssetOverrides((prev) => ({ ...prev, ...patch }))}
+        onOverrideChange={(patch) => setOverrides((prev) => ({ ...prev, ...patch }))}
       />
-      <PnlSection bundle={bundle} />
+      <PnlSection
+        bundle={bundle}
+        onOverrideChange={(patch) => setOverrides((prev) => ({ ...prev, ...patch }))}
+      />
       <BalanceSheetSection bundle={bundle} />
       <CashFlowSection bundle={bundle} />
       <DtaSection bundle={bundle} />

@@ -1,55 +1,54 @@
 "use client";
 
-import { useState } from "react";
 import { SectionShell } from "../primitives/section-shell";
-import { RiskIndicator, parseReconciliationWarning } from "../primitives/risk-indicator";
-import type { UnderwritingBundle, UnderwritingInputs } from "@/lib/underwriting/types";
-import type { ScenarioCatalogEntry } from "@/lib/underwriting/defaults";
+import { EditableTile } from "../primitives/editable-tile";
+import type { UnderwritingBundle } from "@/lib/underwriting/types";
+import type { ScenarioCatalogEntry, UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 import { cn } from "@/lib/utils";
 
 /**
  * Section 01 · Executive Summary · institutional underwriting control layer.
  *
- * 3 blocks · drivers → results → risk · NO narrative · NO accordion chrome.
+ * Flat flow · no nested boxes · no narrative · no risk panel:
+ *   1. Editable drivers (lime) + computed outputs (slate) in one grid
+ *   2. Scenario picker strip (full-width segmented control)
+ *   3. Returns KPI grid (scenario-sensitive results)
  *
- *   A · Headline Metrics (DRIVERS)
- *       N° Keys (editable) · Total Investment · Equity · % LTC ·
- *       Dynamic Cap Rate · Hold Period
- *
- *   B · Returns (RESULTS · with inline scenario picker)
- *       Project IRR · Equity IRR · MOIC · Cap Rate Scenario picker ·
- *       Stabilized Yield · Exit Price
- *
- *   C · Risk Indicators
- *       Reconciliation + covenant warnings in wrap-friendly cards
- *
- * All content lives in `summary` slot · no detail accordion · no
- * "Detail schedule" gray bar. The page reads as a single editorial
- * institutional layer.
+ * Live editable drivers (re-prices the engine on commit):
+ *   · N° Keys          · integer · re-runs investment + CAPEX + tranche sizing
+ *   · Asking Price     · currency · re-runs acquisition + hotel_value scales proportionally
+ *   · Hotel Value      · currency · drives entry cap rate basis
+ *   · Exit Year        · 1-10 · controls hold period + exit valuation
+ *   · LTV %            · 0-100 · mutates senior tranche LTV-of-value spec
  */
 export function ExecutiveSummarySection({
   bundle,
   scenarioId,
   scenarioCatalog,
   onScenarioChange,
-  onAssetChange,
+  onOverrideChange,
 }: {
   bundle: UnderwritingBundle;
   scenarioId: string;
   scenarioCatalog: ScenarioCatalogEntry[];
   onScenarioChange: (id: string) => void;
-  onAssetChange: (patch: Partial<UnderwritingInputs["asset"]>) => void;
+  onOverrideChange: (patch: UnderwritingInputOverrides) => void;
 }) {
   const asset = bundle.inputs.asset;
+  const acq = bundle.inputs.acquisition;
   const c = bundle.computed;
   const exit = c.exit;
   const inv = c.investment;
   const capEntry = c.cap_rate.entry;
-  const capExit = c.cap_rate.exit;
   const stabilisedYield = inv.stabilized_yield_progression[exit.exit_year] ?? 0;
   const ltcPct = inv.total_building_cost > 0
     ? (c.financing.total_principal / inv.total_building_cost) * 100
     : 0;
+  // Senior tranche LTV (percentage points) for the editable LTV tile.
+  const seniorTranche = bundle.inputs.financing.tranches.find((t) => t.kind === "senior_secured");
+  const ltvPct = seniorTranche && seniorTranche.principal.kind === "ltv_of_value"
+    ? seniorTranche.principal.ltv_pct
+    : 65;
 
   return (
     <SectionShell
@@ -60,17 +59,46 @@ export function ExecutiveSummarySection({
       status={{ label: "Investment committee draft", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Drivers · editable N° Keys + investment + LTC + cap + hold */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <EditableKeysTile
+          {/* Drivers · 4 editable (lime) + 4 computed (slate) */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
+            <EditableTile
+              label="N° Keys"
               value={asset.rooms}
-              onChange={(rooms) => onAssetChange({ rooms })}
+              format="integer"
+              min={1}
+              onCommit={(rooms) => onOverrideChange({ rooms })}
+              sub="re-prices the underwriting"
+            />
+            <EditableTile
+              label="Asking Price"
+              value={acq.asking_price}
+              format="currency"
+              min={0}
+              onCommit={(asking_price) => onOverrideChange({ asking_price })}
+              sub="hotel value scales proportionally"
+            />
+            <EditableTile
+              label="Exit Year"
+              value={exit.exit_year}
+              format="years"
+              min={1}
+              max={10}
+              onCommit={(exit_year) => onOverrideChange({ exit_year })}
+              sub="hold period · 1-10y"
+            />
+            <EditableTile
+              label="LTV %"
+              value={ltvPct}
+              format="percent"
+              min={0}
+              max={100}
+              onCommit={(v) => onOverrideChange({ ltv_pct: v })}
+              sub="senior tranche · LTV of hotel value"
             />
             <DriverTile label="Total Investment" value={fmtEUR(inv.total_building_cost)} sub={`${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`} highlight />
             <DriverTile label="Equity Investment" value={fmtEUR(exit.equity_investment)} sub={`${fmtPct((exit.equity_investment / Math.max(inv.total_building_cost, 1)) * 100)} of total`} />
             <DriverTile label="% LTC" value={fmtPct(ltcPct)} sub={fmtEUR(c.financing.total_principal)} />
             <DriverTile label="Dynamic Cap Rate" value={fmtPct(capEntry.used_pct)} sub={capEntry.source === "dynamic" ? "Dynamic · entry" : "Manual override"} />
-            <DriverTile label="Hold Period" value={`${exit.exit_year}y`} sub={`Exit Y${exit.exit_year}`} />
           </div>
 
           {/* Scenario picker · drives the engine re-price */}
@@ -86,18 +114,15 @@ export function ExecutiveSummarySection({
             <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
             <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
             <ResultTile label="Stabilised Yield" value={fmtPct(stabilisedYield * 100)} sub={`Year ${exit.exit_year}`} />
-            <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtPct(capExit.used_pct)} exit cap · ${fmtEUR(exit.exit_price_per_room)} / key`} />
+            <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtEUR(exit.exit_price_per_room)} / key`} />
           </div>
-
-          {/* Risk indicators · reconciliation + covenant signals */}
-          <RiskIndicatorsPanel warnings={c.reconciliation.warnings} />
         </div>
       }
     />
   );
 }
 
-// ─── Driver tile (Block A · neutral institutional) ───────────────────
+// ─── Driver tile (computed · neutral or highlight) ───────────────────
 
 function DriverTile({
   label,
@@ -139,56 +164,7 @@ function DriverTile({
   );
 }
 
-// ─── Editable N° Keys tile · drives engine re-run ────────────────────
-
-function EditableKeysTile({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (rooms: number) => void;
-}) {
-  const [draft, setDraft] = useState(String(value));
-  const commit = () => {
-    const parsed = parseInt(draft.replace(/[^0-9]/g, ""), 10);
-    if (Number.isFinite(parsed) && parsed > 0 && parsed !== value) {
-      onChange(parsed);
-    } else {
-      setDraft(String(value));
-    }
-  };
-  return (
-    <div className="rounded-md border border-lime-300/40 bg-lime-300/5 p-3 print:break-inside-avoid print:border-emerald-500 print:bg-emerald-50">
-      <p className="flex items-center justify-between font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
-        <span>N° Keys</span>
-        <span className="rounded bg-lime-300/15 px-1 font-mono text-[8.5px] text-lime-200 ring-1 ring-lime-300/30 print:hidden">
-          Edit
-        </span>
-      </p>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") {
-            setDraft(String(value));
-            (e.target as HTMLInputElement).blur();
-          }
-        }}
-        className="mt-1 w-full rounded-sm border border-transparent bg-transparent px-0 py-0 font-mono text-[17px] font-extrabold tabular-nums text-lime-200 focus:border-lime-300/40 focus:bg-slate-900/60 focus:outline-none print:text-emerald-700"
-        aria-label="Number of keys"
-      />
-      <p className="mt-0.5 font-mono text-[9.5px] text-slate-500 print:text-slate-600">
-        re-prices the underwriting
-      </p>
-    </div>
-  );
-}
-
-// ─── Result tile (Block B · tone-aware) ──────────────────────────────
+// ─── Result tile (Returns · tone-aware) ──────────────────────────────
 
 function ResultTile({
   label,
@@ -284,35 +260,6 @@ function ScenarioStrip({
       </span>
     </div>
   );
-}
-
-// ─── Risk indicators panel · grid layout · wrap-friendly ─────────────
-
-function RiskIndicatorsPanel({ warnings }: { warnings: string[] }) {
-  if (warnings.length === 0) {
-    return (
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <RiskIndicator
-          severity="ok"
-          label="All institutional invariants pass"
-          detail="BS balanced · cash bridge OK · DSCR ≥ 1.0 · DTA ≥ 0 · drawdown ≡ principal · reserves continuous"
-        />
-      </div>
-    );
-  }
-  const parsed = warnings.map(parseReconciliationWarning);
-  const grouped = [...parsed].sort((a, b) => sevOrder(a.severity) - sevOrder(b.severity));
-  return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {grouped.map((p, i) => (
-        <RiskIndicator key={i} {...p} />
-      ))}
-    </div>
-  );
-}
-
-function sevOrder(s: "ok" | "watch" | "stress" | "info"): number {
-  return s === "stress" ? 0 : s === "watch" ? 1 : s === "info" ? 2 : 3;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
