@@ -6,16 +6,19 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
 
 /**
  * Section 02 · P&L · PropCo without Exit Strategy.
- * Block 1 scaffold · all cells empty. Block 3 wires engine outputs.
+ * Block 2 wires the period axis · cells fill once the engine modules
+ * (pnl + financing + dta) land in Block 3.
  */
 export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
   const p = bundle.computed.pnl;
+  const periods = bundle.computed.periods;
+  const cols = 1 + periods.length;
   return (
     <SectionShell
       number={2}
       anchorId="pnl"
       title="P&L · PropCo without Exit Strategy"
-      subtitle="Operating performance · Year 0 to Year 10 · USALI structure"
+      subtitle="Operating performance · USALI structure"
       status={{ label: "Scaffold", tone: "info" }}
       summary={
         <p className="font-mono text-[11.5px] text-slate-400">
@@ -23,13 +26,13 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
         </p>
       }
       detail={
-        <YearGrid caption="P&L · PropCo without Exit Strategy">
-          <DivisionRow label="Revenue" />
+        <YearGrid periods={periods} caption="P&L · PropCo without Exit Strategy">
+          <DivisionRow label="Revenue" columnCount={cols} />
           <YearRow label="Hotel" values={p.hotel} indent={1} />
           <YearRow label="F&B" values={p.fb} indent={1} />
           <YearRow label="Other departments" values={p.other_departments} indent={1} />
           <SubtotalRow label="Gross Operating Profit" values={p.gross_operating_profit} tone="subtotal" />
-          <DivisionRow label="Costs" />
+          <DivisionRow label="Costs" columnCount={cols} />
           <YearRow label="Management Fee" values={p.mgmt_fee} indent={1} kind="negative" />
           <YearRow label="Property Taxes" values={p.property_taxes} indent={1} kind="negative" />
           <YearRow label="Property Insurance" values={p.property_insurance} indent={1} kind="negative" />

@@ -4,6 +4,53 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-18 — Underwriting OS · Block 2 (engine architecture · DAG · temporal · tranches · versioning · reconciliation)
+
+Refactored the `/report/financials/underwriting` foundation from the Block 1 shell into a deterministic, multi-scenario-ready calculation engine architecture.
+
+### Engine architecture
+- `lib/underwriting/engine/_types.ts` · EngineModule contract · `key` + `dependsOn` + pure `compute(ctx)`
+- `lib/underwriting/engine/dag.ts` · ENGINE_DAG registry + Kahn's-algorithm topological sort · fails fast on cycle or missing node
+- `lib/underwriting/engine/index.ts` · orchestrator · walks DAG · isolates module failures with reconciliation warnings
+- 8 module scaffolds · cap-rate · investment · financing · pnl · dta · exit · cash-flow · balance-sheet
+- `engine/reconciliation.ts` · institutional invariants (BS balance · cash↔CF · DSCR · DTA ≥ 0)
+- `engine/formulas.ts` · centralised formula registry (DSCR · ICR · LTV · IRR Newton-Raphson · MOIC · Spanish Ley IS finexp cap · CIT · SL depreciation · per-key / per-sqm)
+
+### Temporal model
+- `lib/underwriting/temporal.ts` · Period + PeriodSeries · YEARLY_PERIODS_Y0_Y10 · monthlyPeriods / quarterlyPeriods builders · alignToSeries / zeroSeries / sumSeries / addSeries / subSeries / scaleSeries / cumSeries / lagSeries
+- Renderers (`year-grid`, `subtotal-row` DivisionRow) no longer hardcode 11 columns · derive from `periods.length`
+- Granularity contract documented per layer (reporting · operations · financing · taxes)
+
+### Financing tranches
+- `lib/underwriting/financing-tranches.ts` · DebtTranche first-class · 6 kinds (senior_secured · senior_capex · bullet · mezzanine · bridge · preferred_equity)
+- PrincipalSpec (fixed_amount · ltv_of_value · ltc_of_total) · RateSpec (fixed · floating with floor/cap) · AmortizationSpec (straight · bullet · interest_only · custom)
+- TrancheEvent (refinance · prepayment · covenant_breach · default · extension) · TrancheCovenant (DSCR_MIN · ICR_MIN · LTV_MAX · EBITDA_MIN)
+- FinancingPortfolioSchedule aggregates per-tranche + portfolio totals + covenant breaches
+
+### Scenario persistence contract
+- `lib/underwriting/scenario.ts` · Asset → Scenario (mutable) → ScenarioSnapshot[] (immutable, deep-frozen)
+- `freezeSnapshot(scenario, versionTag, meta)` + `deepFreeze<T>(obj)` · snapshots are NEVER silently recomputed; explicit "Recompute with current engine" action produces a new snapshot
+- Legacy `UnderwritingScenario` discriminator (downside/base/upside · SCENARIO_LABELS · SCENARIO_OPTIONS) preserved for the financials report-level toggle
+
+### Versioning
+- `lib/underwriting/versioning.ts` · SCHEMA_VERSION "1.0.0" · ENGINE_VERSION "0.1.0-scaffold" · VersionTag interface · isCompatibleForRecompute (same MAJOR + MINOR)
+- UnderwritingBundle now extends VersionTag
+
+### Types refactor
+- YearSeries (readonly 11-tuple) → PeriodSeries (number[] aligned to Period[]) across all schedules
+- `financing.asset_tranche` / `capex_tranche` → `financing.tranches: DebtTranche[]`
+- `FinancingSchedule` → `FinancingPortfolioSchedule` (per-tranche detail + portfolio aggregates)
+- `dscr_per_year` → `dscr_per_period`
+
+### Documentation
+- `docs/underwriting/excel-audit-2026-05-18.md` · Excel range → engine module mapping · hardcoded constants flagged · Block 3 implementation order
+- `docs/underwriting/temporal-model.md` · per-layer granularity contract · Period interface · convention (index 0 = closing year)
+
+### Verification
+- `npm run typecheck` · 0 errors
+
+---
+
 ## 2026-05-15 — Admin / Financials · new reference page (CAPEX matrix · Financial structure · P&L Forecast COSTAR)
 
 New `/user/admin/financials` surfaces HotelVALORA's institutional defaults for hospitality underwriting. Three cards · all fully editable with explicit Save flow · localStorage-backed (Phase D moves to Supabase admin_financial_settings).

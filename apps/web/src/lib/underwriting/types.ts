@@ -1,11 +1,13 @@
 /**
  * HotelVALORA Underwriting · type contracts.
  *
- * BLOCK 1 SCOPE: shell + skeleton only. Engine stubs are intentionally
- * minimal · Block 2 fills the calculation engine + Excel-to-engine
- * mapping audit. Block 6 ships the Dynamic Cap Rate engine.
+ * BLOCK 2 REFACTOR (2026-05-18):
+ *   · YearSeries (11-tuple) → PeriodSeries (number[] aligned to Period[])
+ *   · financing.asset_tranche / capex_tranche → financing.tranches: DebtTranche[]
+ *   · Added VersionTag to UnderwritingBundle (schema + engine versioning)
+ *   · Each schedule now carries `periods: Period[]` so renderers know N cols
  *
- * Architecture invariants (locked in arch review · 2026-05-18):
+ * Architecture invariants (locked · 2026-05-18):
  *
  *  1. React contains ZERO financial logic. Engine is pure TS.
  *  2. Inputs (operator-editable) and Computed (engine output) are
@@ -16,9 +18,16 @@
  *     AdjustmentLogic · ConfidenceEngine · OverrideLayer.
  *  5. Persistence flows through Supabase · localStorage only as draft
  *     cache. Block 8 wires the persistence path.
- *  6. Year columns: 11 (Year 0 … Year 10). Monthly/quarterly toggle
- *     designed-for-future · NOT implemented MVP.
+ *  6. Temporal granularity is per-layer · MVP yearly · components
+ *     accept periods[] and never hardcode column count.
+ *  7. Financing is tranche-first · MVP renders 2 tranches but the
+ *     model carries `tranches[]` so mezzanine / preferred equity /
+ *     bridge land without breaking changes.
  */
+
+import type { Period, PeriodSeries } from "./temporal";
+import type { DebtTranche, FinancingPortfolioSchedule } from "./financing-tranches";
+import type { VersionTag } from "./versioning";
 
 // ─── Scenarios ────────────────────────────────────────────────────────
 
@@ -40,20 +49,6 @@ export interface ScenarioMeta {
   created_by_email?: string;
   created_at?: string;
 }
-
-// ─── Year axis ────────────────────────────────────────────────────────
-
-/** 11 entries · Year 0 .. Year 10. Index 0 = Year 0 (closing year). */
-export type YearSeries = readonly [
-  number, number, number, number, number, number,
-  number, number, number, number, number,
-];
-
-export const YEAR_COUNT = 11 as const;
-export const YEAR_LABELS: readonly string[] = Array.from(
-  { length: YEAR_COUNT },
-  (_, i) => `Year ${i}`,
-);
 
 // ─── Asset basics ─────────────────────────────────────────────────────
 
@@ -137,6 +132,9 @@ export interface UnderwritingInputs {
   scenario_id: ScenarioId;
   asset: AssetBasics;
 
+  /** Reporting axis · MVP = YEARLY_PERIODS_Y0_Y10 · operator can swap. */
+  periods: Period[];
+
   acquisition: {
     asking_price: number;
     hotel_value: number;
@@ -170,13 +168,13 @@ export interface UnderwritingInputs {
   };
 
   pl_drivers: {
-    /** GOP source lines per year · Y0..Y10. */
-    gop: { hotel: YearSeries; fb: YearSeries; other: YearSeries };
+    /** GOP source lines per period · aligned to periods[]. */
+    gop: { hotel: PeriodSeries; fb: PeriodSeries; other: PeriodSeries };
     costs: {
-      mgmt_fee: YearSeries;
-      property_tax: YearSeries;
-      property_insurance: YearSeries;
-      ffe_reserve: YearSeries;
+      mgmt_fee: PeriodSeries;
+      property_tax: PeriodSeries;
+      property_insurance: PeriodSeries;
+      ffe_reserve: PeriodSeries;
     };
   };
 
@@ -186,10 +184,10 @@ export interface UnderwritingInputs {
   };
 
   financing: {
-    asset_tranche: { ltv: number; years: number; grace: number; bullet_pct: number };
-    capex_tranche: { ltv: number; years: number; grace: number };
+    /** Capital stack · first-class tranches · MVP seeds 2 (senior + capex). */
+    tranches: DebtTranche[];
+    /** Macro rate context · referenced by floating-rate tranches. */
     euribor_12m_pct: number;
-    margin_pct: number;
   };
 
   exit: {
@@ -206,18 +204,18 @@ export interface UnderwritingInputs {
 }
 
 // ─── Underwriting computed (engine output) ────────────────────────────
-// MINIMAL Block 1 surface · Block 2 expands each sub-schedule.
 
 export interface UnderwritingComputed {
   scenario_id: ScenarioId;
   asset: AssetBasics;
+  periods: Period[];
 
-  // Schedules · each Year 0..Year 10
+  // Schedules · each indexed by periods[]
   pnl: PnlSchedule;
   balance_sheet: BalanceSheetSchedule;
   cash_flow: CashFlowSchedule;
   dta: DtaSchedule;
-  financing: FinancingSchedule;
+  financing: FinancingPortfolioSchedule;
 
   // One-shot calculations
   investment: InvestmentBreakdown;
@@ -231,81 +229,81 @@ export interface UnderwritingComputed {
 
   // Cross-checks · zero-tolerance institutional invariants
   reconciliation: {
-    bs_balanced: boolean[]; // per year · assets == eq + debt (tolerance ±1 €)
+    bs_balanced: boolean[]; // per period · assets == eq + debt (tolerance ±1 €)
     cash_matches_cf: boolean;
-    dscr_per_year: YearSeries; // values < 1.0 trigger warning
+    dscr_per_period: PeriodSeries; // values < 1.0 trigger warning
     warnings: string[];
   };
 }
 
-// Schedule shapes · Block 2 fills these. Block 1 just needs the type wired.
+// Schedule shapes · indexed by the parent's periods[].
 
 export interface PnlSchedule {
-  hotel: YearSeries;
-  fb: YearSeries;
-  other_departments: YearSeries;
-  gross_operating_profit: YearSeries;
-  mgmt_fee: YearSeries;
-  property_taxes: YearSeries;
-  property_insurance: YearSeries;
-  ffe_reserve: YearSeries;
-  total_costs: YearSeries;
-  ebitda_after_replacement: YearSeries;
-  da: YearSeries;
-  ebit: YearSeries;
-  financial_expenses: YearSeries;
-  ebt: YearSeries;
-  cit: YearSeries;
-  net_income: YearSeries;
-  total_net_income: YearSeries; // cumulative
+  hotel: PeriodSeries;
+  fb: PeriodSeries;
+  other_departments: PeriodSeries;
+  gross_operating_profit: PeriodSeries;
+  mgmt_fee: PeriodSeries;
+  property_taxes: PeriodSeries;
+  property_insurance: PeriodSeries;
+  ffe_reserve: PeriodSeries;
+  total_costs: PeriodSeries;
+  ebitda_after_replacement: PeriodSeries;
+  da: PeriodSeries;
+  ebit: PeriodSeries;
+  financial_expenses: PeriodSeries;
+  ebt: PeriodSeries;
+  cit: PeriodSeries;
+  net_income: PeriodSeries;
+  total_net_income: PeriodSeries; // cumulative
 }
 
 export interface BalanceSheetSchedule {
-  non_current_assets: YearSeries;
-  building: YearSeries;
-  installations_mep: YearSeries;
-  dta_asset: YearSeries;
-  cash: YearSeries;
-  total_assets: YearSeries;
-  equity: YearSeries;
-  initial_equity: YearSeries;
-  reserves: YearSeries;
-  net_income_period: YearSeries;
-  debt: YearSeries;
-  total_eq_debt: YearSeries;
+  non_current_assets: PeriodSeries;
+  building: PeriodSeries;
+  installations_mep: PeriodSeries;
+  dta_asset: PeriodSeries;
+  cash: PeriodSeries;
+  total_assets: PeriodSeries;
+  equity: PeriodSeries;
+  initial_equity: PeriodSeries;
+  reserves: PeriodSeries;
+  net_income_period: PeriodSeries;
+  debt: PeriodSeries;
+  total_eq_debt: PeriodSeries;
 }
 
 export interface CashFlowSchedule {
-  ebitda_after_replacement: YearSeries;
-  yield_net: YearSeries;
-  tax_payment: YearSeries;
-  acquisition: YearSeries;
-  capex: YearSeries;
-  contingency_insurance: YearSeries;
-  acquisition_fees_taxes: YearSeries;
-  operating_cash_flow: YearSeries;
-  debt_drawn: YearSeries;
-  interest_expense: YearSeries;
-  loan_principal: YearSeries;
-  equity_drawn: YearSeries;
-  net_cash_flow: YearSeries;
-  change_in_cash_bs: YearSeries;
+  ebitda_after_replacement: PeriodSeries;
+  yield_net: PeriodSeries;
+  tax_payment: PeriodSeries;
+  acquisition: PeriodSeries;
+  capex: PeriodSeries;
+  contingency_insurance: PeriodSeries;
+  acquisition_fees_taxes: PeriodSeries;
+  operating_cash_flow: PeriodSeries;
+  debt_drawn: PeriodSeries;
+  interest_expense: PeriodSeries;
+  loan_principal: PeriodSeries;
+  equity_drawn: PeriodSeries;
+  net_cash_flow: PeriodSeries;
+  change_in_cash_bs: PeriodSeries;
 }
 
 export interface DtaSchedule {
-  ebit: YearSeries;
-  ebitda: YearSeries;
-  limit_ebitda_30pct: YearSeries;
-  limit_finexp_floor: YearSeries;
-  financial_expenses_after_limits: YearSeries;
-  ebt_after_limits: YearSeries;
-  dta_beginning: YearSeries;
-  dta_increases: YearSeries;
-  dta_decreases: YearSeries;
-  dta_end: YearSeries;
-  cit_pl: YearSeries;
-  dta_compensation: YearSeries;
-  tax_payment: YearSeries;
+  ebit: PeriodSeries;
+  ebitda: PeriodSeries;
+  limit_ebitda_30pct: PeriodSeries;
+  limit_finexp_floor: PeriodSeries;
+  financial_expenses_after_limits: PeriodSeries;
+  ebt_after_limits: PeriodSeries;
+  dta_beginning: PeriodSeries;
+  dta_increases: PeriodSeries;
+  dta_decreases: PeriodSeries;
+  dta_end: PeriodSeries;
+  cit_pl: PeriodSeries;
+  dta_compensation: PeriodSeries;
+  tax_payment: PeriodSeries;
 }
 
 export interface InvestmentBreakdown {
@@ -331,26 +329,6 @@ export interface BreakdownLine {
   notes?: string;
 }
 
-export interface FinancingSchedule {
-  total_asset_costs: number;
-  total_ltv_pct: number;
-  total_debt: number;
-  bullet_pct: number;
-  bullet_amount: number;
-  principal_loan: number;
-
-  // Per year debt service
-  bofy_balance: YearSeries;
-  payment: YearSeries;
-  interest_expense: YearSeries;
-  loan_principal: YearSeries;
-  loan_capex: YearSeries;
-  bullet_principal: YearSeries;
-  eofy_balance: YearSeries;
-
-  rcsd: YearSeries; // ratio · n.a. when payment = 0
-}
-
 export interface ExitMetrics {
   exit_cap_rate_pct: number;
   exit_year: number; // 1..10
@@ -361,9 +339,9 @@ export interface ExitMetrics {
   debt_repayment_at_exit: number;
   equity_investment: number;
   profit_share: number;
-  project_cash_flow: YearSeries;
-  equity_cash_flow: YearSeries;
-  debt_cash_flow: YearSeries;
+  project_cash_flow: PeriodSeries;
+  equity_cash_flow: PeriodSeries;
+  debt_cash_flow: PeriodSeries;
   project_irr_pct: number;
   equity_irr_pct: number;
   moic: number;
@@ -371,7 +349,7 @@ export interface ExitMetrics {
 
 // ─── Underwriting bundle (everything for a scenario) ──────────────────
 
-export interface UnderwritingBundle {
+export interface UnderwritingBundle extends VersionTag {
   meta: ScenarioMeta;
   inputs: UnderwritingInputs;
   computed: UnderwritingComputed;

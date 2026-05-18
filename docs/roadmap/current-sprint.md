@@ -1,11 +1,12 @@
 # Current Sprint
 
-> Updated 2026-05-12 — bump after every shipped task.
+> Updated 2026-05-18 — bump after every shipped task.
 
 ## Just shipped (last 7 days)
 
 | Feature | Commit | Status |
 |---|---|---|
+| **Underwriting OS · Block 2** — engine architecture (DAG · orchestrator · 8 module scaffolds · reconciliation invariants · formula registry) · temporal model (Period/PeriodSeries · MVP YEARLY_PERIODS_Y0_Y10) · DebtTranche-first financing (6 kinds · LTV/LTC/fixed principal · floating-with-floor-cap rate · refinance events · covenants) · Scenario persistence contract (deep-frozen ScenarioSnapshot · explicit recompute) · SCHEMA + ENGINE versioning · Excel audit doc · temporal-model doc · typecheck clean | *(this commit)* | ✅ |
 | Library v1 — `/library/favorites-map` | `f7ea4c3` | ✅ |
 | Responsive scaling for 1440×900 | `d3f9b00` | ✅ |
 | `/library/top-map` (sibling sidebar copy) | `429446e` | ✅ |

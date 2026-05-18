@@ -11,6 +11,8 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
  */
 export function CashFlowSection({ bundle }: { bundle: UnderwritingBundle }) {
   const cf = bundle.computed.cash_flow;
+  const periods = bundle.computed.periods;
+  const cols = 1 + periods.length;
   return (
     <SectionShell
       number={4}
@@ -29,21 +31,21 @@ export function CashFlowSection({ bundle }: { bundle: UnderwritingBundle }) {
         </div>
       }
       detail={
-        <YearGrid caption="Cash Flow · PropCo without Exit Strategy">
+        <YearGrid periods={periods} caption="Cash Flow · PropCo without Exit Strategy">
           <YearRow label="EBITDA after Replacement" values={cf.ebitda_after_replacement} />
           <YearRow label="Yield Net" values={cf.yield_net} format="percent" indent={1} kind="muted" />
           <YearRow label="Tax Payment" values={cf.tax_payment} kind="negative" />
-          <DivisionRow label="Investment" />
+          <DivisionRow label="Investment" columnCount={cols} />
           <YearRow label="Acquisition" values={cf.acquisition} kind="negative" indent={1} />
           <YearRow label="CAPEX" values={cf.capex} kind="negative" indent={1} />
           <YearRow label="Contingency + Insurance" values={cf.contingency_insurance} kind="negative" indent={1} />
           <YearRow label="Acquisition Fees + Taxes" values={cf.acquisition_fees_taxes} kind="negative" indent={1} />
           <SubtotalRow label="Operating Cash Flow" values={cf.operating_cash_flow} tone="subtotal" />
-          <DivisionRow label="Financing" />
+          <DivisionRow label="Financing" columnCount={cols} />
           <YearRow label="Debt" values={cf.debt_drawn} indent={1} />
           <YearRow label="Interest Expense" values={cf.interest_expense} kind="negative" indent={1} />
           <YearRow label="Loan Principal" values={cf.loan_principal} kind="negative" indent={1} />
-          <DivisionRow label="Equity" />
+          <DivisionRow label="Equity" columnCount={cols} />
           <YearRow label="Equity" values={cf.equity_drawn} indent={1} />
           <SubtotalRow label="Net Cash Flow" values={cf.net_cash_flow} tone="result" />
           <YearRow label="Change in Cash (BS)" values={cf.change_in_cash_bs} kind="muted" />

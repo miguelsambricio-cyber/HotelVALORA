@@ -18,6 +18,9 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
  */
 export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
   const e = bundle.computed.exit;
+  const periods = bundle.computed.periods;
+  const cols = 1 + periods.length;
+  const exitPriceSeries = periods.map((_, i) => (i === e.exit_year ? e.exit_price : 0));
   return (
     <SectionShell
       number={8}
@@ -40,12 +43,12 @@ export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
         </div>
       }
       detail={
-        <YearGrid caption="Exit Strategy · Project + Equity Cash Flows">
-          <DivisionRow label="Project Cash Flow" />
+        <YearGrid periods={periods} caption="Exit Strategy · Project + Equity Cash Flows">
+          <DivisionRow label="Project Cash Flow" columnCount={cols} />
           <YearRow label="Operating Cash Flow" values={bundle.computed.cash_flow.operating_cash_flow} indent={1} />
-          <YearRow label="Exit Price" values={e.project_cash_flow.map((_, i) => (i === e.exit_year ? e.exit_price : 0)) as never} indent={1} kind="positive" />
+          <YearRow label="Exit Price" values={exitPriceSeries} indent={1} kind="positive" />
           <SubtotalRow label="Project Cash Flow" values={e.project_cash_flow} tone="result" />
-          <DivisionRow label="Equity Cash Flow" />
+          <DivisionRow label="Equity Cash Flow" columnCount={cols} />
           <YearRow label="Debt Cash Flows" values={e.debt_cash_flow} indent={1} />
           <SubtotalRow label="Equity Cash Flow" values={e.equity_cash_flow} tone="result" />
         </YearGrid>

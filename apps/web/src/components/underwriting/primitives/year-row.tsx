@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { YearSeries } from "@/lib/underwriting/types";
+import type { PeriodSeries } from "@/lib/underwriting/temporal";
 
 /**
  * Single data row in a YearGrid.
@@ -21,7 +21,7 @@ export function YearRow({
   format = "currency_compact",
 }: {
   label: string;
-  values: YearSeries;
+  values: PeriodSeries;
   assumption?: string;
   /** 0 = top level · 1 = first indent · 2 = sub-line of sub-line. */
   indent?: 0 | 1 | 2;

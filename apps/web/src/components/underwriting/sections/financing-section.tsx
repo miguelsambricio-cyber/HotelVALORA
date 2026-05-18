@@ -3,32 +3,36 @@ import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
 import { ReconciliationBadge } from "../primitives/reconciliation-badge";
+import { zeroSeries } from "@/lib/underwriting/temporal";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 
 /**
  * Section 07 · Financing.
  *
- * 3-tranche debt schedule (asset · capex · bullet) with EUR/Euribor +
- * Margin rate, BoFY → Payment → Interest → Principal → EoFY mechanics,
- * RCSD/DSCR per year. Block 5 ships the engine. Block 9 adds future
+ * Tranche-first debt schedule. MVP renders portfolio aggregates · Block
+ * 5 ships per-tranche drill-down + DSCR / ICR / LTV. Block 9 adds future
  * tranches (mezzanine, preferred equity, bridge, refinance event).
  */
 export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
   const f = bundle.computed.financing;
+  const inputs = bundle.inputs.financing;
+  const periods = bundle.computed.periods;
+  const cols = 1 + periods.length;
+  const ratePlaceholder = zeroSeries(periods);
   return (
     <SectionShell
       number={7}
       anchorId="financing"
       title="Financing"
-      subtitle="Senior debt · capex tranche · bullet · Euribor + margin · DSCR per year"
+      subtitle={`${f.tranches.length} tranche${f.tranches.length === 1 ? "" : "s"} · Euribor + margin · DSCR per period`}
       status={{ label: "Scaffold · Block 5 ships debt schedule", tone: "info" }}
       summary={
         <div className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-4">
-            <FinKpi label="Total Asset Costs" value={fmtEUR(f.total_asset_costs)} />
-            <FinKpi label="Total LTV" value={`${(f.total_ltv_pct * 100).toFixed(0)}%`} />
-            <FinKpi label="Total Debt" value={fmtEUR(f.total_debt)} />
-            <FinKpi label="Bullet" value={`${(f.bullet_pct * 100).toFixed(0)}%`} sub={fmtEUR(f.bullet_amount)} />
+            <FinKpi label="Tranches" value={String(f.tranches.length)} />
+            <FinKpi label="Total Principal" value={fmtEUR(f.total_principal)} />
+            <FinKpi label="Euribor 12m" value={`${inputs.euribor_12m_pct.toFixed(2)}%`} />
+            <FinKpi label="Capital Stack" value={f.tranches.map((t) => t.label).join(" · ") || "—"} />
           </div>
           <p className="font-mono text-[11px] text-slate-400">
             Future-proof for mezzanine · preferred equity · bridge financing · refinance events · lender covenant testing · DSCR triggers.
@@ -40,21 +44,23 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
         </div>
       }
       detail={
-        <YearGrid caption="Financing · Debt schedule">
-          <DivisionRow label="Rate stack" />
-          <YearRow label="Euribor 12 months" values={f.bofy_balance.map(() => 0) as never} format="percent" indent={1} kind="muted" />
-          <YearRow label="Margin" values={f.bofy_balance.map(() => 0) as never} format="percent" indent={1} kind="muted" />
-          <YearRow label="Interest Rate" values={f.bofy_balance.map(() => 0) as never} format="percent" indent={1} kind="subgroup" />
-          <DivisionRow label="Debt service" />
-          <YearRow label="BoFY Balance" values={f.bofy_balance} />
-          <SubtotalRow label="Payment" values={f.payment} tone="subtotal" />
-          <YearRow label="Interest Expense" values={f.interest_expense} kind="negative" indent={1} />
-          <YearRow label="Loan Principal" values={f.loan_principal} kind="negative" indent={1} />
-          <YearRow label="Loan CAPEX" values={f.loan_capex} kind="negative" indent={1} />
-          <YearRow label="Bullet Principal" values={f.bullet_principal} kind="negative" indent={1} />
-          <SubtotalRow label="EoFY Balance" values={f.eofy_balance} tone="result" />
-          <DivisionRow label="Covenants" />
-          <YearRow label="RCSD / DSCR" values={f.rcsd} format="ratio" kind="subgroup" />
+        <YearGrid periods={periods} caption="Financing · Portfolio schedule">
+          <DivisionRow label="Rate stack" columnCount={cols} />
+          <YearRow label="Euribor 12 months" values={ratePlaceholder} format="percent" indent={1} kind="muted" />
+          <YearRow label="Margin (blended)" values={ratePlaceholder} format="percent" indent={1} kind="muted" />
+          <YearRow label="Effective rate" values={ratePlaceholder} format="percent" indent={1} kind="subgroup" />
+          <DivisionRow label="Debt service · portfolio" columnCount={cols} />
+          <YearRow label="BoFY Balance" values={f.total_bofy_balance} />
+          <SubtotalRow label="Payment" values={f.total_payment} tone="subtotal" />
+          <YearRow label="Interest Expense" values={f.total_interest_expense} kind="negative" indent={1} />
+          <YearRow label="Loan Principal" values={f.total_loan_principal} kind="negative" indent={1} />
+          <YearRow label="Bullet Principal" values={f.total_bullet_principal} kind="negative" indent={1} />
+          <YearRow label="Drawdown" values={f.total_drawdown} kind="positive" indent={1} />
+          <SubtotalRow label="EoFY Balance" values={f.total_eofy_balance} tone="result" />
+          <DivisionRow label="Covenants" columnCount={cols} />
+          <YearRow label="DSCR" values={f.dscr} format="ratio" kind="subgroup" />
+          <YearRow label="ICR" values={f.icr} format="ratio" kind="subgroup" />
+          <YearRow label="LTV" values={f.ltv_pct} format="percent" kind="subgroup" />
         </YearGrid>
       }
     />

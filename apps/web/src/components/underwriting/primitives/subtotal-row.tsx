@@ -1,9 +1,13 @@
 import { cn } from "@/lib/utils";
-import { YEAR_COUNT, type YearSeries } from "@/lib/underwriting/types";
+import type { PeriodSeries } from "@/lib/underwriting/temporal";
 
 /**
  * Highlighted subtotal row · used for GOP · EBITDA · NOI · GOP · etc.
  * Lime band when tone="result", slate band when tone="subtotal".
+ *
+ * Block 2 refactor (2026-05-18) · switched to PeriodSeries · cell count
+ * derives from values.length so the row matches the grid even when the
+ * temporal axis is monthly / quarterly.
  */
 export function SubtotalRow({
   label,
@@ -13,7 +17,7 @@ export function SubtotalRow({
   format = "currency_compact",
 }: {
   label: string;
-  values: YearSeries;
+  values: PeriodSeries;
   assumption?: string;
   tone?: "subtotal" | "result" | "warning";
   format?: "currency_compact" | "percent" | "integer" | "ratio";
@@ -30,10 +34,6 @@ export function SubtotalRow({
     tone === "result" ? "text-lime-200 font-extrabold"
     : tone === "warning" ? "text-amber-200 font-extrabold"
     : "text-slate-100 font-extrabold";
-
-  // Ensure cellCount matches the grid width (Block 1: assumption col optional)
-  const cellCount = YEAR_COUNT;
-  void cellCount;
 
   return (
     <tr className={cn("border-t border-slate-800/60 align-top", rowCls)}>
@@ -79,12 +79,14 @@ function formatCell(n: number, kind: "currency_compact" | "percent" | "integer" 
 /**
  * Section-divider row (e.g. inside CF between Investment and Financing).
  * Renders an empty band with just the label.
+ *
+ * Takes columnCount so it stretches to match the parent grid's width.
  */
-export function DivisionRow({ label }: { label: string }) {
+export function DivisionRow({ label, columnCount }: { label: string; columnCount: number }) {
   return (
     <tr>
       <td
-        colSpan={2 + YEAR_COUNT}
+        colSpan={columnCount}
         className="border-t border-slate-800/60 bg-slate-900/40 px-3 py-1 font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-500"
       >
         {label}

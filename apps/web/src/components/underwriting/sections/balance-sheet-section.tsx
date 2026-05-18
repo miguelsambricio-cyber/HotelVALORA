@@ -11,6 +11,8 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
  */
 export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) {
   const bs = bundle.computed.balance_sheet;
+  const periods = bundle.computed.periods;
+  const cols = 1 + periods.length;
   return (
     <SectionShell
       number={3}
@@ -30,15 +32,15 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
         </div>
       }
       detail={
-        <YearGrid caption="Balance Sheet · PropCo without Exit Strategy">
-          <DivisionRow label="Assets" />
+        <YearGrid periods={periods} caption="Balance Sheet · PropCo without Exit Strategy">
+          <DivisionRow label="Assets" columnCount={cols} />
           <SubtotalRow label="Non Current Assets" values={bs.non_current_assets} tone="subtotal" />
           <YearRow label="Building" values={bs.building} indent={1} />
           <YearRow label="Installations (MEP)" values={bs.installations_mep} indent={1} />
           <YearRow label="DTA" values={bs.dta_asset} indent={1} />
           <YearRow label="Cash" values={bs.cash} />
           <SubtotalRow label="Total Assets" values={bs.total_assets} tone="result" />
-          <DivisionRow label="Equity + Debt" />
+          <DivisionRow label="Equity + Debt" columnCount={cols} />
           <SubtotalRow label="Equity" values={bs.equity} tone="subtotal" />
           <YearRow label="Initial Equity" values={bs.initial_equity} indent={1} kind="muted" />
           <YearRow label="Reserves" values={bs.reserves} indent={1} kind="muted" />
