@@ -1,7 +1,6 @@
 import { SectionShell } from "../primitives/section-shell";
 import { MemorandumBlock } from "../primitives/memorandum-block";
-import { KpiHero, KpiTile } from "../primitives/kpi-hero";
-import { NarrativeParagraph, NarrativeMetric } from "../primitives/narrative-paragraph";
+import { KpiTile } from "../primitives/kpi-hero";
 import { RiskIndicator } from "../primitives/risk-indicator";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
@@ -44,8 +43,6 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
   }
   const peakLtv = f.ltv_pct[0] ?? 0;
 
-  const totalDebtPct = investment.total_building_cost > 0 ? f.total_principal / investment.total_building_cost : 0;
-
   return (
     <SectionShell
       number={7}
@@ -54,17 +51,6 @@ export function FinancingSection({ bundle }: { bundle: UnderwritingBundle }) {
       subtitle={`${f.tranches.length} tranche${f.tranches.length === 1 ? "" : "s"} · ${fmtEUR(f.total_principal)} aggregate principal · Euribor 12M ${inputs.euribor_12m_pct.toFixed(2)}%`}
       status={{ label: "Debt-committee ready", tone: "info" }}
       summary={
-        <NarrativeParagraph eyebrow="Capital stack">
-          Senior secured debt of <NarrativeMetric>{fmtEUR(f.total_principal)}</NarrativeMetric>{" "}
-          across <NarrativeMetric>{f.tranches.length}</NarrativeMetric> tranche{f.tranches.length === 1 ? "" : "s"}{" "}
-          delivers <NarrativeMetric>{fmtPct(totalDebtPct * 100)}</NarrativeMetric> Loan-to-Cost at a blended effective rate of{" "}
-          <NarrativeMetric>{fmtPct(blendedRate)}</NarrativeMetric> (Euribor 12M + margin).{" "}
-          {worstDscrPeriod > 0
-            ? <>Coverage tightens to <NarrativeMetric>{worstDscr.toFixed(2)}× DSCR</NarrativeMetric> in Y{worstDscrPeriod} during peak amortization · operator should validate against the {(inputs.tranches.find((t) => t.covenants?.length) ? "configured covenants" : "lender's 1.20× covenant default")}.</>
-            : <>Coverage holds above 1.0× DSCR through exit · institutional buffer absorbed by stabilising EBITDA.</>}
-        </NarrativeParagraph>
-      }
-      detail={
         <div className="space-y-6 print:space-y-4">
           {/* Block A · Debt stack composition */}
           <MemorandumBlock number="A" title="Debt stack" subtitle="Tranche hierarchy · principal at origination">

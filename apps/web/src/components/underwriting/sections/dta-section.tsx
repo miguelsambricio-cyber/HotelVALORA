@@ -1,7 +1,6 @@
 import { SectionShell } from "../primitives/section-shell";
 import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
-import { NarrativeParagraph, NarrativeMetric } from "../primitives/narrative-paragraph";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
@@ -10,12 +9,8 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
 /**
  * Section 05 · DTA · Spanish Ley IS · accounting-grade memorandum.
  *
- *   A · Tax mechanics headline (accounting vs cash vs deferred)
- *   B · DTA roll-forward narrative
- *   C · Detail schedule (limit logic + roll-forward + tax payment)
- *
- * Spanish Ley IS art. 16 · max(30% EBITDA, 1M €) interest deduction cap.
- * Non-deductible interest creates DTA · recovered in future capacity periods.
+ *   A · Tax separation headline (Accounting · Cash · Deferred)
+ *   B · Detail schedule (limits + roll-forward + tax payment)
  */
 export function DtaSection({ bundle }: { bundle: UnderwritingBundle }) {
   const d = bundle.computed.dta;
@@ -23,7 +18,6 @@ export function DtaSection({ bundle }: { bundle: UnderwritingBundle }) {
   const cols = 1 + periods.length;
   const exitYear = bundle.computed.exit.exit_year;
 
-  // Peak DTA
   let peakDta = 0;
   let peakDtaYear = 0;
   for (let t = 0; t < d.dta_end.length; t++) {
@@ -45,18 +39,7 @@ export function DtaSection({ bundle }: { bundle: UnderwritingBundle }) {
       subtitle="Spanish Ley IS art. 16 · EBITDA 30% cap · 1M € floor · current / deferred / accounting tax separation"
       status={{ label: "Accounting-grade · roll-forward consistent", tone: "info" }}
       summary={
-        <NarrativeParagraph eyebrow="Fiscal mechanics">
-          Early-hold financial expenses exceed the <NarrativeMetric>30%-of-EBITDA</NarrativeMetric> cap, generating{" "}
-          <NarrativeMetric>{fmtEUR(totalDtaIncreases)}</NarrativeMetric> in cumulative DTA accruals across Y1-Y4.
-          As EBITDA stabilises and amortization tapers, the Ley IS deduction capacity opens and the DTA unwinds ·{" "}
-          <NarrativeMetric>{fmtEUR(totalDtaDecreases)}</NarrativeMetric> compensated through Y9. Cumulative cash tax of{" "}
-          <NarrativeMetric>{fmtEUR(totalCashTax)}</NarrativeMetric> through exit · accounting tax of{" "}
-          <NarrativeMetric>{fmtEUR(totalAccountingTax)}</NarrativeMetric> includes the deferred-tax movement.
-        </NarrativeParagraph>
-      }
-      detail={
         <div className="space-y-6 print:space-y-4">
-          {/* Block A · Headline */}
           <MemorandumBlock number="A" title="Tax separation headline" subtitle="Accounting · Cash · Deferred">
             <KpiHero
               tiles={[
@@ -70,7 +53,6 @@ export function DtaSection({ bundle }: { bundle: UnderwritingBundle }) {
             />
           </MemorandumBlock>
 
-          {/* Block B · Detail schedule */}
           <MemorandumBlock number="B" title="Detail schedule" subtitle="P&L feeds → limits → DTA roll-forward → CIT">
             <YearGrid periods={periods} caption="DTA · PropCo without Exit Strategy">
               <DivisionRow label="P&L feeds" columnCount={cols} />

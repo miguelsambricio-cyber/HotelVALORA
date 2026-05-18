@@ -1,7 +1,6 @@
 import { SectionShell } from "../primitives/section-shell";
 import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
-import { NarrativeParagraph, NarrativeMetric } from "../primitives/narrative-paragraph";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
@@ -46,17 +45,6 @@ export function ExitSection({ bundle }: { bundle: UnderwritingBundle }) {
       subtitle={`Y${e.exit_year} disposition · institutional cap rate ${fmtPct(capExit.used_pct)} · ${asset.submarket}`}
       status={{ label: "IC narrative · disposition committee", tone: "info" }}
       summary={
-        <NarrativeParagraph eyebrow="Exit narrative">
-          At Y{e.exit_year} the asset is disposed at <NarrativeMetric>{fmtEUR(e.exit_price)}</NarrativeMetric>{" "}
-          (<NarrativeMetric>{fmtEUR(e.exit_price_per_room)} / key</NarrativeMetric>) on a{" "}
-          <NarrativeMetric>{fmtPct(capExit.used_pct)}</NarrativeMetric> exit cap rate · band{" "}
-          {fmtPct(capExit.dynamic.band.low_pct)}–{fmtPct(capExit.dynamic.band.high_pct)} · {capExit.dynamic.confidence.band.replace("_", "-")} confidence.
-          After fees and debt payoff, <NarrativeMetric>{fmtEUR(netEquityProceeds)}</NarrativeMetric> in net proceeds flows to equity,
-          delivering a <NarrativeMetric>{e.moic.toFixed(2)}× MOIC</NarrativeMetric> and{" "}
-          <NarrativeMetric>{fmtPct(e.equity_irr_pct)}</NarrativeMetric> equity IRR.
-        </NarrativeParagraph>
-      }
-      detail={
         <div className="space-y-6 print:space-y-4">
           {/* Block A · Returns headline */}
           <MemorandumBlock number="A" title="Returns" subtitle="Project · equity · multiple · cash on cash">

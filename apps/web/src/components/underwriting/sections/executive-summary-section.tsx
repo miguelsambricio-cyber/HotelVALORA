@@ -76,15 +76,15 @@ export function ExecutiveSummarySection({
           </MemorandumBlock>
 
           <MemorandumBlock number="B" title="Returns" subtitle="Underwriting conclusions · scenario-sensitive">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <ScenarioStrip
+              catalog={scenarioCatalog}
+              activeId={scenarioId}
+              onChange={onScenarioChange}
+            />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <ResultTile label="Project IRR" value={fmtPct(exit.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(exit.project_irr_pct, 8)} />
               <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
               <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
-              <ScenarioPickerTile
-                catalog={scenarioCatalog}
-                activeId={scenarioId}
-                onChange={onScenarioChange}
-              />
               <ResultTile label="Stabilised Yield" value={fmtPct(stabilisedYield * 100)} sub={`Year ${exit.exit_year}`} />
               <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtPct(capExit.used_pct)} exit cap · ${fmtEUR(exit.exit_price_per_room)} / key`} />
             </div>
@@ -231,9 +231,9 @@ function ResultTile({
   );
 }
 
-// ─── Scenario picker tile · sits inside Block B Returns ──────────────
+// ─── Scenario strip · own row above the Returns KPI grid ────────────
 
-function ScenarioPickerTile({
+function ScenarioStrip({
   catalog,
   activeId,
   onChange,
@@ -244,14 +244,19 @@ function ScenarioPickerTile({
 }) {
   const active = catalog.find((s) => s.id === activeId);
   return (
-    <div className="rounded-md border border-slate-800/60 bg-slate-900/40 p-3 print:break-inside-avoid print:border-slate-300 print:bg-white">
-      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
-        Cap Rate Scenario
-      </p>
+    <div className="flex flex-wrap items-center gap-3 rounded-md border border-slate-800/60 bg-slate-950/60 p-3 print:break-inside-avoid print:border-slate-300 print:bg-white">
+      <div className="min-w-0">
+        <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+          Cap Rate Scenario
+        </p>
+        <p className="mt-0.5 font-mono text-[10px] text-slate-400 print:text-slate-600">
+          {active?.hint ?? "scenario adjustment applied"}
+        </p>
+      </div>
       <div
         role="radiogroup"
         aria-label="Cap rate scenario"
-        className="mt-1.5 inline-flex w-full rounded-md border border-slate-700/60 bg-slate-950/60 p-0.5 print:hidden"
+        className="ml-auto inline-flex rounded-md border border-slate-700/60 bg-slate-900/60 p-0.5 print:hidden"
       >
         {catalog.map((s) => {
           const isActive = s.id === activeId;
@@ -264,9 +269,9 @@ function ScenarioPickerTile({
               onClick={() => onChange(s.id)}
               title={s.hint}
               className={cn(
-                "flex-1 rounded-sm px-2 py-1 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.16em] transition-colors",
+                "rounded-sm px-4 py-1.5 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.18em] transition-colors",
                 isActive
-                  ? "bg-lime-300 text-forest-900"
+                  ? "bg-lime-300 text-forest-900 shadow-sm"
                   : "text-slate-300 hover:bg-slate-800/80 hover:text-white",
               )}
             >
@@ -275,13 +280,10 @@ function ScenarioPickerTile({
           );
         })}
       </div>
-      {/* Print-only: render the active scenario as plain text */}
-      <p className="mt-1 hidden font-mono text-[15px] font-extrabold tabular-nums text-emerald-700 print:block">
+      {/* Print-only: render active scenario as a plain badge */}
+      <span className="hidden rounded-md bg-emerald-50 px-3 py-1 font-headline text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-emerald-500 print:inline-flex">
         {active?.label ?? activeId}
-      </p>
-      <p className="mt-1 truncate font-mono text-[9.5px] text-slate-500 print:text-slate-600">
-        {active?.hint ?? "scenario adjustment applied"}
-      </p>
+      </span>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { SectionShell } from "../primitives/section-shell";
 import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
-import { NarrativeParagraph, NarrativeMetric } from "../primitives/narrative-paragraph";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
@@ -10,19 +9,16 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
 /**
  * Section 02 · P&L · USALI structure · memorandum view.
  *
- *   A · Operating performance headline (GOP / EBITDA / Net Income)
- *   B · Revenue composition (Hotel / F&B / Other)
- *   C · Costs + D&A + Financing expenses
- *   D · Tax + Net Income
- *   E · Detail schedule (full USALI per-period table)
+ *   A · Operating headline (KPIs · always visible)
+ *   B · Detail schedule (full USALI per-period table · always open)
+ *
+ * No thesis narrative · no accordion chrome · institutional control layer.
  */
 export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
   const p = bundle.computed.pnl;
   const periods = bundle.computed.periods;
   const cols = 1 + periods.length;
   const exitYear = bundle.computed.exit.exit_year;
-
-  // Stabilised metrics · use last hold year as proxy (Y exitYear)
   const stabilisedYr = Math.max(1, exitYear);
   const stabilisedGop = p.gross_operating_profit[stabilisedYr] ?? 0;
   const stabilisedEbitda = p.ebitda_after_replacement[stabilisedYr] ?? 0;
@@ -40,17 +36,7 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
       subtitle="USALI structure · operating revenue → GOP → EBITDA → Net Income"
       status={{ label: "Operating truth · engine-driven", tone: "info" }}
       summary={
-        <NarrativeParagraph eyebrow="Operating thesis">
-          GOP ramps from <NarrativeMetric>{fmtEUR(p.gross_operating_profit[1] ?? 0)}</NarrativeMetric> in Y1 to{" "}
-          <NarrativeMetric>{fmtEUR(stabilisedGop)}</NarrativeMetric> at Y{stabilisedYr} stabilisation,
-          delivering <NarrativeMetric>{fmtEUR(stabilisedEbitda)}</NarrativeMetric> EBITDA after replacement reserve{" "}
-          (<NarrativeMetric>{fmtPct(stabilisedGopMarginPct)}</NarrativeMetric> margin). Net income turns positive in{" "}
-          Y{firstPositiveNiYear(p.net_income)} once financial expenses ease from peak amortization.
-        </NarrativeParagraph>
-      }
-      detail={
         <div className="space-y-6 print:space-y-4">
-          {/* Block A · Headline */}
           <MemorandumBlock number="A" title="Operating headline" subtitle={`Stabilised metrics at Y${stabilisedYr}`}>
             <KpiHero
               tiles={[
@@ -64,7 +50,6 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
             />
           </MemorandumBlock>
 
-          {/* Block B · Detail schedule */}
           <MemorandumBlock number="B" title="Detail schedule" subtitle="USALI · Revenue → Costs → EBITDA → D&A → EBIT → FinExp → EBT → CIT → NI">
             <YearGrid periods={periods} caption="P&L · PropCo without Exit Strategy">
               <DivisionRow label="Revenue" columnCount={cols} />
@@ -92,13 +77,6 @@ export function PnlSection({ bundle }: { bundle: UnderwritingBundle }) {
       }
     />
   );
-}
-
-function firstPositiveNiYear(series: number[]): number {
-  for (let i = 1; i < series.length; i++) {
-    if (series[i] > 0) return i;
-  }
-  return series.length - 1;
 }
 
 function marginTone(pct: number): "ok" | "warn" | "negative" {

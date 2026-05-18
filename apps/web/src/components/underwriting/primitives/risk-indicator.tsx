@@ -25,10 +25,10 @@ export interface RiskIndicatorProps {
 
 export function RiskIndicator({ severity, label, detail }: RiskIndicatorProps) {
   const tone =
-    severity === "stress" ? "border-rose-400/30 bg-rose-500/5 print:border-rose-500 print:bg-rose-50"
-    : severity === "watch" ? "border-amber-300/30 bg-amber-500/5 print:border-amber-500 print:bg-amber-50"
-    : severity === "ok" ? "border-emerald-400/30 bg-emerald-500/5 print:border-emerald-500 print:bg-emerald-50"
-    : "border-slate-700/60 bg-slate-900/30 print:border-slate-300 print:bg-white";
+    severity === "stress" ? "border-rose-400/50 bg-rose-500/15 print:border-rose-500 print:bg-rose-50"
+    : severity === "watch" ? "border-amber-300/50 bg-amber-500/15 print:border-amber-500 print:bg-amber-50"
+    : severity === "ok" ? "border-emerald-400/50 bg-emerald-500/15 print:border-emerald-500 print:bg-emerald-50"
+    : "border-slate-600/70 bg-slate-800/60 print:border-slate-300 print:bg-white";
 
   const dot =
     severity === "stress" ? "bg-rose-400 print:bg-rose-600"
@@ -52,7 +52,7 @@ export function RiskIndicator({ severity, label, detail }: RiskIndicatorProps) {
           {label}
         </p>
         {detail && (
-          <p className="mt-1 break-words font-mono text-[10.5px] leading-relaxed text-slate-400 print:text-slate-600">
+          <p className="mt-1 break-words font-mono text-[10.5px] leading-relaxed text-slate-200 print:text-slate-700">
             {detail}
           </p>
         )}

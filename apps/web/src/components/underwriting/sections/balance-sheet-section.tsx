@@ -1,7 +1,6 @@
 import { SectionShell } from "../primitives/section-shell";
 import { MemorandumBlock } from "../primitives/memorandum-block";
 import { KpiHero } from "../primitives/kpi-hero";
-import { NarrativeParagraph, NarrativeMetric } from "../primitives/narrative-paragraph";
 import { RiskIndicator } from "../primitives/risk-indicator";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
@@ -11,9 +10,9 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
 /**
  * Section 03 · Balance Sheet · first-class reconciliation layer.
  *
- *   A · BS headline · Assets / Equity / Debt at Y0 + at exit
- *   B · Reconciliation badges (BS balanced + cash bridge invariants)
- *   C · Detail schedule
+ *   A · Capital structure snapshot (Y0 vs exit)
+ *   B · Reconciliation invariants
+ *   C · Detail schedule (always open)
  */
 export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) {
   const bs = bundle.computed.balance_sheet;
@@ -28,7 +27,6 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
   const equityExit = bs.equity[exitYear] ?? 0;
   const debtY0 = bs.debt[0] ?? 0;
   const debtExit = bs.debt[exitYear] ?? 0;
-  const cashExit = bs.cash[exitYear] ?? 0;
 
   const allBalanced = recon.bs_balanced.every((b) => b);
   const cashOk = recon.cash_matches_cf;
@@ -41,24 +39,13 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
       subtitle="First-class reconciliation layer · Assets ≡ Equity + Debt every period (±1 €)"
       status={{ label: allBalanced && cashOk ? "All invariants pass" : "Invariant warnings present", tone: allBalanced && cashOk ? "info" : "warn" }}
       summary={
-        <NarrativeParagraph eyebrow="Capital structure">
-          At Y0, asset side stands at <NarrativeMetric>{fmtEUR(totalAssetsY0)}</NarrativeMetric> (building + MEP at cost) ·
-          equity side at <NarrativeMetric>{fmtEUR(equityY0)}</NarrativeMetric> sponsor capital plus{" "}
-          <NarrativeMetric>{fmtEUR(debtY0)}</NarrativeMetric> senior debt. Through the {exitYear}-year hold,
-          assets de-leverage as debt amortizes · at exit, asset is disposed and{" "}
-          <NarrativeMetric>{fmtEUR(cashExit)}</NarrativeMetric> in realised cash sits on the equity side ·
-          debt fully repaid. All {periods.length} periods balance to ±1 €.
-        </NarrativeParagraph>
-      }
-      detail={
         <div className="space-y-6 print:space-y-4">
-          {/* Block A · Headline */}
           <MemorandumBlock number="A" title="Capital structure snapshot" subtitle="Y0 vs exit year">
             <KpiHero
               tiles={[
                 { label: "Total Assets · Y0", value: fmtEUR(totalAssetsY0), sub: "building + MEP at cost", highlight: true },
-                { label: "Equity · Y0", value: fmtEUR(equityY0), sub: `${fmtPct((equityY0 / totalAssetsY0) * 100)} of total` },
-                { label: "Debt · Y0", value: fmtEUR(debtY0), sub: `${fmtPct((debtY0 / totalAssetsY0) * 100)} of total` },
+                { label: "Equity · Y0", value: fmtEUR(equityY0), sub: `${fmtPct((equityY0 / Math.max(totalAssetsY0, 1)) * 100)} of total` },
+                { label: "Debt · Y0", value: fmtEUR(debtY0), sub: `${fmtPct((debtY0 / Math.max(totalAssetsY0, 1)) * 100)} of total` },
                 { label: "Total Assets · exit", value: fmtEUR(totalAssetsExit), sub: `Y${exitYear} · post-disposal`, highlight: true },
                 { label: "Equity · exit", value: fmtEUR(equityExit), sub: `Δ ${signed(equityExit - equityY0)}${fmtEUR(Math.abs(equityExit - equityY0))}`, tone: equityExit > equityY0 ? "ok" : "warn" },
                 { label: "Debt · exit", value: fmtEUR(debtExit), sub: "repaid in full at sale", tone: "ok" },
@@ -66,9 +53,8 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
             />
           </MemorandumBlock>
 
-          {/* Block B · Reconciliation badges */}
           <MemorandumBlock number="B" title="Reconciliation invariants" subtitle="Institutional-grade BS hygiene">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <RiskIndicator
                 severity={allBalanced ? "ok" : "stress"}
                 label="I-1 · Balance Sheet balance"
@@ -84,7 +70,6 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
             </div>
           </MemorandumBlock>
 
-          {/* Block C · Detail */}
           <MemorandumBlock number="C" title="Detail schedule" subtitle="Asset side · Equity side · per period">
             <YearGrid periods={periods} caption="Balance Sheet · PropCo without Exit Strategy">
               <DivisionRow label="Assets" columnCount={cols} />
