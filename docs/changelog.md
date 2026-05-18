@@ -4,6 +4,44 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-18 — Section 6 · Investment memorandum view (acquisition rationale · cap-rate explainability · CAPEX phases · stabilised yield)
+
+Replaced the flat Investment / CAPEX scaffold with an institutional memorandum surface. Section 6 now reads as acquisition-committee backup / lender-ready breakdown.
+
+### 4-block memorandum layout
+- **Block A · Site Acquisition** — pricing (Asking · Hotel Value · €/key · €/m²) + Dynamic Cap Rate rationale stack + Acquisition costs itemised
+- **Block B · CAPEX Breakdown** — Hard cost · Soft cost · Project costs · per-line (Total € · % CAPEX · €/key · €/m² · €/int. m²) + CAPEX phases banner
+- **Block C · Total Investment** — hero (Total · €/key · €/m²) + composition bars + Stabilised yield progression Y1..Y5 (mini chart)
+- **Block D · D&A schedule** — building / MEP useful lives + per-period D&A row
+
+### Cap-rate rationale (CORE IP teaser)
+5-layer narrative stack always rendered: Base Market Yield → Category → Size → Renovation state → Scenario, plus optional closure to operator override. Each layer carries `{ label, delta_pct, rationale }` so the committee defence is in the UI, not external. Block 6 wires the live MarketEvidence + ConfidenceEngine.
+
+### CAPEX phases · future-proof
+`InvestmentBreakdown.capex_phases: CapexPhase[]` ships ready for refurbishment waves · expansion · ESG retrofit · tenant improvement · operator contribution · insurance / contingency phases. MVP seeds one `initial_renovation` phase; Block 3 phases drawdowns into Cash Flow.
+
+### Type contracts
+- `InvestmentBreakdown` + `asking_price`, `hotel_value`, `capex_phases`, `stabilized_yield_progression`
+- `BreakdownLine` + optional `assumption: string` (driver hint)
+- New: `CapexBucketKind` · `CapexFundedBy` · `CapexPhase`
+- `DynamicCapRateResult.adjustments` engine now seeds the 5-layer narrative
+
+### Engine wiring (Block 2 deterministic placeholders)
+- `engine/investment.ts` · full Excel-parity computation (mirrors operator's reference values)
+- `engine/cap-rate.ts` · 5-layer narrative seeded from asset/scenario, closes to operator override
+- `engine/pnl.ts` · stub D&A schedule (SL building + MEP) so Section 6 Block D renders
+
+### Print discipline
+Landscape · 4 memorandum blocks carry `print:break-inside-avoid` · dark→light theme inversion across all primitives · highlight bands use `print:bg-emerald-50` / `print:text-emerald-700`.
+
+### Documentation
+- `docs/underwriting/investment-memorandum.md` · canonical spec for Section 6 layout, cap-rate rationale layers, CAPEX phasing taxonomy, print discipline
+
+### Verification
+- `npm run typecheck` · 0 errors
+
+---
+
 ## 2026-05-18 — Underwriting OS · Block 2 (engine architecture · DAG · temporal · tranches · versioning · reconciliation)
 
 Refactored the `/report/financials/underwriting` foundation from the Block 1 shell into a deterministic, multi-scenario-ready calculation engine architecture.

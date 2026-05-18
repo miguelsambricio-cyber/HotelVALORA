@@ -307,25 +307,77 @@ export interface DtaSchedule {
 }
 
 export interface InvestmentBreakdown {
+  // Asking + appraised
+  asking_price: number;
+  hotel_value: number;
+
+  // Section totals
   site_acquisition_total: number;
   capex_total: number;
   contingency_insurance: number;
   acquisition_fees_taxes: number;
   total_building_cost: number;
-  acquisition: BreakdownLine[];
-  capex_hard_cost: BreakdownLine[];
-  capex_soft_cost: BreakdownLine[];
-  capex_project: BreakdownLine[];
+
+  // Itemised lines (one BreakdownLine per Excel row)
+  acquisition: BreakdownLine[];          // Notary · AJD · ITP · Acq fee · Key money
+  capex_hard_cost: BreakdownLine[];      // Structure · Asset content · MEP · Exterior
+  capex_soft_cost: BreakdownLine[];      // Licensing · TC · Dev fee · Pre-opening · FF&E · OS&E · Insurance
+  capex_project: BreakdownLine[];        // Contingency · Insurance development · other project costs
+
+  // Future-proof · phased deployment of CAPEX (MVP single initial phase)
+  capex_phases: CapexPhase[];
+
+  // Stabilised yield progression · NOI ÷ total investment per period · Y1..Y5 minimum.
+  stabilized_yield_progression: PeriodSeries;
 }
 
 export interface BreakdownLine {
   id: string;
   label: string;
+  /** Optional · the underwriting driver behind this line (e.g. "11.250 €/key", "2%"). */
+  assumption?: string;
   total_eur: number;
   per_room_eur: number;
   per_sqm_eur: number;
   per_intervention_sqm_eur: number;
   pct_of_total: number;
+  notes?: string;
+}
+
+/**
+ * CAPEX phase · future-proof for multi-wave deployments, operator
+ * contributions, tenant-improvement allowances, expansion CAPEX,
+ * ESG retrofit buckets. MVP seeds a single `initial_renovation`
+ * phase but the structure accepts unlimited phases.
+ */
+export type CapexBucketKind =
+  | "initial_renovation"
+  | "refurbishment_wave"
+  | "expansion"
+  | "esg_retrofit"
+  | "tenant_improvement"
+  | "operator_contribution"
+  | "fitout"
+  | "contingency"
+  | "insurance";
+
+export type CapexFundedBy =
+  | "developer"
+  | "operator"
+  | "tenant"
+  | "esg_grant"
+  | "insurance_claim";
+
+export interface CapexPhase {
+  id: string;
+  kind: CapexBucketKind;
+  label: string;
+  /** First period of drawdown · 0 = closing year. */
+  start_period_index: number;
+  /** Span across periods · phased drawdowns (1 = single-shot). */
+  drawdown_periods: number;
+  total_eur: number;
+  funded_by: CapexFundedBy;
   notes?: string;
 }
 
