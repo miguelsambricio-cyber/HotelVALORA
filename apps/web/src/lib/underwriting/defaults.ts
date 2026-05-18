@@ -92,17 +92,18 @@ const INPUTS_BASE: UnderwritingInputs = {
     },
     contingency_pct: 0.05,
   },
+  // pl_drivers in ACTUAL € (Excel reference shows k€; multiplied ×1000 here).
   pl_drivers: {
     gop: {
-      hotel: alignToSeries([0, 4_891, 5_291, 5_473, 5_636, 5_623, 5_641, 5_657, 5_716, 5_720, 5_743], PERIODS),
-      fb: alignToSeries([0, 1_374, 1_400, 1_427, 1_454, 1_482, 1_510, 1_539, 1_568, 1_598, 1_629], PERIODS),
-      other: alignToSeries([0, 418, 440, 463, 488, 513, 539, 567, 596, 626, 657], PERIODS),
+      hotel: alignToSeries([0, 4_891_000, 5_291_000, 5_473_000, 5_636_000, 5_623_000, 5_641_000, 5_657_000, 5_716_000, 5_720_000, 5_743_000], PERIODS),
+      fb: alignToSeries([0, 1_374_000, 1_400_000, 1_427_000, 1_454_000, 1_482_000, 1_510_000, 1_539_000, 1_568_000, 1_598_000, 1_629_000], PERIODS),
+      other: alignToSeries([0, 418_000, 440_000, 463_000, 488_000, 513_000, 539_000, 567_000, 596_000, 626_000, 657_000], PERIODS),
     },
     costs: {
-      mgmt_fee: alignToSeries([0, -698, -729, -750, -770, -783, -797, -812, -829, -844, -860], PERIODS),
-      property_tax: alignToSeries([0, -106, -109, -113, -116, -120, -123, -127, -131, -135, -139], PERIODS),
-      property_insurance: alignToSeries([0, -61, -62, -64, -65, -67, -69, -70, -72, -74, -76], PERIODS),
-      ffe_reserve: alignToSeries([0, -607, -634, -652, -670, -681, -693, -706, -721, -734, -748], PERIODS),
+      mgmt_fee: alignToSeries([0, -698_000, -729_000, -750_000, -770_000, -783_000, -797_000, -812_000, -829_000, -844_000, -860_000], PERIODS),
+      property_tax: alignToSeries([0, -106_000, -109_000, -113_000, -116_000, -120_000, -123_000, -127_000, -131_000, -135_000, -139_000], PERIODS),
+      property_insurance: alignToSeries([0, -61_000, -62_000, -64_000, -65_000, -67_000, -69_000, -70_000, -72_000, -74_000, -76_000], PERIODS),
+      ffe_reserve: alignToSeries([0, -607_000, -634_000, -652_000, -670_000, -681_000, -693_000, -706_000, -721_000, -734_000, -748_000], PERIODS),
     },
   },
   depreciation: { building_years: 25, mep_years: 7 },

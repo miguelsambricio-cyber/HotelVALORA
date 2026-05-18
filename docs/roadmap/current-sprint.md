@@ -6,6 +6,7 @@
 
 | Feature | Commit | Status |
 |---|---|---|
+| **Underwriting OS · Block 3A** — foundational financial engine (investment + financing + pnl) · Excel-parity validated 30/30 (zero drift) · parity infrastructure (_constants · parity.ts · markdown reports) · DebtTranche real amortization (straight · bullet · interest-only · custom · floating rate w/ floor·cap) · USALI P&L wired (GOP → Costs → EBITDA → D&A → EBIT → FinExp → EBT → CIT → NetIncome) · inputs unit cleanup (pl_drivers in actual €) · docs/underwriting/excel-parity-block-3a.md · typecheck clean | *(this commit)* | ✅ |
 | **Underwriting OS · Block 2** — engine architecture (DAG · orchestrator · 8 module scaffolds · reconciliation invariants · formula registry) · temporal model (Period/PeriodSeries · MVP YEARLY_PERIODS_Y0_Y10) · DebtTranche-first financing (6 kinds · LTV/LTC/fixed principal · floating-with-floor-cap rate · refinance events · covenants) · Scenario persistence contract (deep-frozen ScenarioSnapshot · explicit recompute) · SCHEMA + ENGINE versioning · Excel audit doc · temporal-model doc · typecheck clean | *(this commit)* | ✅ |
 | Library v1 — `/library/favorites-map` | `f7ea4c3` | ✅ |
 | Responsive scaling for 1440×900 | `d3f9b00` | ✅ |

@@ -65,7 +65,7 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
             <AcquisitionCostsItemized lines={investment.acquisition} acqCostsTotal={investment.acquisition_fees_taxes} />
           </MemorandumBlock>
 
-          <MemorandumBlock number="B" title="CAPEX Breakdown" subtitle="Hard cost · soft cost · project costs · per-key / per-m² traceability">
+          <MemorandumBlock number="B" title="CAPEX Breakdown" subtitle="Hard cost · soft cost · per-key / per-m² traceability">
             <CapexCategoryTable
               title="Hard Cost"
               lines={investment.capex_hard_cost}
@@ -75,11 +75,6 @@ export function InvestmentSection({ bundle }: { bundle: UnderwritingBundle }) {
               title="Soft Cost"
               lines={investment.capex_soft_cost}
               groupTotal={sumLines(investment.capex_soft_cost)}
-            />
-            <CapexCategoryTable
-              title="Project Costs"
-              lines={investment.capex_project}
-              groupTotal={sumLines(investment.capex_project)}
             />
             <CapexPhasesBanner phases={investment.capex_phases} />
           </MemorandumBlock>

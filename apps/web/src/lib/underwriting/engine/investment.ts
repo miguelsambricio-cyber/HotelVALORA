@@ -1,20 +1,33 @@
 import type { EngineModule } from "./_types";
-import type { BreakdownLine, CapexPhase, InvestmentBreakdown, UnderwritingInputs } from "../types";
+import type { BreakdownLine, CapexPhase, InvestmentBreakdown } from "../types";
 import { zeroSeries } from "../temporal";
 import { perKey, perSqm } from "./formulas";
 
 /**
  * Module · investment.
  *
- * Block 2 emits a deterministic, fully-itemised investment breakdown
- * derived from the operator inputs (acquisition + capex). The numbers
- * mirror the operator's Excel reference example so the Section 6 UI
- * already renders the institutional memorandum view.
+ * Block 3A reaudit (2026-05-18) · formulas reverse-engineered from
+ * operator Excel reference and validated against the Madrid Centro
+ * 4* / 256-keys baseline (parity report: docs/underwriting/
+ * excel-parity-block-3a.md).
  *
- * Block 3 will:
- *   · wire dynamic stabilised yield from PnL (currently ramp seed)
- *   · enforce CAPEX phase drawdowns into the cash_flow module
- *   · add operator-contribution / ESG / refurbishment buckets per phase
+ * Excel-matched formulas:
+ *   · Acquisition costs : pct × asking_price
+ *   · MEP               : mep_per_room × rooms
+ *   · Exterior          : exterior_pct × (MEP + FF&E + OS&E)
+ *   · FF&E              : ffe_per_room × rooms
+ *   · OS&E              : ose_per_room × rooms
+ *   · Licensing         : licensing_pct × HARD
+ *   · Tech consultant   : tc_pct × (HARD + PRE + FF&E + OS&E)
+ *   · Dev fee           : dev_fee_pct × (HARD + PRE + FF&E + OS&E)
+ *   · Insurance dev     : insurance_pct × asking_price
+ *   · Contingency       : contingency_pct × (HARD + SOFT_pre_contingency_and_insurance)
+ *
+ * Bucket layout (per Section 6 spec):
+ *   · capex_hard_cost   : Structure · Asset content · MEP · Exterior
+ *   · capex_soft_cost   : Licensing · TC · Dev fee · Pre-Opening · FF&E ·
+ *                         OS&E · Contingency · Insurance development
+ *   · capex_project     : reserved (empty in MVP, kept for future split)
  */
 export const investmentModule: EngineModule<"investment"> = {
   key: "investment",
@@ -27,38 +40,47 @@ export const investmentModule: EngineModule<"investment"> = {
     const askingPrice = acquisition.asking_price;
     const hotelValue = acquisition.hotel_value;
 
-    // ─── Acquisition lines ────────────────────────────────────────────
-    const acqCostsBasis = askingPrice;
-    const notary = round0(acqCostsBasis * acquisition.costs.notary_registry_pct);
-    const ajd = round0(acqCostsBasis * acquisition.costs.ajd_pct);
-    const itp = round0(acqCostsBasis * acquisition.costs.itp_pct);
-    const acqFee = round0(acqCostsBasis * acquisition.costs.acquisition_fee_pct);
+    // ─── Acquisition lines · pct × asking_price ──────────────────────
+    const notary = round0(askingPrice * acquisition.costs.notary_registry_pct);
+    const ajd = round0(askingPrice * acquisition.costs.ajd_pct);
+    const itp = round0(askingPrice * acquisition.costs.itp_pct);
+    const acqFee = round0(askingPrice * acquisition.costs.acquisition_fee_pct);
     const keyMoney = round0(acquisition.costs.key_money_total);
     const acqCostsTotal = notary + ajd + itp + acqFee + keyMoney;
     const siteAcquisitionTotal = askingPrice + acqCostsTotal;
 
-    // ─── CAPEX · hard cost lines ──────────────────────────────────────
+    // ─── Hard cost ────────────────────────────────────────────────────
     const structure = round0(askingPrice * capex.hard_cost.structure_pct);
     const assetContent = round0(askingPrice * capex.hard_cost.asset_content_pct);
     const mep = round0(capex.hard_cost.mep_per_room * rooms);
-    const exterior = round0(askingPrice * capex.hard_cost.exterior_pct);
-    const hardCostTotal = structure + assetContent + mep + exterior;
-
-    // ─── CAPEX · soft cost lines ──────────────────────────────────────
-    const licensing = round0(hardCostTotal * capex.soft_cost.licensing_pct);
-    const techConsultant = round0(hardCostTotal * capex.soft_cost.technical_consultant_pct);
-    const devFee = round0(hardCostTotal * capex.soft_cost.development_fee_pct);
-    const preopening = round0(capex.soft_cost.preopening_total);
     const ffe = round0(capex.soft_cost.ffe_per_room * rooms);
     const ose = round0(capex.soft_cost.ose_per_room * rooms);
-    const insurance = round0(hardCostTotal * capex.soft_cost.insurance_pct);
-    const softCostTotal = licensing + techConsultant + devFee + preopening + ffe + ose + insurance;
+    // Exterior basis = MEP + FF&E + OS&E (per Excel reverse-engineering)
+    const exterior = round0(capex.hard_cost.exterior_pct * (mep + ffe + ose));
+    const hardCostTotal = structure + assetContent + mep + exterior;
 
-    // ─── CAPEX · project costs (contingency) ──────────────────────────
-    const capexPreContingency = hardCostTotal + softCostTotal;
-    const contingency = round0(capexPreContingency * capex.contingency_pct);
-    const capexTotal = capexPreContingency + contingency;
+    // ─── Soft cost · base figures ─────────────────────────────────────
+    // Bases used by Excel:
+    //   · licensing → HARD
+    //   · TC / dev fee → HARD + PRE + FF&E + OS&E
+    //   · insurance → asking_price
+    //   · contingency → HARD + SOFT_pre (excludes insurance + contingency itself)
+    const preopening = round0(capex.soft_cost.preopening_total);
+    const licensing = round0(hardCostTotal * capex.soft_cost.licensing_pct);
+    const tcDevBase = hardCostTotal + preopening + ffe + ose;
+    const techConsultant = round0(tcDevBase * capex.soft_cost.technical_consultant_pct);
+    const devFee = round0(tcDevBase * capex.soft_cost.development_fee_pct);
+    const insurance = round0(askingPrice * capex.soft_cost.insurance_pct);
 
+    const softPreContingencyAndInsurance =
+      licensing + techConsultant + devFee + preopening + ffe + ose;
+    const contingency = round0(
+      capex.contingency_pct * (hardCostTotal + softPreContingencyAndInsurance),
+    );
+
+    const softCostTotal =
+      softPreContingencyAndInsurance + insurance + contingency;
+    const capexTotal = hardCostTotal + softCostTotal;
     const totalBuildingCost = siteAcquisitionTotal + capexTotal;
 
     // ─── BreakdownLine helpers ────────────────────────────────────────
@@ -84,14 +106,10 @@ export const investmentModule: EngineModule<"investment"> = {
       mkLine("preopening", "Pre-Opening", preopening, totalBuildingCost, rooms, totalSqm, intSqm),
       mkLine("ffe", "FF&E", ffe, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.soft_cost.ffe_per_room)} / key`),
       mkLine("ose", "OS&E", ose, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.soft_cost.ose_per_room)} / key`),
+      mkLine("contingency", "Contingency", contingency, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.contingency_pct)),
       mkLine("insurance_dev", "Insurance · Seguro de Obra", insurance, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.insurance_pct)),
     ];
 
-    const projectLines: BreakdownLine[] = [
-      mkLine("contingency", "Contingency", contingency, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.contingency_pct)),
-    ];
-
-    // ─── CAPEX phases · MVP single initial phase ──────────────────────
     const capexPhases: CapexPhase[] = [
       {
         id: "phase_initial",
@@ -101,26 +119,31 @@ export const investmentModule: EngineModule<"investment"> = {
         drawdown_periods: 1,
         total_eur: capexTotal,
         funded_by: "developer",
-        notes: "MVP single-shot drawdown · Block 3 will phase across periods 0-1.",
+        notes: "MVP single-shot drawdown · Block 3B will phase across periods 0-1 with operator-contribution split.",
       },
     ];
 
-    // ─── Stabilised yield progression · seed ramp (Block 3 wires real) ─
+    // ─── Stabilised yield progression · derived from later modules ──
+    // Block 3A leaves a deterministic ramp; Block 3B will rewrite this
+    // post-pnl as ebitda_after_replacement[t] / total_building_cost.
     const yieldSeries = zeroSeries(inputs.periods);
-    seedStabilisedYieldRamp(yieldSeries, inputs);
+    const ramp = [0, 0.040, 0.052, 0.061, 0.066, 0.069, 0.071, 0.072, 0.073, 0.074, 0.075];
+    for (let i = 0; i < yieldSeries.length && i < ramp.length; i++) {
+      yieldSeries[i] = ramp[i];
+    }
 
     return {
       asking_price: askingPrice,
       hotel_value: hotelValue,
       site_acquisition_total: siteAcquisitionTotal,
       capex_total: capexTotal,
-      contingency_insurance: contingency,
+      contingency_insurance: contingency + insurance,
       acquisition_fees_taxes: acqCostsTotal,
       total_building_cost: totalBuildingCost,
       acquisition: acqLines,
       capex_hard_cost: hardLines,
       capex_soft_cost: softLines,
-      capex_project: projectLines,
+      capex_project: [],
       capex_phases: capexPhases,
       stabilized_yield_progression: yieldSeries,
     };
@@ -165,17 +188,4 @@ function fmtPctAssumption(pct: number): string {
 function fmtEurCompact(n: number): string {
   if (!Number.isFinite(n) || n === 0) return "—";
   return `${new Intl.NumberFormat("es-ES").format(Math.round(n))} €`;
-}
-
-/**
- * Seed a stabilised-yield ramp · Year 1 starts low, ramps to stabilised
- * by Year 4. Block 3 replaces this with PnL.ebitda_after_replacement /
- * total_building_cost per period.
- */
-function seedStabilisedYieldRamp(series: number[], inputs: UnderwritingInputs): void {
-  const ramp = [0, 0.040, 0.052, 0.061, 0.066, 0.069, 0.071, 0.072, 0.073, 0.074, 0.075];
-  for (let i = 0; i < series.length && i < ramp.length; i++) {
-    series[i] = ramp[i];
-  }
-  void inputs;
 }

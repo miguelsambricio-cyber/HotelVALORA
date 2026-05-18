@@ -4,6 +4,57 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-18 — Underwriting OS · Block 3A · foundational financial engine (investment + financing + P&L · all Excel-parity validated)
+
+Wired real engine math for the three foundational modules per the operator's reconciliation-first discipline. Every formula reverse-engineered from the operator's reference Excel and validated cell-by-cell against the Madrid Centro 4* / 256-keys baseline.
+
+### Modules wired (real math)
+- **`investment.compute`** — restructured to match Excel formulas exactly:
+  - Exterior basis = `MEP + FF&E + OS&E` (reverse-engineered; was previously `× asking_price` and drifted 1.46M €)
+  - TC + Dev fee base = `HARD + PRE + FF&E + OS&E`
+  - Contingency base = `HARD + SOFT_pre_contingency_and_insurance` (excludes insurance + contingency itself)
+  - Insurance dev = `pct × asking_price`
+  - 2 UI buckets (Hard · Soft) per operator spec — Contingency + Insurance moved into Soft
+- **`financing.compute`** — per-tranche amortization (straight · bullet · interest-only · custom) + portfolio aggregation:
+  - DebtTranche-first · respects `origination_period_index` + `grace_periods` + `maturity_periods`
+  - Floating rate stack (Euribor base + margin · with optional floor/cap)
+  - Drawdown at origination · principal series respects amortization kind
+  - DSCR / ICR / LTV intentionally zero · Block 3B fills (needs NOI from PnL)
+- **`pnl.compute`** — full USALI-style P&L:
+  - GOP from `inputs.pl_drivers.gop` (hotel + F&B + other)
+  - Costs from `inputs.pl_drivers.costs` (mgmt fee · property tax · insurance · FF&E reserve)
+  - EBITDA after Replacement → D&A (building + MEP straight-line) → EBIT
+  - Financial Expenses = −Σ tranche interest (from financing)
+  - EBT → CIT (25% gross · Block 4 wires Ley IS 30%-EBITDA cap on Financial Expenses)
+  - Net Income · cumulative Total Net Income
+
+### Parity validation
+- **30 / 30 checks pass · 0 drift · 0 fail** against the operator's Excel baseline (€ tolerance ±1, % tolerance ±0.1%)
+- Full parity report: `docs/underwriting/excel-parity-block-3a.md` (every line · expected vs engine vs Δ · per-period tranche schedules · 7-year P&L roll)
+
+### Parity infrastructure (Block 3+ standard)
+- `engine/_constants.ts` — `PAYMENTS_PER_YEAR` · `TOLERANCE_EUR` (±1) · `TOLERANCE_PCT` (±0.1%) · `TOLERANCE_RATIO` (±0.05) · `TAX_DEFAULTS` · `SIGN` conventions
+- `engine/parity.ts` — `ParityCheck` · `ParityResult` (`match` / `drift` / `fail`) · `runParityChecks` · markdown report formatters (`formatResultsAsMarkdown` · `formatSummaryAsMarkdown`)
+- Every Block 3+ module must ship with parity checks before review
+
+### Inputs unit cleanup
+- `defaults.ts` pl_drivers expanded to actual € (×1000 from operator's k€ Excel notation) so financing / pnl downstream produce reconciliable numbers consistent with the rest of the engine (hotel_value, asking_price, tranche principals were already in actual €)
+
+### Formula isolation audit
+No duplication detected across modules · all cross-cutting math (DSCR · ICR · LTV · IRR · MOIC · Spanish Ley IS finexp cap · CIT · SL depreciation · per-key / per-sqm) stays in `engine/formulas.ts` and is imported by name.
+
+### Block 3B prerequisites
+- 3 foundational modules now Excel-parity-validated · safe to depend on
+- Reconciliation module needs DSCR/ICR/LTV computation post-pnl
+- Section 6 stabilised yield placeholder ramp will swap for `pnl.ebitda_after_replacement[t] / investment.total_building_cost` once CF reconciles
+
+### Verification
+- `npm run typecheck` · 0 errors
+- 30/30 parity checks · 0 drift · 0 fail
+- Sections 02 (P&L) · 06 (Investment) · 07 (Financing) now render real engine outputs without any UI changes (memorandum view inherits from Block 2 work)
+
+---
+
 ## 2026-05-18 — Section 6 · Investment memorandum view (acquisition rationale · cap-rate explainability · CAPEX phases · stabilised yield)
 
 Replaced the flat Investment / CAPEX scaffold with an institutional memorandum surface. Section 6 now reads as acquisition-committee backup / lender-ready breakdown.
