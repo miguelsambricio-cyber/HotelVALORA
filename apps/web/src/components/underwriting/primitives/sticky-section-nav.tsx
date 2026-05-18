@@ -103,9 +103,6 @@ function NavChip({
           {item.label}
         </span>
       </span>
-      {item.hint && !compact && (
-        <p className="mt-0.5 pl-6 font-mono text-[9.5px] text-slate-500">{item.hint}</p>
-      )}
     </a>
   );
 }
