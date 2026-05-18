@@ -310,7 +310,7 @@ function CapexCategoryTable({ title, lines, groupTotal }: { title: string; lines
       <ItemTable
         lines={lines}
         groupTotal={groupTotal}
-        columns={["assumption", "total", "pct", "perKey", "perSqm", "perInt"]}
+        columns={["assumption", "total", "pct", "perKey", "perSqm"]}
       />
     </div>
   );
@@ -498,8 +498,14 @@ function DASummary({ label, years, note }: { label: string; years: number; note:
 }
 
 // ─── Shared item table primitive ─────────────────────────────────────
+//
+// `table-fixed` + explicit per-column widths so the Assump / Total /
+// %Total / €/key / €/m² columns line up *exactly* across all CAPEX
+// subtables (Hard cost · Soft cost · Project costs) regardless of how
+// long the line labels are. The Acquisition costs table uses a
+// different column set and its own width allocation.
 
-type ItemColumn = "assumption" | "total" | "pct" | "perKey" | "perSqm" | "perInt";
+type ItemColumn = "assumption" | "total" | "pct" | "perKey" | "perSqm";
 
 function ItemTable({
   lines,
@@ -512,7 +518,13 @@ function ItemTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[11px]">
+      <table className="w-full table-fixed border-collapse text-[11px]">
+        <colgroup>
+          <col style={{ width: `${LABEL_WIDTH_PCT[columns.length]}%` }} />
+          {columns.map((c) => (
+            <col key={c} style={{ width: `${valueColWidthPct(columns.length)}%` }} />
+          ))}
+        </colgroup>
         <thead>
           <tr className="text-left text-slate-500 print:text-slate-600">
             <th className="py-1.5 pr-2 font-headline text-[9px] font-bold uppercase tracking-[0.18em]">Line</th>
@@ -526,7 +538,7 @@ function ItemTable({
         <tbody>
           {lines.map((line) => (
             <tr key={line.id} className="border-t border-slate-800/40 print:border-slate-200">
-              <td className="py-1.5 pr-2 font-headline text-[11px] text-slate-200 print:text-slate-900">{line.label}</td>
+              <td className="truncate py-1.5 pr-2 font-headline text-[11px] text-slate-200 print:text-slate-900">{line.label}</td>
               {columns.map((c) => (
                 <td key={c} className="px-2 py-1.5 text-right font-mono text-[10.5px] tabular-nums text-slate-300 print:text-slate-800">
                   {cellFor(c, line, groupTotal)}
@@ -554,8 +566,19 @@ const HEADER_BY_COL: Record<ItemColumn, string> = {
   pct: "% Total",
   perKey: "€ / key",
   perSqm: "€ / m²",
-  perInt: "€ / int. m²",
 };
+
+/** Label column gets a bit more room when there are fewer value columns. */
+const LABEL_WIDTH_PCT: Record<number, number> = {
+  3: 46, // acquisition table (assumption · total · perKey · perSqm = 4 value cols)? — see below
+  4: 40, // acquisition costs (assumption · total · perKey · perSqm)
+  5: 38, // CAPEX (assumption · total · pct · perKey · perSqm)
+};
+
+function valueColWidthPct(valueColCount: number): number {
+  const labelPct = LABEL_WIDTH_PCT[valueColCount] ?? 40;
+  return (100 - labelPct) / valueColCount;
+}
 
 function cellFor(col: ItemColumn, line: BreakdownLine, groupTotal: number): string {
   switch (col) {
@@ -569,8 +592,6 @@ function cellFor(col: ItemColumn, line: BreakdownLine, groupTotal: number): stri
       return fmtEUR(line.per_room_eur);
     case "perSqm":
       return fmtEUR(line.per_sqm_eur);
-    case "perInt":
-      return fmtEUR(line.per_intervention_sqm_eur);
   }
 }
 
