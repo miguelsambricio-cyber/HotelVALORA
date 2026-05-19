@@ -95,6 +95,9 @@ Maps tasks to exact files. Start here before scanning.
 | Provider barrel + README | `apps/web/src/lib/enrichment/providers/booking-rapidapi/{index.ts,README.md}` |
 | 3 Madrid fixture payloads (Ritz luxury · NH Collection upscale · Ibis economy ES-only) + sample outputs + aggregate | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/` |
 | Dry-run runner (TypeScript script — runnable via tsx once dev-dep added) | `apps/web/scripts/enrichment-booking-dry-run.ts` |
+| **Live smoke test runner** (Node ESM · 3 calls E0+E1+E2 · saves raw responses to fixtures) | `apps/web/scripts/smoke-test-booking-live.mjs` |
+| **Migration 0024 applied** to staging Supabase (project `twebgqutuqgonabvhzjk`) — 8 tables · 10 enums · 48 indexes · PostGIS 3.3 · RLS posture confirmed | `docs/database/migrations/0024_hotel_enrichment_schema.sql` |
+| **BookingRapidApiClient.executeLive** — real HTTP path with timeout · status mapping · JSON parse · classified errors | `apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts` |
 | **Dedup engine (M3 · institutional moat #1)** — block-key + composite scoring + apartment override + identity-match override | `apps/web/src/lib/enrichment/dedup/` |
 | Dedup primitives — Jaro-Winkler · Soundex · normalize · stopword strip | `apps/web/src/lib/enrichment/dedup/string-similarity.ts` |
 | Dedup scoring — `blockKey` · haversine · proximity tiers · composite (35/30/20/10/5) | `apps/web/src/lib/enrichment/dedup/scoring.ts` |

@@ -4,6 +4,17 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-19 — Hotel Enrichment Pipeline · Phase A applied + executeLive + smoke-test (BLOCKED on credentials)
+
+- **Phase A — migration 0024 applied to staging Supabase** (project `twebgqutuqgonabvhzjk`). 8 tables + 10 enums + 48 indexes + PostGIS 3.3 enabled + RLS posture verified. Two IMMUTABLE constraints required fixes during apply (year_opened upper bound → 2100; `fetched_at::date` → generated `fetched_at_day` column anchored to UTC); local SQL file synced with applied state. Trigger function hardened with `set search_path = public`. Advisor INFO-level "rls_enabled_no_policy" on 7 of our 8 tables is EXPECTED (service-role-only by design — matches existing project pattern). No ERROR-level lints introduced by our migration.
+- **Phase B-2 — `BookingRapidApiClient.executeLive` implemented** (`apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts`). Native `fetch` with `AbortController` (30s timeout) · classified-error responses for 401/403 (AUTH) / 429 (RATE_LIMIT with `Retry-After`) / 404 (NOT_FOUND) / 5xx (NETWORK) / non-OK (HTTP_ERROR) · defensive JSON parsing (PARSE class on failure) · returns the same `RapidApiResult<T>` discriminated union as dry-run / fixture modes. Retry policy NOT invoked here — that's the worker layer's job. Caller passes through `Retry-After` headers.
+- **Live smoke-test runner** — `apps/web/scripts/smoke-test-booking-live.mjs`. Self-contained Node ESM (no tsx dependency). 3-call sequence: E0 destination lookup for "Madrid" → E1 search hotels (next-week 1-night, paginated) → E2 detail for first hit. Validates 8 canonical fields present on E2 (hotel_id, name, address, city, latitude, longitude, class, review_score). Saves raw responses to `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-*.json` for parser/mapper validation against actual wire shape. Accepts both `BOOKING_RAPIDAPI_*` (operator convention) and `RAPIDAPI_BOOKING_*` (repo TS-config convention) env-var names. Budget impact: 3 calls (~0.0001% of Pro 25k monthly).
+- **BLOCKER — Booking RapidAPI credentials are NOT present in Vercel** (any environment). `vercel env ls` returned 33 env vars but zero matching `booking|rapid`. Cannot proceed with the live smoke test until `BOOKING_RAPIDAPI_KEY` and `BOOKING_RAPIDAPI_HOST` (or the `RAPIDAPI_BOOKING_*` aliases) are added to Vercel (any environment) OR exported in the operator's shell so I can `vercel env pull` them.
+- Phase 1 hard rules still in force: NO live HTTP yet (credentials missing) · NO scraping · NO ingestion · NO touch on underwriting/report-system/sync.
+- ENTRYPOINTS.md gains 4 rows.
+
+---
+
 ## 2026-05-19 — Hotel Enrichment Pipeline · Writer layer + Fallback dispatchers (M5 + M6)
 
 - **Milestones 5 + 6 of autonomous workstream.** Persistence + fallback hierarchy now in place. Phase 1 dry-run preserved end-to-end: no DB writes, no real HTTP, no dev-dep additions. The full enrichment stack (registries → provider → orchestrator → writer → fallback) is now runnable against fixtures and ready for the operator-gated Phase A (apply 0024) + Phase B (RapidAPI live).

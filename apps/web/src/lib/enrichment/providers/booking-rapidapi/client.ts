@@ -132,17 +132,118 @@ export class BookingRapidApiClient {
   }
 
   /**
-   * Live HTTP path. Implemented in Phase 3+ — currently throws so
-   * accidental invocation is loud and obvious.
+   * Live HTTP path. Calls the RapidAPI Booking endpoint with the
+   * prepared headers and query params. Defensive on:
+   *   - Network timeouts (30s default)
+   *   - HTTP status codes (maps to ClassifiedError shapes)
+   *   - JSON parse errors (caught and surfaced as PARSE)
+   *
+   * Caller is responsible for rate-limiting and retry policy (worker
+   * layer). This method does NOT retry — it returns the first result
+   * (success or classified error) and lets the retry policy decide.
    */
   private async executeLive<T>(
     prepared: PreparedRequest,
     meta: { source: string; fetchedAt: string; mode: ClientMode },
   ): Promise<RapidApiResult<T>> {
-    void prepared;
-    void meta;
-    throw new Error(
-      "[booking-rapidapi] Live mode is not yet implemented. Phase 3 work item.",
-    );
+    if (!this.config.apiKey) {
+      return {
+        ok: false,
+        error: { code: "AUTH_MISSING_KEY", message: "RAPIDAPI_BOOKING_KEY is not configured." },
+        meta,
+      };
+    }
+
+    const controller = new AbortController();
+    const timeoutMs = 30_000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(prepared.url, {
+        method: prepared.method,
+        headers: prepared.headers,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      const message = err instanceof Error ? err.message : String(err);
+      const aborted = err instanceof Error && err.name === "AbortError";
+      return {
+        ok: false,
+        error: {
+          code: aborted ? "NETWORK_TIMEOUT" : "NETWORK_ERROR",
+          message,
+          status: 0,
+        },
+        meta,
+      };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    // Auth / quota / not-found / server errors → classified errors
+    if (response.status === 401 || response.status === 403) {
+      return {
+        ok: false,
+        error: {
+          code: "AUTH",
+          message: `Authentication failed (HTTP ${response.status}).`,
+          status: response.status,
+        },
+        meta,
+      };
+    }
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After");
+      return {
+        ok: false,
+        error: {
+          code: "RATE_LIMIT",
+          message: `Rate limit (HTTP 429${retryAfter ? `, Retry-After=${retryAfter}` : ""}).`,
+          status: 429,
+        },
+        meta,
+      };
+    }
+    if (response.status === 404) {
+      return {
+        ok: false,
+        error: { code: "NOT_FOUND", message: "HTTP 404", status: 404 },
+        meta,
+      };
+    }
+    if (response.status >= 500) {
+      return {
+        ok: false,
+        error: { code: "NETWORK", message: `Upstream ${response.status}.`, status: response.status },
+        meta,
+      };
+    }
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: { code: "HTTP_ERROR", message: `Unexpected HTTP ${response.status}.`, status: response.status },
+        meta,
+      };
+    }
+
+    // Parse JSON defensively
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch (err) {
+      return {
+        ok: false,
+        error: {
+          code: "PARSE",
+          message: `JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
+          status: response.status,
+        },
+        meta,
+      };
+    }
+
+    return { ok: true, data: data as T, meta };
   }
 }

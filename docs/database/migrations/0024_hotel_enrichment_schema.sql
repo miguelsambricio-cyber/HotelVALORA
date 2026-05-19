@@ -204,7 +204,7 @@ create table if not exists public.hotel_canonical (
   primary_review_source    text,
 
   -- Operations
-  year_opened              smallint check (year_opened is null or (year_opened between 1700 and extract(year from now())::int)),
+  year_opened              smallint check (year_opened is null or year_opened between 1700 and 2100),
   year_renovated_last      smallint,
   ownership_structure      text,
 
@@ -304,13 +304,15 @@ create table if not exists public.hotel_source_record (
   payload              jsonb not null,
   payload_hash         text not null,
   fetched_at           timestamptz not null default now(),
+  -- UTC-anchored day column for IMMUTABLE unique-key constraint
+  fetched_at_day       date generated always as (((fetched_at at time zone 'UTC')::date)) stored,
   fetch_status         fetch_status_enum not null,
   ttl_expires_at       timestamptz not null,
   enrichment_run_id    uuid
 );
 
 create unique index if not exists hotel_source_record_natural_uq
-  on public.hotel_source_record (source, source_id, (fetched_at::date));
+  on public.hotel_source_record (source, source_id, fetched_at_day);
 
 create index if not exists hotel_source_record_hotel_idx
   on public.hotel_source_record (hotel_id, source, fetched_at desc);
@@ -641,7 +643,10 @@ exception when duplicate_object then null; end $$;
 -- ─── TIMESTAMPS — updated_at maintenance ─────────────────────────────────────
 
 create or replace function public.tg_hotel_canonical_touch_updated_at()
-returns trigger language plpgsql as $$
+returns trigger
+language plpgsql
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
