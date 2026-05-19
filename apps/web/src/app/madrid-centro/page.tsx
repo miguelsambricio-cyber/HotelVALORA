@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppHeader } from "@/components/layout/app-header";
 import { InstitutionalFooter } from "@/components/layout/institutional-footer";
+import { MobileGuidanceBanner } from "@/components/report/shell/mobile-guidance-banner";
 import {
   getMadridCentroHotels,
   type HotelProfile,
@@ -50,6 +51,7 @@ export default function MadridCentroLanding({ searchParams }: PageProps) {
   return (
     <div className="flex min-h-screen flex-col bg-[#f6f8f7]">
       <AppHeader />
+      <MobileGuidanceBanner />
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-6 py-10 lg:px-10">
         <header className="mb-8">
