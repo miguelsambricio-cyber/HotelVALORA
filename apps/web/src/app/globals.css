@@ -33,8 +33,44 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 234 89% 64%;
     --radius: 0.5rem;
+
+    /* ─────────────────────────────────────────────────────────────
+     * Phase 1 · Token harmonization · 2026-05-19
+     * See docs/report/phase-1-token-harmonization.md
+     *
+     * Sticky offsets · NOT strict AppHeader alignment.
+     * Actual AppHeader height ≈ 48px (py-2.5 + content + 1px border).
+     * The offsets below encode INTENT — visual breathing room — so a
+     * single header-height change rolls through every sticky consumer.
+     * ──────────────────────────────────────────────────────────── */
+    --app-header-h:   3rem;    /* 48px · AppHeader actual height */
+    --sticky-app:     0;       /* AppHeader itself */
+    --sticky-tight:   5rem;    /* 80px · KPI strips · scenario pickers · filter bars */
+    --sticky-rail:    6rem;    /* 96px · sidebars · drawers · bulk-action toolbars */
+    --sticky-report:  7rem;    /* 112px · ReportSidebar memo breathing */
+
+    /* Shell max-widths · curated institutional canvas.
+     * 1600 (shell-report) is the memorandum width — year grids ·
+     * financing schedules · side KPI strips · PDF landscape parity.
+     * Do NOT raise above 1600; ultra-wide stretching breaks memo feel.
+     */
+    --shell-report:   100rem;  /* 1600px · report + library */
+    --shell-admin:    87.5rem; /* 1400px · admin operations density */
+    --shell-prose:    48rem;   /* 768px · prose / help text caps */
   }
 
+  /* ─────────────────────────────────────────────────────────────
+   * DORMANT · DO NOT ADD `dark:` VARIANTS TO COMPONENTS.
+   *
+   * This `.dark` class and the matching `darkMode: "class"` toggle
+   * in tailwind.config.ts are configured but INACTIVE. Zero
+   * components apply this class; zero components consume `dark:`
+   * variants. Admin dark surfaces use explicit color tokens
+   * (forest-900 · slate-950 gradients), NOT this dark-mode path.
+   *
+   * Kept for future dark-mode initiative (separate decision from
+   * Phase 1 token harmonization). See docs/design-system.md.
+   * ──────────────────────────────────────────────────────────── */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
