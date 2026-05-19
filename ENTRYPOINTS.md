@@ -99,6 +99,9 @@ Maps tasks to exact files. Start here before scanning.
 | **Branded validation smoke** (E0+E2 against NH Collection Eurobuilding · confirms structural absence of chain in E2) | `apps/web/scripts/smoke-test-booking-branded.mjs` |
 | **Phase C 50-hotel Madrid live pilot** (E1 class_descending paginated + E2 fetch + parse + map + SQL emit) | `apps/web/scripts/phase-c-madrid-smoke-pilot.mjs` |
 | **Phase C pilot report v1** (50 institutional hotels live in Supabase · 29 branded · 16 families · readiness for Phase D) | `docs/hotel-intelligence/phase-c-pilot-report-v1.md` |
+| **Phase D-7 Wikidata SPARQL enrichment** (111 branded Madrid hotels · mwapi:EntitySearch + geo-score · 1.1 req/s · embedded input) | `apps/web/scripts/phase-d7-wikidata-enrichment.mjs` |
+| **Phase D completion report v1** (D-2 + D-4 + D-6 + D-7 metrics · structural blockers · open items) | `docs/hotel-intelligence/phase-d-enrichment-completion-report-v1.md` |
+| **Hotel coverage views** (per-hotel · scored · market · Madrid headline) applied to staging Supabase | DB views: `hotel_coverage_v` · `hotel_coverage_scored_v` · `hotel_coverage_market_v` · `hotel_coverage_madrid_v` |
 | **Migration 0024 applied** to staging Supabase (project `twebgqutuqgonabvhzjk`) — 8 tables · 10 enums · 48 indexes · PostGIS 3.3 · RLS posture confirmed | `docs/database/migrations/0024_hotel_enrichment_schema.sql` |
 | **BookingRapidApiClient.executeLive** — real HTTP path with timeout · status mapping · JSON parse · classified errors | `apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts` |
 | **Live smoke fixtures (E0+E1+E2 against booking-com15)** — captured 2026-05-19 · Madrid hotel_id 12269658 | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-{e0,e1,e2,smoke-summary}-*.json` |
