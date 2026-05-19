@@ -32,17 +32,24 @@ export interface CompsetMapGLProps {
 
 // ── Token fallback ────────────────────────────────────────────────────────────
 
+/**
+ * Institutional fallback when NEXT_PUBLIC_MAPBOX_TOKEN is missing. The
+ * previous version surfaced a dev-facing message ("Configura
+ * NEXT_PUBLIC_MAPBOX_TOKEN en .env.local") which leaked operational
+ * detail to anyone visiting /compset in production. This version
+ * mirrors the SharedMapCard placeholder language used across the Full
+ * Report flow · clean · institutional · honest.
+ */
 function TokenMissing() {
   return (
-    <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center gap-2 text-center px-6">
-      <p className="text-sm font-semibold text-slate-600">Mapa interactivo no disponible</p>
-      <p className="text-xs text-slate-400">
-        Configura{" "}
-        <code className="font-mono text-forest-900 bg-forest-900/5 px-1 rounded">
-          NEXT_PUBLIC_MAPBOX_TOKEN
-        </code>{" "}
-        en{" "}
-        <code className="font-mono text-slate-600">.env.local</code>
+    <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center gap-3 text-center px-6">
+      <p className="font-headline text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500">
+        Map integration pending
+      </p>
+      <p className="font-mono text-[11px] leading-relaxed text-slate-600 max-w-sm">
+        Live cartography integration in progress · the CompSet workspace
+        will surface the interactive Madrid Centro map once the
+        production map provider is wired.
       </p>
     </div>
   );
