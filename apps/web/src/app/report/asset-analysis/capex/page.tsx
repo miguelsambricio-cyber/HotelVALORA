@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sparkles } from "lucide-react";
 import { ReportShell } from "@/components/report/shell/report-shell";
 import { ReportPaper } from "@/components/report/shell/report-paper";
+import { ActionBar } from "@/components/report/executive-summary/action-bar";
 import { HotelToggle } from "../hotel-toggle";
 import {
   CapexScheduleCard,
@@ -30,6 +31,7 @@ export default function CapexRendersPage() {
 
   return (
     <ReportShell>
+      <div className="space-y-6 print:space-y-0">
       <ReportPaper
         sectionLabel="hotel valuation"
         title="CAPEX & Renders"
@@ -73,6 +75,9 @@ export default function CapexRendersPage() {
           </section>
         </div>
       </ReportPaper>
+
+      <ActionBar currentPage={1} totalPages={1} />
+      </div>
     </ReportShell>
   );
 }
