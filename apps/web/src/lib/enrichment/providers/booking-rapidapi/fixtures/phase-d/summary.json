@@ -1,0 +1,26 @@
+{
+  "run_id": "9ab56d18-52ca-4625-842f-93997c27e02b",
+  "completed_at": "2026-05-19T18:28:11.704Z",
+  "total_calls": 328,
+  "candidates_collected": 310,
+  "hotels_inserted": 174,
+  "quarantined": 136,
+  "errors": 0,
+  "quality_tier_breakdown": {
+    "silver": 82,
+    "bronze": 92
+  },
+  "branded_count": 82,
+  "distinct_brand_families": 20,
+  "chain_scale_distribution": {
+    "upscale": 54,
+    "unknown": 92,
+    "upper_upscale": 23,
+    "upper_midscale": 3,
+    "midscale": 2
+  },
+  "avg_amenity_keys": "2.0",
+  "quarantine_reasons": {
+    "excluded_type": 136
+  }
+}

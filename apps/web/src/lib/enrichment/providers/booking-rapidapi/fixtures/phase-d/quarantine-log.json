@@ -1,0 +1,818 @@
+[
+  {
+    "hotel_id": 13831081,
+    "name": "HA Retiro Suites",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 1000781,
+    "name": "Fuencarral Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9822743,
+    "name": "2 a 6 pax Museos y Ronda de Atocha",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 5198591,
+    "name": "Feelathome Waldorf Suites Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 6770363,
+    "name": "Morar Apartments Malasaña",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 3096931,
+    "name": "Feelathome Madrid Suites Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10842121,
+    "name": "Callao Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11100399,
+    "name": "CC Opera Suites",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 14187606,
+    "name": "dozZze - Madrid Río",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13161636,
+    "name": "Duke 5torres Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11292034,
+    "name": "MEZZANINE ORANGE",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 94162,
+    "name": "Pierre & Vacances Apartamentos Edificio Eurobuilding 2",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12976,
+    "name": "Hostal Goyal Pizarro",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 10236041,
+    "name": "Stayaday Apartments Albufera",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 507044,
+    "name": "Aspasios Calle Mayor Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9299239,
+    "name": "Fee4Me. Elegant flat a few minutes from Atocha.",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 5478073,
+    "name": "Apartamentos Principe 7",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13157099,
+    "name": "Home Art Apartments Bernabéu",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12100197,
+    "name": "Global Home-Ocaña",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 472037,
+    "name": "SLEEP'N Atocha - B Corp Certified",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 12259,
+    "name": "Blume Cruz Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12239782,
+    "name": "APARTAHOTEL MADRID URBAN SUITES - EDIFICIO EXCLUSIVO- 7 Apartments Boutique Full Equiped",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 2819942,
+    "name": "Apartamentos Apolo",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11128012,
+    "name": "Bonito apartamento junto a la Plaza Mayor",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 90020,
+    "name": "Hotel du Temps Madrid",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 8661473,
+    "name": "Uma Suites O'Donnell",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10992974,
+    "name": "Santa Cruz",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11360731,
+    "name": "CavaBajaSuites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 3763382,
+    "name": "Bloom Inn Madrid",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 473039,
+    "name": "Mola Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 8244373,
+    "name": "Bernabéu Business & Stay",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 8250430,
+    "name": "60 Balconies Iconic",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12118114,
+    "name": "PlazaMayorSuites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 6475860,
+    "name": "L&G Madrid Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 3590231,
+    "name": "Slow Suites Chueca",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12043585,
+    "name": "Canillas Apartments 2",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12704690,
+    "name": "Terraza & confort en ubicación inmejorable!",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1647619,
+    "name": "Hostal Met Madrid",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 91259,
+    "name": "Hostal Persal",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 9913486,
+    "name": "Hostal Arenal Madrid",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 2451960,
+    "name": "Roisa Hostal Boutique",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 7893042,
+    "name": "Dobo Marco Polo",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 11029476,
+    "name": "Edmond Vibes Puerta del Sol Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 97137,
+    "name": "Hostal Las Fuentes",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 284477,
+    "name": "Hostal Bruña Paseo del Prado",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 11312038,
+    "name": "MAD COCO Apartamento Temporada Frente al Prado",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13655899,
+    "name": "Hogar Malasaña II",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9297478,
+    "name": "HELLO HOME FERIA",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10087642,
+    "name": "Malasaña II Seasonal Living",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10607414,
+    "name": "Miosotis Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9176008,
+    "name": "Retiro Atocha Paseo Del Prado , Madrid",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 2832652,
+    "name": "Slow Suites Bellas Artes",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 7777549,
+    "name": "Woohoo Rooms Boutique Sol",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 15918101,
+    "name": "Numa Madrid Atocha",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 16178719,
+    "name": "Perez Escrich Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11146616,
+    "name": "Tirso de Molina III - Apartamento de 2 dormitorios",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 4047437,
+    "name": "Horoko Apartments by gaiarooms",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 346780,
+    "name": "Hostal Adis",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 10186453,
+    "name": "Loft para soñar y explorar Madrid entero para tí!",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 6396192,
+    "name": "Cool Apartments by Olala Homes",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10765536,
+    "name": "Style Suites by Olala Homes",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 8153368,
+    "name": "Fly Rooms Madrid Airport",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 629290,
+    "name": "60 Balconies Art",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12521867,
+    "name": "Apartamentos ALFISA Puerta del Sol",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12911996,
+    "name": "Limehome Madrid Calle de Juan Hurtado de Mendoza",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13299877,
+    "name": "Apartamentos Turisticos Aeropuerto Barajas",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 15474876,
+    "name": "Castellana by Skykey",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 3012096,
+    "name": "WindRose 1",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1796380,
+    "name": "CriteriaHome! nice&easy",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 2794718,
+    "name": "Home Art Apartments Salamanca",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 8322526,
+    "name": "APARTAMENTOS TANEZ SANTURCE a",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10490936,
+    "name": "Be Mate Trafalgar",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9908903,
+    "name": "ÁTICO CENTRO HISTÓRICO MADRID",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 4204220,
+    "name": "Hellenhost - Gran Vía",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13261437,
+    "name": "yuelai",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11627828,
+    "name": "Puerto Alto Apartments by Olala Homes",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9296535,
+    "name": "General Oráa - Darya Living",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 14333332,
+    "name": "Apartamentos BONDELA",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13591843,
+    "name": "Gran Via by SkyKey",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 5165927,
+    "name": "Waou PALACE es MIA - Corta Duración",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 4569979,
+    "name": "MAD Apartments by Olala Homes",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10516421,
+    "name": "Asombroso cerca calle Orense - Apartamento TETUAN",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 2274660,
+    "name": "Apartamentos Carlos",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 326591,
+    "name": "Boutike Cibeles",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 3992687,
+    "name": "Edmond Vibes Barrio de Salamanca",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 2527828,
+    "name": "Be Mate Gran Vía Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11069102,
+    "name": "Nuevo Hola Madrid BIS Alojamiento Temporal",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11940530,
+    "name": "Ole Madrid Holiday Apartament IFEMA, Aeropuerto",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 16127637,
+    "name": "Descanso para 6 en Adrian Pulido con Parking",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9988141,
+    "name": "Nuevo Hola Madrid Alojamiento Temporal",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13096902,
+    "name": "BYPILLOW Callao",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 292328,
+    "name": "Hostal Granado",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 6178757,
+    "name": "OTEIZA",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11282299,
+    "name": "Finca Altair",
+    "reason": "excluded_type",
+    "type": "Villas"
+  },
+  {
+    "hotel_id": 316531,
+    "name": "Hostal Inn Madrid",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 12650899,
+    "name": "Apartamento central en Madrid - sol",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13628171,
+    "name": "Retiro Home",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1905615,
+    "name": "60 Balconies Design",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13961322,
+    "name": "Movistar Arena & Estadio metropolitano & BARAJAS",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 5107781,
+    "name": "Apartamento Barajas. Aeropuerto/Ifema",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11971039,
+    "name": "The SECRET PALACE",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10264715,
+    "name": "La Promesa",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11146805,
+    "name": "Madrid House Boutique , Aeropuerto , Ifema",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 2005396,
+    "name": "Hola Madrid Alojamiento Temporal",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12426811,
+    "name": "Sol by Skykey",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 15307350,
+    "name": "Escudero 2a apartment",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12770221,
+    "name": "ARCO Gran Via Boutique Apartments",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9218091,
+    "name": "Dobo Madrid Las Torres",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1399132,
+    "name": "Palacio Conde Miranda",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 326532,
+    "name": "Hostal Centro Sol Madrid",
+    "reason": "excluded_type",
+    "type": "Guesthouses"
+  },
+  {
+    "hotel_id": 13370038,
+    "name": "AR Embajadores 2 habitaciones, céntrico y bien comunicado",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1918956,
+    "name": "B&B HOTEL Apartamentos Madrid Centro Fuencarral 46",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11038457,
+    "name": "Céntrico Plaza España - Gran Vía II",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9047302,
+    "name": "4 Ways en Madrid",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11705665,
+    "name": "Vibrant 2-Bed Apartment for 3 in La Latina",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 15844585,
+    "name": "Modern Apartment near Madrid Airport Barajas",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12741499,
+    "name": "Apartamento GFB17",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10736433,
+    "name": "Seco calle, precisos Loft super equipado cerca de metro Pacífico",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1513396,
+    "name": "Slow Suites Luchana",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12197611,
+    "name": "Barajas Express Stay, IFEMA , Metropolitano",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 8670040,
+    "name": "Lavapies - Apartamento de 1 dormitorio",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10046760,
+    "name": "Salamanca III calle General Pardiñas 2BR 2BH",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 6929367,
+    "name": "Limehome Madrid San Lorenzo",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 7073043,
+    "name": "NoMad Rastro en Madrid",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 5155891,
+    "name": "Valentina",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 6949703,
+    "name": "Limehome Madrid La Bolsa",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10411019,
+    "name": "VR OBREGON APARTMENTS",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 8017922,
+    "name": "Antonio Lopez en Madrid",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 9054075,
+    "name": "Villa Verde",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 13015689,
+    "name": "Apartamento amueblado en el centro de Madrid",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1736268,
+    "name": "Oriente Suites",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 15754705,
+    "name": "Classic Malasaña by Hogar4",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 10698408,
+    "name": "AmazINN Stay Madrid Palacio Real",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 12079520,
+    "name": "Numa Madrid Sol",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 1618454,
+    "name": "Slow Suites Augusto",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  },
+  {
+    "hotel_id": 11206233,
+    "name": "Apartamento en Huertas",
+    "reason": "excluded_type",
+    "type": "Apartments"
+  }
+]
