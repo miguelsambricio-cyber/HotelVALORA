@@ -96,15 +96,13 @@ Maps tasks to exact files. Start here before scanning.
 | 3 Madrid fixture payloads (Ritz luxury · NH Collection upscale · Ibis economy ES-only) + sample outputs + aggregate | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/` |
 | Dry-run runner (TypeScript script — runnable via tsx once dev-dep added) | `apps/web/scripts/enrichment-booking-dry-run.ts` |
 | **Live smoke test runner** (Node ESM · 3 calls E0+E1+E2 · saves raw responses to fixtures) | `apps/web/scripts/smoke-test-booking-live.mjs` |
+| **Branded validation smoke** (E0+E2 against NH Collection Eurobuilding · confirms structural absence of chain in E2) | `apps/web/scripts/smoke-test-booking-branded.mjs` |
+| **Phase C 50-hotel Madrid live pilot** (E1 class_descending paginated + E2 fetch + parse + map + SQL emit) | `apps/web/scripts/phase-c-madrid-smoke-pilot.mjs` |
+| **Phase C pilot report v1** (50 institutional hotels live in Supabase · 29 branded · 16 families · readiness for Phase D) | `docs/hotel-intelligence/phase-c-pilot-report-v1.md` |
 | **Migration 0024 applied** to staging Supabase (project `twebgqutuqgonabvhzjk`) — 8 tables · 10 enums · 48 indexes · PostGIS 3.3 · RLS posture confirmed | `docs/database/migrations/0024_hotel_enrichment_schema.sql` |
 | **BookingRapidApiClient.executeLive** — real HTTP path with timeout · status mapping · JSON parse · classified errors | `apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts` |
 | **Live smoke fixtures (E0+E1+E2 against booking-com15)** — captured 2026-05-19 · Madrid hotel_id 12269658 | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-{e0,e1,e2,smoke-summary}-*.json` |
 | **Wire-shape validation v1 (drift analysis · authoritative source-of-record · parser/mapper update plan)** | `docs/hotel-intelligence/booking-com15-wire-shape-validation-v1.md` |
-| **Parser/mapper v2 (post-drift)** — envelope unwrap · `rawData` star/review/photo mining · brand inference from canonical_name · accommodation_type filter | `apps/web/src/lib/enrichment/providers/booking-rapidapi/{types,parse,map-to-canonical,endpoints}.ts` |
-| **Excluded-by-filter outcome** — orchestrator short-circuit on registry-excluded accommodation types (hostels/apartments/B&Bs) | `apps/web/src/lib/enrichment/orchestrator/{types,runner}.ts` |
-| **TS validation runner** — runnable via `npx tsx` (no permanent dep) · validates parser against the 3 live fixtures + cross-dedup | `apps/web/scripts/validate-parser-vs-live.mts` |
-| **Live parser validation report** — deterministic output snapshot for operator review | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-parser-validation.json` |
-| **Branded live fixtures (NH Collection · JW Marriott)** — institutional validation samples | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-e2-branded-*.json` |
 | **Dedup engine (M3 · institutional moat #1)** — block-key + composite scoring + apartment override + identity-match override | `apps/web/src/lib/enrichment/dedup/` |
 | Dedup primitives — Jaro-Winkler · Soundex · normalize · stopword strip | `apps/web/src/lib/enrichment/dedup/string-similarity.ts` |
 | Dedup scoring — `blockKey` · haversine · proximity tiers · composite (35/30/20/10/5) | `apps/web/src/lib/enrichment/dedup/scoring.ts` |

@@ -1,0 +1,32 @@
+[
+  {
+    "hotel_id": 13831081,
+    "name": "HA Retiro Suites",
+    "reason": "excluded_accommodation_type",
+    "accommodation_type": "Guesthouses"
+  },
+  {
+    "hotel_id": 1000781,
+    "name": "Fuencarral Apartments",
+    "reason": "excluded_accommodation_type",
+    "accommodation_type": "Apartments"
+  },
+  {
+    "hotel_id": 9822743,
+    "name": "2 a 6 pax Museos y Ronda de Atocha",
+    "reason": "excluded_accommodation_type",
+    "accommodation_type": "Apartments"
+  },
+  {
+    "hotel_id": 5198591,
+    "name": "Feelathome Waldorf Suites Apartments",
+    "reason": "excluded_accommodation_type",
+    "accommodation_type": "Apartments"
+  },
+  {
+    "hotel_id": 6770363,
+    "name": "Morar Apartments Malasaña",
+    "reason": "excluded_accommodation_type",
+    "accommodation_type": "Apartments"
+  }
+]

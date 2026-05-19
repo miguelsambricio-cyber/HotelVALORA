@@ -4,31 +4,6 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
-## 2026-05-19 — Hotel Enrichment Pipeline · Branded validation + parser v2 (architecture confirmed)
-
-- **Branded smoke test executed** (operator-approved Option B) — 2 E2 calls against NH Collection Madrid Eurobuilding (hotel_id 90659) + JW Marriott Hotel Madrid (hotel_id 92589), each ~35s wall (publisher latency), all 200. Plus 4 E0 calls to find branded hotel_ids by name. Budget burn total session: 9 calls = 0.036% of Pro 25k monthly.
-- **Architecture revision (institutional)**: discovered that `data.rawData` inside E2 contains the embedded E1.property snapshot with `propertyClass` / `accuratePropertyClass` / `reviewScore` / `reviewCount` / `photoUrls` / `mainPhotoId`. This means **E2 alone is sufficient** for star/review/photo — no E1 dual-fetch needed. Per-hotel budget drops from projected 3.0 → **~1.5 calls**. Madrid sweep wall time recalculates to ~3 days on Pro 25k. **booking-com15 ceiling**: still missing `chain_name` / `chain_id` / `brand` / `total_rooms` / `phone` / `email` / `website` / `year_opened` — none of these appear in E2 for ANY hotel (independent OR branded). Fallback chain remains mandatory.
-- **Madrid hotel universe (Booking total)**: 8,203 properties (per E0 response) — vs my earlier 1,800 anchor. Filtering to `accommodation_type_name = "Hotels"` cuts this substantially (hostels/apartments/B&Bs excluded). Institutional-scope estimate: 2,000-3,000 actual hotels.
-- **Parser/mapper v2 (post-drift)** — landed in `apps/web/src/lib/enrichment/providers/booking-rapidapi/`:
-  - `types.ts`: added `BookingEnvelope<T>` wrapper · added `RapidApiE2RawData` shape with all rawData fields · extended `RapidApiHotelData` with `hotel_name`, `countrycode`, `breakfast_review_score`, `wifi_review_score`, `aggregated_data`, `family_facilities`, `is_family_friendly`.
-  - `parse.ts`: new `unwrapEnvelope<T>()` helper (defensive — accepts both wrapped and direct shapes for backward compat with synthetic fixtures) · star-rating priority chain `accuratePropertyClass > propertyClass > legacy > qualityClass` · review score from `rawData.reviewScore` · name from `hotel_name` first then legacy · hero photo from `rawData.photoUrls[]` (prefers largest size).
-  - `map-to-canonical.ts`: **brand inference from canonical_name** when explicit chain_name absent — substring match against registry aliases (e.g., "NH Collection Madrid Eurobuilding" → "NH Hotel Group" / upper_upscale). Inferred brand confidence 0.72 (below auto-merge, above review-queue threshold) vs explicit field at 0.85. New `excludedByType` diagnostic flag set when `accommodation_type_name` registry-excludes the row.
-  - `endpoints.ts`: `getHotelData` now requires arrival/departure/adults/room_qty/units/temperature_unit/currency_code params (publisher returns 400 without them). Defaults to today+7/today+8 stable window for TTL-aligned idempotent re-fetches.
-  - `runner.ts`: short-circuit return `outcome: "excluded_by_filter"` when mapping diagnostics flag the row out of institutional scope — no canonical insert, no dedup, no fallback. Saves budget downstream.
-  - `orchestrator/types.ts`: added `excluded_by_filter` to `JobOutcome` enum (single-line additive change).
-- **Validation evidence** — `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-parser-validation.json`. Generated via `npx tsx apps/web/scripts/validate-parser-vs-live.mts` (no permanent dep added). Output shows:
-  - **AmazINN (Hostel)** → `excluded_by_filter` ✅ (brand unresolved, hostel registry-excluded, no canonical insert)
-  - **NH Collection Eurobuilding** → 4★ from `accuratePropertyClass=4` · review 8.9 / 2024 votes · brand "NH Hotel Group" via canonical_name inference · chain_scale `upper_upscale` · segment `upper_upscale` · `fallback_required` (T2 partial, awaits Google Places + hotel-website)
-  - **JW Marriott Hotel Madrid** → 5★ from `accuratePropertyClass=5` · review 8.9 / 377 votes · brand "Marriott International" via canonical_name inference · chain_scale `upper_upscale` · segment `upper_upscale` · `fallback_required`
-  - **Cross-fixture dedup NH vs JW Marriott** → composite 0.000 · geo distance 4,761 m · `no_match (correct — distinct properties)` ✅
-- **Branded vs independent deltas** (key institutional finding): the field distribution is **identical** across both classes — neither independents nor chains expose `chain_name`/`rooms`/`phone`/`website` in E2. The only difference is `accuratePropertyClass` ≥ 1 for branded vs 0 for unrated/hostel. Brand inference must run for ALL rows, not just chained ones.
-- **Coverage alcanzable update** (post-fallback projection): TIER-1 ≈ 11-12/12 per Booking call · TIER-2 ≈ 9-10/19 from Booking · post-Google+hotel-website fallback ≈ 15-17/19. Reaches institutional 80% target.
-- **Layer separation preserved**: dedup, confidence calculator, conflict resolver, writer — **none touched** in this update. Only types/parse/mapper/endpoints/runner. As operator instructed.
-- Phase 1 hard rules still in force: NO ingestion · NO scraping · NO touch on underwriting/report-system/sync.
-- ENTRYPOINTS.md gains 6 rows.
-
----
-
 ## 2026-05-19 — Hotel Enrichment Pipeline · Phase A applied + executeLive + smoke-test (BLOCKED on credentials)
 
 - **Phase A — migration 0024 applied to staging Supabase** (project `twebgqutuqgonabvhzjk`). 8 tables + 10 enums + 48 indexes + PostGIS 3.3 enabled + RLS posture verified. Two IMMUTABLE constraints required fixes during apply (year_opened upper bound → 2100; `fetched_at::date` → generated `fetched_at_day` column anchored to UTC); local SQL file synced with applied state. Trigger function hardened with `set search_path = public`. Advisor INFO-level "rls_enabled_no_policy" on 7 of our 8 tables is EXPECTED (service-role-only by design — matches existing project pattern). No ERROR-level lints introduced by our migration.

@@ -1,0 +1,20 @@
+{
+  "run_id": "ab42328d-8357-418e-904b-9d1207db2f55",
+  "started_at": "2026-05-19T17:32:57.652Z",
+  "completed_at": "2026-05-19T17:37:01.833Z",
+  "total_calls": 60,
+  "avg_call_ms": 4061,
+  "candidates_fetched": 100,
+  "hotels_inserted": 50,
+  "hotels_quarantined": 5,
+  "errors": 0,
+  "quality_tier_breakdown": {
+    "silver": 29,
+    "bronze": 21
+  },
+  "branded_count": 29,
+  "avg_amenity_keys_determined": "3.3",
+  "quarantine_reasons": {
+    "excluded_accommodation_type": 5
+  }
+}
