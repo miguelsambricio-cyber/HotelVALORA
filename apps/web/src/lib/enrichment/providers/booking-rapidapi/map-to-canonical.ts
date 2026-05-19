@@ -129,6 +129,10 @@ export interface MappingDiagnostics {
   brandUnresolved: boolean;
   municipioUnresolved: boolean;
   hotelTypeUnresolved: boolean;
+  /** True when the accommodation_type registry marks this asset as
+   *  out-of-institutional-scope (hostel, apartment-only, B&B, etc.).
+   *  The orchestrator should NOT enqueue this row for canonical insert. */
+  excludedByType: boolean;
   parserWarnings: string[];
   notes: string[];
 }
@@ -173,6 +177,7 @@ export function mapToCanonical(
     brandUnresolved: false,
     municipioUnresolved: false,
     hotelTypeUnresolved: false,
+    excludedByType: false,
     parserWarnings: parsed.warnings.slice(),
     notes: [],
   };
@@ -188,16 +193,39 @@ export function mapToCanonical(
   }
 
   // ─── Brand resolution ────────────────────────────────────────────────────
-  const brandLookup = resolveBrandFamily(parsed.brand ?? parsed.chainName);
-  if (parsed.brand && !brandLookup) {
+  // booking-com15 does NOT expose chain_name / chain_id / brand at the
+  // payload level (verified 2026-05-19 across independent + branded
+  // samples). When those fields are null, fall back to substring lookup
+  // against the canonical_name — the registry's alias matcher catches
+  // "NH Collection Madrid Eurobuilding" → NH Hotel Group, etc.
+  const brandSignal = parsed.brand ?? parsed.chainName ?? parsed.name;
+  const brandLookup = resolveBrandFamily(brandSignal);
+  const brandSource: "explicit_field" | "canonical_name_inference" | "none" =
+    parsed.brand || parsed.chainName
+      ? "explicit_field"
+      : brandLookup
+        ? "canonical_name_inference"
+        : "none";
+  if (brandSignal && !brandLookup) {
     diagnostics.brandUnresolved = true;
-    diagnostics.notes.push(`Brand "${parsed.brand}" not in registry — routed to review.`);
+    diagnostics.notes.push(`Brand inference failed for "${brandSignal}" — routed to review.`);
+  }
+  if (brandSource === "canonical_name_inference") {
+    diagnostics.notes.push(
+      `Brand "${brandLookup?.brandFamilyDisplayName}" inferred from canonical_name (chain_name absent in publisher response).`,
+    );
   }
 
   // ─── Hotel type resolution ───────────────────────────────────────────────
   const typeResolution = resolveHotelType(parsed.accommodationTypeName);
   if (parsed.accommodationTypeName && !typeResolution) {
     diagnostics.hotelTypeUnresolved = true;
+  }
+  if (typeResolution?.exclude) {
+    diagnostics.excludedByType = true;
+    diagnostics.notes.push(
+      `accommodation_type "${parsed.accommodationTypeName}" is registry-excluded — out of institutional scope.`,
+    );
   }
 
   // ─── Municipio (city_normalized) ────────────────────────────────────────
@@ -237,7 +265,13 @@ export function mapToCanonical(
     // Identity
     canonical_name: parsed.name,
     legal_name: parsed.legalName,
-    brand: brandLookup?.brandFamilyDisplayName ? (parsed.brand ?? parsed.chainName) : parsed.brand,
+    // brand: prefer explicit chain_name/brand from publisher; if absent
+    // but registry inferred a brand_family from the canonical_name,
+    // use the registry's display name so the column is populated.
+    brand:
+      parsed.brand ??
+      parsed.chainName ??
+      (brandLookup ? brandLookup.brandFamilyDisplayName : null),
     brand_family: brandLookup?.brandFamilyDisplayName ?? null,
     chain_scale: brandLookup?.chainScale ?? "unknown",
 
@@ -317,23 +351,40 @@ export function mapToCanonical(
     `segment_derived:${segmentResolution.rationale}`,
   );
   pushProv("total_rooms", draft.total_rooms, TIER_A_BASE, "booking_e2_room_count");
+  // Confidence is lower when brand was inferred from canonical_name
+  // (rather than read from an explicit chain_name field) — a heuristic
+  // match introduces error vs an authoritative source.
+  const brandConfidence =
+    brandSource === "explicit_field" ? TIER_A_BASE :
+    brandSource === "canonical_name_inference" ? 0.72 :  // below review-queue threshold
+    TIER_A_LOW;
+  const familyConfidence =
+    brandSource === "explicit_field" ? 0.85 :
+    brandSource === "canonical_name_inference" ? 0.72 :
+    0;
   pushProv(
     "brand",
     draft.brand,
-    brandLookup ? TIER_A_BASE : TIER_A_LOW,
-    brandLookup ? "booking_e2_chain_name_registry_hit" : "booking_e2_chain_name_unresolved",
+    brandConfidence,
+    brandLookup
+      ? `booking_e2_${brandSource}_registry_hit`
+      : "booking_e2_brand_unresolved",
   );
   pushProv(
     "brand_family",
     draft.brand_family,
-    brandLookup ? 0.85 : 0,
-    brandLookup ? "registry_brand_family_lookup" : "brand_family_unresolved",
+    familyConfidence,
+    brandLookup
+      ? `registry_brand_family_lookup_via_${brandSource}`
+      : "brand_family_unresolved",
   );
   pushProv(
     "chain_scale",
     draft.chain_scale,
-    brandLookup ? 0.85 : 0,
-    brandLookup ? "registry_chain_scale_lookup" : "chain_scale_unresolved",
+    familyConfidence,
+    brandLookup
+      ? `registry_chain_scale_lookup_via_${brandSource}`
+      : "chain_scale_unresolved",
   );
   pushProv("review_score", draft.review_score, TIER_A_BASE, "booking_e2_review_score");
   pushProv("review_count", draft.review_count, TIER_A_HIGH, "booking_e2_review_nr");

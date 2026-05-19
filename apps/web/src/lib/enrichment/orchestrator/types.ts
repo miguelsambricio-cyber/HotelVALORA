@@ -81,7 +81,8 @@ export type JobOutcome =
   | "circuit_breaker_open"
   | "dry_run_no_call"
   | "fixture_not_found"
-  | "fallback_required";
+  | "fallback_required"
+  | "excluded_by_filter";  // accommodation_type marked exclude=true in registry
 
 export interface PerFieldOutcome {
   field: string;

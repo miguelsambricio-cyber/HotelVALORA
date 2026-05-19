@@ -71,6 +71,51 @@ export interface RapidApiSearchResponse {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// Envelope (booking-com15 wraps every response in this shape)
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface BookingEnvelope<T> {
+  status?: boolean | string;
+  message?: string;
+  timestamp?: number;
+  data?: T;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// E2 rawData (camelCase nested block — embedded E1.property snapshot)
+//
+// Discovered 2026-05-19: E2 returns these critical fields nested under
+// `data.rawData` rather than at the top level. Star rating, review score,
+// photos, and other E1-hit fields ONLY live here.
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface RapidApiE2RawData {
+  // Star equivalents (1–5, 0 if unrated)
+  propertyClass?: number;
+  accuratePropertyClass?: number;  // verified — preferred when non-zero
+  qualityClass?: number;            // Booking's internal estimate
+
+  // Reviews
+  reviewScore?: number;             // 0–10 native
+  reviewCount?: number;
+  reviewScoreWord?: string;
+
+  // Photos
+  mainPhotoId?: number;
+  photoUrls?: string[];             // 3 sizes typically: square60 / square500 / square1024
+
+  // Identity / location duplication
+  id?: number | string;
+  name?: string;
+  latitude?: number;
+  longitude?: number;
+  countryCode?: string;
+  position?: number;
+  rankingPosition?: number;
+  ufi?: number | string;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // E2 — hotels/data (single hotel detail)
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -78,24 +123,48 @@ export interface RapidApiHotelData {
   hotel_id?: number | string;
 
   // Identity
-  name?: string;
+  hotel_name?: string;              // booking-com15 actual key
+  name?: string;                    // legacy / synthetic-fixture compat
+  hotel_name_trans?: string;
   name_trans?: Record<string, string>;
   legal_name?: string;
 
+  // Embedded rawData (booking-com15 — star/review/photos live here)
+  rawData?: RapidApiE2RawData;
+
   // Location
   address?: string;
+  address_trans?: string;
   address_extra?: string;
   city?: string;
   city_trans?: string;
   city_name_en?: string;
+  city_in_trans?: string;
   district?: string;
+  districts?: unknown[];
   zip?: string;
   cc1?: string;
+  countrycode?: string;             // booking-com15 also exposes this
   country?: string;
   country_trans?: string;
   region?: string;
   latitude?: number;
   longitude?: number;
+  timezone?: string;
+  ufi?: number | string;            // city_id alias
+
+  // Extra review dimensions (booking-com15)
+  breakfast_review_score?: { rating?: number | string; score_word?: string };
+  wifi_review_score?: { rating?: number | string; score_word?: string };
+  aggregated_data?: {
+    has_kitchen?: number;
+    has_seating?: number;
+    has_nonrefundable?: number;
+    has_refundable?: number;
+    common_kitchen_fac?: Array<{ name?: string; id?: number }>;
+  };
+  family_facilities?: string[];
+  is_family_friendly?: 0 | 1 | boolean;
 
   // Classification
   class?: number;            // star rating

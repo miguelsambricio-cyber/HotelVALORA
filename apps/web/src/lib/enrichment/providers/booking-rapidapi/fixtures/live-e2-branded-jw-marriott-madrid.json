@@ -1,0 +1,323 @@
+{
+  "status": true,
+  "message": "Success",
+  "timestamp": 1779208936780,
+  "data": {
+    "ufi": -390625,
+    "hotel_id": 92589,
+    "hotel_name": "JW Marriott Hotel Madrid",
+    "url": "https://www.booking.com/hotel/es/jw-marriott.html",
+    "hotel_name_trans": "",
+    "review_nr": 377,
+    "arrival_date": "2026-05-26",
+    "departure_date": "2026-05-27",
+    "price_transparency_mode": "transparent",
+    "accommodation_type_name": "Hotels",
+    "latitude": 40.41686271,
+    "longitude": -3.700099913,
+    "address": "Sevilla, 2",
+    "address_trans": "",
+    "city": "Madrid",
+    "city_trans": "Madrid",
+    "city_in_trans": "in Madrid",
+    "city_name_en": "Madrid",
+    "district": "Centro",
+    "countrycode": "es",
+    "distance_to_cc": 0.281658550111898,
+    "default_language": "es",
+    "country_trans": "Spain",
+    "currency_code": "EUR",
+    "zip": "28014",
+    "timezone": "Europe/Madrid",
+    "soldout": 1,
+    "available_rooms": 0,
+    "max_rooms_in_reservation": 9,
+    "average_room_size_for_ufi_m2": "20.35",
+    "is_family_friendly": 0,
+    "is_closed": 0,
+    "is_crimea": 0,
+    "is_hotel_ctrip": 0,
+    "is_price_transparent": 0,
+    "is_genius_deal": 0,
+    "is_cash_accepted_check_enabled": 1,
+    "qualifies_for_no_cc_reservation": 0,
+    "hotel_include_breakfast": 0,
+    "opted_out_from_gallery_changes": 1,
+    "cc1": "es",
+    "family_facilities": [
+      "Soundproof rooms",
+      "Family rooms"
+    ],
+    "property_highlight_strip": [
+      {
+        "name": "Parking",
+        "icon_list": [
+          {
+            "icon": "iconset/parking_sign",
+            "size": 1
+          }
+        ]
+      },
+      {
+        "name": "Pet friendly",
+        "icon_list": [
+          {
+            "icon": "iconset/pawprint",
+            "size": 1
+          }
+        ]
+      },
+      {
+        "icon_list": [
+          {
+            "size": 1,
+            "icon": "iconset/food"
+          }
+        ],
+        "name": "Restaurant"
+      },
+      {
+        "name": "Spa",
+        "icon_list": [
+          {
+            "size": 1,
+            "icon": "iconset/spa"
+          }
+        ]
+      },
+      {
+        "icon_list": [
+          {
+            "size": 1,
+            "icon": "iconset/checkmark"
+          }
+        ],
+        "name": "Balcony"
+      },
+      {
+        "name": "Air conditioning",
+        "icon_list": [
+          {
+            "icon": "iconset/snowflake",
+            "size": 1
+          }
+        ]
+      },
+      {
+        "icon_list": [
+          {
+            "icon": "iconset/shower",
+            "size": 1
+          }
+        ],
+        "name": "Private bathroom"
+      },
+      {
+        "icon_list": [
+          {
+            "icon": "iconset/eye",
+            "size": 1
+          }
+        ],
+        "name": "View"
+      },
+      {
+        "name": "Shower",
+        "icon_list": [
+          {
+            "icon": "iconset/shower",
+            "size": 1
+          }
+        ]
+      },
+      {
+        "name": "Fitness center",
+        "icon_list": [
+          {
+            "icon": "iconset/fitness",
+            "size": 1
+          }
+        ]
+      }
+    ],
+    "facilities_block": {
+      "facilities": [
+        {
+          "name": "Non-smoking rooms",
+          "icon": "nosmoking"
+        },
+        {
+          "icon": "fitness",
+          "name": "Fitness center"
+        },
+        {
+          "icon": "clean",
+          "name": "Room service"
+        },
+        {
+          "name": "Pet friendly",
+          "icon": "pawprint"
+        },
+        {
+          "icon": "disabled",
+          "name": "Facilities for disabled guests"
+        },
+        {
+          "name": "Wifi in all areas",
+          "icon": "wifi"
+        },
+        {
+          "icon": "food_and_drink",
+          "name": "Restaurant"
+        },
+        {
+          "name": "Spa",
+          "icon": "spa"
+        },
+        {
+          "icon": "family",
+          "name": "Family rooms"
+        },
+        {
+          "name": "Parking",
+          "icon": "parking_sign"
+        },
+        {
+          "name": "Wifi",
+          "icon": "wifi"
+        }
+      ],
+      "type": "popular",
+      "name": "Most Popular Facilities"
+    },
+    "top_ufi_benefits": [
+      {
+        "translated_name": "Parking",
+        "icon": "parking_sign"
+      },
+      {
+        "icon": "family",
+        "translated_name": "Family rooms"
+      },
+      {
+        "icon": "pawprint",
+        "translated_name": "Pet friendly"
+      },
+      {
+        "icon": "spa",
+        "translated_name": "Spa"
+      },
+      {
+        "translated_name": "Wifi",
+        "icon": "wifi"
+      },
+      {
+        "icon": "nosmoking",
+        "translated_name": "Non-smoking rooms"
+      }
+    ],
+    "languages_spoken": {
+      "languagecode": [
+        "es",
+        "en-gb"
+      ]
+    },
+    "spoken_languages": [
+      "es",
+      "en-gb"
+    ],
+    "breakfast_review_score": {
+      "review_snippet": "",
+      "review_score": 0,
+      "review_number": 0,
+      "review_score_word": "",
+      "review_count": 0,
+      "rating": 0
+    },
+    "wifi_review_score": {
+      "rating": "10.0"
+    },
+    "min_room_distribution": {
+      "children": [],
+      "adults": 1
+    },
+    "booking_home": {},
+    "aggregated_data": {
+      "has_refundable": 0,
+      "has_seating": 0,
+      "common_kitchen_fac": [],
+      "has_kitchen": 1,
+      "has_nonrefundable": 0
+    },
+    "last_reservation": {
+      "country": null,
+      "countrycode": null,
+      "time": ""
+    },
+    "free_facilities_cancel_breakfast": [
+      {
+        "facility_id": 105
+      },
+      {
+        "facility_id": 106
+      }
+    ],
+    "hotel_text": {},
+    "districts": [
+      176,
+      10202
+    ],
+    "preferences": [],
+    "hotel_important_information_with_codes": [],
+    "block": [],
+    "rawData": {
+      "wishlistName": "Madrid",
+      "isPreferred": true,
+      "isFirstPage": true,
+      "propertyClass": 5,
+      "checkin": {
+        "untilTime": "00:00",
+        "fromTime": "15:00"
+      },
+      "reviewScore": 8.9,
+      "checkinDate": "2026-05-20",
+      "reviewScoreWord": "Fabulous",
+      "priceBreakdown": {
+        "grossPrice": {
+          "currency": "EUR",
+          "amountRounded": "€ 908",
+          "value": 907.5
+        },
+        "benefitBadges": [],
+        "chargesInfo": "Includes taxes and charges",
+        "taxExceptions": []
+      },
+      "checkout": {
+        "untilTime": "12:00",
+        "fromTime": "00:00"
+      },
+      "rankingPosition": 0,
+      "id": 92589,
+      "reviewCount": 377,
+      "accuratePropertyClass": 5,
+      "ufi": -390625,
+      "currency": "EUR",
+      "mainPhotoId": 470960017,
+      "blockIds": [
+        "9258911_364475170_0_2_0"
+      ],
+      "longitude": -3.700099913,
+      "optOutFromGalleryChanges": 1,
+      "isHighlightedHotel": true,
+      "latitude": 40.41686271,
+      "photoUrls": [
+        "https://cf.bstatic.com/xdata/images/hotel/square60/470960017.jpg?k=25e94bcc239329126f58252b0f25c50c3c78453ef4a400cfefe4a8787ea9d983&o="
+      ],
+      "name": "JW Marriott Hotel Madrid",
+      "position": 0,
+      "checkoutDate": "2026-05-21",
+      "qualityClass": 0,
+      "countryCode": "es"
+    }
+  }
+}

@@ -192,6 +192,25 @@ export async function runEnrichmentJob(
   const extraFacilities = rawE3 ? parseFacilitiesResponse(rawE3).facilities : [];
   const mapping = mapToCanonical(parsed.parsed, { extraFacilities });
 
+  // 2b. Filter — excluded accommodation types (hostels, apartments, B&Bs,
+  //      vacation rentals, etc.) never enter the canonical pipeline.
+  //      Saves budget on fallback dispatch and keeps the institutional
+  //      graph clean.
+  if (mapping.diagnostics.excludedByType) {
+    return {
+      job,
+      outcome: "excluded_by_filter",
+      draft: mapping.draft,
+      warnings: [
+        ...warnings,
+        ...mapping.diagnostics.notes,
+        `accommodation_type:${parsed.parsed.accommodationTypeName ?? "unknown"}`,
+      ],
+      durationMs: Date.now() - startedAt,
+      completedAt: ctx.now(),
+    };
+  }
+
   // 3. Dedup against block-key neighborhood
   const draftCandidate = draftToDedupCandidate(mapping.draft, `draft:${job.id}`);
   const bk = blockKey({

@@ -100,6 +100,11 @@ Maps tasks to exact files. Start here before scanning.
 | **BookingRapidApiClient.executeLive** — real HTTP path with timeout · status mapping · JSON parse · classified errors | `apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts` |
 | **Live smoke fixtures (E0+E1+E2 against booking-com15)** — captured 2026-05-19 · Madrid hotel_id 12269658 | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-{e0,e1,e2,smoke-summary}-*.json` |
 | **Wire-shape validation v1 (drift analysis · authoritative source-of-record · parser/mapper update plan)** | `docs/hotel-intelligence/booking-com15-wire-shape-validation-v1.md` |
+| **Parser/mapper v2 (post-drift)** — envelope unwrap · `rawData` star/review/photo mining · brand inference from canonical_name · accommodation_type filter | `apps/web/src/lib/enrichment/providers/booking-rapidapi/{types,parse,map-to-canonical,endpoints}.ts` |
+| **Excluded-by-filter outcome** — orchestrator short-circuit on registry-excluded accommodation types (hostels/apartments/B&Bs) | `apps/web/src/lib/enrichment/orchestrator/{types,runner}.ts` |
+| **TS validation runner** — runnable via `npx tsx` (no permanent dep) · validates parser against the 3 live fixtures + cross-dedup | `apps/web/scripts/validate-parser-vs-live.mts` |
+| **Live parser validation report** — deterministic output snapshot for operator review | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-parser-validation.json` |
+| **Branded live fixtures (NH Collection · JW Marriott)** — institutional validation samples | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-e2-branded-*.json` |
 | **Dedup engine (M3 · institutional moat #1)** — block-key + composite scoring + apartment override + identity-match override | `apps/web/src/lib/enrichment/dedup/` |
 | Dedup primitives — Jaro-Winkler · Soundex · normalize · stopword strip | `apps/web/src/lib/enrichment/dedup/string-similarity.ts` |
 | Dedup scoring — `blockKey` · haversine · proximity tiers · composite (35/30/20/10/5) | `apps/web/src/lib/enrichment/dedup/scoring.ts` |

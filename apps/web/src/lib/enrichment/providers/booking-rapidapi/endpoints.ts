@@ -78,22 +78,48 @@ export function searchHotels(
 
 // ───────────────────────────────────────────────────────────────────────────
 // E2 — hotels/data (single hotel detail)
+//
+// booking-com15 REQUIRES stay-window params even for metadata-only fetch
+// (else returns 400). The pipeline uses a stable 1-night window 7 days in
+// the future to make TTL-aligned re-fetches idempotent and predictable.
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface HotelDataParams {
   hotelId: string;
   languagecode?: string;
+  arrivalDate?: string;     // YYYY-MM-DD; defaults to today+7
+  departureDate?: string;   // YYYY-MM-DD; defaults to today+8
+  adults?: number;
+  roomQty?: number;
+  units?: "metric" | "imperial";
+  temperatureUnit?: "c" | "f";
+  currencyCode?: string;
 }
 
 export const PATH_E2_DATA = "/api/v1/hotels/getHotelDetails";
+
+function defaultStayWindow(now: Date = new Date()): { arrival: string; departure: string } {
+  const arrival = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
+  const departure = new Date(now.getTime() + 8 * 86400000).toISOString().slice(0, 10);
+  return { arrival, departure };
+}
 
 export function getHotelData(
   client: BookingRapidApiClient,
   params: HotelDataParams,
 ): Promise<RapidApiResult<RapidApiHotelDataResponse>> {
+  const window = defaultStayWindow();
   return client.execute<RapidApiHotelDataResponse>(PATH_E2_DATA, {
     hotel_id: params.hotelId,
+    arrival_date: params.arrivalDate ?? window.arrival,
+    departure_date: params.departureDate ?? window.departure,
+    adults: params.adults ?? 2,
+    children_age: "",
+    room_qty: params.roomQty ?? 1,
+    units: params.units ?? "metric",
+    temperature_unit: params.temperatureUnit ?? "c",
     languagecode: params.languagecode ?? "en-us",
+    currency_code: params.currencyCode ?? "EUR",
   });
 }
 

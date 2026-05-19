@@ -11,10 +11,29 @@
  */
 
 import type {
+  BookingEnvelope,
   RapidApiHotelData,
   RapidApiSearchHit,
   RapidApiFacilitiesResponse,
 } from "./types";
+
+// ───────────────────────────────────────────────────────────────────────────
+// Envelope unwrap (booking-com15 wraps every response in
+// `{ status, message, timestamp, data: {...} }`). Defensive — handles
+// both envelope-wrapped and direct-shape inputs (for backward compat
+// with the original synthetic fixtures).
+// ───────────────────────────────────────────────────────────────────────────
+
+export function unwrapEnvelope<T>(input: unknown): T {
+  if (input && typeof input === "object") {
+    const obj = input as BookingEnvelope<T> & Record<string, unknown>;
+    // If the input looks like an envelope (has `status` and `data`), unwrap.
+    if ("data" in obj && ("status" in obj || "message" in obj || "timestamp" in obj)) {
+      return obj.data as T;
+    }
+  }
+  return input as T;
+}
 
 export interface ParsedHotel {
   // Identity
@@ -201,26 +220,46 @@ function dedupeStrings(arr: ReadonlyArray<string | null | undefined>): string[] 
 // Main parser
 // ───────────────────────────────────────────────────────────────────────────
 
-export function parseHotelData(raw: RapidApiHotelData): ParseResult {
+export function parseHotelData(rawOrEnvelope: RapidApiHotelData | unknown): ParseResult {
   const warnings: string[] = [];
+  // Defensive envelope handling — accept both shapes
+  const raw: RapidApiHotelData = unwrapEnvelope<RapidApiHotelData>(rawOrEnvelope);
+  // booking-com15 nests E1.property-style fields inside `data.rawData`
+  const rd = raw.rawData ?? {};
 
-  const countryCode = validateCountryCode(asTrimString(raw.cc1) ?? asTrimString(raw.country), warnings);
-  const lat = validateLat(asFloat(raw.latitude), warnings);
-  const lng = validateLng(asFloat(raw.longitude), warnings);
-
-  // Star rating — try `class` first, fall back to `property_class`
-  const starRating = validateStarRating(
-    asInt(raw.class) ?? asInt(raw.property_class),
+  const countryCode = validateCountryCode(
+    asTrimString(raw.cc1) ?? asTrimString(raw.countrycode) ?? asTrimString(rd.countryCode) ?? asTrimString(raw.country),
     warnings,
   );
+  const lat = validateLat(asFloat(raw.latitude) ?? asFloat(rd.latitude), warnings);
+  const lng = validateLng(asFloat(raw.longitude) ?? asFloat(rd.longitude), warnings);
+
+  // Star rating — priority chain per booking-com15:
+  //   1. rawData.accuratePropertyClass (verified, when non-zero)
+  //   2. rawData.propertyClass         (declared)
+  //   3. legacy raw.class / raw.property_class (for synthetic fixtures)
+  //   4. rawData.qualityClass          (last resort — Booking's internal estimate)
+  const starCandidates = [
+    asInt(rd.accuratePropertyClass),
+    asInt(rd.propertyClass),
+    asInt(raw.class),
+    asInt(raw.property_class),
+    asInt(rd.qualityClass),
+  ];
+  const firstNonZero = starCandidates.find((n): n is number => typeof n === "number" && n > 0) ?? null;
+  const starRating = validateStarRating(firstNonZero, warnings);
 
   const postalCode = validatePostalCodeEs(asTrimString(raw.zip), warnings, countryCode);
 
-  // Total rooms — try multiple paths
+  // Total rooms — try multiple paths (booking-com15 omits both top-level paths)
   const totalRooms = asInt(raw.room_count) ?? asInt(raw.nr_rooms);
 
-  const reviewScore = validateReviewScore(asFloat(raw.review_score), warnings);
-  const reviewCount = asInt(raw.review_nr);
+  // Review score — booking-com15 keeps this in rawData.reviewScore
+  const reviewScore = validateReviewScore(
+    asFloat(raw.review_score) ?? asFloat(rd.reviewScore),
+    warnings,
+  );
+  const reviewCount = asInt(raw.review_nr) ?? asInt(rd.reviewCount);
 
   // Facility list — defensive union of every shape Booking exposes
   const facilityCandidates: Array<string | null | undefined> = [];
@@ -234,10 +273,13 @@ export function parseHotelData(raw: RapidApiHotelData): ParseResult {
   }
   const rawFacilities = dedupeStrings(facilityCandidates);
 
-  // Name — try canonical name first, then EN translation
+  // Name — booking-com15 uses `hotel_name`; legacy/synthetic uses `name`;
+  // fallback to EN translation, then rawData.name
   const name =
+    asTrimString(raw.hotel_name) ??
     asTrimString(raw.name) ??
     asTrimString(raw.name_trans?.en) ??
+    asTrimString(rd.name) ??
     null;
 
   const parsed: ParsedHotel = {
@@ -275,7 +317,15 @@ export function parseHotelData(raw: RapidApiHotelData): ParseResult {
     phone: asTrimString(raw.phone),
     email: asTrimString(raw.email),
 
-    mainPhotoUrl: asTrimString(raw.main_photo_url) ?? asTrimString(raw.hotel_photo),
+    // Photos — booking-com15 puts them in rawData.photoUrls[] (3 sizes;
+    // we prefer the largest = index 2 for institutional rendering).
+    // Legacy/synthetic uses main_photo_url / hotel_photo at top level.
+    mainPhotoUrl:
+      (Array.isArray(rd.photoUrls) && rd.photoUrls.length > 0
+        ? (rd.photoUrls[2] ?? rd.photoUrls[rd.photoUrls.length - 1] ?? rd.photoUrls[0])
+        : null) ??
+      asTrimString(raw.main_photo_url) ??
+      asTrimString(raw.hotel_photo),
 
     rawFacilities,
 

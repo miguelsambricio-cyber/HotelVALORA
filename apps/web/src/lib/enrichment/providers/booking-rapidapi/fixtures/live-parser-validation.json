@@ -1,0 +1,169 @@
+{
+  "generated_at": "2026-05-19T16:49:03.265Z",
+  "fixtures_validated": 3,
+  "reports": [
+    {
+      "label": "amazinn-stay-madrid-gran-via",
+      "parsed_summary": {
+        "booking_hotel_id": "12269658",
+        "canonical_name": "AmazINN Stay Madrid Gran Via",
+        "accommodation_type_name": "Hostels",
+        "city": "Madrid",
+        "district": "Centro",
+        "postal_code": "28015",
+        "country_code": "ES",
+        "lat": 40.422646,
+        "lng": -3.7073,
+        "star_rating": null,
+        "review_score": 7,
+        "review_count": 206,
+        "hero_image_url": "https://cf.bstatic.com/xdata/images/hotel/square60/814980198.jpg?k=24ba736761011d227bad6cd416c3a5cff615f25a448ac2ab044772760120b3af&o=",
+        "total_rooms": null,
+        "brand_from_chain_name": null,
+        "raw_facilities_count": 8,
+        "warnings": []
+      },
+      "mapping_summary": {
+        "brand": null,
+        "brand_family": null,
+        "chain_scale": "unknown",
+        "segment": "unknown",
+        "hotel_type": "urban",
+        "city_normalized": "Madrid",
+        "neighborhood": "Centro",
+        "hero_image_path": "https://cf.bstatic.com/xdata/images/hotel/square60/814980198.jpg?k=24ba736761011d227bad6cd416c3a5cff615f25a448ac2ab044772760120b3af&o=",
+        "review_score": 7,
+        "review_count": 206,
+        "determined_amenity_keys": 0,
+        "total_provenance_entries": 20,
+        "brand_inference_source": "Brand inference failed for \"AmazINN Stay Madrid Gran Via\" — routed to review."
+      },
+      "block_key": "A525::madrid::ES",
+      "diagnostics": {
+        "excludedByType": true,
+        "brandUnresolved": true,
+        "municipioUnresolved": false,
+        "hotelTypeUnresolved": false,
+        "unmappedAmenities_count": 8,
+        "parserWarnings": [],
+        "notes": [
+          "Brand inference failed for \"AmazINN Stay Madrid Gran Via\" — routed to review.",
+          "accommodation_type \"Hostels\" is registry-excluded — out of institutional scope."
+        ]
+      },
+      "outcome_projection": "excluded_by_filter"
+    },
+    {
+      "label": "nh-collection-madrid-eurobuilding",
+      "parsed_summary": {
+        "booking_hotel_id": "90659",
+        "canonical_name": "NH Collection Madrid Eurobuilding",
+        "accommodation_type_name": "Hotels",
+        "city": "Madrid",
+        "district": "Chamartín",
+        "postal_code": "28036",
+        "country_code": "ES",
+        "lat": 40.458287,
+        "lng": -3.685843,
+        "star_rating": 4,
+        "review_score": 8.9,
+        "review_count": 2024,
+        "hero_image_url": "https://cf.bstatic.com/xdata/images/hotel/square60/575329523.jpg?k=a86d324972561e4eef905548ac93c389180f4620bbd22faed9d889d39fa65bd7&o=",
+        "total_rooms": null,
+        "brand_from_chain_name": null,
+        "raw_facilities_count": 11,
+        "warnings": []
+      },
+      "mapping_summary": {
+        "brand": "NH Hotel Group",
+        "brand_family": "NH Hotel Group",
+        "chain_scale": "upper_upscale",
+        "segment": "upper_upscale",
+        "hotel_type": "urban",
+        "city_normalized": "Madrid",
+        "neighborhood": "Chamartín",
+        "hero_image_path": "https://cf.bstatic.com/xdata/images/hotel/square60/575329523.jpg?k=a86d324972561e4eef905548ac93c389180f4620bbd22faed9d889d39fa65bd7&o=",
+        "review_score": 8.9,
+        "review_count": 2024,
+        "determined_amenity_keys": 4,
+        "total_provenance_entries": 28,
+        "brand_inference_source": "Brand \"NH Hotel Group\" inferred from canonical_name (chain_name absent in publisher response)."
+      },
+      "block_key": "N363::madrid::ES",
+      "diagnostics": {
+        "excludedByType": false,
+        "brandUnresolved": false,
+        "municipioUnresolved": false,
+        "hotelTypeUnresolved": false,
+        "unmappedAmenities_count": 6,
+        "parserWarnings": [],
+        "notes": [
+          "Brand \"NH Hotel Group\" inferred from canonical_name (chain_name absent in publisher response)."
+        ]
+      },
+      "outcome_projection": "fallback_required (T2 < 12)"
+    },
+    {
+      "label": "jw-marriott-hotel-madrid",
+      "parsed_summary": {
+        "booking_hotel_id": "92589",
+        "canonical_name": "JW Marriott Hotel Madrid",
+        "accommodation_type_name": "Hotels",
+        "city": "Madrid",
+        "district": "Centro",
+        "postal_code": "28014",
+        "country_code": "ES",
+        "lat": 40.416863,
+        "lng": -3.7001,
+        "star_rating": 5,
+        "review_score": 8.9,
+        "review_count": 377,
+        "hero_image_url": "https://cf.bstatic.com/xdata/images/hotel/square60/470960017.jpg?k=25e94bcc239329126f58252b0f25c50c3c78453ef4a400cfefe4a8787ea9d983&o=",
+        "total_rooms": null,
+        "brand_from_chain_name": null,
+        "raw_facilities_count": 11,
+        "warnings": []
+      },
+      "mapping_summary": {
+        "brand": "Marriott International",
+        "brand_family": "Marriott International",
+        "chain_scale": "upper_upscale",
+        "segment": "upper_upscale",
+        "hotel_type": "urban",
+        "city_normalized": "Madrid",
+        "neighborhood": "Centro",
+        "hero_image_path": "https://cf.bstatic.com/xdata/images/hotel/square60/470960017.jpg?k=25e94bcc239329126f58252b0f25c50c3c78453ef4a400cfefe4a8787ea9d983&o=",
+        "review_score": 8.9,
+        "review_count": 377,
+        "determined_amenity_keys": 4,
+        "total_provenance_entries": 27,
+        "brand_inference_source": "Brand \"Marriott International\" inferred from canonical_name (chain_name absent in publisher response)."
+      },
+      "block_key": "J563::madrid::ES",
+      "diagnostics": {
+        "excludedByType": false,
+        "brandUnresolved": false,
+        "municipioUnresolved": false,
+        "hotelTypeUnresolved": false,
+        "unmappedAmenities_count": 7,
+        "parserWarnings": [],
+        "notes": [
+          "Brand \"Marriott International\" inferred from canonical_name (chain_name absent in publisher response)."
+        ]
+      },
+      "outcome_projection": "fallback_required (T2 < 12)"
+    }
+  ],
+  "cross_fixture_dedup_nh_vs_marriott": {
+    "composite": 0,
+    "components": {
+      "name_exact": 0,
+      "name_fuzzy": 0,
+      "geo": 0,
+      "operator": 0,
+      "room_count": 0
+    },
+    "geo_distance_meters": 4761.553300052285,
+    "decision": "no_match (correct — distinct properties)"
+  }
+}
