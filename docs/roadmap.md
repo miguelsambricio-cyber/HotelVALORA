@@ -1,5 +1,18 @@
 # Roadmap
 
+> ❄️ **FROZEN · 2026-05-19**
+>
+> **Status:** frozen · do not update
+> **Reason:** This file is a task-level backlog from the FastAPI-era roadmap. Most items reference deprecated backend paths (Python `services/financial_engine/` · `ValuationService` IRR computation · alembic migrations beyond 0006) that are no longer the live underwriting pipeline.
+> **Canonical replacements:**
+> - **Visible product phases (strategic):** `docs/roadmap/master-roadmap.md`
+> - **What just shipped + up-next:** `docs/roadmap/current-sprint.md`
+> - **Future ideas · blocked · tech debt:** `docs/roadmap/backlog.md`
+>
+> Inbound links in `ENTRYPOINTS.md` and other docs that still reference this file should be updated to one of the three canonical files above. Content below is preserved as a historical snapshot of the backend roadmap.
+
+---
+
 Planned features and improvements. Update this file when items are shipped or priorities shift.
 
 ---

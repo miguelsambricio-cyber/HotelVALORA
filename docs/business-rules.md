@@ -1,5 +1,18 @@
 # Business Rules
 
+> ❄️ **FROZEN · 2026-05-19**
+>
+> **Status:** frozen · do not update
+> **Reason:** This file is a flat root-level summary from before the `business-rules/` folder existed. The tier · visibility · promoted-reports rules now live in dedicated dossiers with deeper detail. Sections like Locked Gates, PDF/Print Rules, Workflow Gates and Map Layers below are historical and may not reflect current implementation.
+> **Canonical replacements:**
+> - **Tier system + Premium gates:** `docs/business-rules/tier-system.md`
+> - **Report visibility axes (private / public / top-promote):** `docs/business-rules/report-visibility.md`
+> - **Top Promote marketplace logic:** `docs/business-rules/promoted-reports.md`
+> - **PDF / print mechanics:** `docs/print-pdf.md`
+> - **Map layers (CompSet + stylised pin):** `docs/architecture/map-engine.md` + `docs/maps.md`
+>
+> Inbound links in `CLAUDE.md`, `ENTRYPOINTS.md`, `component-library.md`, `report-system.md` that still reference this file should be updated to one of the canonical replacements above. Content below is preserved as a historical snapshot.
+
 ---
 
 ## Premium Tier System

@@ -1,6 +1,12 @@
 # Design System · Components
 
-Index of every canonical component grouped by import surface. Cross-reference: `docs/component-library.md` has the prop-level catalog; `UI_COMPONENTS.md` (root) is the full per-family map.
+> **Scope clarification · 2026-05-19**
+>
+> This file is the **cross-cutting component index** organised by family (Layout · Library · Settings · Admin / Operations Center · UI primitives). Use it when you need to discover what exists across the whole product.
+>
+> For **report-domain primitives with prop signatures + composition examples**, the canonical reference is `docs/component-library.md`. The Report family section here is intentionally minimal and points there.
+
+Index of every canonical component grouped by import surface.
 
 ## Layout (cross-cutting)
 
@@ -33,13 +39,10 @@ Index of every canonical component grouped by import surface. Cross-reference: `
 
 ## Report family
 
-| Component | File | Notes |
-|---|---|---|
-| `ReportShell` | `components/report/shell/report-shell.tsx` | `portrait` / `landscape` orientation. |
-| `ReportPaper` | `components/report/shell/report-paper.tsx` | Institutional paper card. |
-| `ReportSidebar` | `components/report/shell/report-sidebar.tsx` | Driven by `lib/report/sections.ts`. |
-| `ReportTopNav`, `ReportFooter` | sibling files | Chrome. |
-| `ReportSection`, `ReportHeader`, `MetricRow`, `MetricTable`, `StatCard`, `StatGrid`, `UpgradeGate`, `UpgradeCard`, `ImageGallery`, `ReportMap`, `PrintPage`, `PdfExportButton` | `components/report/primitives/*` | Canonical primitives. Prefer composing these over rebuilding. |
+> 🔀 **Canonical: [`docs/component-library.md`](../component-library.md)** — full prop signatures, composition examples and import patterns for every report primitive. The list below is a navigation pointer only.
+
+- **Shell**: `ReportShell` · `ReportPaper` · `ReportSidebar` · `ReportTopNav` · `ReportFooter` (`components/report/shell/`)
+- **Primitives**: `ReportSection` · `ReportHeader` · `MetricRow` · `MetricTable` · `StatCard` · `StatGrid` · `UpgradeGate` · `UpgradeCard` · `ImageGallery` · `ReportMap` · `PrintPage` · `PdfExportButton` (barrel: `components/report/primitives/index.ts`)
 
 ## Settings family
 

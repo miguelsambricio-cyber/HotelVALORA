@@ -1,5 +1,22 @@
 # Excel parity report · Block 3A
 
+> ⚠️ **STALE · ENGINE VERSION MISMATCH · 2026-05-19**
+>
+> **Status:** stale (numbers from `0.1.0-scaffold`)
+> **Reason:** This parity report was generated against engine `0.1.0-scaffold`. The live engine is now `0.2.0` with material semantic changes:
+> - **Project IRR** redefined to truly **unlevered · pre-tax** (no longer subtracts cash tax · uses gross exit price). See `docs/underwriting/irr-layer-separation.md`.
+> - **DSCR** numerator changed from `ebitda_after_replacement` to `gross_operating_profit` (institutional hospitality basis). See changelog 2026-05-19.
+> - **DYR** (debt yield) added as a new ratio.
+> - **Upfront fee** (0.5% one-time Y1) added to portfolio debt service.
+> - **Phase model** (acquisition vs operating) hides Y0 from operating tables.
+> - Numerous override fields added: `cap_rate_entry_pct` · `exit_cap_rate_pct` · `senior_years` · `senior_margin_pct` · `senior_bullet_pct` · `senior_grace_periods` · `capex_*_pct` · etc.
+>
+> **Canonical replacement (when re-run):** parity report against `ENGINE_VERSION 0.2.0` (PENDING). Bump to `0.3.0` is planned once admin/financials cap-rate policy is consumed by the engine (see `docs/underwriting/cap-rate-policy-divergence.md`).
+>
+> **Do not rely** on the numbers in this report for current validation. The Excel-mapping discipline below (Excel range → engine module) is still useful as a structural reference for the next parity pass.
+
+---
+
 Generated 2026-05-18 · scenario `base` · Madrid Centro · 4* · 256 keys
 · renovated · asking 82.3M · cap 6.25% · LTV 65% · margin 1.25% over
 Euribor 2.75%.

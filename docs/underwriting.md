@@ -1,5 +1,16 @@
 # Underwriting
 
+> ⚠️ **DEPRECATED · 2026-05-19**
+>
+> **Status:** deprecated
+> **Reason:** This file documents the Python FastAPI backend (`apps/api/app/services/valuation_service.py`) that has been superseded by the TypeScript engine in `apps/web/src/lib/underwriting/`. The Python valuation service is frozen and not part of the live underwriting pipeline.
+> **Canonical replacement:** `docs/underwriting/*` (TS engine architecture · dynamic cap rate · IRR layer separation · phase model · temporal model · divergence docs).
+> **Engine version mismatch:** This doc has no concept of the current TS engine versions (`ENGINE_VERSION 0.2.0` / `SCHEMA_VERSION 1.1.0`).
+>
+> Content below is preserved for git-history continuity and reference to the legacy backend valuation schema. Do not rely on it for current implementation decisions.
+
+---
+
 Hotel investment underwriting models built on top of DCF valuations.  
 **Service:** `app/services/valuation_service.py`  
 **Routes:** `app/api/v1/valuations/underwriting.py`, `app/api/v1/valuations/dcf.py`  

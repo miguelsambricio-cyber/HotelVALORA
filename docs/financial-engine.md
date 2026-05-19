@@ -1,5 +1,16 @@
 # Financial Engine
 
+> ⚠️ **DEPRECATED · 2026-05-19**
+>
+> **Status:** deprecated
+> **Reason:** This file documents the Python financial engine (`services/financial_engine/` · NumPy/SciPy/Celery) which is no longer the live underwriting pipeline. The active engine is in TypeScript: `apps/web/src/lib/underwriting/engine/*` (modular orchestrator · per-module reconciliation · operator-driven scenario inputs).
+> **Canonical replacement:** `docs/underwriting/dynamic-cap-rate-engine.md` · `docs/underwriting/temporal-model.md` · `docs/underwriting/irr-layer-separation.md` · `docs/underwriting/phase-model.md`.
+> **Engine version mismatch:** Python engine is unversioned · the live TS engine ships as `ENGINE_VERSION 0.2.0` / `SCHEMA_VERSION 1.1.0`.
+>
+> Content below is preserved for git-history continuity. Do not rely on it for current implementation decisions.
+
+---
+
 **Location:** `services/financial_engine/`  
 **Runtime:** Python, NumPy, SciPy  
 **Invocation:** direct import by `app/services/valuation_service.py` or via Celery task

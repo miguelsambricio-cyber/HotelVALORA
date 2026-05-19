@@ -4,77 +4,166 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
-## 2026-05-18 — Underwriting OS · Block 5 · Memorandum Experience Layer (all 7 sections IC-ready)
+## 2026-05-19 — Phase 1A · Token registry added (additive · zero visual diff · Phase 1B codemods deferred)
 
-Elevated `/report/financials/underwriting` from "engine-facing tables" to a coherent institutional investment memorandum. Applies the same memorandum treatment Section 6 already had (4 blocks · narrative-first · KPI hero · grouped detail · risk indicators) to the remaining 7 sections. No engine changes · pure presentation-quality block.
+- **Phase 1A executed**: `apps/web/tailwind.config.ts` +93 lines additive · `apps/web/src/app/globals.css` +36 lines additive. Adds new `editable-*` palette (anchored on `#005db7` as **interaction/system-state layer · NOT brand**), `risk-*` role aliases (emerald-700 / amber-700 / rose-700 strong hues preserved to keep covenant/reconciliation badge protagonism), sticky offset CSS variables (`--sticky-app/tight/rail/report`), `shell-*` max-widths (1600/1400/768 px), `memo-*` shadow tokens, `badge-*` font sizes (9/10/11 px), 7-step semantic z-index scale (`base/raised/sticky/overlay/dropdown/header/drawer/toast/popover`).
+- Inline 12-line comment added above the `.dark` block in globals.css marking it as **dormant · do NOT add `dark:` variants** — kept for future dark-mode initiative as a separate decision.
+- Build verified: `next build` clean · 63/63 routes regenerated · 0 warnings · 0 errors. Tailwind 3 JIT means new tokens emit zero CSS until consumed; current Phase 1A produces zero pixel diff on every surface.
+- **Phase 1B (codemods) is now DEFERRED pending temporary public deploy of `/report/financials/underwriting` to hotelvalora.com**. Strategic priority pivot: stability > elegance for institutional flagship demo. Steps 2–7 (51× `#005db7` → `editable-600`, 18× sticky offsets, 14× shadows, 5× max-widths, ~10× z-index outliers, docs pass) hold until: (a) temp deploy live · (b) institutional QA pass · (c) operator green-light. No codemods, class replacements, spacing/width/typography/badge/sticky normalization, primitive promotions, shell migrations, or page migrations of any kind in the interim.
+- New operational priority order: P1 stable underwriting deploy · P2 critical UX/PDF bugfixes · P3 report-system harmonization (Phase 1B+).
+- Rollback: `git checkout HEAD -- apps/web/tailwind.config.ts apps/web/src/app/globals.css` restores pre-Phase-1A state (2 files · 0 deletions in current changes).
 
-### Shared primitives (4 new files)
-- `primitives/memorandum-block.tsx` — Block A/B/C wrapper with number + title + subtitle · sticky border + print:break-inside-avoid
-- `primitives/narrative-paragraph.tsx` — IC-grade prose block with eyebrow tag + inline `<NarrativeMetric>` highlight
-- `primitives/kpi-hero.tsx` — KpiHero + KpiTile · tone-aware (neutral/ok/warn/negative/highlight) · 4-6 tiles per row · dark→light inversion
-- `primitives/risk-indicator.tsx` — Institutional risk badges (NOT errors) · severity ok/watch/stress/info · `parseReconciliationWarning` helper converts engine warnings to badge props
+---
 
-### Section 01 · Executive Summary (was placeholder · now bookend)
-- Narrative thesis: "256-key Upscale repositioning opportunity in Madrid Centro targeting stabilised 6.46% yield and 7.84% levered IRR over a 7-year hold..."
-- Block A · Headline metrics (Total Investment · Equity Investment · Total Debt · Entry Cap · Hold Period · Confidence)
-- Block B · Returns (Project IRR · Equity IRR · MOIC · Stabilised Yield · Exit Cap Band · Exit Price) + distribution tiles (Equity contributed / Net exit proceeds / Profit share)
-- Block C · Risk indicators · consumes `bundle.computed.reconciliation.warnings` via `parseReconciliationWarning` · severity-sorted (stress first)
+## 2026-05-19 — Phase 1 · Token harmonization plan (gated · approval pending · NO code change)
 
-### Section 07 · Financing (debt-committee aesthetic)
-- Narrative capital stack with worst-DSCR callout
-- Block A · Debt stack visualization (horizontal bar with per-tranche colour + share %) + per-tranche tiles
-- Block B · Rate stack (Euribor + blended margin + blended effective + Y1 interest) + amortization narrative summary (total interest paid + principal repaid + balance at exit)
-- Block C · Covenant health (worst DSCR + peak LTV + ICR Y1 tone-coded) + CovenantStrip table (DSCR/ICR/LTV per year tone-coded ok/warn/stress)
-- Block D · Full portfolio schedule (existing YearGrid retained)
-- Refinance readiness placeholder (Block 9+) + asset tag
+- New canonical doc: `docs/report/phase-1-token-harmonization.md` (~900 lines) covering all 4 required deliverables:
+  - **A · Token Map** — `editable-{50..950}` palette anchored on `#005db7` · risk/warn/fail role tokens · spacing roles · sticky offset CSS variables (4 named offsets: app/tight/rail/report) · z-index 7-step scale · 3 shell max-widths · 3 badge size tokens · 3 density tokens · 5 memo shadow tokens · deprecated tokens list.
+  - **B · Refactor plan** — file-by-file impact matrix (51 `#005db7` literals × 18 files · 18 sticky-offset files · 14 shadow inlines · 5 max-widths · ~10 z-index outliers) · reversibility tiers · 7-step migration order.
+  - **C · Preview scope** — zero pixel diff on 15+ surfaces (§5.1) · two flagged micro-changes (§5.2 — 1536→1600 shell-report width + CapexDurationBadge text size) · 5 explicitly preserved surfaces.
+  - **D · Approval gates** — Gate 0 (this plan) · Gate 1 (token registry PR) · Gate 2 (5 codemod PRs) · Gate 3 (visual diff) · Gate 4 (merge).
+- Critical naming finding: `brand-*` Tailwind namespace is already a purple-blue legacy palette · cannot use `brand-blue-600` as proposed in synchronization-audit-v1. Plan introduces `editable-*` semantic role name instead.
+- AppHeader real height confirmed: ~48px (`py-2.5` + content + 1px border). Sticky offsets `top-20/24/28` are intentional breathing room, not strict header alignment — codified as named offsets (`sticky-tight/rail/report`).
+- Dark-mode dependency analysis: zero `dark:` variants in components · zero `.dark` class applications · zero shadcn variable consumers. `darkMode: "class"` is dead code. Recommendation: keep dormant + document · no decision in Phase 1.
+- 7 open questions (Q1–Q7) require operator decision before Gate 1: shell-report width (1536 vs 1600) · `editable` namespace name · `#f6f8f7` token candidacy · CapexDurationBadge text size · dark-mode dormant-vs-remove · brand-* retirement · shadcn CSS variable retirement.
+- Total estimate: 3 working days end-to-end. All changes additive + mechanical. Fully reversible per gate.
+- ENTRYPOINTS.md updated with second link under Domain · Report Module.
 
-### Section 08 · Exit Strategy (strongest narrative piece)
-- Narrative exit story with exit_price + cap rate band + confidence + net proceeds + MOIC + IRR
-- Block A · Returns (Project IRR · Equity IRR · MOIC · Profit share · tone-coded)
-- Block B · Entry vs Exit valuation (3-col layout · Entry card + Hold tile + Exit card highlighted) + ValueCreationBridge (Entry → NOI growth → Yield compression → Exit)
-- Block C · Cap rate rationale strip (consumes `cap_rate.exit.dynamic.adjustments` from Dynamic Cap Rate Engine)
-- Block D · Equity cash flow timeline (vertical bars · positive emerald · negative rose) + summary stats (equity contributed / net exit proceeds / total distributions cum.)
-- Block E · Detail schedule (full Project + Equity CF year grid)
+---
 
-### Section 04 · Cash Flow (4 sections separated)
-- Narrative cash arc with Y0 deployment + hold operating + cash at exit
-- Block A · Cash bridge headline (Y0 outlay / Y0 debt / Y0 equity / Cash at exit)
-- Block B · Operating CF (EBITDA + tax + operating CF subtotal in own block)
-- Block C · Investment CF (acquisition + capex + contingency + fees · all one-shot Y0)
-- Block D · Financing + Equity CF (debt drawdowns + service · equity drawn · net CF result + BS change)
+## 2026-05-19 — Report system synchronization audit v1 (institutional · audit only · NO implementation)
 
-### Section 02 · P&L (USALI hierarchy)
-- Narrative GOP ramp + EBITDA margin + first positive NI year
-- Block A · Operating headline (Total Revenue Y1 / Stabilised GOP / Stabilised EBITDA / EBITDA margin / Net Income stabilised / Cumulative NI)
-- Block B · Detail schedule with Revenue → Costs → EBITDA → Below-the-line (D&A → EBIT → FinExp → EBT → CIT → NI) grouped via DivisionRow
+- New canonical doc: `docs/report/synchronization-audit-v1.md` (~700 lines) covering: visual consistency audit · component reuse matrix · 12 cross-cutting divergences · canonical primitives proposal (12 Tier-1 promotions from `components/underwriting/primitives/` → `components/report/primitives/`) · 5-phase migration roadmap · risk classification (quick wins / medium / dangerous / high-risk coupling) · dependency graph · per-page sequencing · 7 open decisions (Q1–Q7) blocking Phase 1.
+- North star: underwriting (`/report/financials/underwriting`) is the institutional reference; the rest of `/report/*` must align to it; admin / library / settings share tokens only, not voice.
+- Maturity ranking of report pages (vs underwriting 10/10): P&L 9, CompSet 8, ExecSum 7, Market 6, Asset 5, CAPEX 4.
+- Tier-1 promotion list (12 primitives): SectionShell · YearGrid · YearRow · SubtotalRow · DivisionRow · KpiHero · KpiTile · EditableTile · FloatingKpiStrip · InitialInvestmentBlock · ReconciliationBadge · RiskIndicator · ScenarioPicker.
+- Retirement candidates: MetricRow · MetricTable · ReportSection (unused exports) · UpgradeCard (alias of UpgradeGate) · duplicate methodological-note · LockedGate ⇌ LockedUpgradeCard.
+- Explicit non-goals: do NOT migrate admin bulk-action toolbar · library 39-col kiosk table · admin dark Bloomberg palette · render-configurator UI · Y1 monthly P&L expansion into the memo language. These stay separate.
+- Total Phase 1–4 estimate: 10–16 working days (token harmonization 1–2d · primitive promotion 1–2d · 6 page migrations 5–8d · adjacent surface alignment 1–2d). Phase 5 (data-model convergence) deferred to a separate initiative.
+- ENTRYPOINTS.md updated to surface the audit at the top of the Report Module section.
 
-### Section 03 · Balance Sheet (first-class reconciliation layer)
-- Narrative capital structure arc Y0 → exit with realised cash + debt repaid
-- Block A · Capital structure snapshot (Total Assets / Equity / Debt at Y0 + at exit · 6 tiles)
-- Block B · Reconciliation invariants as RiskIndicator badges (I-1 BS balance · I-2 cash bridge · I-4 DTA ≥ 0 · I-6 reserves continuity) · all ok in baseline
-- Block C · Detail schedule (Assets group + Equity+Debt group · same YearGrid)
+---
 
-### Section 05 · DTA (Spanish Ley IS accounting-grade)
-- Narrative fiscal mechanics with cumulative DTA accruals + decreases + cash tax vs accounting tax
-- Block A · Tax separation headline (6 tiles · Peak DTA · DTA accruals · DTA released · Cash tax · Accounting tax · DTA at exit)
-- Block B · Detail schedule (P&L feeds → Ley IS limits → DTA roll-forward → CIT)
+## 2026-05-19 — Phase A · documentation cleanup (stale banners + merges + canonicalization)
 
-### Design discipline
-- Lime accent (`text-lime-300/80`) for institutional eyebrows · `print:text-emerald-700` inversion
-- All blocks `print:break-inside-avoid` for landscape PDF rendering
-- KPI tones (`ok`/`warn`/`negative`) drive contextual color · stays subtle, never alarming
-- Risk indicators rendered as institutional risk SIGNALS (sophistication marker), not error states
-- Narrative paragraphs use border-left lime accent + headline font · feel like IC prose not body text
+- Frozen-in-place banners added to 6 stale roots: `docs/underwriting.md` · `docs/financial-engine.md` · `docs/architecture/backend-architecture.md` (partial) · `docs/underwriting/excel-parity-block-3a.md` · `docs/underwriting/excel-parity-block-3b.md` · `docs/roadmap.md` · `docs/business-rules.md`.
+- `docs/architecture/report-engine.md` content merged into `docs/report-system.md` (1-1-1-1-1 rule + data-layer file map absorbed); the merged file is now a redirect stub.
+- `docs/design-system/components.md` ↔ `docs/component-library.md` scope split clarified (cross-cutting catalog vs report-domain primitives only).
+- Inbound link updates in `ENTRYPOINTS.md`, `CLAUDE.md`, `docs/component-library.md`, `docs/report-system.md`: `business-rules.md` → `business-rules/{tier-system, report-visibility, promoted-reports}.md`; `roadmap.md` → `roadmap/{master-roadmap, current-sprint, backlog}.md`.
+- No content deleted · all originals preserved with deprecation banners pointing to canonical replacements.
 
-### Engine integration (existing engine outputs · zero new math)
-- Wires `exit.project_irr_pct`, `exit.equity_irr_pct`, `exit.moic`, `cap_rate.entry/exit.used_pct`, `cap_rate.exit.dynamic.adjustments`, `cap_rate.entry.dynamic.confidence`, `investment.stabilized_yield_progression`, `financing.dscr/icr/ltv_pct`, `reconciliation.warnings`
-- Section 8 Cap Rate Rationale block consumes the 5-layer adjustment stack directly from the Dynamic Cap Rate Engine
-- Section 1 Risk Indicators panel renders reconciliation warnings via severity-sorted badges (stress → watch → info)
+---
 
-### Verification
-- `npm run typecheck` · 0 errors
-- `engine-parity-check.mjs` · all 6 hard invariants PASS · BS balances 0.00 € all 11 periods (no engine touched)
-- All 7 redesigned sections + Section 6 reference render coherently · same visual language · same print discipline
+## 2026-05-19 — Underwriting · Section 01 Dynamic Cap Rate editable + Section 02 headline tiles unified with /report/financials/pl
+
+- **Section 01** · Dynamic Cap Rate driver tile is now an EditableTile wired to the existing `cap_rate_entry_pct` override. Operators can override the engine-derived cap rate from the executive-summary grid directly · same path as the big inline editor on the DynamicCapRateEntryCard in Section 06.
+- **Section 02 P&L** · headline grid trimmed from 6 to 5 tiles (dropped Stabilised EBITDA · the absolute number is in the table below; margins are now the institutional anchor). Stabilised GOP · GOP Margin · EBITDA Margin · EBITDA per key now consume `computePL(getDefaultAssumptions())` from `lib/report/financials/` · numbers MATCH the standalone P&L page exactly.
+- **P&L data divergence DOCUMENTED** · the 5-year table in Section 02 still consumes the engine PNL module (different shape · 11-year axis · different line items). Full unification needs an engine refactor (Phase 1-5 plan written in `docs/underwriting/pl-data-divergence.md`). Bumps ENGINE_VERSION to 0.3.0 when wired.
+
+---
+
+## 2026-05-19 — Underwriting · Dynamic Cap Rate engine ↔ admin policy divergence documented (refactor DEFERRED)
+
+Found and documented a real architectural divergence between the admin/financials Dynamic Cap Rate policy (intended source of truth) and the underwriting engine that produces the displayed cap rate.
+
+- The engine in `lib/underwriting/cap-rate-engine/adjustments/index.ts` has hardcoded coefficients that do NOT consume `DYNAMIC_CAP_RATE_POLICY_DEFAULTS` from `lib/admin/financials/dynamic-cap-rate-policy.ts`.
+- Numerical coincidence on the default Madrid Centro 4★ asset (~6,45%) masks the divergence, but the two systems use different `size`, `renovation`, `operator`, `liquidity` coefficients and different base yields.
+- Concrete divergences identified · Size 4★ +200 keys (admin -0,25 vs engine -0,10) · Renovation non-capex 4★ +200 (admin +0,25 vs engine 0) · Operator (admin missing) · Liquidity (admin missing).
+- Refactor plan written in detail (5 phases · file-level map · acceptance test) — deferred to post-merge to avoid scope-creep on the underwriting page WIP.
+- The UI presentation work continues unaffected · the "View methodology" disclosure already links to `/user/admin/financials` so the calibration source contract is honest forward-looking even though the wiring isn't complete yet.
+- New doc: `docs/underwriting/cap-rate-policy-divergence.md` (side-by-side table · refactor plan · acceptance test · file-impact map · engine version bump plan to 0.3.0 when wired).
+
+---
+
+## 2026-05-19 — Underwriting · Dynamic Cap Rate Engine UX · institutional intelligence direction
+
+Refactored the Section 06 Cap Rate Engine surface to feel like institutional valuation intelligence rather than an analyst worksheet.
+
+- `DynamicCapRateEntryCard` simplified · memo-style · big cap rate + single institutional context sentence (Market · Category · Size · State · Scenario) + "View methodology" disclosure. Signal-chip strip removed.
+- `MethodologyDisclosure` now CONTEXTUAL · `buildActiveFactors(asset, scenarioId, dynamic)` returns only the adjustments active in the current valuation · no numeric deltas exposed · institutional narrative.
+- Right column collapsed from 3 cards (Confidence with 4-factor decomposition + Market Evidence list + Comparables) to single `MarketContextCard` · Confidence at-a-glance + Evidence one-liner + future drill-down slot. The 4-factor decomposition lives in admin/financials.
+- Methodology disclosure footer links to `/user/admin/financials` · Dynamic Cap Rate policy positioned as source of truth (even though the engine doesn't fully consume it yet — see divergence doc).
+
+---
+
+## 2026-05-19 — Underwriting · hybrid temporal model · InitialInvestmentBlock + Operating Hold
+
+Resolved the inconsistency in capital-side schedules after the Y0 column was hidden. The acquisition phase no longer appears as a column anywhere, but capital-deployment data now surfaces in a dedicated `InitialInvestmentBlock` above the operating YearGrid in the four sections where it matters.
+
+- **New primitive** `components/underwriting/primitives/initial-investment-block.tsx` · institutional Sources & Uses card · two-column responsive · per-side subtotal + Sources−Uses balance reconciliation · amber-700 outflows / emerald-700 inflows · print-safe.
+- **Section 04 Cash Flow** · operating schedule simplified (removed Investment + Financing + Equity division rows since their data lives in the new block). Initial Investment block shows: Acquisition · CAPEX · Contingency · Fees+Taxes (Uses) + Debt Drawn · Equity Drawn (Sources) with `%` of total on the major lines. Caption renamed to "Operating Hold · Y1 → Y{exit}".
+- **Section 07 Financing** · added small `Initial Investment · Funding` block listing every tranche with principal, share of stack, effective rate. Removed the `Drawdown` row from the portfolio schedule (Y0-only data, already surfaced in capital stack viz + new block).
+- **Section 06 Investment** · Total Investment hero eyebrow relabeled `Initial Investment`, with secondary line keeping the original "Total Investment" framing. No layout change.
+- **Section 08 Exit** · added `Initial Investment · IRR seed` block above the operating YearGrid: Project (unlevered) + Equity (levered) IRR seeds + Debt drawn. Operating CF caption renamed to "Operating Hold + Exit · Y1 → Y{exit}".
+- `docs/underwriting/phase-model.md` updated: hybrid model documented · primitive contract · per-section treatment map · where Y0 lives.
+
+---
+
+## 2026-05-19 — Underwriting · unified operating-only schedules across all 6 year-grids
+
+Extended the operating-only schedule convention from P&L to every tabular section in the underwriting report. The IC reader now sees a single coherent timeline (Y1 → Y{exit}) across every schedule — no inconsistent temporal models, no empty Y0 columns anywhere.
+
+- **Section 02 P&L** · already operating-only.
+- **Section 03 Balance Sheet** · `kind="operating" excludeAcquisition` · cols recomputed.
+- **Section 04 Cash Flow** · same.
+- **Section 05 DTA** · same.
+- **Section 06 Investment D&A** · plain HTML table · manual `visibleIndices` filter mirrors the YearGrid logic.
+- **Section 07 Financing portfolio schedule** · same.
+- **Section 08 Exit project + equity CF** · same.
+- The capital deployment story (acquisition outflow, debt drawdown, equity injection, total building cost) is fully surfaced via the dedicated headline tiles in Sections 01 / 06 / 07 / 08 · the schedules no longer repeat it.
+- Engine + reconciliation + parity untouched · phases still computed for every period, only the *view* filters them out.
+- `docs/underwriting/phase-model.md` updated to the unified standard with section-by-section treatment map.
+
+---
+
+## 2026-05-19 — Underwriting · P&L hides Acquisition column entirely
+
+Iterated on the phase-aware presentation after seeing the muted Acquisition column in context: it broke rhythm + generated dead space + reduced legibility. Operating tables now **hide acquisition periods entirely** instead of muting them. The P&L timeline starts directly at Year 1 — the institutional convention for IC operating memos.
+
+- `YearGrid` gains an `excludeAcquisition?: boolean` prop. Context refactored from `{ limit, phases, kind }` to `{ visibleIndices, phases, kind }` — children now pick values at projected indices instead of slicing 0..N.
+- `YearRow` + `SubtotalRow` simplified: no more phase-aware muting branch (column is gone, not muted). `displayValues = visibleIndices.map((i) => values[i])`.
+- `pnl-section.tsx` passes `excludeAcquisition` + recomputes `cols` from `periods.filter((p) => p.phase === "operating")`. P&L now reads Y1..Y7 (or whatever exit year is).
+- Capital tables (CF · Investment · Financing · BS · Exit) unchanged · Y0 remains fully visible with the "Acquisition · Pre-opening · Y0" header eyebrow — capital deployment is the core of the underwriting there.
+- Engine + temporal model unchanged · phases still computed for every period · only the operating-side *view* filters them out.
+- Updated methodology doc: `docs/underwriting/phase-model.md` (deprecates the muted variant, documents the hidden-column convention, future-proofs for multi-period acquisitions / phased renovations / staged openings).
+
+---
+
+## 2026-05-19 — Underwriting · phase-aware period axis · Acquisition vs Operating
+
+Introduced an institutional phase model so the IC reader instantly distinguishes the closing event (acquisition · capital deployment) from operating periods. Year 0 stays in every table — only the *presentation* differentiates by phase.
+
+- `lib/underwriting/temporal.ts`: `PeriodPhase` type (`acquisition` | `operating`), `Period.phase` field, `markAcquisitionPhase(periods, count = 1)` helper. `YEARLY_PERIODS_Y0_Y10` tags Y0 as `acquisition`. `monthlyPeriods` + `quarterlyPeriods` accept an `acquisition*` count param.
+- `YearGrid` carries Context with `phases[] + kind`. New `kind: "operating" | "capital"` prop drives styling. Header renders **"Acquisition · Pre-opening · Y0"** (eyebrow + small period reference) instead of "Year 0" for acquisition columns.
+- `YearRow` + `SubtotalRow` read context. In `kind="operating"` tables, acquisition cells get muted bg (slate-50) + slate-400 text + **"n.a." for zero values** (no empty cells, no spreadsheet look). In `kind="capital"` tables, acquisition cells render at full weight — Y0 is the underwriting.
+- Applied to `pnl-section` first (Section 02). CF / Investment / Financing / BS keep capital-style rendering — Y0 stays bold because equity injection, debt draw, total investment all live there.
+- Future-proofed for multi-period acquisitions, phased renovations, staged openings, delayed stabilization — single helper call (`markAcquisitionPhase(periods, N)`).
+- New methodology note: `docs/underwriting/phase-model.md` (taxonomy · presentation rules per table category · PDF discipline · future-proofing).
+
+---
+
+## 2026-05-19 — Underwriting OS · Engine 0.2.0 · Project + Equity IRR layer separation
+
+Corrected the institutional semantics of Project IRR. Previously the engine subtracted cash tax (with the levered interest shield) and used the net-of-fees exit price for the unlevered Project IRR — neither truly unlevered nor truly pre-tax. Now `project_irr_pct` is clean **unlevered · pre-tax** (EBITDA + gross exit) and `equity_irr_pct` is clean **levered · post-tax** (EBITDA − cashTax − debtService + exit net of fees − debt payoff).
+
+- `engine/exit.ts` rewritten: split per-period CF construction by layer using new pure helpers.
+- `engine/formulas.ts`: added `projectUnleveredPretaxOperatingCf` + `equityLeveredPosttaxOperatingCf`, both registered in `FORMULAS`.
+- `types.ts` `ExitMetrics` doc-commented; 4 future-proof slots added (`project_irr_posttax_pct`, `equity_irr_gross_pct`, `lp_irr_pct`, `gp_irr_pct`) for Block 9 waterfall + Block 10 post-tax project.
+- `versioning.ts`: `ENGINE_VERSION` 0.1.0-scaffold → **0.2.0**, `SCHEMA_VERSION` 1.0.0 → **1.1.0**. Snapshots created with 0.1.0 will compute different Project IRR on recompute (expected drift ~+150-250 bps on base case).
+- UI labels in `executive-summary-section.tsx`, `exit-section.tsx`, `underwriting-shell.tsx` (FloatingKpiStrip) updated to explicit "Unlevered · pre-tax" / "Levered · post-tax". No ambiguity.
+- New methodology note: `docs/underwriting/irr-layer-separation.md` (rationale, target bands, future-proof slots, parity impact, files touched).
+
+---
+
+## 2026-05-18 — Underwriting · corporate light theme · ReportPaper continuity with 5-Year P&L
+
+Flipped the entire `/report/financials/underwriting` surface from the dark slate/lime committee theme to the canonical corporate light theme — white bg, black text, blue (#005db7) on every editable assumption. Continues directly from `/report/financials/pl` with identical paper card, header band, ActionBar footer.
+
+- Page wrapper now mirrors PL: `ReportShell` → `ReportPaper(sectionLabel="hotel valuation", title="Underwriting", headerLayout="stacked", closed, actions={Prime + HotelToggle})` → `UnderwritingShell` → `ActionBar`. Print orientation stays landscape (year grids need horizontal real estate).
+- Editable surfaces unified on blue: `EditableTile`, `DepreciationYearsTile`, `YearsInput` use `border-blue-200 + bg-blue-50/40 + text-[#005db7]` with a blue "Edit" pill — same contract as P&L's `EditableAssumptionCell`.
+- Primitives flipped: `SectionShell`, `KpiHero`/`KpiTile`, `FloatingKpiStrip`, `YearGrid`, `YearRow`, `SubtotalRow`/`DivisionRow`, `RiskIndicator`, `ReconciliationBadge`, `ScenarioPicker`, `StickySectionNav` — all dark `slate-800/60`/`bg-slate-900/40`/`lime-300` swapped for `border-slate-200`/`bg-white`/`text-slate-900` with `forest-50`/`forest-900` for the protagonist tiles.
+- Section inline tiles flipped: `executive-summary` (`DriverTile`, `ResultTile`, `ScenarioStrip`), `investment` (`HeadlineTile`, `AcquisitionSummary`, `CapRateRationale`, `EvidencePanel`, `TotalInvestmentHero`, `StabilisedYieldProgression`, `DASchedule`, `ItemTable`), `financing` (`DebtStackVisualization`, `TrancheTile`, `PortfolioScheduleSummary`), `exit` (`ValuationCard`, `ValueCreationBridge`, `BridgeRow`, `CapRateRationaleStrip`, `EquityTimeline`, `SummaryStat`).
+- Mobile-first responsive: headline KPI grids switch from `sm:grid-cols-2` (which collapsed to 1-col on phones) to `grid-cols-2 sm:grid-cols-2 …` baseline — 2-col on the smallest viewport, expands as breakpoints allow.
 
 ---
 

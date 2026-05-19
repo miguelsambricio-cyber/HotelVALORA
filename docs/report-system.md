@@ -1,8 +1,16 @@
 # Report System
 
-**Status:** canonical (Phase 0 stabilization + 4 section integrations, 2026-05-08).
+**Status:** canonical (Phase 0 stabilization + 4 section integrations, 2026-05-08 · refreshed 2026-05-19 with merge from `architecture/report-engine.md`).
 
 The report module renders institutional-quality hotel valuation reports. There is **one** shell, **one** sidebar, **one** paper card, **one** PDF pipeline, **one** section registry. Adding a new section is a one-line registry edit + a new page file — no shell, sidebar, or print changes required.
+
+### The 1-1-1-1-1 rule
+
+- **One shell** — `ReportShell` (`apps/web/src/components/report/shell/report-shell.tsx`) · accepts `printOrientation: "portrait" \| "landscape"`. Hosts `ReportTopNav` + `ReportSidebar` + `<main>` + `ReportFooter`.
+- **One sidebar** — `ReportSidebar` driven by the section registry · two-pass active detection.
+- **One paper** — `ReportPaper` (or `ReportSection` for new pages) · institutional card with `closed` / `headerLayout` / `actions` props.
+- **One PDF pipeline** — `apps/web/src/lib/report/pdf-export.ts` exposes `exportReport(metadata?)`. Today a `window.print()` wrapper · the API is shaped so server-side rendering (Puppeteer / react-pdf) drops in without changing call sites.
+- **One section registry** — `apps/web/src/lib/report/sections.ts` · adding a new section is one-line registry edit + a new page.
 
 ---
 
@@ -170,6 +178,21 @@ If a new section requires touching anything outside the section's own folder, th
 
 ---
 
+## Data layer file map
+
+Each section reads from its own mock-data file under `apps/web/src/lib/report/`:
+
+```
+executive-summary-data.ts
+asset-analysis-data.ts
+capex-renders-data.ts
+competitive-set-data.ts
+market-overview-data.ts
+formatting.ts             ← Intl-based formatters shared across sections
+```
+
+When real API hooks land (Phase 3 of the roadmap), each file becomes a one-line re-export from `lib/api/reports.ts`.
+
 ## Mock vs API
 
 Phase 0 + 4 section integrations keep mock data in place. The five existing pages call `getMock<Section>()` directly. When `lib/api/reports.ts` lands, those calls are replaced by TanStack Query hooks (`useReport`, `useReportSection`) without touching the section components.
@@ -182,7 +205,7 @@ Outstanding for Phase 4:
 
 ## Premium Gating
 
-`UpgradeGate` (canonical) wraps the legacy `LockedGate` implementation. Always `print:hidden`. See `docs/business-rules.md` for tier definitions and per-section locked rows.
+`UpgradeGate` (canonical) wraps the legacy `LockedGate` implementation. Always `print:hidden`. See `docs/business-rules/tier-system.md` for tier definitions and per-section locked rows.
 
 ---
 

@@ -1,6 +1,8 @@
 # Component Library
 
-**Status:** canonical (Phase 0 stabilization, 2026-05-08).
+**Status:** canonical (Phase 0 stabilization, 2026-05-08 · scope clarified 2026-05-19).
+**Scope:** report-domain primitives only · prop signatures · composition examples · import patterns. For the cross-cutting catalog (Library · Settings · Admin · Layout families · Bloomberg signal-tints) see `docs/design-system/components.md`.
+
 Reusable primitives for building report sections. Section pages should compose from this surface — never reach into `executive-summary/`, `competitive-set/`, `kpi/`, or `ui/` directly when a primitive exists.
 
 Import from a single barrel:
@@ -152,7 +154,7 @@ Full-width upgrade promotion card. `print:hidden`.
 
 **Files:** `components/report/primitives/upgrade-gate.tsx` (re-exports `LockedGate`/`LockedUpgradeCard`).
 
-See `docs/business-rules.md` for which rows are gated in which sections.
+See `docs/business-rules/tier-system.md` for which rows are gated in which sections.
 
 ---
 

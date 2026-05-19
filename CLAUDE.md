@@ -51,7 +51,7 @@ Limits: `AI_CONTEXT.md` ≤ 300 lines, `RULES.md` ≤ 300 lines, `ENTRYPOINTS.md
 | `docs/maps.md` | Map system change (CompSet Mapbox or stylised pin map for Market Overview) |
 | `docs/design-system.md` | New color token, typography rule, spacing convention |
 | `docs/component-library.md` | New canonical primitive, prop API change on a primitive |
-| `docs/business-rules.md` | New tier/gate rule, premium logic, workflow constraint |
+| `docs/business-rules/` (folder) | New tier/gate rule, premium logic, workflow constraint — use `tier-system.md` · `report-visibility.md` · `promoted-reports.md` |
 | `docs/financial.md` | New metric, formula change, valuation display rule |
 | `docs/workflows.md` | User flow change, new CTA wire-up, step added/removed |
 | `docs/changelog.md` | After every task — one entry per feature/fix |

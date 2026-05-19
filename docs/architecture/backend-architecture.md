@@ -1,5 +1,16 @@
 # Architecture · Backend
 
+> ⚠️ **STALE · PARTIAL · 2026-05-19**
+>
+> **Status:** stale · partial
+> **Reason:** The FastAPI backend (`apps/api/`) described here is no longer the primary runtime for underwriting / valuation. Live underwriting computation runs in the Next.js TypeScript engine (`apps/web/src/lib/underwriting/`). The FastAPI surface remains for legacy data quality / alias / merge / dedup operations only — not for valuation.
+> **Canonical replacement (underwriting compute):** `docs/underwriting/*` for TS engine architecture.
+> **Still valid (data quality surface):** alias-registry · merge-engine · dedup · review queue endpoints described below are still live in FastAPI.
+>
+> The content below mixes live + deprecated material. Treat valuation / DCF / financial-engine sections as deprecated · treat alias / merge / review sections as still current.
+
+---
+
 Canonical source: **`docs/backend.md`** has FastAPI structure, service pattern, config. This dossier highlights the *runtime reality* and the gap between built endpoints and consumed ones.
 
 ## Stack

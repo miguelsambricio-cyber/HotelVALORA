@@ -239,6 +239,8 @@ Maps tasks to exact files. Start here before scanning.
 
 | Task | File(s) |
 |---|---|
+| **Report system synchronization audit (v1 · institutional · no implementation)** | `docs/report/synchronization-audit-v1.md` |
+| **Phase 1 · Token harmonization plan (gated · approval pending)** | `docs/report/phase-1-token-harmonization.md` |
 | Section registry (canonical, 6 sections + sub-anchors + printPageBreak) | `apps/web/src/lib/report/sections.ts` |
 | Section taxonomy types | `apps/web/src/types/report/index.ts` |
 | Report shell (top-nav, sidebar, footer, main canvas) — `printOrientation: "portrait" \| "landscape"` | `apps/web/src/components/report/shell/report-shell.tsx` |
@@ -380,15 +382,18 @@ Maps tasks to exact files. Start here before scanning.
 | `docs/maps.md` | Mapbox CompSet map + stylised pin map (Market Overview) |
 | `docs/design-system.md` | Color tokens, typography, spacing, Tailwind conventions |
 | `docs/component-library.md` | Canonical primitives catalog (preferred for new pages) |
-| `docs/business-rules.md` | Premium tiers, locked gates, workflow constraints |
+| `docs/business-rules/tier-system.md` | Premium tiers + Premium gates (canonical) |
+| `docs/business-rules/report-visibility.md` | Visibility axes (private / public / top-promote) |
+| `docs/business-rules/promoted-reports.md` | Top Promote marketplace logic |
 | `docs/financial.md` | Valuation metrics, formatters, display rules |
 | `docs/workflows.md` | User flows, CTA wiring, navigation state |
 | `docs/changelog.md` | Feature history — one entry per task |
 | `docs/database.md` | All table schemas and FK relationships |
 | `docs/api.md` | All REST endpoints |
 | `docs/backend.md` | FastAPI structure, service pattern, config |
-| `docs/financial-engine.md` | DCF engine internals (Python) |
-| `docs/underwriting.md` | Valuation model, DCF logic, sensitivity |
+| ~~`docs/financial-engine.md`~~ | ⚠️ deprecated · Python engine frozen · use `docs/underwriting/*` |
+| ~~`docs/underwriting.md`~~ | ⚠️ deprecated · backend valuation model frozen · use `docs/underwriting/*` (TS engine) |
+| `docs/underwriting/` (folder) | Canonical TS engine architecture · temporal-model · phase-model · IRR layers · dynamic-cap-rate-engine · divergences |
 | `docs/data-pipeline.md` | ETL flow, import modes, staging tables |
 | `docs/normalization.md` | Multilingual pipeline, `_key()`, geography |
 | `docs/alias-registry.md` | Alias tables, conflict detection |
@@ -398,4 +403,6 @@ Maps tasks to exact files. Start here before scanning.
 | `docs/auth.md` | JWT flow, token lifetimes |
 | `docs/testing.md` | pytest config, markers, fixtures |
 | `docs/observability.md` | structlog, Sentry, middleware headers |
-| `docs/roadmap.md` | Planned features, tech debt |
+| `docs/roadmap/master-roadmap.md` | Visible product phases (canonical) |
+| `docs/roadmap/current-sprint.md` | Just-shipped + up-next (canonical) |
+| `docs/roadmap/backlog.md` | Future ideas · blocked · tech debt (canonical) |

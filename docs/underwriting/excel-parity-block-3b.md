@@ -1,5 +1,22 @@
 # Excel parity report · Block 3B
 
+> ⚠️ **STALE · ENGINE VERSION MISMATCH · 2026-05-19**
+>
+> **Status:** stale (numbers from `0.1.0-scaffold`)
+> **Reason:** This parity report was generated against engine `0.1.0-scaffold`. The live engine is now `0.2.0` with material semantic changes that directly affect Block 3B outputs (DTA · Exit · IRR):
+> - **Project IRR** is now truly **unlevered · pre-tax** (no cash tax subtraction · uses gross exit price). The base scenario number moved from ~6.49% → ~8-9%.
+> - **Equity IRR** stays levered · post-tax but its label is now explicit.
+> - **DSCR** numerator switched from `ebitda_after_replacement` to `gross_operating_profit` (institutional hospitality basis).
+> - **Upfront fee** (0.5% one-time Y1) added to debt service.
+> - **DTA mechanism** unchanged in math but is now hidden from operating-only views (Y0 = acquisition phase).
+> - Multiple override fields added (`exit_cap_rate_pct` · `exit_fee_pct` · etc.) that shift exit valuation flows.
+>
+> **Canonical replacement (when re-run):** parity report against `ENGINE_VERSION 0.2.0` (PENDING · planned alongside the 0.3.0 bump that unifies the engine with admin/financials policy — see `docs/underwriting/cap-rate-policy-divergence.md`).
+>
+> **Do not rely** on the numbers in this report for current validation. The invariant catalog + reconciliation methodology described below remain valid as a structural blueprint for the next parity pass.
+
+---
+
 Generated 2026-05-18 · scenario `base` · Madrid Centro · 4* · 256 keys ·
 exit Y7 · cap 6.25% · LTV 65% · CAPEX-LTC 80% · margin 1.25% over Euribor 2.75%.
 
