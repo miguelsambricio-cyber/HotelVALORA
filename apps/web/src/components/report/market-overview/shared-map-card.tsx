@@ -31,6 +31,7 @@ const PIN_SHAPE: Record<DemandGeneratorCategory, string> = {
  * across markets without code changes.
  */
 export function SharedMapCard({ imageSrc, pins, className }: SharedMapCardProps) {
+  const hasImage = typeof imageSrc === "string" && imageSrc.length > 0;
   return (
     <div
       className={cn(
@@ -39,12 +40,26 @@ export function SharedMapCard({ imageSrc, pins, className }: SharedMapCardProps)
       )}
     >
       <div className="relative w-full max-w-[300px] aspect-square">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          alt="Map location"
-          className="w-full h-full object-contain drop-shadow-2xl"
-          src={imageSrc}
-        />
+        {hasImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            alt="Madrid submarket map"
+            className="w-full h-full object-contain rounded-md drop-shadow-2xl bg-white"
+            src={imageSrc}
+          />
+        ) : (
+          /* Institutional placeholder · zero broken-image state · used
+             when NEXT_PUBLIC_MAPBOX_TOKEN is missing or the map URL
+             could not be resolved. */
+          <div
+            aria-label="Map placeholder · live map integration pending"
+            className="w-full h-full rounded-md bg-white/80 border border-white/60 backdrop-blur-sm flex items-center justify-center text-center"
+          >
+            <p className="font-headline text-[10px] font-bold uppercase tracking-[0.22em] text-slate-600 px-4">
+              Map integration pending
+            </p>
+          </div>
+        )}
         {pins.map((pin) => {
           const shape = PIN_SHAPE[pin.category];
           const bg =

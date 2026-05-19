@@ -171,8 +171,22 @@ export interface MarketOverviewData {
 
 // ── Mock data — populated from the Country/Market and Submarket/Class Stitch ─
 
-const MAP_IMAGE =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuAjbwL8cW_KGe7pre45-5Jb1dqa86IcNoapLs3n4JKUBbccn6211k958NmVUspNbUs_AdQ1hHYOqG3-oZMVhHnGS9Mvv8qn-FsqEs11QQvsEUo3nBEkuDu7aQS8V4-1a4F7PB6_HnGz9nd3yofI0XTsJutcLMQSC0uKKS6SomcYk2OQWZJK5XgYCev9qopIaEBH6p5lxOU03dpSWN1iDrWkK27_ys1YMVUW8sAGhBFwS22rCb6Z7rABhd3Ple8DNWlqKFcRzo3FeuUW";
+import { buildMadridStaticMapUrl } from "@/lib/maps/static-map";
+
+/**
+ * Demand-generator map image · canonical Madrid city-wide Mapbox
+ * Static rendering. Previously hot-linked a Stitch design preview
+ * (lh3.googleusercontent.com/aida-public/...) which is not a
+ * production-grade asset · institutional flows now consume a real
+ * Mapbox light-v11 PNG via the static-map helper.
+ *
+ * Returns "" when NEXT_PUBLIC_MAPBOX_TOKEN is not set · SharedMapCard
+ * renders an institutional placeholder defensively.
+ *
+ * The per-hotel Madrid Centro flow overlays a submarket-specific URL
+ * via overlayMarketOverview in lib/hotels/hotel-aware-overlays.ts.
+ */
+const MAP_IMAGE = buildMadridStaticMapUrl({ submarket: "Madrid" }) ?? "";
 
 export function getMockMarketOverview(): MarketOverviewData {
   return {
