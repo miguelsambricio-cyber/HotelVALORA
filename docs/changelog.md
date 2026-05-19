@@ -4,6 +4,23 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Admin · /user/admin/hotels surfaces Phase D Madrid enrichment
+
+- **New section "Madrid enrichment · Phase D"** rendered between KPI strip and tab bar on `/user/admin/hotels`. Server-side Supabase service-role loader (`loadEnrichmentSnapshot`) queries `hotel_canonical` + `hotel_coverage_madrid_v` + `hotel_source_record` + `hotel_field_provenance` + `hotel_duplicate_candidate` in parallel. Component (`EnrichmentPanel`) surfaces:
+  - Tier distribution (109 gold / 2 silver / 113 bronze / 0 quarantined) with per-tier %.
+  - 8 operator-priority field coverage bars (phone, website_url, google_place_id, address_line1, operator_id, wikidata_qid, total_rooms, year_opened). The last two flagged with red bars + tone="blocker" — structurally absent in Booking E2 + Wikidata sparse, path-forward via D-8 hotel-website fallback.
+  - T1 passing (57 / 224 · avg 85.4 %) + T2 passing (0 / 224 · avg 55.6 % — currently equal-weight spec under audit).
+  - Provenance audit: 508 source records (224 booking + 218 google_places + 66 wikidata) + 5176 field provenance rows. By-source breakdown.
+  - Dedup queue counts (2 likely_duplicate · pending_review · 0 auto_merge).
+  - T2-goal badge: "0 % / 70 %" with amber tone until goal reached.
+  - "Most-missing priority fields" amber callout listing the gap to 100 % per field + link to D-8 design doc.
+- **Additive only.** Existing CoStar `loadHotelsSnapshot` + reconciliation queue + transactions/projects search + corrections audit untouched. Side-by-side data planes (snapshot.json reference layer + Supabase `hotel_canonical` institutional canonical layer) per `market-vs-underwriting-separation`.
+- Service-role envs already wired on Vercel.
+- Files: `apps/web/src/lib/admin/hotels/enrichment-stats.ts` (server-only) · `apps/web/src/components/admin/hotels/enrichment-panel.tsx` · `apps/web/src/app/user/admin/hotels/page.tsx` (3 lines added).
+- TypeScript bypass via cast for tables not yet in generated `Database` types (migration 0024 ran post-types-regen). Cast is contained to the loader.
+
+---
+
 ## 2026-05-20 — Hotel Enrichment Pipeline · Phase D-1 provenance backfill + dedup sweep + D-8 design v1
 
 - **D-1 Provenance backfill applied to Madrid 224.** SQL-only path (no Node script needed): three CTE-driven INSERTs derived directly from `hotel_canonical` + `source_confidence` JSONB. Results: 508 `hotel_source_record` rows (224 booking + 218 google_places + 66 wikidata), 5176 `hotel_field_provenance` rows (4248 booking + 844 google + 84 wikidata). Source-of-record correctly partitioned per field (e.g. `phone` → google, `wikidata_qid` → wikidata, `address_line1` → booking). Coverage views remain pragmatic-presence-based for now but the provenance is live and queryable for any future audit/confidence rebuild.
