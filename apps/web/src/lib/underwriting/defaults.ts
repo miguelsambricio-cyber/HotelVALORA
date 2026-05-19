@@ -258,7 +258,20 @@ function applyOverrides(
 ): UnderwritingInputs {
   // Clone the bundle's inputs so the base scenario stays pristine
   // across re-renders (overrides mutate the clone only).
-  const cloned: UnderwritingInputs = JSON.parse(JSON.stringify(base));
+  //
+  // The wrapped try/catch is defensive · for well-formed scenario inputs
+  // JSON.parse(JSON.stringify(...)) cannot throw, but if a future input
+  // shape ever introduces a non-serialisable value (BigInt · circular
+  // ref · Map / Set), we surface a clean error to the route-level
+  // ErrorBoundary instead of crashing with a parse stack trace.
+  let cloned: UnderwritingInputs;
+  try {
+    cloned = JSON.parse(JSON.stringify(base));
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[underwriting] Failed to clone scenario inputs:", err);
+    throw new Error("Engine input clone failed — please reload.");
+  }
   cloned.scenario_id = scenarioId;
 
   if (!overrides) return cloned;

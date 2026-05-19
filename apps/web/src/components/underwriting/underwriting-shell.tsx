@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 import { SCENARIO_CATALOG, buildBundleForScenario, type UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 import { FloatingKpiStrip, type KpiItem } from "./primitives/floating-kpi-strip";
+import { PrintKpiBlock } from "./primitives/print-kpi-block";
 import { EditModeBar } from "./edit/edit-mode-bar";
 import { ExecutiveSummarySection } from "./sections/executive-summary-section";
 import { PnlSection } from "./sections/pnl-section";
@@ -51,6 +52,7 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
   return (
     <div className="space-y-6">
       <FloatingKpiStrip items={kpiItems} />
+      <PrintKpiBlock items={kpiItems} />
 
       <ExecutiveSummarySection
         bundle={bundle}

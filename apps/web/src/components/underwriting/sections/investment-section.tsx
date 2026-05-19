@@ -662,6 +662,13 @@ function MarketContextCard({ dynamic }: { dynamic: DynamicCapRateResult }) {
         <p className="mt-1 font-mono text-[10px] text-slate-500">
           Window {fmtMmYy(e.oldest_in_scope_date)} → {fmtMmYy(e.most_recent_date)}.
         </p>
+
+        {/* Honest institutional disclosure · stays in print.
+            Live market-intelligence integration replaces this dataset
+            in a later block. Keep wording institutional, not "demo". */}
+        <p className="mt-2 font-mono text-[9.5px] italic leading-relaxed text-slate-500">
+          Illustrative institutional evidence dataset · Live market intelligence integration in progress.
+        </p>
       </div>
 
       {/* Liquidity windows · institutional market depth across horizons */}
