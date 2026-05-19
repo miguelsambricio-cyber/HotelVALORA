@@ -66,6 +66,23 @@ Maps tasks to exact files. Start here before scanning.
 
 ---
 
+## Domain — Hotel Enrichment Pipeline (parallel workstream — `feature/hotel-enrichment-pipeline`)
+
+| Task | File(s) |
+|---|---|
+| **Madrid hotel enrichment — architecture v1 (canonical · source-agnostic · NO code yet)** | `docs/hotel-intelligence/madrid-enrichment-architecture-v1.md` |
+| Source hierarchy (per-field) · confidence model · duplicate detection · normalization · DAG · Supabase schema · rate limit · queue · DLQ · refresh | same file (sections 1–11) |
+| **RapidAPI Booking provider layer v1 (sidecar · provider-specific · NO code yet)** | `docs/hotel-intelligence/madrid-enrichment-rapidapi-booking-v1.md` |
+| Endpoint inventory · field mapping · rate-limit math · cost modeling · caching · error taxonomy · matching · image strategy · compliance | same file (sections 1–9) |
+| Migration draft (DDL only, NOT applied) | filename reserved: `0008_hotel_enrichment_schema.sql` (to live under `docs/database/migrations/` when phase 2 begins) |
+| Positioning | runs inside existing Data Ingestion Agent (`apps/web/src/lib/ai-agents/agents/data-ingestion.ts`) as `enrich_hotel` tool |
+| Reuse — composite dedup scoring (35/30/20/10/5) | `apps/api/app/services/dedup_service.py` (pattern only — inlined per project rule) |
+| Reuse — multilingual normalization | `services/data_pipeline/pipeline/cleaning/multilingual.py` (pattern only — inlined) |
+| Reuse — audit log + AuditService | existing infrastructure (no schema change; new event types added to dotted taxonomy) |
+| Boundary | NO touch on underwriting · NO touch on report-system · NO touch on synchronization layer |
+
+---
+
 ## Domain — Library (institutional reports)
 
 | Task | File(s) |

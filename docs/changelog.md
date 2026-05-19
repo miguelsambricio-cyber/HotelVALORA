@@ -4,6 +4,26 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-19 — Hotel Enrichment Pipeline · RapidAPI Booking provider sidecar v1 (NO code · NO calls)
+
+- New sidecar doc: `docs/hotel-intelligence/madrid-enrichment-rapidapi-booking-v1.md` (~650 lines) covering 9 provider-specific sections + open questions + non-goals. Strategic separation enforced: canonical architecture (source-agnostic) stays in main doc; this sidecar isolates RapidAPI Booking specifics so future provider swaps (Expedia / Partner API / STR / scraping) don't contaminate the canonical layer.
+- Sections: (1) endpoint inventory E0–E9 with Phase-1 active set E0+E1+E2+conditional E3 = ~2.5 calls/hotel · auth headers + 6 new env vars; (2) field mapping per endpoint with confidence floors and overwrite policies (E2 details · E1 search · E3 facilities · review isolation rule · cross-validation triggers); (3) rate-limit strategy with **projected Madrid sweep durations across 4 plan tiers** (Basic infeasible · Pro 25k recommended @ ~5.5 days · Ultra ~3 days · Mega <1 day) + nightly refresh feasibility math; (4) cost modeling — Madrid one-time $20–40 · Madrid annual $260–500 · Spain full annual $2.5–5k · plan escalation triggers · cost-per-useful-row analysis; (5) caching policy keyed to field-level volatility (static 90d / semi-static 30–60d / volatile metadata 7–14d / photos 30d / reviews 14d / pricing ≤24h) with 3-layer storage (L1 source_record · L2 in-process · L3 CDN); (6) RapidAPI-specific error taxonomy with 12 classes (quota_daily / rate_burst / plan_limit / payload_partial / geo_mismatch / duplicate / stale_listing / alias_drift / empty_page / schema_drift / auth / network) + DLQ shape extension + self-healing rules; (7) matching strategy enumerating 7 Booking-specific failure modes (apartment-block flooding · chain rebrand lag · same-name different-building · hotel+resort split · closed listing relaunch · extended-stay siblings · multilingual variants) + pre-canonical match gate algorithm; (8) image strategy — Phase 1 hero-download only + URLs for gallery · thumbnail pipeline + CDN policy gated to Phase 4 · per-binary provenance for takedown safety; (9) compliance — attribution defaults · API usage constraints · scraping bounded to Phase 4+ · PII/GDPR posture.
+- Anchored on `booking-com15` publisher family (verification pending Phase 2 procurement). All quotas/costs are illustrative anchors; real procurement task in Phase 2.
+- Phase 1 hard rules ratified: NO production calls · NO scraping · NO image bulk download · NO transactional endpoints · NO touch on underwriting/report-system/synchronization.
+- ENTRYPOINTS.md updated with sidecar row under Hotel Enrichment Pipeline domain.
+
+---
+
+## 2026-05-19 — Hotel Enrichment Pipeline · Architecture v1 (parallel workstream · NO code · NO scraping)
+
+- New branch `feature/hotel-enrichment-pipeline` opened off `main` HEAD (`abdb3e4`). Independent of underwriting deploy freeze and report synchronization — touches neither domain.
+- New canonical doc: `docs/hotel-intelligence/madrid-enrichment-architecture-v1.md` (~570 lines) covering 11 institutional sections: canonical schema (`hotel_canonical` + 4 supporting tables + 10 enums) · per-field source hierarchy across 8 tiers (Booking RapidAPI as primary, scraping last-resort) · confidence model (tier × freshness × validation + agreement bonus, thresholds aligned with existing `/review` 0.92/0.80/0.65) · duplicate detection (two-layer: SHA1 block_key + composite scoring reusing 35/30/20/10/5 weights from `dedup_service.py`) · normalization pipeline (reuses `multilingual.py` pattern, inlined per project rule) · enrichment DAG (Booking → fallback → normalize → dedupe → merge → confidence → audit) · Supabase storage proposal (migration **0008** drafted in DDL, NOT applied) · rate limit strategy (token bucket per provider · circuit breaker · adaptive concurrency · AI-Ops cost guardrail pattern) · queue table `hotel_enrichment_job` + 7-level priority lanes · error taxonomy + DLQ + idempotency invariants · incremental refresh (per-source TTL + nightly stale-view scheduler + diff logging into existing `audit_log`).
+- Phase 1 boundary is hard: doc only. No migration applied · no client code · no scraping · no UI · no agent runtime change. Pipeline positioned as `enrich_hotel` tool inside the existing Data Ingestion Agent (Tier 1).
+- Zero touch on `valuation`, `underwriting`, `report_*` tables, report registry, or any synchronization layer.
+- ENTRYPOINTS.md updated with new Domain section.
+
+---
+
 ## 2026-05-19 — Phase 1A · Token registry added (additive · zero visual diff · Phase 1B codemods deferred)
 
 - **Phase 1A executed**: `apps/web/tailwind.config.ts` +93 lines additive · `apps/web/src/app/globals.css` +36 lines additive. Adds new `editable-*` palette (anchored on `#005db7` as **interaction/system-state layer · NOT brand**), `risk-*` role aliases (emerald-700 / amber-700 / rose-700 strong hues preserved to keep covenant/reconciliation badge protagonism), sticky offset CSS variables (`--sticky-app/tight/rail/report`), `shell-*` max-widths (1600/1400/768 px), `memo-*` shadow tokens, `badge-*` font sizes (9/10/11 px), 7-step semantic z-index scale (`base/raised/sticky/overlay/dropdown/header/drawer/toast/popover`).
