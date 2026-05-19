@@ -35,6 +35,10 @@ import {
 
 import { PLContent } from "@/app/report/financials/pl/pl-content";
 import { UnderwritingShell } from "@/components/underwriting/underwriting-shell";
+import {
+  StickySectionNav,
+  type NavItem,
+} from "@/components/underwriting/primitives/sticky-section-nav";
 
 import { getMockExecutiveSummary } from "@/lib/report/executive-summary-data";
 import { getMockAssetAnalysis } from "@/lib/report/asset-analysis-data";
@@ -113,6 +117,15 @@ export default function MadridCentroFullReport({ params }: PageProps) {
   const compsetData = overlayCompetitiveSet(getMockCompetitiveSet(), hotelId);
   const marketData = overlayMarketOverview(getMockMarketOverview(), hotelId);
 
+  const navItems: NavItem[] = [
+    { number: 1, label: "Executive Summary", anchorId: "section-01" },
+    { number: 2, label: "Asset Analysis", anchorId: "section-02" },
+    { number: 3, label: "Competitive Set", anchorId: "section-03" },
+    { number: 4, label: "Market Overview", anchorId: "section-04" },
+    { number: 5, label: "P&L Forecast", anchorId: "section-05" },
+    { number: 6, label: "Underwriting", anchorId: "section-06" },
+  ];
+
   const hotelHeaderLabel = (
     <div className="flex flex-wrap items-center gap-3 print:gap-3">
       <Link
@@ -138,7 +151,10 @@ export default function MadridCentroFullReport({ params }: PageProps) {
     <ReportShell printOrientation="landscape">
       <div className="space-y-6 print:space-y-3">
         {/* ── Hotel context band · top of memo · institutional opening ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm print:border-0 print:shadow-none print:px-4 print:py-3">
+        <div
+          id="memo-top"
+          className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm print:border-0 print:shadow-none print:px-4 print:py-3"
+        >
           <p className="font-headline text-[10px] font-bold uppercase tracking-[0.24em] text-slate-500">
             Institutional Memorandum · Madrid Centro
           </p>
@@ -181,7 +197,18 @@ export default function MadridCentroFullReport({ params }: PageProps) {
           </p>
         </div>
 
+        {/* ── Sections layout · sticky nav rail (lg+) + section column ── */}
+        <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-6 print:block print:gap-0">
+          {/* Sticky nav rail · hidden in print */}
+          <aside className="print:hidden">
+            <StickySectionNav items={navItems} />
+          </aside>
+
+          {/* Section column */}
+          <div className="space-y-6 print:space-y-3 min-w-0">
+
         {/* ── 01 · Executive Summary ─────────────────────────────────── */}
+        <section id="section-01" className="scroll-mt-28">
         <ReportPaper sectionLabel="01 · hotel valuation" title="Executive Summary" actions={hotelHeaderLabel}>
           <div className="px-8 pt-8 pb-6 border-b border-slate-100 print:px-4 print:pt-3 print:pb-2">
             <AssetSection asset={execData.asset} meta={execData.meta} />
@@ -194,8 +221,10 @@ export default function MadridCentroFullReport({ params }: PageProps) {
           </div>
           <MethodologicalNote />
         </ReportPaper>
+        </section>
 
         {/* ── 02 · Asset Analysis ────────────────────────────────────── */}
+        <section id="section-02" className="scroll-mt-28">
         <ReportPaper
           sectionLabel="02 · hotel valuation"
           title="Asset Analysis"
@@ -236,8 +265,10 @@ export default function MadridCentroFullReport({ params }: PageProps) {
             </div>
           </div>
         </ReportPaper>
+        </section>
 
         {/* ── 03 · Competitive Set ───────────────────────────────────── */}
+        <section id="section-03" className="scroll-mt-28">
         <ReportPaper sectionLabel="03 · hotel valuation" title="Competitive Set" titleSize="4xl">
           <div className="px-8 pt-6 pb-4 print:px-4 print:pt-3 print:pb-2">
             <CompetitiveSetTable properties={compsetData.properties} />
@@ -246,8 +277,10 @@ export default function MadridCentroFullReport({ params }: PageProps) {
             <HotelGalleryGrid images={compsetData.gallery} />
           </div>
         </ReportPaper>
+        </section>
 
         {/* ── 04 · Market Overview ───────────────────────────────────── */}
+        <section id="section-04" className="scroll-mt-28">
         <ReportPaper
           sectionLabel="04 · hotel valuation"
           title="Market Overview"
@@ -266,8 +299,10 @@ export default function MadridCentroFullReport({ params }: PageProps) {
             <DemandGeneratorsGallery tiles={marketData.gallery} />
           </div>
         </ReportPaper>
+        </section>
 
         {/* ── 05 · Financials · P&L 5-Year Forecast ──────────────────── */}
+        <section id="section-05" className="scroll-mt-28">
         <ReportPaper
           sectionLabel="05 · hotel valuation"
           title="5-Year P&L Forecast"
@@ -281,8 +316,10 @@ export default function MadridCentroFullReport({ params }: PageProps) {
             </Suspense>
           </div>
         </ReportPaper>
+        </section>
 
         {/* ── 06 · Underwriting Memo · live hotel-resolved bundle ────── */}
+        <section id="section-06" className="scroll-mt-28">
         <ReportPaper
           sectionLabel="06 · hotel valuation"
           title="Underwriting"
@@ -294,6 +331,12 @@ export default function MadridCentroFullReport({ params }: PageProps) {
             <UnderwritingShell bundle={bundle} />
           </div>
         </ReportPaper>
+        </section>
+
+          </div>
+          {/* /section column */}
+        </div>
+        {/* /sections layout */}
 
         <ActionBar currentPage={1} totalPages={1} />
       </div>
