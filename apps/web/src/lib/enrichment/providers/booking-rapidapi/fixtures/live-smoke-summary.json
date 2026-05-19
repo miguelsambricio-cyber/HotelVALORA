@@ -1,0 +1,70 @@
+{
+  "host": "booking-com15.p.rapidapi.com",
+  "started_at": "2026-05-19T07:31:47.324Z",
+  "calls": [
+    {
+      "label": "E0",
+      "path": "/api/v1/hotels/searchDestination",
+      "ok": true
+    },
+    {
+      "label": "E1",
+      "path": "/api/v1/hotels/searchHotels",
+      "params": {
+        "dest_id": "-390625",
+        "search_type": "CITY",
+        "arrival_date": "2026-05-26",
+        "departure_date": "2026-05-27",
+        "adults": 2,
+        "children_age": "",
+        "room_qty": 1,
+        "page_number": 1,
+        "units": "metric",
+        "temperature_unit": "c",
+        "languagecode": "en-us",
+        "currency_code": "EUR"
+      },
+      "ok": true
+    },
+    {
+      "label": "E2",
+      "path": "/api/v1/hotels/getHotelDetails",
+      "params": {
+        "hotel_id": 12269658,
+        "arrival_date": "2026-05-26",
+        "departure_date": "2026-05-27",
+        "adults": 2,
+        "children_age": "",
+        "room_qty": 1,
+        "units": "metric",
+        "temperature_unit": "c",
+        "languagecode": "en-us",
+        "currency_code": "EUR"
+      },
+      "ok": true
+    }
+  ],
+  "canonical_field_hits": {
+    "expected": [
+      "hotel_id",
+      "name",
+      "address",
+      "city",
+      "latitude",
+      "longitude",
+      "class",
+      "review_score"
+    ],
+    "present": [
+      "hotel_id",
+      "name",
+      "address",
+      "city",
+      "latitude",
+      "longitude",
+      "class",
+      "review_score"
+    ]
+  },
+  "completed_at": "2026-05-19T07:31:52.989Z"
+}

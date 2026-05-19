@@ -98,6 +98,8 @@ Maps tasks to exact files. Start here before scanning.
 | **Live smoke test runner** (Node ESM · 3 calls E0+E1+E2 · saves raw responses to fixtures) | `apps/web/scripts/smoke-test-booking-live.mjs` |
 | **Migration 0024 applied** to staging Supabase (project `twebgqutuqgonabvhzjk`) — 8 tables · 10 enums · 48 indexes · PostGIS 3.3 · RLS posture confirmed | `docs/database/migrations/0024_hotel_enrichment_schema.sql` |
 | **BookingRapidApiClient.executeLive** — real HTTP path with timeout · status mapping · JSON parse · classified errors | `apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts` |
+| **Live smoke fixtures (E0+E1+E2 against booking-com15)** — captured 2026-05-19 · Madrid hotel_id 12269658 | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/live-{e0,e1,e2,smoke-summary}-*.json` |
+| **Wire-shape validation v1 (drift analysis · authoritative source-of-record · parser/mapper update plan)** | `docs/hotel-intelligence/booking-com15-wire-shape-validation-v1.md` |
 | **Dedup engine (M3 · institutional moat #1)** — block-key + composite scoring + apartment override + identity-match override | `apps/web/src/lib/enrichment/dedup/` |
 | Dedup primitives — Jaro-Winkler · Soundex · normalize · stopword strip | `apps/web/src/lib/enrichment/dedup/string-similarity.ts` |
 | Dedup scoring — `blockKey` · haversine · proximity tiers · composite (35/30/20/10/5) | `apps/web/src/lib/enrichment/dedup/scoring.ts` |

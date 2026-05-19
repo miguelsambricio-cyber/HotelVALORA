@@ -1,0 +1,1216 @@
+{
+  "status": true,
+  "message": "Success",
+  "timestamp": 1779175910042,
+  "data": {
+    "hotels": [
+      {
+        "hotel_id": 12269658,
+        "accessibilityLabel": "AmazINN Stay Madrid Gran Via.\n7.0 Good 206 reviews.\n‎In downtown‬.\nLimited-time Deal.\n Hotel room : 1 bed.\nOriginal price 150 EUR. Current price 105 EUR..\n+15 EUR taxes and charges.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/814980198.jpg?k=24ba736761011d227bad6cd416c3a5cff615f25a448ac2ab044772760120b3af&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/814980198.jpg?k=24ba736761011d227bad6cd416c3a5cff615f25a448ac2ab044772760120b3af&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/814980198.jpg?k=24ba736761011d227bad6cd416c3a5cff615f25a448ac2ab044772760120b3af&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 12269658,
+          "latitude": 40.422646,
+          "position": 0,
+          "reviewCount": 206,
+          "rankingPosition": 0,
+          "longitude": -3.7073005,
+          "reviewScore": 7,
+          "propertyClass": 0,
+          "blockIds": [
+            "1226965812_394730347_2_0_0"
+          ],
+          "name": "AmazINN Stay Madrid Gran Via",
+          "wishlistName": "Madrid",
+          "optOutFromGalleryChanges": 1,
+          "mainPhotoId": 814980198,
+          "priceBreakdown": {
+            "benefitBadges": [
+              {
+                "identifier": "Limited Time Deal",
+                "explanation": "Limited-time Deal",
+                "text": "Limited-time Deal",
+                "variant": "constructive"
+              }
+            ],
+            "taxExceptions": [],
+            "strikethroughPrice": {
+              "currency": "EUR",
+              "value": 149.85
+            },
+            "grossPrice": {
+              "value": 104.9,
+              "currency": "EUR"
+            },
+            "excludedPrice": {
+              "value": 15.0000000000001,
+              "currency": "EUR"
+            }
+          },
+          "checkinDate": "2026-05-26",
+          "qualityClass": 0,
+          "checkin": {
+            "fromTime": "15:00",
+            "untilTime": "18:00"
+          },
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "fromTime": "08:00",
+            "untilTime": "11:00"
+          },
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Good",
+          "ufi": -390625
+        }
+      },
+      {
+        "hotel_id": 15758048,
+        "accessibilityLabel": "Urban Hive Madrid.\n4 out of 5 stars.\n9.6 Exceptional 104 reviews.\n‎In downtown‬.\n Hotel room : 1 bed.\n333 EUR.\nIncludes taxes and fees.",
+        "property": {
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "00:00"
+          },
+          "accuratePropertyClass": 4,
+          "ufi": -390625,
+          "reviewScoreWord": "Exceptional",
+          "countryCode": "es",
+          "isFirstPage": true,
+          "priceBreakdown": {
+            "taxExceptions": [],
+            "benefitBadges": [],
+            "grossPrice": {
+              "value": 333,
+              "currency": "EUR"
+            }
+          },
+          "checkin": {
+            "fromTime": "15:00",
+            "untilTime": "00:00"
+          },
+          "checkinDate": "2026-05-26",
+          "qualityClass": 0,
+          "reviewScore": 9.6,
+          "longitude": -3.709249,
+          "rankingPosition": 1,
+          "optOutFromGalleryChanges": 1,
+          "mainPhotoId": 858725255,
+          "wishlistName": "Madrid",
+          "propertyClass": 4,
+          "blockIds": [
+            "1575804805_428697991_0_2_0"
+          ],
+          "name": "Urban Hive Madrid",
+          "id": 15758048,
+          "currency": "EUR",
+          "checkoutDate": "2026-05-27",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/858725255.jpg?k=1a18371def6689fbd4c8df6aa53a1340f31c154a5418979817f85cf13b544151&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/858725255.jpg?k=1a18371def6689fbd4c8df6aa53a1340f31c154a5418979817f85cf13b544151&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/858725255.jpg?k=1a18371def6689fbd4c8df6aa53a1340f31c154a5418979817f85cf13b544151&o="
+          ],
+          "reviewCount": 104,
+          "position": 1,
+          "latitude": 40.419959
+        }
+      },
+      {
+        "hotel_id": 389808,
+        "accessibilityLabel": "Hostal Arco Iris.\n3 out of 5 for property rating.\n9.0 Wonderful 360 reviews.\n‎Salamanca‬ • ‎2.3 km from downtown‬.\n Private room : 1 bed.\n125 EUR.\nIncludes taxes and fees.\nOnly 2 left at this price on Booking.com.",
+        "property": {
+          "blockIds": [
+            "38980801_88499306_0_0_0"
+          ],
+          "propertyClass": 0,
+          "name": "Hostal Arco Iris",
+          "wishlistName": "Madrid",
+          "mainPhotoId": 622737045,
+          "optOutFromGalleryChanges": 0,
+          "rankingPosition": 2,
+          "reviewScore": 9,
+          "longitude": -3.676997423172,
+          "latitude": 40.4217705165589,
+          "position": 2,
+          "reviewCount": 360,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/622737045.jpg?k=0a2324cb37c9fa49f862b82ec72a9cc9d7f5a1545d48a23d91ab5739896c79c9&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/622737045.jpg?k=0a2324cb37c9fa49f862b82ec72a9cc9d7f5a1545d48a23d91ab5739896c79c9&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/622737045.jpg?k=0a2324cb37c9fa49f862b82ec72a9cc9d7f5a1545d48a23d91ab5739896c79c9&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 389808,
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Wonderful",
+          "ufi": -390625,
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "untilTime": "11:30",
+            "fromTime": "07:00"
+          },
+          "qualityClass": 3,
+          "checkinDate": "2026-05-26",
+          "checkin": {
+            "untilTime": "21:30",
+            "fromTime": "14:30"
+          },
+          "priceBreakdown": {
+            "benefitBadges": [],
+            "taxExceptions": [],
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 125
+            }
+          }
+        }
+      },
+      {
+        "hotel_id": 3590561,
+        "accessibilityLabel": "Room Gran Vía.\nThis is a Preferred property.\n8.5 Very Good 16839 reviews.\n‎In downtown‬.\nLimited-time Deal.\n Hotel room : Beds: 1 double or 2 twins.\nOriginal price 233 EUR. Current price 163 EUR..\nIncludes taxes and fees.\nOnly 2 left at this price on Booking.com.",
+        "property": {
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "00:00"
+          },
+          "accuratePropertyClass": 0,
+          "ufi": -390625,
+          "reviewScoreWord": "Very Good",
+          "countryCode": "es",
+          "isFirstPage": true,
+          "priceBreakdown": {
+            "strikethroughPrice": {
+              "value": 232.56,
+              "currency": "EUR"
+            },
+            "taxExceptions": [],
+            "benefitBadges": [
+              {
+                "identifier": "Limited Time Deal",
+                "variant": "constructive",
+                "explanation": "Limited-time Deal",
+                "text": "Limited-time Deal"
+              }
+            ],
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 162.79
+            }
+          },
+          "checkin": {
+            "untilTime": "00:00",
+            "fromTime": "15:00"
+          },
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "qualityClass": 0,
+          "longitude": -3.69788,
+          "reviewScore": 8.5,
+          "rankingPosition": 3,
+          "optOutFromGalleryChanges": 1,
+          "mainPhotoId": 528781206,
+          "wishlistName": "Madrid",
+          "propertyClass": 0,
+          "blockIds": [
+            "359056121_118487066_2_2_0"
+          ],
+          "name": "Room Gran Vía",
+          "id": 3590561,
+          "currency": "EUR",
+          "checkoutDate": "2026-05-27",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/528781206.jpg?k=2a48266ec519a4772a4070357579672a7e57a56fe7d36468d38c7f3aa2900c99&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/528781206.jpg?k=2a48266ec519a4772a4070357579672a7e57a56fe7d36468d38c7f3aa2900c99&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/528781206.jpg?k=2a48266ec519a4772a4070357579672a7e57a56fe7d36468d38c7f3aa2900c99&o="
+          ],
+          "reviewCount": 16839,
+          "position": 3,
+          "latitude": 40.419517
+        }
+      },
+      {
+        "hotel_id": 16302869,
+        "accessibilityLabel": "Charming 1bed flat in Plaza Lavapies!.\n‎In downtown‬.\nNew to Booking.com.\n Entire apartment – 20 m² : 2 beds • 1 bedroom • 1 living room • 1 bathroom.\n140 EUR.\n+40 EUR taxes and charges.\nFree cancellation.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "",
+          "ufi": -390625,
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "08:00"
+          },
+          "qualityClass": 0,
+          "checkinDate": "2026-05-26",
+          "checkin": {
+            "untilTime": "21:00",
+            "fromTime": "15:00"
+          },
+          "priceBreakdown": {
+            "excludedPrice": {
+              "currency": "EUR",
+              "value": 40.0000000000001
+            },
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 140
+            },
+            "taxExceptions": [],
+            "benefitBadges": []
+          },
+          "blockIds": [
+            "1630286901_433589017_0_0_0_1410258"
+          ],
+          "propertyClass": 0,
+          "name": "Charming 1bed flat in Plaza Lavapies!",
+          "wishlistName": "Madrid",
+          "optOutFromGalleryChanges": 0,
+          "mainPhotoId": 861520734,
+          "rankingPosition": 4,
+          "reviewScore": 0,
+          "longitude": -3.7009057,
+          "latitude": 40.4095629,
+          "position": 4,
+          "reviewCount": 0,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/861520734.jpg?k=5f838795f6f8ae2fbcb0019decc740050424daa86d14ceb4c1f037392b195ae2&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/861520734.jpg?k=5f838795f6f8ae2fbcb0019decc740050424daa86d14ceb4c1f037392b195ae2&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/861520734.jpg?k=5f838795f6f8ae2fbcb0019decc740050424daa86d14ceb4c1f037392b195ae2&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 16302869
+        }
+      },
+      {
+        "hotel_id": 13276043,
+        "accessibilityLabel": "FORTINN Puerta del Sol.\n3 out of 5 for property rating.\nThis is a Preferred property.\n9.0 Wonderful 844 reviews.\n‎In downtown‬.\nMobile-only price.\n Private room : 1 bed.\nOriginal price 200 EUR. Current price 180 EUR..\nIncludes taxes and fees.\nOnly 2 left at this price on Booking.com.",
+        "property": {
+          "latitude": 40.4171021538913,
+          "position": 5,
+          "reviewCount": 844,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/669696043.jpg?k=d81cdf51ce387de22d86d8572e8002dc74db30500152b9e83e67456c1ac927a1&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/669696043.jpg?k=d81cdf51ce387de22d86d8572e8002dc74db30500152b9e83e67456c1ac927a1&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/669696043.jpg?k=d81cdf51ce387de22d86d8572e8002dc74db30500152b9e83e67456c1ac927a1&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 13276043,
+          "blockIds": [
+            "1327604302_405354058_2_0_0"
+          ],
+          "propertyClass": 0,
+          "name": "FORTINN Puerta del Sol",
+          "wishlistName": "Madrid",
+          "optOutFromGalleryChanges": 0,
+          "mainPhotoId": 669696043,
+          "rankingPosition": 5,
+          "reviewScore": 9,
+          "longitude": -3.70267117486877,
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "qualityClass": 3,
+          "checkin": {
+            "fromTime": "15:00",
+            "untilTime": "00:00"
+          },
+          "priceBreakdown": {
+            "taxExceptions": [],
+            "benefitBadges": [
+              {
+                "identifier": "Mobile Rate",
+                "explanation": "Mobile-only price",
+                "text": "Mobile-only price",
+                "variant": "constructive"
+              }
+            ],
+            "strikethroughPrice": {
+              "value": 200,
+              "currency": "EUR"
+            },
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 180
+            }
+          },
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Wonderful",
+          "ufi": -390625,
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "untilTime": "12:00",
+            "fromTime": "08:00"
+          }
+        }
+      },
+      {
+        "hotel_id": 2542021,
+        "accessibilityLabel": "Le Petit Palü-Fuencarral.\n3 out of 5 for property rating.\n7.9 Good 5185 reviews.\n‎In downtown‬.\n Private room : 1 bed.\n143 EUR.\nIncludes taxes and fees.\nNo prepayment needed.\nOnly 2 left at this price on Booking.com.",
+        "property": {
+          "rankingPosition": 6,
+          "longitude": -3.70112930000005,
+          "reviewScore": 7.9,
+          "name": "Le Petit Palü-Fuencarral",
+          "propertyClass": 0,
+          "blockIds": [
+            "254202143_429971370_0_0_0"
+          ],
+          "wishlistName": "Madrid",
+          "optOutFromGalleryChanges": 0,
+          "mainPhotoId": 817834333,
+          "currency": "EUR",
+          "id": 2542021,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/817834333.jpg?k=7cdac7f22ce97071acac2f0f9a2fe6ded06e3d7e219edf1ba40f02ff015837c5&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/817834333.jpg?k=7cdac7f22ce97071acac2f0f9a2fe6ded06e3d7e219edf1ba40f02ff015837c5&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/817834333.jpg?k=7cdac7f22ce97071acac2f0f9a2fe6ded06e3d7e219edf1ba40f02ff015837c5&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "position": 6,
+          "reviewCount": 5185,
+          "latitude": 40.4221161,
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "09:30"
+          },
+          "accuratePropertyClass": 0,
+          "countryCode": "es",
+          "reviewScoreWord": "Good",
+          "ufi": -390625,
+          "isFirstPage": true,
+          "priceBreakdown": {
+            "grossPrice": {
+              "value": 143.1,
+              "currency": "EUR"
+            },
+            "benefitBadges": [],
+            "taxExceptions": []
+          },
+          "checkin": {
+            "fromTime": "14:00",
+            "untilTime": "20:00"
+          },
+          "checkinDate": "2026-05-26",
+          "qualityClass": 3
+        }
+      },
+      {
+        "hotel_id": 13831081,
+        "accessibilityLabel": "HA Retiro Suites.\n4 out of 5 for property rating.\nThis is a Preferred Plus property.\n8.5 Very Good 1752 reviews.\n‎Retiro‬ • ‎2.5 km from downtown‬.\n Private suite : 2 beds.\nOriginal price 179 EUR. Current price 166 EUR..\nIncludes taxes and fees.\nOnly 6 left at this price on Booking.com.",
+        "property": {
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "01:00"
+          },
+          "accuratePropertyClass": 0,
+          "countryCode": "es",
+          "reviewScoreWord": "Very Good",
+          "ufi": -390625,
+          "isFirstPage": true,
+          "priceBreakdown": {
+            "grossPrice": {
+              "value": 165.89,
+              "currency": "EUR"
+            },
+            "taxExceptions": [],
+            "benefitBadges": [],
+            "strikethroughPrice": {
+              "value": 179.06,
+              "currency": "EUR"
+            }
+          },
+          "checkin": {
+            "fromTime": "15:00",
+            "untilTime": "00:00"
+          },
+          "checkinDate": "2026-05-26",
+          "qualityClass": 4,
+          "isPreferred": true,
+          "rankingPosition": 7,
+          "longitude": -3.67389373551254,
+          "reviewScore": 8.5,
+          "isPreferredPlus": true,
+          "name": "HA Retiro Suites",
+          "propertyClass": 0,
+          "blockIds": [
+            "1383108103_410377898_2_2_0"
+          ],
+          "wishlistName": "Madrid",
+          "optOutFromGalleryChanges": 1,
+          "mainPhotoId": 681465775,
+          "currency": "EUR",
+          "id": 13831081,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/681465775.jpg?k=fa756ec2dbd8dcc2f09276b280ff1bc6fcb5ed64d820252371a85a267a83db3f&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/681465775.jpg?k=fa756ec2dbd8dcc2f09276b280ff1bc6fcb5ed64d820252371a85a267a83db3f&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/681465775.jpg?k=fa756ec2dbd8dcc2f09276b280ff1bc6fcb5ed64d820252371a85a267a83db3f&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "position": 7,
+          "reviewCount": 1752,
+          "latitude": 40.4137920058351
+        }
+      },
+      {
+        "hotel_id": 734282,
+        "accessibilityLabel": "La Fonda de los Príncipes.\n4 out of 5 stars.\nThis is a Preferred property.\n9.3 Wonderful 533 reviews.\n‎In downtown‬.\n Hotel room : 1 bed.\n270 EUR.\nIncludes taxes and fees.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "priceBreakdown": {
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 270.0001
+            },
+            "benefitBadges": [],
+            "taxExceptions": []
+          },
+          "qualityClass": 0,
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "checkin": {
+            "untilTime": "23:30",
+            "fromTime": "15:00"
+          },
+          "accuratePropertyClass": 4,
+          "checkout": {
+            "fromTime": "01:00",
+            "untilTime": "00:00"
+          },
+          "isFirstPage": true,
+          "ufi": -390625,
+          "reviewScoreWord": "Wonderful",
+          "countryCode": "es",
+          "checkoutDate": "2026-05-27",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/799606490.jpg?k=5d406dc05884c9c8cf270285f1d25501d08924fa32e5869a0dfe6fc20d022773&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/799606490.jpg?k=5d406dc05884c9c8cf270285f1d25501d08924fa32e5869a0dfe6fc20d022773&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/799606490.jpg?k=5d406dc05884c9c8cf270285f1d25501d08924fa32e5869a0dfe6fc20d022773&o="
+          ],
+          "id": 734282,
+          "currency": "EUR",
+          "latitude": 40.4171909555598,
+          "reviewCount": 533,
+          "position": 8,
+          "reviewScore": 9.3,
+          "longitude": -3.70381414890289,
+          "rankingPosition": 8,
+          "optOutFromGalleryChanges": 0,
+          "mainPhotoId": 799606490,
+          "wishlistName": "Madrid",
+          "propertyClass": 4,
+          "blockIds": [
+            "73428226_427737966_0_2_0"
+          ],
+          "name": "La Fonda de los Príncipes"
+        }
+      },
+      {
+        "hotel_id": 11757182,
+        "accessibilityLabel": "Arteria Madrid Latina.\n3 out of 5 for property rating.\n6.5 Pleasant 1012 reviews.\n‎Latina‬ • ‎2.6 km from downtown‬.\nGetaway Deal.\n Private room : 1 bed.\nOriginal price 104 EUR. Current price 81 EUR..\n+15 EUR taxes and charges.\nOnly 3 left at this price on Booking.com.",
+        "property": {
+          "priceBreakdown": {
+            "benefitBadges": [
+              {
+                "variant": "constructive",
+                "explanation": "Getaway Deal",
+                "text": "Getaway Deal",
+                "identifier": "Getaway 2021 Deals"
+              }
+            ],
+            "taxExceptions": [],
+            "strikethroughPrice": {
+              "value": 103.76,
+              "currency": "EUR"
+            },
+            "excludedPrice": {
+              "value": 15.0000000000001,
+              "currency": "EUR"
+            },
+            "grossPrice": {
+              "value": 80.9300000000001,
+              "currency": "EUR"
+            }
+          },
+          "qualityClass": 3,
+          "checkinDate": "2026-05-26",
+          "checkin": {
+            "untilTime": "00:00",
+            "fromTime": "15:00"
+          },
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "fromTime": "00:00",
+            "untilTime": "11:00"
+          },
+          "isFirstPage": true,
+          "reviewScoreWord": "Pleasant",
+          "countryCode": "es",
+          "ufi": -390625,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/539877579.jpg?k=14057195d3d12a4a096232fe35c143822752a7149083b593add3cfdc38552cfd&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/539877579.jpg?k=14057195d3d12a4a096232fe35c143822752a7149083b593add3cfdc38552cfd&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/539877579.jpg?k=14057195d3d12a4a096232fe35c143822752a7149083b593add3cfdc38552cfd&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "id": 11757182,
+          "currency": "EUR",
+          "latitude": 40.4103913,
+          "position": 9,
+          "reviewCount": 1012,
+          "rankingPosition": 9,
+          "reviewScore": 6.5,
+          "longitude": -3.7324356,
+          "wishlistName": "Madrid",
+          "blockIds": [
+            "1175718213_401040968_2_0_0_803558"
+          ],
+          "propertyClass": 0,
+          "name": "Arteria Madrid Latina",
+          "mainPhotoId": 539877579,
+          "optOutFromGalleryChanges": 1
+        }
+      },
+      {
+        "hotel_id": 44720,
+        "accessibilityLabel": "Hostal Viky.\n2 out of 5 stars.\n7.8 Good 9720 reviews.\n‎Barajas‬ • ‎12.5 km from downtown‬.\n Private room : 2 beds.\n93 EUR.\nIncludes taxes and fees.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "mainPhotoId": 163524229,
+          "optOutFromGalleryChanges": 0,
+          "wishlistName": "Madrid",
+          "propertyClass": 2,
+          "name": "Hostal Viky",
+          "blockIds": [
+            "4472002_89858196_2_0_0"
+          ],
+          "reviewScore": 7.8,
+          "longitude": -3.57568502426147,
+          "rankingPosition": 10,
+          "reviewCount": 9720,
+          "position": 10,
+          "latitude": 40.4737026197796,
+          "id": 44720,
+          "currency": "EUR",
+          "checkoutDate": "2026-05-27",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/163524229.jpg?k=1862f84a642be4c961f92a67abf374486e11fd443bbac629d4f645c16dffc670&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/163524229.jpg?k=1862f84a642be4c961f92a67abf374486e11fd443bbac629d4f645c16dffc670&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/163524229.jpg?k=1862f84a642be4c961f92a67abf374486e11fd443bbac629d4f645c16dffc670&o="
+          ],
+          "ufi": -390625,
+          "reviewScoreWord": "Good",
+          "countryCode": "es",
+          "isFirstPage": true,
+          "checkout": {
+            "fromTime": "00:00",
+            "untilTime": "12:00"
+          },
+          "accuratePropertyClass": 2,
+          "checkin": {
+            "fromTime": "13:00",
+            "untilTime": "00:00"
+          },
+          "qualityClass": 0,
+          "checkinDate": "2026-05-26",
+          "priceBreakdown": {
+            "benefitBadges": [],
+            "taxExceptions": [],
+            "grossPrice": {
+              "value": 93.0001000000001,
+              "currency": "EUR"
+            }
+          }
+        }
+      },
+      {
+        "hotel_id": 8180038,
+        "accessibilityLabel": "Akeah Hotel Gran Vía.\n3 out of 5 stars.\nThis is a Preferred Plus property.\n8.5 Very Good 5193 reviews.\n‎In downtown‬.\nMobile-only price.\n Hotel room : 1 bed.\n185 EUR.\nIncludes taxes and fees.",
+        "property": {
+          "priceBreakdown": {
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 184.57
+            },
+            "benefitBadges": [
+              {
+                "text": "Mobile-only price",
+                "explanation": "Mobile-only price",
+                "variant": "constructive",
+                "identifier": "Mobile Rate"
+              }
+            ],
+            "taxExceptions": []
+          },
+          "checkin": {
+            "untilTime": "00:00",
+            "fromTime": "15:00"
+          },
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "qualityClass": 0,
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "00:00"
+          },
+          "accuratePropertyClass": 3,
+          "reviewScoreWord": "Very Good",
+          "countryCode": "es",
+          "ufi": -390625,
+          "isFirstPage": true,
+          "id": 8180038,
+          "currency": "EUR",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/376849334.jpg?k=3613b2afedcc95417f1d1fecf81eae2688a3b497930768a41ff1888160a552c6&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/376849334.jpg?k=3613b2afedcc95417f1d1fecf81eae2688a3b497930768a41ff1888160a552c6&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/376849334.jpg?k=3613b2afedcc95417f1d1fecf81eae2688a3b497930768a41ff1888160a552c6&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "position": 11,
+          "reviewCount": 5193,
+          "latitude": 40.424884,
+          "rankingPosition": 11,
+          "longitude": -3.707327,
+          "reviewScore": 8.5,
+          "isPreferredPlus": true,
+          "wishlistName": "Madrid",
+          "blockIds": [
+            "818003801_344381273_2_34_0"
+          ],
+          "propertyClass": 3,
+          "name": "Akeah Hotel Gran Vía",
+          "optOutFromGalleryChanges": 1,
+          "mainPhotoId": 376849334
+        }
+      },
+      {
+        "hotel_id": 691949,
+        "accessibilityLabel": "Pension Dominguez.\n1 out of 5 stars.\n7.9 Good 807 reviews.\n‎In downtown‬.\n Hotel room : 1 bed.\n98 EUR.\nIncludes taxes and fees.\nFree cancellation.\nNo prepayment needed.\nOnly 2 left at this price on Booking.com.",
+        "property": {
+          "propertyClass": 1,
+          "blockIds": [
+            "69194905_338266673_2_0_0"
+          ],
+          "name": "Pension Dominguez",
+          "wishlistName": "Madrid",
+          "mainPhotoId": 183246380,
+          "optOutFromGalleryChanges": 0,
+          "rankingPosition": 12,
+          "longitude": -3.70024814299586,
+          "reviewScore": 7.9,
+          "latitude": 40.42449349496,
+          "position": 12,
+          "reviewCount": 807,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/183246380.jpg?k=bf55a9c29aa84eda6f20646fdbf5e5dc185710f22e507220e698f26351c0dde4&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/183246380.jpg?k=bf55a9c29aa84eda6f20646fdbf5e5dc185710f22e507220e698f26351c0dde4&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/183246380.jpg?k=bf55a9c29aa84eda6f20646fdbf5e5dc185710f22e507220e698f26351c0dde4&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 691949,
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Good",
+          "ufi": -390625,
+          "accuratePropertyClass": 1,
+          "checkout": {
+            "untilTime": "12:00",
+            "fromTime": "06:30"
+          },
+          "qualityClass": 0,
+          "checkinDate": "2026-05-26",
+          "checkin": {
+            "fromTime": "13:00",
+            "untilTime": "21:00"
+          },
+          "priceBreakdown": {
+            "benefitBadges": [],
+            "taxExceptions": [],
+            "grossPrice": {
+              "value": 98.0000000000001,
+              "currency": "EUR"
+            }
+          }
+        }
+      },
+      {
+        "hotel_id": 409330,
+        "accessibilityLabel": "Hostal Moncloa.\n3 out of 5 for property rating.\n7.5 Good 1993 reviews.\n‎Chamberi‬ • ‎2.2 km from downtown‬.\n Private room : 1 bed.\n70 EUR.\nIncludes taxes and fees.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "fromTime": "00:00",
+            "untilTime": "12:00"
+          },
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Good",
+          "ufi": -390625,
+          "priceBreakdown": {
+            "taxExceptions": [],
+            "benefitBadges": [],
+            "grossPrice": {
+              "value": 70.0000000000001,
+              "currency": "EUR"
+            }
+          },
+          "checkinDate": "2026-05-26",
+          "qualityClass": 3,
+          "checkin": {
+            "fromTime": "15:00",
+            "untilTime": "00:00"
+          },
+          "rankingPosition": 13,
+          "reviewScore": 7.5,
+          "longitude": -3.71669411659241,
+          "propertyClass": 0,
+          "blockIds": [
+            "40933004_423092956_0_0_0"
+          ],
+          "name": "Hostal Moncloa",
+          "wishlistName": "Madrid",
+          "mainPhotoId": 280606913,
+          "optOutFromGalleryChanges": 0,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/280606913.jpg?k=bd581790ff5d6765777a113b2aa1753b12986f6ce19848498bb6141ce6db9254&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/280606913.jpg?k=bd581790ff5d6765777a113b2aa1753b12986f6ce19848498bb6141ce6db9254&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/280606913.jpg?k=bd581790ff5d6765777a113b2aa1753b12986f6ce19848498bb6141ce6db9254&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 409330,
+          "latitude": 40.4338332413504,
+          "position": 13,
+          "reviewCount": 1993
+        }
+      },
+      {
+        "hotel_id": 90291,
+        "accessibilityLabel": "Rafaelhoteles Atocha.\n4 out of 5 stars.\nThis is a Preferred property.\n8.4 Very Good 3059 reviews.\n‎Arganzuela‬ • ‎2.2 km from downtown‬.\n Hotel room : 1 bed.\n216 EUR.\nIncludes taxes and fees.",
+        "property": {
+          "accuratePropertyClass": 4,
+          "checkout": {
+            "fromTime": "00:00",
+            "untilTime": "12:00"
+          },
+          "isFirstPage": true,
+          "reviewScoreWord": "Very Good",
+          "countryCode": "es",
+          "ufi": -390625,
+          "priceBreakdown": {
+            "benefitBadges": [],
+            "taxExceptions": [],
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 215.6931794234
+            }
+          },
+          "qualityClass": 0,
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "checkin": {
+            "untilTime": "00:00",
+            "fromTime": "14:00"
+          },
+          "rankingPosition": 14,
+          "longitude": -3.68706107139587,
+          "reviewScore": 8.4,
+          "wishlistName": "Madrid",
+          "propertyClass": 4,
+          "blockIds": [
+            "9029109_0_2_0_0"
+          ],
+          "name": "Rafaelhoteles Atocha",
+          "optOutFromGalleryChanges": 1,
+          "mainPhotoId": 821910190,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/821910190.jpg?k=7236c7c3a7d158f5e555850b934ddd093c7ab4fea4be3a057ac0a3611278455b&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/821910190.jpg?k=7236c7c3a7d158f5e555850b934ddd093c7ab4fea4be3a057ac0a3611278455b&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/821910190.jpg?k=7236c7c3a7d158f5e555850b934ddd093c7ab4fea4be3a057ac0a3611278455b&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "id": 90291,
+          "currency": "EUR",
+          "latitude": 40.401460316184,
+          "position": 14,
+          "reviewCount": 3059
+        }
+      },
+      {
+        "hotel_id": 13520938,
+        "accessibilityLabel": "Bety Dreams Apartments.\n4 out of 5 for property rating.\nThis is a Preferred Plus property.\n8.8 Excellent 1094 reviews.\n‎Tetuan‬ • ‎4 km from downtown‬.\nGetaway Deal.\n Entire studio – 37 m² : 2 beds • 1 bedroom • 1 bathroom.\nOriginal price 144 EUR. Current price 122 EUR..\nIncludes taxes and fees.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Excellent",
+          "ufi": -390625,
+          "accuratePropertyClass": 0,
+          "checkout": {
+            "untilTime": "11:00",
+            "fromTime": "08:00"
+          },
+          "qualityClass": 4,
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "checkin": {
+            "untilTime": "00:00",
+            "fromTime": "15:00"
+          },
+          "priceBreakdown": {
+            "strikethroughPrice": {
+              "value": 144,
+              "currency": "EUR"
+            },
+            "taxExceptions": [],
+            "benefitBadges": [
+              {
+                "text": "Getaway Deal",
+                "explanation": "Getaway Deal",
+                "variant": "constructive",
+                "identifier": "Getaway 2021 Deals"
+              }
+            ],
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 122.4
+            }
+          },
+          "blockIds": [
+            "1352093805_407537964_2_42_0"
+          ],
+          "propertyClass": 0,
+          "name": "Bety Dreams Apartments",
+          "wishlistName": "Madrid",
+          "mainPhotoId": 670935456,
+          "optOutFromGalleryChanges": 0,
+          "isPreferredPlus": true,
+          "rankingPosition": 15,
+          "longitude": -3.7053822,
+          "reviewScore": 8.8,
+          "latitude": 40.4527672,
+          "position": 15,
+          "reviewCount": 1094,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/670935456.jpg?k=009fb215f5c4840f547351ff3c84918938d2dfd0a0cfac66a29f5163e5112f2a&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/670935456.jpg?k=009fb215f5c4840f547351ff3c84918938d2dfd0a0cfac66a29f5163e5112f2a&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/670935456.jpg?k=009fb215f5c4840f547351ff3c84918938d2dfd0a0cfac66a29f5163e5112f2a&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 13520938
+        }
+      },
+      {
+        "hotel_id": 94718,
+        "accessibilityLabel": "Hostal Santo Domingo.\n3 out of 5 stars.\nThis is a Preferred property.\n8.0 Very Good 3443 reviews.\n‎In downtown‬.\n Private room : 3 beds.\n220 EUR.\nIncludes taxes and fees.\nFree cancellation.\nNo prepayment needed.\nOnly 1 left at this price on Booking.com.",
+        "property": {
+          "rankingPosition": 16,
+          "reviewScore": 8,
+          "longitude": -3.70520889759064,
+          "wishlistName": "Madrid",
+          "propertyClass": 3,
+          "name": "Hostal Santo Domingo",
+          "blockIds": [
+            "9471810_422727662_4_0_0_362550"
+          ],
+          "optOutFromGalleryChanges": 0,
+          "mainPhotoId": 16036297,
+          "id": 94718,
+          "currency": "EUR",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/16036297.jpg?k=a90586f63bffebb26c3c9e36c57afe0f945bc51b265b561bbee59aa697f4a152&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/16036297.jpg?k=a90586f63bffebb26c3c9e36c57afe0f945bc51b265b561bbee59aa697f4a152&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/16036297.jpg?k=a90586f63bffebb26c3c9e36c57afe0f945bc51b265b561bbee59aa697f4a152&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "position": 16,
+          "reviewCount": 3443,
+          "latitude": 40.4217010904191,
+          "checkout": {
+            "untilTime": "12:00",
+            "fromTime": "08:00"
+          },
+          "accuratePropertyClass": 3,
+          "reviewScoreWord": "Very Good",
+          "countryCode": "es",
+          "ufi": -390625,
+          "isFirstPage": true,
+          "priceBreakdown": {
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 220
+            },
+            "benefitBadges": [],
+            "taxExceptions": []
+          },
+          "checkin": {
+            "untilTime": "23:00",
+            "fromTime": "14:00"
+          },
+          "qualityClass": 0,
+          "checkinDate": "2026-05-26",
+          "isPreferred": true
+        }
+      },
+      {
+        "hotel_id": 13930750,
+        "accessibilityLabel": "The Carabanchel Episode.\n1 out of 5 stars.\nThis is a Preferred property.\n8.3 Very Good 714 reviews.\n‎Carabanchel‬ • ‎6.5 km from downtown‬.\n1 bed • 1 bedroom.\n113 EUR.\nIncludes taxes and fees.",
+        "property": {
+          "mainPhotoId": 714657357,
+          "optOutFromGalleryChanges": 0,
+          "wishlistName": "Madrid",
+          "name": "The Carabanchel Episode",
+          "propertyClass": 1,
+          "blockIds": [
+            "0_0_2_0_0"
+          ],
+          "longitude": -3.7444829,
+          "reviewScore": 8.3,
+          "rankingPosition": 17,
+          "latitude": 40.3676256,
+          "reviewCount": 714,
+          "position": 17,
+          "checkoutDate": "2026-05-27",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/714657357.jpg?k=f0e3e86ce5037602e824ce65c8c552e918d57acdf05c1d5c5b603372fd2eae60&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/714657357.jpg?k=f0e3e86ce5037602e824ce65c8c552e918d57acdf05c1d5c5b603372fd2eae60&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/714657357.jpg?k=f0e3e86ce5037602e824ce65c8c552e918d57acdf05c1d5c5b603372fd2eae60&o="
+          ],
+          "id": 13930750,
+          "currency": "EUR",
+          "isFirstPage": true,
+          "ufi": -390625,
+          "reviewScoreWord": "Very Good",
+          "countryCode": "es",
+          "accuratePropertyClass": 1,
+          "checkout": {
+            "fromTime": "00:00",
+            "untilTime": "12:00"
+          },
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "qualityClass": 0,
+          "checkin": {
+            "fromTime": "15:00",
+            "untilTime": "22:30"
+          },
+          "priceBreakdown": {
+            "benefitBadges": [],
+            "taxExceptions": [],
+            "grossPrice": {
+              "currency": "EUR",
+              "value": 113.3310425436
+            }
+          }
+        }
+      },
+      {
+        "hotel_id": 410978,
+        "accessibilityLabel": "Hostal Los Ángeles.\n3 out of 5 stars.\n8.4 Very Good 2870 reviews.\n‎Tetuan‬ • ‎3.4 km from downtown‬.\n Private room : 2 beds.\n120 EUR.\nIncludes taxes and fees.\nFree cancellation.\nOnly 2 left at this price on Booking.com.",
+        "property": {
+          "wishlistName": "Madrid",
+          "name": "Hostal Los Ángeles",
+          "propertyClass": 3,
+          "blockIds": [
+            "41097802_340432557_2_0_0"
+          ],
+          "mainPhotoId": 824257773,
+          "optOutFromGalleryChanges": 0,
+          "rankingPosition": 18,
+          "reviewScore": 8.4,
+          "longitude": -3.7020814,
+          "position": 18,
+          "reviewCount": 2870,
+          "latitude": 40.4473487,
+          "id": 410978,
+          "currency": "EUR",
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/824257773.jpg?k=8e96c2e5b3831d4e3995c01a327d01b2c9b2fed264f48a1de508b62f647b9f85&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/824257773.jpg?k=8e96c2e5b3831d4e3995c01a327d01b2c9b2fed264f48a1de508b62f647b9f85&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/824257773.jpg?k=8e96c2e5b3831d4e3995c01a327d01b2c9b2fed264f48a1de508b62f647b9f85&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "reviewScoreWord": "Very Good",
+          "countryCode": "es",
+          "ufi": -390625,
+          "isFirstPage": true,
+          "checkout": {
+            "fromTime": "00:00",
+            "untilTime": "11:00"
+          },
+          "accuratePropertyClass": 3,
+          "checkin": {
+            "fromTime": "14:00",
+            "untilTime": "00:00"
+          },
+          "checkinDate": "2026-05-26",
+          "qualityClass": 0,
+          "priceBreakdown": {
+            "taxExceptions": [],
+            "benefitBadges": [],
+            "grossPrice": {
+              "value": 120,
+              "currency": "EUR"
+            }
+          }
+        }
+      },
+      {
+        "hotel_id": 843318,
+        "accessibilityLabel": "Hostal Alexis Madrid.\n3 out of 5 stars.\nThis is a Preferred property.\n8.8 Excellent 3193 reviews.\n‎In downtown‬.\n Private room : 1 bed.\n174 EUR.\nIncludes taxes and fees.\nOnly 3 left at this price on Booking.com.",
+        "property": {
+          "checkinDate": "2026-05-26",
+          "isPreferred": true,
+          "qualityClass": 0,
+          "checkin": {
+            "untilTime": "00:00",
+            "fromTime": "14:00"
+          },
+          "priceBreakdown": {
+            "taxExceptions": [],
+            "benefitBadges": [],
+            "grossPrice": {
+              "value": 174,
+              "currency": "EUR"
+            }
+          },
+          "isFirstPage": true,
+          "countryCode": "es",
+          "reviewScoreWord": "Excellent",
+          "ufi": -390625,
+          "accuratePropertyClass": 3,
+          "checkout": {
+            "untilTime": "11:30",
+            "fromTime": "00:00"
+          },
+          "latitude": 40.4152890733542,
+          "position": 19,
+          "reviewCount": 3193,
+          "photoUrls": [
+            "https://cf.bstatic.com/xdata/images/hotel/square500/58458200.jpg?k=a2840b26d4b09684a546a7ac26841e66363ac1714dbdb00d2f7ab46daafb0295&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square1024/58458200.jpg?k=a2840b26d4b09684a546a7ac26841e66363ac1714dbdb00d2f7ab46daafb0295&o=",
+            "https://cf.bstatic.com/xdata/images/hotel/square2000/58458200.jpg?k=a2840b26d4b09684a546a7ac26841e66363ac1714dbdb00d2f7ab46daafb0295&o="
+          ],
+          "checkoutDate": "2026-05-27",
+          "currency": "EUR",
+          "id": 843318,
+          "name": "Hostal Alexis Madrid",
+          "propertyClass": 3,
+          "blockIds": [
+            "84331802_88505711_2_0_0_362121"
+          ],
+          "wishlistName": "Madrid",
+          "mainPhotoId": 58458200,
+          "optOutFromGalleryChanges": 0,
+          "rankingPosition": 19,
+          "reviewScore": 8.8,
+          "longitude": -3.70035946369171
+        }
+      }
+    ],
+    "meta": [
+      {
+        "title": "1463 properties"
+      }
+    ],
+    "appear": [
+      {
+        "id": "cma",
+        "component": {
+          "props": {
+            "fill": true,
+            "content": {
+              "props": {
+                "fitContentWidth": true,
+                "items": [
+                  {
+                    "props": {
+                      "component": {
+                        "props": {
+                          "items": [
+                            {
+                              "props": {
+                                "text": [
+                                  {
+                                    "text": "Read more on how payments affect the order of listed properties",
+                                    "font": "body_2"
+                                  },
+                                  {
+                                    "text": "  ",
+                                    "font": "strong_2",
+                                    "color": "foreground"
+                                  },
+                                  {
+                                    "linkActions": [
+                                      {
+                                        "props": {
+                                          "url": "booking://webview?url=https%3A%2F%2Fm.booking.com%2Fgeneral.en-us.html%3Faid%3D332731%3Btmpl%3Ddocs%2Fterms-and-conditions"
+                                        }
+                                      }
+                                    ],
+                                    "font": "body_2",
+                                    "color": "action_foreground",
+                                    "text": "Learn more"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "spacing": "spacing_half"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "props": {}
+                  },
+                  {
+                    "props": {
+                      "component": {
+                        "props": {
+                          "tertiaryTintedColor": "foreground",
+                          "accessibilityLabel": "Close",
+                          "variant": "tertiary_tinted",
+                          "icon": "close"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "contentUrl": "https://mobile-apps.booking.com/json/mobile.saba?route_path=saba-chat-entrypoint&add_bh_info=1&add_genius_percentage_value=1&add_ribbon_text=1&affiliate_id=332731&arrival_date=2026-05-26&autoextend=1&booked_x_times_for_dates=1&booked_x_times_threshold=1&categories_filter_additional_data=&change_popularity_sort_option_copy_tag=1&change_sort_options_copy_tags=1&check_excluded_charge_or_tax=1&check_flexible_dates=1&check_is_candidate_wholesaler=1&currency_code=EUR&dark_mode=1&deeplink_sec_since_click=168567.9046729803&departure_date=2026-05-27&dest_ids=-390625&device_id=57d11ec8bad14e119e4c15a86202c23f&distance_unit=metric&dl_sr_adoption=1&dotd=2&exposure_api_version=2.17&fix_dotd=1&flex_window=0&generate_map_bounding_box=1&get_cny_campaign_banner=1&get_skiing_info=1&guest_qty=2&include_amazon_banner=1&include_apartment_config=1&include_badges_in_price_breakdown=1&include_beach_information=1&include_bh_quality_classification=1&include_block_ids=1&include_bsb_info=1&include_bwallet_hotel_eligibility=1&include_composite_breakdown=1&include_cpc_non_trader_copy=1&include_excluded_charges_detail=1&include_free_cancellation=1&include_genius_badge=1&include_last_reservation=1&include_nr_bookings_best_range_message=1&include_nr_bookings_today=1&include_offered_bed_types=1&include_preview_cards=1&include_rack_rate_savings=1&include_rtb=1&include_ski_information=1&languagecode=en-us&location_source=recents&mark_first_highlighted_hotel=1&min_saba_version=31&network_type=wifi&new_segments_carousel=1&offset=0&optimized_call=1&outcome=search_results&page_define_enabled=1&pref_match=0&reason=change_sort_options&remove_wishlist_padding=1&room_qty=1&rows=auto&saba=1&saba_payload_root=1&saba_version=50&sb_calendar_open=1&search_type=city&send_ranking_version=1&send_search_id=1&show_beach_filter_badge=1&show_city_distance=1&show_distance_to_beach=1&show_distance_to_nearest_public_transport=1&show_genius_free_breakfast=0&show_if_mobile_deal=1&show_negotiated_rates=1&show_no_prepayment=1&show_policy=1&show_review_score_breakdowns=1&show_selected_filter_values=1&show_soldout=1&sort_by=auto&sort_by_source=sort_options&sort_genius_new_copy=1&source=search_results&temperature_unit=c&travel_purpose=&unfiltered_count_enabled=1&units=metric&use_dest_based_list_creation=1&use_direct_payment=1&user_os=15.5&user_version=36.8-iphone&categories_filter=price%3A%3AEUR-min-max&page=search-results"
+      },
+      {
+        "id": "banner_qualityrating",
+        "component": {
+          "props": {
+            "text": "Properties with these icons have been awarded Booking.com's quality rating for homes",
+            "title": ""
+          }
+        }
+      },
+      {
+        "id": "signin_now",
+        "component": {
+          "props": {
+            "text": "Get instant access to our Genius loyalty program and enjoy discounts at properties worldwide.",
+            "title": "Sign in and save money"
+          }
+        }
+      }
+    ]
+  }
+}
