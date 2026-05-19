@@ -29,7 +29,7 @@ This document is a **sidecar** — it lives below the canonical layer. Architect
 | RapidAPI quotas, pricing tiers, throughput math | Confidence model formula |
 | RapidAPI-specific retry codes, headers, pagination | Duplicate detection composite weights |
 | Caching cadence keyed to RapidAPI volatility | Normalization pipeline |
-| `X-RapidAPI-Key` / `X-RapidAPI-Host` plumbing | Migration sequence (`0008`) |
+| `X-RapidAPI-Key` / `X-RapidAPI-Host` plumbing | Migration sequence (`0024`) |
 
 The canonical doc references this sidecar only via Tier-A in §2 of the main doc. The sidecar references the main doc by section number — never duplicates content.
 
@@ -580,7 +580,7 @@ Scraping (Tier-Z in main doc §2.1) is **last resort** and explicitly bounded:
 
 - **No canonical-schema design** — lives in main doc.
 - **No dedup-scoring weight definition** — lives in main doc.
-- **No migration DDL** — main doc reserves `0008_hotel_enrichment_schema.sql`.
+- **No migration DDL** — main doc reserves `0024_hotel_enrichment_schema.sql`.
 - **No agent runtime modification** — main doc positions this pipeline as `enrich_hotel` tool inside Data Ingestion Agent.
 - **No production calls** — Phase 1 is documentation + architecture only.
 - **No scraping fetches** — explicit hard rule (§9.3).

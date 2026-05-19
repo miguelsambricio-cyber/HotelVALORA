@@ -74,6 +74,15 @@ Maps tasks to exact files. Start here before scanning.
 | Source hierarchy (per-field) · confidence model · duplicate detection · normalization · DAG · Supabase schema · rate limit · queue · DLQ · refresh | same file (sections 1–11) |
 | **RapidAPI Booking provider layer v1 (sidecar · provider-specific · NO code yet)** | `docs/hotel-intelligence/madrid-enrichment-rapidapi-booking-v1.md` |
 | Endpoint inventory · field mapping · rate-limit math · cost modeling · caching · error taxonomy · matching · image strategy · compliance | same file (sections 1–9) |
+| **Institutional feature coverage targets v1 (defines the 80% Madrid goal · 4 tiers · per-surface field demand)** | `docs/hotel-intelligence/institutional-feature-coverage-targets-v1.md` |
+| **Coverage measurement spec v1 (SQL views: per-hotel · per-market · Madrid headline `goal_reached` boolean)** | `docs/hotel-intelligence/coverage-measurement-spec-v1.md` |
+| **Migration draft `0024_hotel_enrichment_schema.sql` (8 tables · 10 enums · 4 views · RLS · NOT yet applied)** | `docs/database/migrations/0024_hotel_enrichment_schema.sql` |
+| Canonical registries (brands · amenities · Madrid municipios · hotel types) — pure data + helpers, no I/O | `apps/web/src/lib/enrichment/registries/` |
+| Brand registry (~80 entries: NH · Meliá · Marriott · Hilton · Hyatt · IHG · Accor · Radisson · Barceló · Iberostar · …) | `apps/web/src/lib/enrichment/registries/brands.ts` |
+| Multilingual amenity normalization (ES + EN → 14-key canonical bitmap) | `apps/web/src/lib/enrichment/registries/amenities.ts` |
+| Madrid municipios alias table (19 metro entries fold to `city_normalized="Madrid"` + 4 separate-market entries) | `apps/web/src/lib/enrichment/registries/madrid-municipios.ts` |
+| `accommodation_type_name` → `hotel_type` + segment derivation rules | `apps/web/src/lib/enrichment/registries/hotel-types.ts` |
+| Registries barrel + conventions | `apps/web/src/lib/enrichment/registries/{index.ts,README.md}` |
 | Migration draft (DDL only, NOT applied) | filename reserved: `0008_hotel_enrichment_schema.sql` (to live under `docs/database/migrations/` when phase 2 begins) |
 | Positioning | runs inside existing Data Ingestion Agent (`apps/web/src/lib/ai-agents/agents/data-ingestion.ts`) as `enrich_hotel` tool |
 | Reuse — composite dedup scoring (35/30/20/10/5) | `apps/api/app/services/dedup_service.py` (pattern only — inlined per project rule) |

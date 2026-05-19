@@ -214,7 +214,7 @@ CREATE TABLE hotel_duplicate_candidate (
 
 `operator_type_enum`, `chain_scale_enum`, `hotel_type_enum`, `segment_enum`, `quality_tier_enum`, `hotel_lifecycle_enum`, `fetch_status_enum`, `run_status_enum`, `dup_tier_enum`, `dup_status_enum`.
 
-Migration filename (next sequential after `0007_ai_operations_layer_schema.sql`): **`0008_hotel_enrichment_schema.sql`**.
+Migration filename (next sequential after `0023_relationship_contacts_v2_taxonomy.sql`): **`0024_hotel_enrichment_schema.sql`**.
 
 ---
 
@@ -501,7 +501,7 @@ After enrichment, an aggregate tier is assigned:
 
 ### 7.1 Tables
 
-Migration **`0008_hotel_enrichment_schema.sql`** introduces (full DDL in §1):
+Migration **`0024_hotel_enrichment_schema.sql`** introduces (full DDL in §1):
 
 - `hotel_canonical`
 - `hotel_source_record`
@@ -539,7 +539,7 @@ Plus extension of existing `hotel_aliases` with FK to `hotel_canonical(id)` (add
 
 ### 7.5 Backfill / migration order
 
-1. Apply migration `0008_hotel_enrichment_schema.sql` (idempotent guards).
+1. Apply migration `0024_hotel_enrichment_schema.sql` (idempotent guards).
 2. Seed `block_key` for any pre-existing `hotel_alias` rows (if relevant; this workstream does not depend on those).
 3. Backfill `hotel_canonical` from existing CompSet/CoStar property records ONLY where unambiguous (auto_merge tier).
 4. Begin Booking pull (Phase 2 — out of scope for this doc).
@@ -739,7 +739,7 @@ This reuses the existing `audit_log` table and `AuditService` (no schema changes
 | In scope | Out of scope (later phases) |
 |---|---|
 | This architecture document | Any scraping execution |
-| Migration draft `0008_hotel_enrichment_schema.sql` (DDL only, not yet applied) | Booking RapidAPI client implementation |
+| Migration draft `0024_hotel_enrichment_schema.sql` (DDL only, not yet applied) | Booking RapidAPI client implementation |
 | ENTRYPOINTS.md row + docs/changelog.md entry | Worker / cron implementation |
 | Branch `feature/hotel-enrichment-pipeline` | RLS deployment |
 | | Front-end probe page |
@@ -771,7 +771,7 @@ This reuses the existing `audit_log` table and `AuditService` (no schema changes
 | Phase | Output | Trigger |
 |---|---|---|
 | 1 (current) | This doc, approved | Sign-off on architecture |
-| 2 | Migration `0008` applied; Supabase storage buckets provisioned; RLS policies | Phase 1 sign-off |
+| 2 | Migration `0024` applied; Supabase storage buckets provisioned; RLS policies | Phase 1 sign-off |
 | 3 | Booking RapidAPI client + parser; `enrich` worker; first 50-hotel Madrid pilot | Phase 2 complete |
 | 4 | Fallback dispatchers (Google Places, website, Tripadvisor) | Phase 3 stable |
 | 5 | Refresh scheduler + DLQ probe page | Phase 4 stable |
