@@ -1,6 +1,7 @@
 import { ReportTopNav } from "./report-top-nav";
 import { ReportSidebar } from "./report-sidebar";
 import { ReportFooter } from "./report-footer";
+import { MobileGuidanceBanner } from "./mobile-guidance-banner";
 import { cn } from "@/lib/utils";
 
 export interface ReportShellProps {
@@ -25,6 +26,10 @@ export function ReportShell({
   return (
     <div className="min-h-screen bg-slate-50 print:min-h-0 print:bg-white">
       <ReportTopNav />
+
+      {/* Narrow-viewport guidance · only renders below md (768 px) ·
+          informational only · never blocks navigation. */}
+      <MobileGuidanceBanner />
 
       {/* Header is sticky (in-flow) — no top padding compensation needed.
           Print: header is hidden, padding stays collapsed. */}
