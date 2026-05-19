@@ -6,6 +6,7 @@ import {
   type CompetitorProperty,
   type FacilityKey,
 } from "@/lib/report/competitive-set-data";
+import { formatSignedInt, formatSignedDecimal } from "@/lib/hotels/compset-kpi";
 
 const FACILITY_ICONS: Record<FacilityKey, React.ElementType> = {
   bar: Wine,
@@ -87,7 +88,69 @@ interface CompetitiveSetTableProps {
   properties: CompetitorProperty[];
 }
 
+/**
+ * Inline signed-delta badge · attached next to a base value when the
+ * row has differential KPIs vs subject (Phase H). Tone-aware so the
+ * IC reader can read the comparison at a glance without parsing the
+ * sign:
+ *   · keys: positive (bigger competitor) → slate · neutral
+ *   · keys: negative (smaller competitor) → slate · neutral
+ *   · loc-score: positive (better location) → emerald
+ *   · loc-score: negative (worse location)  → amber
+ */
+function DeltaBadge({
+  text,
+  tone = "neutral",
+}: {
+  text: string;
+  tone?: "neutral" | "ok" | "warn";
+}) {
+  const cls =
+    tone === "ok"
+      ? "text-emerald-700 bg-emerald-50 ring-emerald-200"
+      : tone === "warn"
+        ? "text-amber-800 bg-amber-50 ring-amber-200"
+        : "text-slate-600 bg-slate-50 ring-slate-200";
+  return (
+    <span
+      className={cn(
+        "ml-1.5 inline-flex items-center rounded-full px-1.5 py-px font-mono text-[10px] font-bold tabular-nums ring-1",
+        cls,
+      )}
+    >
+      {text}
+    </span>
+  );
+}
+
+/** Composite match pill (0-100 · 100 = perfect match against subject). */
+function MatchScorePill({ score }: { score: number }) {
+  const tone =
+    score >= 75 ? "ok" : score >= 50 ? "neutral" : "warn";
+  const cls =
+    tone === "ok"
+      ? "text-emerald-800 bg-emerald-50 ring-emerald-200"
+      : tone === "warn"
+        ? "text-amber-800 bg-amber-50 ring-amber-200"
+        : "text-slate-700 bg-slate-50 ring-slate-200";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[11px] font-bold tabular-nums ring-1",
+        cls,
+      )}
+    >
+      {score}
+    </span>
+  );
+}
+
 export function CompetitiveSetTable({ properties }: CompetitiveSetTableProps) {
+  // Show the Match column only when at least one row has vsSubject ·
+  // canonical /report/competitive-set keeps the original 7-column
+  // layout · Madrid Centro overlay opts into the 8th column.
+  const showMatchColumn = properties.some((p) => p.vsSubject !== undefined);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse">
@@ -99,7 +162,7 @@ export function CompetitiveSetTable({ properties }: CompetitiveSetTableProps) {
             <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 w-32">
               Category
             </th>
-            <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-center w-24">
+            <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-center w-28">
               Keys
             </th>
             <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 w-32">
@@ -114,6 +177,11 @@ export function CompetitiveSetTable({ properties }: CompetitiveSetTableProps) {
             <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-right w-28">
               Distance
             </th>
+            {showMatchColumn && (
+              <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 text-center w-24">
+                Match
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="text-sm">
@@ -152,14 +220,17 @@ export function CompetitiveSetTable({ properties }: CompetitiveSetTableProps) {
                 <StarRating count={property.stars} isSubject={property.isSubject} />
               </td>
 
-              {/* Keys */}
+              {/* Keys (with optional delta badge) */}
               <td
                 className={cn(
                   "py-4 px-4 text-center font-semibold",
                   property.isSubject ? "font-bold text-emerald-900" : "text-slate-600"
                 )}
               >
-                {property.keys}
+                <span className="tabular-nums">{property.keys}</span>
+                {property.vsSubject && (
+                  <DeltaBadge text={formatSignedInt(property.vsSubject.keysDelta)} />
+                )}
               </td>
 
               {/* Submarket */}
@@ -180,12 +251,26 @@ export function CompetitiveSetTable({ properties }: CompetitiveSetTableProps) {
                 />
               </td>
 
-              {/* Location score */}
+              {/* Location score (with optional delta badge) */}
               <td className="py-4 px-4">
-                <LocationScoreBar
-                  score={property.locationScore}
-                  isSubject={property.isSubject}
-                />
+                <div className="flex items-center justify-end gap-1.5">
+                  <LocationScoreBar
+                    score={property.locationScore}
+                    isSubject={property.isSubject}
+                  />
+                  {property.vsSubject && (
+                    <DeltaBadge
+                      text={formatSignedDecimal(property.vsSubject.locationScoreDelta, 1)}
+                      tone={
+                        property.vsSubject.locationScoreDelta > 0
+                          ? "ok"
+                          : property.vsSubject.locationScoreDelta < 0
+                            ? "warn"
+                            : "neutral"
+                      }
+                    />
+                  )}
+                </div>
               </td>
 
               {/* Distance */}
@@ -198,6 +283,17 @@ export function CompetitiveSetTable({ properties }: CompetitiveSetTableProps) {
                   <span className="text-slate-300 text-xs">—</span>
                 )}
               </td>
+
+              {/* Match (Phase H · only when vsSubject column is active) */}
+              {showMatchColumn && (
+                <td className="py-4 px-4 text-center">
+                  {property.vsSubject ? (
+                    <MatchScorePill score={property.vsSubject.matchScore} />
+                  ) : (
+                    <span className="text-slate-300 text-xs">—</span>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
