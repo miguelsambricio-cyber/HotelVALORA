@@ -36,6 +36,7 @@ import {
   type HotelProfile,
 } from "./madrid-centro-registry";
 import { getCompetitorsFor } from "./madrid-centro-compsets";
+import { computeCompsetKpi } from "./compset-kpi";
 
 // ─── Format helpers ─────────────────────────────────────────────────────
 
@@ -196,7 +197,15 @@ export function overlayCompetitiveSet(
     distance: null,
   };
 
-  const competitors = getCompetitorsFor(hotelId);
+  const rawCompetitors = getCompetitorsFor(hotelId);
+
+  // Phase H · attach per-competitor differential KPIs vs subject so
+  // the CompetitiveSetTable can render Δ-badges + composite Match
+  // score. Subject itself carries no vsSubject (self-comparison N/A).
+  const competitors: CompetitorProperty[] = rawCompetitors.map((c) => ({
+    ...c,
+    vsSubject: computeCompsetKpi(subject, c) ?? undefined,
+  }));
 
   return {
     ...base,

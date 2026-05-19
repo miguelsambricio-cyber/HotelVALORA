@@ -18,6 +18,17 @@ export const FACILITY_ORDER: FacilityKey[] = [
   "spa",
 ];
 
+export interface CompsetKpiSnapshot {
+  /** competitor.keys − subject.keys */
+  keysDelta: number;
+  /** competitor.locationScore − subject.locationScore */
+  locationScoreDelta: number;
+  /** Shared amenities ratio · [0, 1] · vs subject's amenity set */
+  facilitiesOverlap: number;
+  /** Composite 0-100 · 100 = perfect match against subject */
+  matchScore: number;
+}
+
 export interface CompetitorProperty {
   id: string;
   isSubject: boolean;
@@ -29,6 +40,13 @@ export interface CompetitorProperty {
   locationScore: number;
   /** Distance from reference hotel — null for the subject property itself */
   distance: string | null;
+  /**
+   * Differential KPIs vs subject · attached by the Madrid Centro
+   * hotel-aware overlay (Phase H). Optional · the canonical
+   * /report/competitive-set route ships data without this field and
+   * the table renders cleanly without the delta badges.
+   */
+  vsSubject?: CompsetKpiSnapshot;
 }
 
 export interface GalleryImage {
