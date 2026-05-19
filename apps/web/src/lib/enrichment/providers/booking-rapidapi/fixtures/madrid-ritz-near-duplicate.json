@@ -1,0 +1,50 @@
+{
+  "__fixture_meta": {
+    "label": "ritz-near-duplicate",
+    "purpose": "Near-duplicate of the Ritz fixture (same operator, same address geo within 3m, slightly different name). Designed to exercise the dedup engine — must surface a composite score ≥0.92 → auto_merge tier.",
+    "synthetic_hotel_id": "99000099",
+    "shape": "RapidApiHotelData (E2)",
+    "expected_dedup": {
+      "block_key": "R325::madrid::ES",
+      "composite": "≈0.95",
+      "tier": "auto_merge",
+      "apartment_override_applied": false
+    }
+  },
+  "hotel_id": 99000099,
+  "name": "Hotel Ritz Madrid (Fixture Variant)",
+  "name_trans": {
+    "en": "Hotel Ritz Madrid",
+    "es": "Hotel Ritz Madrid"
+  },
+  "address": "Plaza de la Lealtad, 5",
+  "city": "Madrid",
+  "city_trans": "Madrid",
+  "city_name_en": "Madrid",
+  "district": "Retiro",
+  "zip": "28014",
+  "cc1": "es",
+  "country": "Spain",
+  "region": "Comunidad de Madrid",
+  "latitude": 40.416800,
+  "longitude": -3.693300,
+  "class": 5,
+  "accommodation_type_id": 204,
+  "accommodation_type_name": "Hotel",
+  "room_count": 153,
+  "chain_id": "belmond",
+  "chain_name": "Belmond",
+  "review_score": 9.4,
+  "review_nr": 1820,
+  "review_score_word": "Exceptional",
+  "url": "https://www.booking.com/hotel/es/hotel-ritz-fixture-variant.html",
+  "phone": "+34 91 701 67 67",
+  "main_photo_url": "https://cf.bstatic.com/fixture/ritz-hero-v2.jpg",
+  "facilities": [
+    "Free WiFi", "Bar", "Restaurant", "Spa", "Fitness centre",
+    "Swimming pool", "Valet parking", "Meeting/banquet facilities",
+    "Business centre", "Room service"
+  ],
+  "is_closed": false,
+  "description": "Near-duplicate fixture — same physical hotel re-indexed under a different booking_hotel_id with a slight name variant. Synthetic for dedup-engine validation."
+}

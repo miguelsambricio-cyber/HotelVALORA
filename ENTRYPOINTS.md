@@ -95,6 +95,21 @@ Maps tasks to exact files. Start here before scanning.
 | Provider barrel + README | `apps/web/src/lib/enrichment/providers/booking-rapidapi/{index.ts,README.md}` |
 | 3 Madrid fixture payloads (Ritz luxury · NH Collection upscale · Ibis economy ES-only) + sample outputs + aggregate | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/` |
 | Dry-run runner (TypeScript script — runnable via tsx once dev-dep added) | `apps/web/scripts/enrichment-booking-dry-run.ts` |
+| **Dedup engine (M3 · institutional moat #1)** — block-key + composite scoring + apartment override + identity-match override | `apps/web/src/lib/enrichment/dedup/` |
+| Dedup primitives — Jaro-Winkler · Soundex · normalize · stopword strip | `apps/web/src/lib/enrichment/dedup/string-similarity.ts` |
+| Dedup scoring — `blockKey` · haversine · proximity tiers · composite (35/30/20/10/5) | `apps/web/src/lib/enrichment/dedup/scoring.ts` |
+| Dedup top-level — `evaluateCandidate(candidate, knownRows)` → tier decision + rationale | `apps/web/src/lib/enrichment/dedup/engine.ts` |
+| **Confidence module (M3 · institutional moat #2)** — formula + conflict resolver + quality-tier compute | `apps/web/src/lib/enrichment/confidence/` |
+| Source tier registry (11 tiers S/A/B/C/D/E/F/Z/OVERRIDE + per-field authority overrides) | `apps/web/src/lib/enrichment/confidence/tier-registry.ts` |
+| Confidence calculator — `tier × freshness × validation + agreement_bonus` clamped | `apps/web/src/lib/enrichment/confidence/calculator.ts` |
+| Conflict resolver — 6-case overwrite policy (ADOPT · PRESERVE · REINFORCE · AUTO_SUPERSEDE · ABSORB · CONFLICT) + `computeQualityTier` | `apps/web/src/lib/enrichment/confidence/conflict-resolver.ts` |
+| **Orchestrator (M4)** — end-to-end runner + retry/DLQ + in-memory canonical store | `apps/web/src/lib/enrichment/orchestrator/` |
+| Orchestrator types — `EnrichmentJob` · `JobExecutionResult` · `ExecutionContext` · `JobOutcome` · `ErrorClass` | `apps/web/src/lib/enrichment/orchestrator/types.ts` |
+| Retry / DLQ policy — per-error-class table · exp backoff + jitter · circuit breaker per source | `apps/web/src/lib/enrichment/orchestrator/retry-policy.ts` |
+| In-memory canonical store (dry-run) — same interface as the Supabase-backed store that replaces it Phase 3 | `apps/web/src/lib/enrichment/orchestrator/in-memory-store.ts` |
+| Job runner — full pipeline: fetch → parse → map → dedup → conflict-resolve → coverage → outcome | `apps/web/src/lib/enrichment/orchestrator/runner.ts` |
+| Orchestrator demo trace (4-job sequence demonstrating dedup auto_merge + per-field conflict review queue) | `apps/web/src/lib/enrichment/orchestrator/fixtures/demo-execution-trace.json` |
+| Near-duplicate fixture (Ritz variant — exercises auto_merge tier + conflict-resolver review-queue routing) | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/madrid-ritz-near-duplicate.json` |
 | Migration draft (DDL only, NOT applied) | filename reserved: `0008_hotel_enrichment_schema.sql` (to live under `docs/database/migrations/` when phase 2 begins) |
 | Positioning | runs inside existing Data Ingestion Agent (`apps/web/src/lib/ai-agents/agents/data-ingestion.ts`) as `enrich_hotel` tool |
 | Reuse — composite dedup scoring (35/30/20/10/5) | `apps/api/app/services/dedup_service.py` (pattern only — inlined per project rule) |
