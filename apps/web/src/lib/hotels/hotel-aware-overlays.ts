@@ -29,6 +29,7 @@ import type {
 import type { AssetAnalysisData } from "../report/asset-analysis-data";
 import type { CompetitiveSetData, CompetitorProperty } from "../report/competitive-set-data";
 import type { MarketOverviewData } from "../report/market-overview-data";
+import { buildMadridStaticMapUrl } from "../maps/static-map";
 import {
   getHotelRegistryEntry,
   type HotelId,
@@ -203,7 +204,8 @@ export function overlayCompetitiveSet(
   };
 }
 
-/** Overlays the top-level hotelLabel + Submarket scope card title. */
+/** Overlays the top-level hotelLabel + Submarket scope card title +
+ *  per-hotel Mapbox Static map URL. */
 export function overlayMarketOverview(
   base: MarketOverviewData,
   hotelId: HotelId,
@@ -221,10 +223,22 @@ export function overlayMarketOverview(
       : insight,
   );
 
+  // Per-hotel real Mapbox Static map URL (Centro / Salamanca / Chamberí
+  // each renders its own neighbourhood). Falls back to the canonical
+  // base URL when the token is missing · SharedMapCard handles a final
+  // empty fallback with an institutional placeholder.
+  const submarketMapUrl =
+    buildMadridStaticMapUrl({ submarket: p.submarket }) ??
+    base.demandGenerators.mapImageSrc;
+
   return {
     ...base,
     hotelLabel: p.display_name,
     insights,
+    demandGenerators: {
+      ...base.demandGenerators,
+      mapImageSrc: submarketMapUrl,
+    },
   };
 }
 
