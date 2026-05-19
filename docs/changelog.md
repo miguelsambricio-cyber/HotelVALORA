@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Admin · /user/admin/hotels panel UX/semantic v2 (pre-merge review)
+
+- **6 operator-approved fixes applied to the Phase D enrichment panel** before any merge to main. The risk identified was semantic/UI, not technical: the v1 panel surfaced deprecated T2 metrics as active KPIs, which could induce incorrect decisions about model quality. Patch makes the panel honest about its own state.
+- **(1) Legacy-spec badge.** Replaced amber "T2 goal · 0% / 70%" badge with slate-neutral "T2 v1 spec · LEGACY · v2 readiness pending" + tooltip linking to `strategic-model-audit-v1.md`. No more "we failed the goal" framing.
+- **(2) Audit banner.** New slate-bordered info banner directly under the header noting T2 equal-weight metric is under audit; v2 readiness scores (`underwriting_ready` / `library_ready` / `premium_report_ready`) pending operator decision. Sets context for all numbers below.
+- **(3) T2 v1 stats collapsed.** Old "T2 passing" stat + "avg T2 55.6%" stat moved into a `<details>` collapsible block labelled "T2 v1 spec (deprecated · for traceability)" with explicit "do not gate on this" hint. Above the fold the panel now shows the v2-oriented "Core underwriting fields · X/8 avg" stat (driven by the cap-rate engine's 8 input fields: chain_scale / segment / total_rooms / market_id / submarket_id / postal_code / year_opened / operator_type).
+- **(4) operator_id by-design split.** New dedicated "Cohort · branded vs independent" stat row: "Branded · with operator" (with branded denominator), "Branded · without operator" (registry gap), "Indie · no parent operator (by design)", "Total core". The "operator_id" field bar now uses branded-only denominator with explicit hint "branded-only · indies excluded by design". No more frame of indies-without-operator as a "defect".
+- **(5) Scope simplification.** Server-side data loader now filters out non-core property types from the panel via two layers: (a) `hotel_type` enum exclusion (`hostel|aparthotel|serviced_apartments|flex_living`), (b) `canonical_name` regex exclusion (`hostel|albergue|aparthotel|apartahotel|apartamentos|apartments|bob w|smartrental|smart rental|the social hub`). ~16 of 224 Madrid hotels are hidden (kept in DB · re-included once v2 cohort split lands). Scope indicator row shows visible vs hidden count + sample names.
+- **(6) Wording neutrality per operator direction.** Avoided "institutional-ready" in main UI. Section headers use "Underwriting coverage" / "Data completeness · operator-priority fields" / "Cohort · branded vs independent". Reserved "institutional-ready" for documentation / strategic audit context until v2 model lands.
+- **Structural blockers rewritten.** Old "Most-missing priority fields" (which mixed real source-absence with by-design indie gaps) replaced with "Structural data gaps · root cause + path forward" — each entry carries the source-absence reason (Booking E2 / Wikidata P571 sparse / PostGIS pending) and the named path forward (D-8 / PostGIS workstream). No more mixing categories.
+- **Tier counts re-derived on core scope.** Previously the panel used the `hotel_coverage_madrid_v` view counts which include the 16 hidden non-core. Loader now re-derives per-tier counts (gold/silver/bronze/quarantined) over the filtered core subset for internal consistency. T1 average + v1 T2 stats remain view-driven (acceptable since v1 stats are now collapsed under "for traceability").
+- Preview redeployed on `feature/hotel-enrichment-pipeline`. Main untouched per operator direction.
+- Files: `apps/web/src/lib/admin/hotels/enrichment-stats.ts` (rewritten · new shape adds `scope` + `cohort` + `structuralBlockers` + `avg_underwriting_fields_filled` + v1-spec markers on the deprecated counters) · `apps/web/src/components/admin/hotels/enrichment-panel.tsx` (rewritten · new sections + collapsible legacy block).
+
+---
+
 ## 2026-05-20 — Admin · /user/admin/hotels surfaces Phase D Madrid enrichment
 
 - **New section "Madrid enrichment · Phase D"** rendered between KPI strip and tab bar on `/user/admin/hotels`. Server-side Supabase service-role loader (`loadEnrichmentSnapshot`) queries `hotel_canonical` + `hotel_coverage_madrid_v` + `hotel_source_record` + `hotel_field_provenance` + `hotel_duplicate_candidate` in parallel. Component (`EnrichmentPanel`) surfaces:

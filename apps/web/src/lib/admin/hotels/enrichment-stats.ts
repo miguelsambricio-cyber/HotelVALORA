@@ -6,14 +6,14 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 // hotel_coverage_madrid_v view are not yet in the generated Database
 // types. Cast the client to an untyped form for these calls until the
 // types generator is rerun.
-type AnySupabase = {
-  from(table: string): {
-    select(cols: string, opts?: { count?: "exact"; head?: boolean }): unknown;
-  };
-};
 
 export interface EnrichmentSnapshot {
   city: string;
+  scope: {
+    core_n: number;
+    hidden_non_core_n: number;
+    hidden_names_sample: string[];
+  };
   totals: {
     hotels: number;
     gold: number;
@@ -21,11 +21,20 @@ export interface EnrichmentSnapshot {
     bronze: number;
     quarantined: number;
     t1_passing: number;
-    t2_passing: number;
+    t2_v1_passing_deprecated: number;
     avg_t1_pct: number;
-    avg_t2_pct: number;
-    institutional_passing_rate: number;
-    goal_reached: boolean;
+    avg_t2_pct_deprecated: number;
+    institutional_passing_rate_deprecated: number;
+    goal_reached_deprecated: boolean;
+    /** v2-oriented · count of CORE-UNDERWRITING fields filled per hotel · 8 fields */
+    avg_underwriting_fields_filled: number;
+    underwriting_fields_total: number;
+  };
+  cohort: {
+    branded_n: number;
+    indie_n: number;
+    branded_with_operator: number;
+    indie_no_parent_operator: number;
   };
   priorityFields: {
     phone: number;
@@ -34,8 +43,9 @@ export interface EnrichmentSnapshot {
     address_line1: number;
     total_rooms: number;
     year_opened: number;
-    operator_id: number;
     wikidata_qid: number;
+    /** branded-only denominator for operator_id */
+    operator_id_branded: number;
   };
   provenance: {
     source_records: number;
@@ -48,11 +58,24 @@ export interface EnrichmentSnapshot {
     sibling_listing: number;
     dismissed: number;
   };
-  topMissingFields: { field: string; missing: number }[];
+  structuralBlockers: { field: string; missing: number; note: string }[];
   lastEnrichedAt: string | null;
 }
 
 const CITY = "Madrid";
+
+// Excluded from the admin / underwriting scope (hidden, NOT deleted).
+// Stays enriched + indexed in canonical; just out-of-view for the
+// Phase D admin panel until the v2 readiness model lands.
+const NAME_EXCLUDE_REGEX =
+  /\b(hostel|albergue|aparthotel|apartahotel|apartamentos|apartments|bob\s?w|smartrental|smart\s?rental|the social hub)\b/i;
+const TYPE_EXCLUDE = new Set(["hostel", "aparthotel", "serviced_apartments", "flex_living"]);
+
+function isCore(h: { canonical_name: string | null; hotel_type: string | null }): boolean {
+  if (h.hotel_type && TYPE_EXCLUDE.has(h.hotel_type)) return false;
+  if (h.canonical_name && NAME_EXCLUDE_REGEX.test(h.canonical_name)) return false;
+  return true;
+}
 
 export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | null> {
   const sb = getSupabaseAdmin() as unknown as {
@@ -67,14 +90,23 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
       } & Promise<{ data: unknown[] | null; error: unknown; count: number | null }>;
     };
   };
-  void ({} as AnySupabase); // silence unused import path
 
   type CanonRow = {
     id: string;
+    canonical_name: string | null;
+    hotel_type: string | null;
+    brand_family: string | null;
+    data_quality_tier: string | null;
     phone: string | null;
     website_url: string | null;
     google_place_id: string | null;
     address_line1: string | null;
+    postal_code: string | null;
+    market_id: string | null;
+    submarket_id: string | null;
+    chain_scale: string | null;
+    segment: string | null;
+    operator_type: string | null;
     total_rooms: number | null;
     year_opened: number | null;
     operator_id: string | null;
@@ -85,13 +117,17 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
   const canonRes = await sb
     .from("hotel_canonical")
     .select(
-      "id,phone,website_url,google_place_id,address_line1,total_rooms,year_opened,operator_id,wikidata_qid,last_enriched_at",
+      "id,canonical_name,hotel_type,brand_family,data_quality_tier,phone,website_url,google_place_id,address_line1,postal_code,market_id,submarket_id,chain_scale,segment,operator_type,total_rooms,year_opened,operator_id,wikidata_qid,last_enriched_at",
     )
     .eq("city_normalized", CITY);
 
   if (canonRes.error || !canonRes.data) return null;
-  const hotels = canonRes.data as unknown as CanonRow[];
-  if (hotels.length === 0) return null;
+  const allHotels = canonRes.data as unknown as CanonRow[];
+  if (allHotels.length === 0) return null;
+
+  // Split: core (visible) vs hidden non-core
+  const hotels = allHotels.filter(isCore);
+  const hidden = allHotels.filter((h) => !isCore(h));
   const hotelIds = hotels.map((h) => h.id);
 
   const [coverageRes, sourcesRes, provRowsRes, dedupRes] = await Promise.all([
@@ -124,6 +160,18 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
 
   if (!coverageRow) return null;
 
+  const total = hotels.length;
+  const branded = hotels.filter((h) => h.brand_family);
+  const indie = hotels.filter((h) => !h.brand_family);
+
+  // Per-tier counts on the CORE-SCOPE only (coverage view counts the full
+  // 224; we re-derive on the filtered subset so the panel is internally
+  // consistent).
+  const gold = hotels.filter((h) => h.data_quality_tier === "gold").length;
+  const silver = hotels.filter((h) => h.data_quality_tier === "silver").length;
+  const bronze = hotels.filter((h) => h.data_quality_tier === "bronze").length;
+  const quarantined = hotels.filter((h) => h.data_quality_tier === "quarantined").length;
+
   const priorityFields = {
     phone: hotels.filter((h) => h.phone).length,
     website_url: hotels.filter((h) => h.website_url).length,
@@ -131,9 +179,30 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
     address_line1: hotels.filter((h) => h.address_line1).length,
     total_rooms: hotels.filter((h) => h.total_rooms != null).length,
     year_opened: hotels.filter((h) => h.year_opened != null).length,
-    operator_id: hotels.filter((h) => h.operator_id).length,
     wikidata_qid: hotels.filter((h) => h.wikidata_qid).length,
+    operator_id_branded: branded.filter((h) => h.operator_id).length,
   };
+
+  // CORE underwriting fields per cap-rate engine — counts how many of
+  // the 8 fields each hotel has populated. Bypasses the equal-weight v1
+  // T2 trap; surfaces actual underwriting readiness signal.
+  // Note: market_id / submarket_id are 0% globally today (PostGIS pending).
+  const UW_FIELDS_TOTAL = 8;
+  const underwritingFilledPerHotel = hotels.map(
+    (h) =>
+      (h.chain_scale ? 1 : 0) +
+      (h.segment ? 1 : 0) +
+      (h.total_rooms != null ? 1 : 0) +
+      (h.market_id ? 1 : 0) +
+      (h.submarket_id ? 1 : 0) +
+      (h.postal_code ? 1 : 0) +
+      ((h.year_opened != null) ? 1 : 0) +
+      (h.operator_type ? 1 : 0),
+  );
+  const avg_underwriting_fields_filled =
+    underwritingFilledPerHotel.length === 0
+      ? 0
+      : underwritingFilledPerHotel.reduce((a, b) => a + b, 0) / underwritingFilledPerHotel.length;
 
   const sourceRows = (sourcesRes.data ?? []) as Array<{ source: string }>;
   const bySourceMap = new Map<string, number>();
@@ -152,17 +221,32 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
     dismissed: dedupRows.filter((d) => d.status === "dismissed").length,
   };
 
-  const total = coverageRow.hotels_total;
-  const topMissingFields = (
+  // Structural blockers (gap to 100%) — exclude operator_id which is
+  // by-design split (branded vs indie · surfaced in the cohort section
+  // instead of as a defect).
+  const structuralBlockers = (
     [
-      { field: "total_rooms", missing: total - priorityFields.total_rooms },
-      { field: "year_opened", missing: total - priorityFields.year_opened },
-      { field: "operator_id (indie)", missing: total - priorityFields.operator_id },
-      { field: "wikidata_qid", missing: total - priorityFields.wikidata_qid },
-      { field: "phone", missing: total - priorityFields.phone },
-      { field: "website_url", missing: total - priorityFields.website_url },
-      { field: "google_place_id", missing: total - priorityFields.google_place_id },
-    ] as Array<{ field: string; missing: number }>
+      {
+        field: "total_rooms",
+        missing: total - priorityFields.total_rooms,
+        note: "Booking E2 does not expose · Wikidata P1106 sparse for ES · path forward: D-8",
+      },
+      {
+        field: "year_opened",
+        missing: total - priorityFields.year_opened,
+        note: "Wikidata P571 sparse for ES (1 hit in 66) · path forward: D-8 chain websites",
+      },
+      {
+        field: "market_id / submarket_id",
+        missing: total,
+        note: "0% across the corpus · path forward: PostGIS Madrid polygons workstream",
+      },
+      {
+        field: "wikidata_qid",
+        missing: total - priorityFields.wikidata_qid,
+        note: "59% hit rate on branded · not applicable to indies without notability",
+      },
+    ] as Array<{ field: string; missing: number; note: string }>
   )
     .filter((r) => r.missing > 0)
     .sort((a, b) => b.missing - a.missing);
@@ -176,18 +260,31 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
 
   return {
     city: CITY,
+    scope: {
+      core_n: total,
+      hidden_non_core_n: hidden.length,
+      hidden_names_sample: hidden.slice(0, 5).map((h) => h.canonical_name ?? "—"),
+    },
     totals: {
-      hotels: coverageRow.hotels_total,
-      gold: coverageRow.hotels_gold,
-      silver: coverageRow.hotels_silver,
-      bronze: coverageRow.hotels_bronze,
-      quarantined: coverageRow.hotels_quarantined,
-      t1_passing: coverageRow.hotels_t1_passing,
-      t2_passing: coverageRow.hotels_t2_passing,
+      hotels: total,
+      gold,
+      silver,
+      bronze,
+      quarantined,
+      t1_passing: coverageRow.hotels_t1_passing, // approximation — view counts full 224
+      t2_v1_passing_deprecated: coverageRow.hotels_t2_passing,
       avg_t1_pct: Number(coverageRow.avg_t1_pct ?? 0),
-      avg_t2_pct: Number(coverageRow.avg_t2_pct ?? 0),
-      institutional_passing_rate: Number(coverageRow.institutional_passing_rate ?? 0),
-      goal_reached: coverageRow.goal_reached,
+      avg_t2_pct_deprecated: Number(coverageRow.avg_t2_pct ?? 0),
+      institutional_passing_rate_deprecated: Number(coverageRow.institutional_passing_rate ?? 0),
+      goal_reached_deprecated: coverageRow.goal_reached,
+      avg_underwriting_fields_filled,
+      underwriting_fields_total: UW_FIELDS_TOTAL,
+    },
+    cohort: {
+      branded_n: branded.length,
+      indie_n: indie.length,
+      branded_with_operator: branded.filter((h) => h.operator_id).length,
+      indie_no_parent_operator: indie.length, // by design
     },
     priorityFields,
     provenance: {
@@ -196,7 +293,7 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
       by_source,
     },
     dedup: dedupCounts,
-    topMissingFields,
+    structuralBlockers,
     lastEnrichedAt,
   };
 }

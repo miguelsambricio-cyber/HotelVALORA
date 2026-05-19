@@ -1,4 +1,4 @@
-import { Database, ShieldCheck, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { Database, ShieldCheck, AlertTriangle, Info, EyeOff } from "lucide-react";
 import type { EnrichmentSnapshot } from "@/lib/admin/hotels/enrichment-stats";
 
 interface Props {
@@ -28,17 +28,19 @@ export function EnrichmentPanel({ snapshot }: Props) {
   const total = t.hotels;
   const pct = (n: number) => (total === 0 ? 0 : Math.round((n / total) * 100));
 
-  const goalTone = t.goal_reached ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200";
-
   return (
     <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {/* Header + legacy-spec badge (slate · not amber) */}
       <div className="flex flex-wrap items-center gap-2">
         <Database size={14} className="text-slate-400" aria-hidden />
         <h2 className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-500">
           {snapshot.city} enrichment · Phase D
         </h2>
-        <span className={`rounded px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] ring-1 ${goalTone}`}>
-          T2 goal · {t.goal_reached ? "reached" : `${(t.institutional_passing_rate * 100).toFixed(0)}% / 70%`}
+        <span
+          title="T2 v1 equal-weight spec is deprecated per strategic-model-audit-v1. v2 readiness (underwriting_ready / library_ready / premium_report_ready) pending operator decision."
+          className="rounded px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] ring-1 bg-slate-100 text-slate-600 ring-slate-200"
+        >
+          T2 v1 spec · LEGACY · v2 readiness pending
         </span>
         {snapshot.lastEnrichedAt && (
           <span className="ml-auto font-mono text-[10.5px] text-slate-500">
@@ -47,65 +49,175 @@ export function EnrichmentPanel({ snapshot }: Props) {
         )}
       </div>
 
-      {/* Tier distribution */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Gold" value={t.gold} tone="emerald" hint={`${pct(t.gold)}%`} />
-        <Stat label="Silver" value={t.silver} tone="slate" hint={`${pct(t.silver)}%`} />
-        <Stat label="Bronze" value={t.bronze} tone="amber" hint={`${pct(t.bronze)}%`} />
-        <Stat label="Quarantined" value={t.quarantined} tone={t.quarantined > 0 ? "rose" : "slate"} hint={`${pct(t.quarantined)}%`} />
+      {/* Transition / audit banner */}
+      <div className="rounded-lg border border-slate-300 bg-slate-50 p-2.5 text-[11.5px] leading-snug text-slate-700">
+        <Info size={11} className="-mt-0.5 mr-1 inline text-slate-500" aria-hidden />
+        T2 equal-weight metric under audit (2026-05-20). v2 readiness scores
+        (<code className="font-mono">underwriting_ready</code> ·{" "}
+        <code className="font-mono">library_ready</code> ·{" "}
+        <code className="font-mono">premium_report_ready</code>) pending operator decision per{" "}
+        <a
+          href="https://github.com/miguelsambricio-cyber/HotelVALORA/blob/feature/hotel-enrichment-pipeline/docs/hotel-intelligence/strategic-model-audit-v1.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-slate-900"
+        >
+          strategic-model-audit-v1
+        </a>
+        . Numbers below are factual; T2 v1 stats are kept for traceability but should not drive decisions.
       </div>
 
-      {/* Operator-priority field coverage */}
+      {/* Scope indicator */}
+      <div className="rounded-lg border border-slate-200 bg-white p-2.5 text-[11.5px] leading-snug text-slate-600">
+        <EyeOff size={11} className="-mt-0.5 mr-1 inline text-slate-400" aria-hidden />
+        Scope · core hotels only ·{" "}
+        <span className="font-mono font-semibold text-slate-900">{snapshot.scope.core_n}</span> visible ·{" "}
+        <span className="font-mono">{snapshot.scope.hidden_non_core_n}</span> hidden (hostels / apartments / flex-living
+        / serviced-apartments — retained in DB · re-included once v2 cohort split lands)
+        {snapshot.scope.hidden_names_sample.length > 0 && (
+          <span className="block pl-4 text-[10.5px] text-slate-500">
+            e.g. {snapshot.scope.hidden_names_sample.join(" · ")}
+          </span>
+        )}
+      </div>
+
+      {/* Data-quality tier distribution */}
       <div>
         <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
-          Operator-priority field coverage · {total} hotels
+          Data-quality tier (canonical row) · core scope
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Gold" value={t.gold} tone="emerald" hint={`${pct(t.gold)}%`} />
+          <Stat label="Silver" value={t.silver} tone="slate" hint={`${pct(t.silver)}%`} />
+          <Stat label="Bronze" value={t.bronze} tone="amber" hint={`${pct(t.bronze)}%`} />
+          <Stat label="Quarantined" value={t.quarantined} tone={t.quarantined > 0 ? "rose" : "slate"} hint={`${pct(t.quarantined)}%`} />
+        </div>
+      </div>
+
+      {/* Cohort split — branded vs indie · operator_id by-design clarification */}
+      <div>
+        <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+          Cohort · branded vs independent
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat
+            label="Branded · with operator"
+            value={snapshot.cohort.branded_with_operator}
+            tone="emerald"
+            hint={`100% of ${snapshot.cohort.branded_n} branded`}
+          />
+          <Stat
+            label="Branded · without operator"
+            value={snapshot.cohort.branded_n - snapshot.cohort.branded_with_operator}
+            tone={snapshot.cohort.branded_n - snapshot.cohort.branded_with_operator > 0 ? "amber" : "slate"}
+            hint="registry gap"
+          />
+          <Stat
+            label="Indie · no parent operator"
+            value={snapshot.cohort.indie_no_parent_operator}
+            tone="slate"
+            hint="by design"
+          />
+          <Stat
+            label="Total core"
+            value={total}
+            tone="slate"
+            hint={`${snapshot.cohort.branded_n} branded · ${snapshot.cohort.indie_n} indie`}
+          />
+        </div>
+      </div>
+
+      {/* Operator-priority data completeness · field bars */}
+      <div>
+        <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+          Data completeness · operator-priority fields · {total} core hotels
         </p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <FieldBar label="phone" filled={p.phone} total={total} />
           <FieldBar label="website_url" filled={p.website_url} total={total} />
           <FieldBar label="google_place_id" filled={p.google_place_id} total={total} />
           <FieldBar label="address_line1" filled={p.address_line1} total={total} />
-          <FieldBar label="operator_id" filled={p.operator_id} total={total} hint={`${pct(p.operator_id)}% (branded only)`} />
+          <FieldBar
+            label="operator_id (branded denom)"
+            filled={p.operator_id_branded}
+            total={snapshot.cohort.branded_n}
+            hint="branded-only · indies excluded by design"
+          />
           <FieldBar label="wikidata_qid" filled={p.wikidata_qid} total={total} />
           <FieldBar label="total_rooms" filled={p.total_rooms} total={total} tone="blocker" />
           <FieldBar label="year_opened" filled={p.year_opened} total={total} tone="blocker" />
         </div>
       </div>
 
-      {/* T1 / T2 passing */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat
-          label="T1 passing"
-          value={t.t1_passing}
-          tone={t.t1_passing > total * 0.7 ? "emerald" : "amber"}
-          hint={`avg ${(t.avg_t1_pct * 100).toFixed(0)}%`}
-        />
-        <Stat
-          label="T2 passing"
-          value={t.t2_passing}
-          tone={t.t2_passing > 0 ? "emerald" : "amber"}
-          hint={`avg ${(t.avg_t2_pct * 100).toFixed(0)}%`}
-        />
-        <Stat
-          label="Source records"
-          value={snapshot.provenance.source_records}
-          tone="slate"
-          hint={`${snapshot.provenance.by_source.length} sources`}
-        />
-        <Stat
-          label="Field provenance"
-          value={snapshot.provenance.field_provenance_rows}
-          tone="slate"
-          hint="audit rows"
-        />
+      {/* T1 + v2-oriented underwriting fields preview + provenance/audit */}
+      <div>
+        <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+          Underwriting coverage · core-fields fill + audit trail
+        </p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat
+            label="T1 passing"
+            value={t.t1_passing}
+            tone={t.t1_passing > total * 0.7 ? "emerald" : "amber"}
+            hint={`avg ${(t.avg_t1_pct * 100).toFixed(0)}%`}
+          />
+          <Stat
+            label="Core underwriting fields"
+            value={Number(t.avg_underwriting_fields_filled.toFixed(1))}
+            tone={t.avg_underwriting_fields_filled >= 6 ? "emerald" : t.avg_underwriting_fields_filled >= 4 ? "amber" : "slate"}
+            hint={`avg / ${t.underwriting_fields_total} · cap-rate inputs`}
+          />
+          <Stat
+            label="Source records"
+            value={snapshot.provenance.source_records}
+            tone="slate"
+            hint={`${snapshot.provenance.by_source.length} sources`}
+          />
+          <Stat
+            label="Field provenance"
+            value={snapshot.provenance.field_provenance_rows}
+            tone="slate"
+            hint="audit rows"
+          />
+        </div>
       </div>
 
-      {/* By source + Dedup */}
+      {/* Legacy T2 v1 stats kept for traceability, clearly deprecated */}
+      <details className="rounded-lg border border-slate-200 bg-slate-50/40 p-3">
+        <summary className="cursor-pointer font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
+          T2 v1 spec (deprecated · for traceability)
+        </summary>
+        <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Stat
+            label="T2 v1 (deprecated)"
+            value={t.t2_v1_passing_deprecated}
+            tone="slate"
+            hint="see audit · do not gate on this"
+          />
+          <Stat
+            label="v1 passing rate (deprecated)"
+            value={Math.round(t.institutional_passing_rate_deprecated * 100)}
+            tone="slate"
+            hint="% · do not interpret as goal"
+          />
+          <Stat
+            label="T1 avg (kept)"
+            value={Math.round(t.avg_t1_pct * 100)}
+            tone="slate"
+            hint="% · T1 floor not deprecated"
+          />
+        </div>
+        <p className="mt-2 font-mono text-[10.5px] text-slate-500">
+          T2 v1 averaged cosmetic + underwriting-critical fields with equal weight. Replaced by core-fields fill + cohort-split readiness scores in v2.
+        </p>
+      </details>
+
+      {/* Provenance by source + Dedup queue */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
           <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
             <ShieldCheck size={11} className="-mt-px mr-1 inline text-slate-400" aria-hidden />
-            Provenance by source
+            Provenance by source · core scope
           </p>
           <ul className="space-y-1">
             {snapshot.provenance.by_source.map((s) => (
@@ -122,7 +234,7 @@ export function EnrichmentPanel({ snapshot }: Props) {
         <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
           <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-slate-500">
             <AlertTriangle size={11} className="-mt-px mr-1 inline text-amber-400" aria-hidden />
-            Dedup queue
+            Dedup queue · entire corpus
           </p>
           <ul className="space-y-1">
             <li className="flex items-baseline justify-between gap-2">
@@ -145,33 +257,21 @@ export function EnrichmentPanel({ snapshot }: Props) {
         </div>
       </div>
 
-      {/* Top missing */}
-      {snapshot.topMissingFields.length > 0 && (
+      {/* Structural blockers · root cause noted per field */}
+      {snapshot.structuralBlockers.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
           <p className="mb-1.5 font-headline text-[9.5px] font-extrabold uppercase tracking-[0.22em] text-amber-900">
-            Most-missing priority fields (gap to 100%)
+            Structural data gaps · root cause + path forward
           </p>
-          <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-            {snapshot.topMissingFields.slice(0, 6).map((f) => (
-              <li key={f.field} className="flex items-baseline justify-between gap-2 font-mono text-[11px] text-amber-900">
-                <span>{f.field}</span>
-                <span className="tabular-nums">−{f.missing} hotels</span>
+          <ul className="space-y-1.5">
+            {snapshot.structuralBlockers.slice(0, 6).map((f) => (
+              <li key={f.field} className="text-[11px] leading-snug text-amber-900">
+                <span className="inline-block min-w-[180px] font-mono">{f.field}</span>
+                <span className="font-mono tabular-nums">−{f.missing} hotels</span>
+                <span className="block pl-[180px] font-mono text-[10.5px] text-amber-800/80">{f.note}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-[11px] leading-relaxed text-amber-900">
-            <code className="font-mono">total_rooms</code> + <code className="font-mono">year_opened</code> are blocked by source
-            absence (Booking E2 doesn&apos;t expose them; Wikidata P571/P1106 sparse for ES). Path forward documented in{" "}
-            <a
-              href="https://github.com/miguelsambricio-cyber/HotelVALORA/blob/feature/hotel-enrichment-pipeline/docs/hotel-intelligence/phase-d8-hotel-website-design-v1.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-amber-700"
-            >
-              phase-d8-hotel-website-design-v1.md <ArrowUpRight size={10} className="-mt-0.5 inline" aria-hidden />
-            </a>
-            .
-          </p>
         </div>
       )}
     </section>
