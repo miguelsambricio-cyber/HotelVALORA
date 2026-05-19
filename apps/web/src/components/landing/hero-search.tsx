@@ -5,15 +5,31 @@
  *
  * Owns router navigation so the server-component HeroSection stays clean.
  *
- * Routing contract (post-Madrid-Centro integration · 2026-05-19):
- *   onSelect    → /madrid-centro?q=<hotel name>  · the chooser scopes to a soft-match
- *   onViewAll   → /madrid-centro?q=<query>        · same · always lands on a populated surface
- *   onMapView   → /madrid-centro                  · the institutional showcase replaces /compset
+ * Routing contract (post-Tier-1 restoration · 2026-05-20):
+ *   onSelect    → /madrid-centro?q=<hotel name>  · curated showcase chooser
+ *                                                  (soft-match against the
+ *                                                   3-hotel Madrid Centro
+ *                                                   institutional dataset)
+ *   onViewAll   → /madrid-centro?q=<query>        · same · always lands on
+ *                                                  a populated surface ·
+ *                                                  free-text Enter target
+ *   onMapView   → /compset                        · institutional map flow
+ *                                                  (Mapbox GL interactive ·
+ *                                                  competitor panel ·
+ *                                                  separate from the
+ *                                                  curated showcase)
+ *
+ * Why two destinations:
+ *   · `/madrid-centro` is the curated demo · 3 anonymised reference hotels ·
+ *     deterministic SSG · always populated.
+ *   · `/compset` is the institutional workflow surface · interactive map +
+ *     competitor selection · the canonical step-2 of the valuation flow.
+ *   The Map button explicitly opts into `/compset` so the institutional
+ *   flow stays reachable from the landing. A previous revision routed Map
+ *   to `/madrid-centro` which collapsed the two surfaces · this restored.
  *
  * Why not /assets/hotels: that route fronts the FastAPI dashboard which is
- * no longer wired in production · would yield an empty table. The Madrid
- * Centro showcase is the canonical institutional surface for now and
- * always renders something.
+ * no longer wired in production · would yield an empty table.
  */
 
 import { useRouter } from "next/navigation";
@@ -41,7 +57,7 @@ export function HeroSearch({ className }: HeroSearchProps) {
   }
 
   function handleMapView() {
-    router.push("/madrid-centro");
+    router.push("/compset");
   }
 
   return (
