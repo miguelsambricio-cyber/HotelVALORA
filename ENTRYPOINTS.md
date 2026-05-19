@@ -83,6 +83,18 @@ Maps tasks to exact files. Start here before scanning.
 | Madrid municipios alias table (19 metro entries fold to `city_normalized="Madrid"` + 4 separate-market entries) | `apps/web/src/lib/enrichment/registries/madrid-municipios.ts` |
 | `accommodation_type_name` → `hotel_type` + segment derivation rules | `apps/web/src/lib/enrichment/registries/hotel-types.ts` |
 | Registries barrel + conventions | `apps/web/src/lib/enrichment/registries/{index.ts,README.md}` |
+| **Madrid bootstrap plan v1 (6 phases A–F · entry conditions · success criteria · rollback · operator touch points)** | `docs/hotel-intelligence/madrid-bootstrap-plan-v1.md` |
+| **Booking RapidAPI provider scaffold v1 (dry-run mode · NO HTTP calls · NO live mode)** | `apps/web/src/lib/enrichment/providers/booking-rapidapi/` |
+| RapidAPI response shapes (E0/E1/E2/E3) — typed | `apps/web/src/lib/enrichment/providers/booking-rapidapi/types.ts` |
+| Env contract + tier helpers (`loadConfig`, `tierMonthlyQuota`) | `apps/web/src/lib/enrichment/providers/booking-rapidapi/config.ts` |
+| Mode-aware client (live / dry-run / recorded-fixture) — live throws Phase 1 | `apps/web/src/lib/enrichment/providers/booking-rapidapi/client.ts` |
+| Typed endpoint wrappers (searchLocations · searchHotels · getHotelData · getHotelFacilities) | `apps/web/src/lib/enrichment/providers/booking-rapidapi/endpoints.ts` |
+| Defensive payload parser with validation gates | `apps/web/src/lib/enrichment/providers/booking-rapidapi/parse.ts` |
+| Parsed → CanonicalHotelDraft + ProvenanceEntry[] mapper (uses registries) | `apps/web/src/lib/enrichment/providers/booking-rapidapi/map-to-canonical.ts` |
+| `runDryRun()` orchestrator with TIER-0/1/2 counts | `apps/web/src/lib/enrichment/providers/booking-rapidapi/dry-run.ts` |
+| Provider barrel + README | `apps/web/src/lib/enrichment/providers/booking-rapidapi/{index.ts,README.md}` |
+| 3 Madrid fixture payloads (Ritz luxury · NH Collection upscale · Ibis economy ES-only) + sample outputs + aggregate | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/` |
+| Dry-run runner (TypeScript script — runnable via tsx once dev-dep added) | `apps/web/scripts/enrichment-booking-dry-run.ts` |
 | Migration draft (DDL only, NOT applied) | filename reserved: `0008_hotel_enrichment_schema.sql` (to live under `docs/database/migrations/` when phase 2 begins) |
 | Positioning | runs inside existing Data Ingestion Agent (`apps/web/src/lib/ai-agents/agents/data-ingestion.ts`) as `enrich_hotel` tool |
 | Reuse — composite dedup scoring (35/30/20/10/5) | `apps/api/app/services/dedup_service.py` (pattern only — inlined per project rule) |

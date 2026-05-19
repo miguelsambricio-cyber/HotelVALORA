@@ -1,0 +1,49 @@
+{
+  "__fixture_meta": {
+    "label": "ibis-centro-las-ventas",
+    "purpose": "Accor economy 3★ · Spanish-language facility list · sparse amenities · tests multilingual amenity normalization and missing-field handling",
+    "synthetic_hotel_id": "99000003",
+    "shape": "RapidApiHotelData (E2)",
+    "phase_1_expected": "TIER-0 8/8 · TIER-1 11/12 · TIER-2 ~8/19 (will need fallback)"
+  },
+  "hotel_id": 99000003,
+  "name": "Ibis Madrid Centro Las Ventas (Fixture)",
+  "name_trans": {
+    "es": "Ibis Madrid Centro Las Ventas",
+    "en": "Ibis Madrid Centro Las Ventas"
+  },
+  "address": "Calle de Valderribas, 32",
+  "city": "Madrid",
+  "city_trans": "Madrid",
+  "city_name_en": "Madrid",
+  "district": "Salamanca",
+  "zip": "28007",
+  "cc1": "es",
+  "country": "Spain",
+  "region": "Comunidad de Madrid",
+  "latitude": 40.418720,
+  "longitude": -3.665440,
+  "class": 3,
+  "accommodation_type_id": 204,
+  "accommodation_type_name": "Hotel",
+  "chain_id": "accor-ibis",
+  "chain_name": "Ibis",
+  "review_score": 7.9,
+  "review_nr": 2654,
+  "review_score_word": "Good",
+  "url": "https://www.booking.com/hotel/es/ibis-centro-las-ventas-fixture.html",
+  "phone": "+34 91 555 12 34",
+  "main_photo_url": "https://cf.bstatic.com/fixture/ibis-las-ventas-hero.jpg",
+  "facilities": [
+    "WiFi gratis",
+    "Bar de hotel",
+    "Restaurante",
+    "Aparcamiento",
+    "Recepción 24 horas",
+    "Aire acondicionado",
+    "Habitaciones no fumadores",
+    "Sala de fitness"
+  ],
+  "is_closed": false,
+  "description": "Mid-range economy chain hotel near Las Ventas (FIXTURE — synthetic record for dry-run only). Facility list provided in Spanish to exercise multilingual amenity normalization."
+}

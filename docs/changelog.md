@@ -4,6 +4,25 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-19 — Hotel Enrichment Pipeline · Madrid bootstrap plan + Booking RapidAPI provider scaffold (dry-run)
+
+- **Milestone 2 of autonomous workstream.** Phase 1 architecture-only; no HTTP calls, no DB writes. Operator gate: review the 3 sample dry-run outputs before authorising Phase B (RapidAPI procurement + live mode).
+- **Madrid bootstrap plan v1** — `docs/hotel-intelligence/madrid-bootstrap-plan-v1.md`. 6 sequential phases (A schema landing · B RapidAPI procurement · C 50-hotel smoke pilot · D ~1,800-hotel first sweep · E fallback enrichment · F coverage drive) with entry conditions, success criteria, rollback, and operator touch points per phase. Total well-paced timeline ~4 weeks from Phase A to `goal_reached = true`. Cross-phase invariants ratified (no underwriting/report-system/sync, scraping only at Phase E within Tier-Z bounds, audit_log records every canonical mutation).
+- **Booking RapidAPI provider scaffold v1** — `apps/web/src/lib/enrichment/providers/booking-rapidapi/`. ~1,400 lines TS. Mode-aware client (live / dry-run / recorded-fixture); live mode stubbed and throws (Phase 3 work item). Endpoint wrappers for E0–E3 with publisher-validation deferred. Defensive parser with field-level validation gates (geo range, postal regex, country code, star range, review score range). Mapper from parsed payload → CanonicalHotelDraft + ProvenanceEntry[] using the registries shipped in Milestone 1. Tier-A confidence floors aligned with arch doc §3 (self-authoritative 1.00 / validated structural 0.85–0.95 / standard 0.85 / heuristic 0.70–0.85). Dry-run orchestrator emits per-fixture coverage counts (TIER-0/1/2) and diagnostics.
+- **Fixtures + sample outputs (operator review artifacts)** — 3 representative Madrid hotels: (1) Ritz by Belmond (luxury · 5★ · central · Belmond LVMH); (2) NH Collection Eurobuilding (upper_upscale · 4★ · Chamartín · NH Hotel Group · MICE-heavy with rooftop); (3) Ibis Madrid Centro Las Ventas (midscale · 3★ · Salamanca · Accor · **Spanish-only facility list** + **missing total_rooms** — designed to exercise multilingual normalization AND demonstrate why fallback is mandatory). Each fixture has a hand-computed deterministic `sample-output-<label>.json` showing parse → mapping → provenance → coverage tiers. Aggregate file shows: avg TIER-2 coverage 43.9% (Booking-only ceiling) vs 84% institutional threshold = **40.1pp gap**, empirically confirming the architecture-doc estimate that the fallback chain is mandatory.
+- **Runner script** — `apps/web/scripts/enrichment-booking-dry-run.ts`. Reads fixtures, runs the pipeline, writes per-fixture + aggregate outputs. Requires `tsx` (dev-dep addition deferred to Phase 2 to avoid lockfile churn in milestone branch); hand-computed outputs ship as the operator-facing artifact in the meantime.
+- **Calibration evidence in sample outputs**:
+  - Brand registry resolved 3/3 (Belmond luxury · NH upper_upscale · Accor midscale).
+  - Municipio registry resolved 3/3 via postal-prefix lookup at 0.95 confidence (geo-anchored — highest authority).
+  - Hotel-type registry resolved 3/3 to `urban` from the generic `Hotel` type at 0.70 (expected lower confidence for non-specific accommodation types).
+  - Segment derivation correctly used `chain_scale` (highest priority) in all 3 cases.
+  - Spanish-only Ibis fixture: 4/8 facility strings matched (bar de hotel · restaurante · aparcamiento · sala de fitness). The 4 unmapped strings are outside the canonical 14-key institutional set (WiFi · 24h reception · A/C · non-smoking — these are universal, not differentiating, hence excluded from the institutional bitmap).
+- **Phase 1 hard rules still in force**: NO live HTTP calls (live mode throws) · NO scraping · NO image bulk download · NO touch on underwriting/report-system/sync · migration 0024 NOT applied · no dev-dep changes (tsx deferred).
+- **Operator gate now open**: review the 3 `sample-output-*.json` files. If calibration looks right, Phase B (RapidAPI subscription + env var provisioning + live mode implementation) can begin.
+- ENTRYPOINTS.md updated with 12 new rows.
+
+---
+
 ## 2026-05-19 — Hotel Enrichment Pipeline · Foundation layer (coverage targets · registries · migration draft 0024)
 
 - Operator switched workstream to autonomous mode targeting ~80% Madrid feature coverage for institutional reports. This milestone lands the foundation: what 80% means, how it is measured, the lookup data that drives normalization, and the schema to store everything.

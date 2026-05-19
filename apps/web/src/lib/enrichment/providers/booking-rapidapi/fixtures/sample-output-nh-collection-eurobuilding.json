@@ -1,0 +1,149 @@
+{
+  "__note": "Hand-computed deterministic output of runDryRun() against madrid-nh-collection-eurobuilding.json. Provenance array trimmed to representative entries.",
+  "label": "nh-collection-eurobuilding",
+  "parse": {
+    "parsed": {
+      "bookingHotelId": "99000002",
+      "name": "NH Collection Madrid Eurobuilding (Fixture)",
+      "legalName": null,
+      "addressLine1": "Calle del Padre Damián, 23",
+      "addressLine2": null,
+      "city": "Madrid",
+      "district": "Chamartín",
+      "postalCode": "28036",
+      "countryCode": "ES",
+      "region": "Comunidad de Madrid",
+      "lat": 40.460153,
+      "lng": -3.689247,
+      "starRating": 4,
+      "accommodationTypeName": "Hotel",
+      "accommodationTypeId": 204,
+      "totalRooms": 412,
+      "chainId": "nh-hotel-group",
+      "chainName": "NH Collection",
+      "brand": "NH Collection",
+      "reviewScore": 8.7,
+      "reviewCount": 3104,
+      "reviewScoreWord": "Fabulous",
+      "bookingUrl": "https://www.booking.com/hotel/es/nh-eurobuilding-fixture.html",
+      "websiteUrl": null,
+      "phone": "+34 91 353 73 00",
+      "email": null,
+      "mainPhotoUrl": "https://cf.bstatic.com/fixture/nh-eurobuilding-hero.jpg",
+      "rawFacilities": [
+        "Free WiFi", "Bar", "Restaurant", "Fitness centre",
+        "Indoor pool", "Outdoor pool", "Rooftop bar", "Spa",
+        "Private parking", "Meeting/banquet facilities",
+        "Business centre", "Banquet facilities",
+        "24-hour front desk", "Concierge service", "Laundry service",
+        "Air conditioning", "Non-smoking rooms", "Family rooms"
+      ],
+      "isClosed": false,
+      "warnings": []
+    },
+    "hasCriticalGaps": false,
+    "criticalGaps": []
+  },
+  "mapping": {
+    "draft": {
+      "canonical_name": "NH Collection Madrid Eurobuilding (Fixture)",
+      "legal_name": null,
+      "brand": "NH Collection",
+      "brand_family": "NH Hotel Group",
+      "chain_scale": "upper_upscale",
+      "star_rating": 4,
+      "hotel_type": "urban",
+      "segment": "upper_upscale",
+      "address_line1": "Calle del Padre Damián, 23",
+      "address_line2": null,
+      "city": "Madrid",
+      "city_normalized": "Madrid",
+      "postal_code": "28036",
+      "country_code": "ES",
+      "region": "Comunidad de Madrid",
+      "neighborhood": "Chamartín",
+      "lat": 40.460153,
+      "lng": -3.689247,
+      "total_rooms": 412,
+      "amenities": {
+        "bar": true,
+        "restaurant": true,
+        "rooftop": true,
+        "spa": true,
+        "gym": true,
+        "pool": true,
+        "parking": true,
+        "meet": true,
+        "business_center": true,
+        "kids_club": null,
+        "beach_access": null,
+        "golf": null,
+        "casino": null,
+        "marina": null
+      },
+      "review_score": 8.7,
+      "review_count": 3104,
+      "primary_review_source": "booking_rapidapi",
+      "website_url": null,
+      "phone": "+34 91 353 73 00",
+      "booking_url": "https://www.booking.com/hotel/es/nh-eurobuilding-fixture.html",
+      "hero_image_path": "https://cf.bstatic.com/fixture/nh-eurobuilding-hero.jpg",
+      "booking_hotel_id": "99000002",
+      "primary_source": "booking_rapidapi",
+      "status": "active"
+    },
+    "provenance_sample": [
+      { "field": "brand",                "value": "NH Collection",      "confidence": 0.85, "rationale": "booking_e2_chain_name_registry_hit" },
+      { "field": "brand_family",         "value": "NH Hotel Group",     "confidence": 0.85, "rationale": "registry_brand_family_lookup" },
+      { "field": "chain_scale",          "value": "upper_upscale",      "confidence": 0.85, "rationale": "registry_chain_scale_lookup" },
+      { "field": "segment",              "value": "upper_upscale",      "confidence": 0.85, "rationale": "segment_derived:chain_scale_from_brand_registry" },
+      { "field": "city_normalized",      "value": "Madrid",             "confidence": 0.95, "rationale": "municipio_registry_postal" },
+      { "field": "neighborhood",         "value": "Chamartín",          "confidence": 0.70, "rationale": "booking_e2_district" },
+      { "field": "amenities.rooftop",    "value": true,                 "confidence": 0.75, "rationale": "amenity_matched:rooftop bar" },
+      { "field": "amenities.meet",       "value": true,                 "confidence": 0.85, "rationale": "amenity_matched:meeting banquet facilities" },
+      { "field": "amenities.business_center", "value": true,            "confidence": 0.85, "rationale": "amenity_matched:business centre" }
+    ],
+    "diagnostics": {
+      "unmappedAmenities": [
+        "Free WiFi", "24-hour front desk", "Concierge service",
+        "Laundry service", "Air conditioning", "Non-smoking rooms",
+        "Family rooms"
+      ],
+      "brandUnresolved": false,
+      "municipioUnresolved": false,
+      "hotelTypeUnresolved": false,
+      "parserWarnings": [],
+      "notes": []
+    },
+    "amenityResolutions_count": 9,
+    "municipioResolution": {
+      "displayName": "Madrid",
+      "cityNormalized": "Madrid",
+      "source": "postal",
+      "confidence": 0.95
+    },
+    "segmentResolution": {
+      "segment": "upper_upscale",
+      "confidence": 0.85,
+      "rationale": "chain_scale_from_brand_registry"
+    },
+    "populatedFieldCount": 30
+  },
+  "preCoverage": {
+    "tier0Count": 8,
+    "tier1Count": 12,
+    "tier2Count": 9,
+    "determinedAmenityKeys": 9
+  },
+  "summary": {
+    "canonicalNamePopulated": true,
+    "brandFamilyResolved": true,
+    "municipioFolded": true,
+    "municipioFoldedTo": "Madrid",
+    "hotelTypeResolved": true,
+    "segmentDerived": "upper_upscale",
+    "populatedFieldCount": 30,
+    "unmappedAmenityCount": 7,
+    "criticalGapCount": 0
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "__note": "Hand-computed deterministic output of runDryRun() against madrid-ibis-centro-las-ventas.json. This fixture has Spanish-only facility strings AND missing total_rooms — designed to exercise the multilingual normalizer and demonstrate the realistic case where Booking-only does NOT reach TIER-1 (amenity sub-check fails at 4<5).",
+  "label": "ibis-centro-las-ventas",
+  "parse": {
+    "parsed": {
+      "bookingHotelId": "99000003",
+      "name": "Ibis Madrid Centro Las Ventas (Fixture)",
+      "legalName": null,
+      "addressLine1": "Calle de Valderribas, 32",
+      "addressLine2": null,
+      "city": "Madrid",
+      "district": "Salamanca",
+      "postalCode": "28007",
+      "countryCode": "ES",
+      "region": "Comunidad de Madrid",
+      "lat": 40.41872,
+      "lng": -3.66544,
+      "starRating": 3,
+      "accommodationTypeName": "Hotel",
+      "accommodationTypeId": 204,
+      "totalRooms": null,
+      "chainId": "accor-ibis",
+      "chainName": "Ibis",
+      "brand": "Ibis",
+      "reviewScore": 7.9,
+      "reviewCount": 2654,
+      "reviewScoreWord": "Good",
+      "bookingUrl": "https://www.booking.com/hotel/es/ibis-centro-las-ventas-fixture.html",
+      "websiteUrl": null,
+      "phone": "+34 91 555 12 34",
+      "email": null,
+      "mainPhotoUrl": "https://cf.bstatic.com/fixture/ibis-las-ventas-hero.jpg",
+      "rawFacilities": [
+        "WiFi gratis", "Bar de hotel", "Restaurante", "Aparcamiento",
+        "Recepción 24 horas", "Aire acondicionado",
+        "Habitaciones no fumadores", "Sala de fitness"
+      ],
+      "isClosed": false,
+      "warnings": []
+    },
+    "hasCriticalGaps": false,
+    "criticalGaps": []
+  },
+  "mapping": {
+    "draft": {
+      "canonical_name": "Ibis Madrid Centro Las Ventas (Fixture)",
+      "legal_name": null,
+      "brand": "Ibis",
+      "brand_family": "Accor",
+      "chain_scale": "midscale",
+      "star_rating": 3,
+      "hotel_type": "urban",
+      "segment": "midscale",
+      "address_line1": "Calle de Valderribas, 32",
+      "address_line2": null,
+      "city": "Madrid",
+      "city_normalized": "Madrid",
+      "postal_code": "28007",
+      "country_code": "ES",
+      "region": "Comunidad de Madrid",
+      "neighborhood": "Salamanca",
+      "lat": 40.41872,
+      "lng": -3.66544,
+      "total_rooms": null,
+      "amenities": {
+        "bar": true,
+        "restaurant": true,
+        "rooftop": null,
+        "spa": null,
+        "gym": true,
+        "pool": null,
+        "parking": true,
+        "meet": null,
+        "business_center": null,
+        "kids_club": null,
+        "beach_access": null,
+        "golf": null,
+        "casino": null,
+        "marina": null
+      },
+      "review_score": 7.9,
+      "review_count": 2654,
+      "primary_review_source": "booking_rapidapi",
+      "website_url": null,
+      "phone": "+34 91 555 12 34",
+      "booking_url": "https://www.booking.com/hotel/es/ibis-centro-las-ventas-fixture.html",
+      "hero_image_path": "https://cf.bstatic.com/fixture/ibis-las-ventas-hero.jpg",
+      "booking_hotel_id": "99000003",
+      "primary_source": "booking_rapidapi",
+      "status": "active"
+    },
+    "provenance_sample": [
+      { "field": "brand",                "value": "Ibis",         "confidence": 0.85, "rationale": "booking_e2_chain_name_registry_hit" },
+      { "field": "brand_family",         "value": "Accor",        "confidence": 0.85, "rationale": "registry_brand_family_lookup" },
+      { "field": "chain_scale",          "value": "midscale",     "confidence": 0.85, "rationale": "registry_chain_scale_lookup" },
+      { "field": "segment",              "value": "midscale",     "confidence": 0.85, "rationale": "segment_derived:chain_scale_from_brand_registry" },
+      { "field": "amenities.bar",        "value": true,           "confidence": 0.85, "rationale": "amenity_matched:bar de hotel" },
+      { "field": "amenities.restaurant", "value": true,           "confidence": 0.85, "rationale": "amenity_matched:restaurante" },
+      { "field": "amenities.gym",        "value": true,           "confidence": 0.90, "rationale": "amenity_matched:sala de fitness" },
+      { "field": "amenities.parking",    "value": true,           "confidence": 0.85, "rationale": "amenity_matched:aparcamiento" }
+    ],
+    "diagnostics": {
+      "unmappedAmenities": [
+        "WiFi gratis", "Recepción 24 horas", "Aire acondicionado",
+        "Habitaciones no fumadores"
+      ],
+      "brandUnresolved": false,
+      "municipioUnresolved": false,
+      "hotelTypeUnresolved": false,
+      "parserWarnings": [],
+      "notes": []
+    },
+    "amenityResolutions_count": 4,
+    "municipioResolution": {
+      "displayName": "Madrid",
+      "cityNormalized": "Madrid",
+      "source": "postal",
+      "confidence": 0.95
+    },
+    "segmentResolution": {
+      "segment": "midscale",
+      "confidence": 0.85,
+      "rationale": "chain_scale_from_brand_registry"
+    },
+    "populatedFieldCount": 26
+  },
+  "preCoverage": {
+    "tier0Count": 8,
+    "tier1Count": 10,
+    "tier2Count": 8,
+    "determinedAmenityKeys": 4
+  },
+  "summary": {
+    "canonicalNamePopulated": true,
+    "brandFamilyResolved": true,
+    "municipioFolded": true,
+    "municipioFoldedTo": "Madrid",
+    "hotelTypeResolved": true,
+    "segmentDerived": "midscale",
+    "populatedFieldCount": 26,
+    "unmappedAmenityCount": 4,
+    "criticalGapCount": 0
+  },
+  "__institutional_notes": [
+    "TIER-1 = 10/12 (fails: total_rooms missing → -1; amenities only 4 determined keys, below the ≥5 floor → -1).",
+    "This is the realistic case showing why Booking alone does NOT reach institutional minimum. Fallback (hotel website + Google Places + Tripadvisor) must close the gap on (a) total_rooms and (b) additional amenities.",
+    "Spanish-language amenity normalization PASSED: 4 of 8 raw strings mapped via multilingual aliases (bar de hotel, restaurante, aparcamiento, sala de fitness). The 4 unmapped strings are outside the canonical 14-key institutional set."
+  ]
+}
