@@ -17,10 +17,16 @@ export default function ExecutiveSummaryPage() {
   return (
     <ReportShell>
       <div className="space-y-6 print:space-y-0">
-        {/* Paper card */}
+        {/* Paper card · canonical institutional header treatment ·
+            lowercase eyebrow · stacked headerLayout · closed card ·
+            4xl title · matches the 8 sibling /report/* surfaces and
+            the Madrid Centro full-report chained version. */}
         <ReportPaper
-          sectionLabel="Hotel Valuation"
+          sectionLabel="hotel valuation"
           title="Executive Summary"
+          titleSize="4xl"
+          headerLayout="stacked"
+          closed
         >
           {/* Section 1 — Hotel Asset */}
           <div className="px-8 pt-8 pb-6 border-b border-slate-100 print:px-4 print:pt-3 print:pb-2">

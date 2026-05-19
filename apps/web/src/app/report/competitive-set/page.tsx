@@ -17,11 +17,17 @@ export default function CompetitiveSetPage() {
   return (
     <ReportShell>
       <div className="space-y-6 print:space-y-0">
+        {/* Canonical institutional header · lowercase eyebrow ·
+            stacked layout · closed card · matches the 9 sibling
+            /report/* surfaces. The `headerRight` prop (legacy alias)
+            is replaced with the canonical `actions` prop. */}
         <ReportPaper
-          sectionLabel="Hotel Valuation"
+          sectionLabel="hotel valuation"
           title="Competitive Set"
           titleSize="4xl"
-          headerRight={<PrimeToggle />}
+          headerLayout="stacked"
+          closed
+          actions={<PrimeToggle />}
         >
           {/* Section 1 — Comparison table */}
           <div className="px-8 pt-6 pb-4 print:px-4 print:pt-3 print:pb-2">
