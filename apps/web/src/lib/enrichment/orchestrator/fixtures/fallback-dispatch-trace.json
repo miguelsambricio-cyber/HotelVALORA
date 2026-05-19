@@ -1,0 +1,117 @@
+{
+  "__note": "Hand-computed deterministic trace of dispatchFallback() applied to each of the 3 base Madrid fixtures from M2. Demonstrates how the orchestrator decides which fallback provider to call for each missing TIER-2 field.",
+  "scenario": "After the demo-execution-trace.json runs (3 fixtures + 1 near-duplicate), each base fixture had outcome=fallback_required. Here is what the dispatcher emits.",
+  "fallback_dispatches": [
+    {
+      "source_job": "job-001 (Ritz by Belmond)",
+      "outcome_pre_fallback": "fallback_required (T2 8/19)",
+      "missing_tier2_fields_resolved_by_dispatcher": [
+        "operator_type",
+        "address_line1_corroboration",
+        "room_type_mix",
+        "meeting_rooms_count",
+        "meeting_space_sqm",
+        "year_opened",
+        "website_url",
+        "google_place_id"
+      ],
+      "dispatched_jobs": [
+        {
+          "id": "fallback:job-001:google_places",
+          "type": "fallback_dispatch",
+          "source": "google_places",
+          "priority": 4,
+          "target_fields": ["address_line1", "google_place_id", "website_url"],
+          "reason": "tier2_gap_count:3 — Google authoritative for these (Tier-C with contact/geo boost)"
+        },
+        {
+          "id": "fallback:job-001:hotel_website",
+          "type": "fallback_dispatch",
+          "source": "hotel_website",
+          "priority": 4,
+          "target_fields": ["year_opened", "operator_type", "meeting_rooms_count", "meeting_space_sqm", "room_type_mix"],
+          "reason": "tier2_gap_count:5 — hotel-website authoritative (Tier-B with year/MICE boost)",
+          "discipline_notes": [
+            "domain_authorisation_required (Phase 4 enforcement)",
+            "robots_check_before_fetch",
+            "HEAD_only",
+            "4-8s_randomized_delay"
+          ]
+        }
+      ],
+      "expected_post_fallback_coverage": {
+        "tier2_after": "16-17/19 (≥84% threshold met)",
+        "outcome_projection": "completed (institutional_passing)"
+      }
+    },
+    {
+      "source_job": "job-002 (NH Collection Eurobuilding)",
+      "outcome_pre_fallback": "fallback_required (T2 9/19)",
+      "dispatched_jobs": [
+        {
+          "id": "fallback:job-002:google_places",
+          "source": "google_places",
+          "target_fields": ["google_place_id", "website_url", "address_line1"],
+          "reason": "tier2_gap_count:3"
+        },
+        {
+          "id": "fallback:job-002:hotel_website",
+          "source": "hotel_website",
+          "target_fields": ["year_opened", "operator_type", "meeting_rooms_count", "meeting_space_sqm", "room_type_mix"],
+          "reason": "tier2_gap_count:5"
+        }
+      ],
+      "expected_post_fallback_coverage": {
+        "tier2_after": "16-17/19 (passing)",
+        "outcome_projection": "completed"
+      }
+    },
+    {
+      "source_job": "job-003 (Ibis Centro Las Ventas)",
+      "outcome_pre_fallback": "fallback_required (T2 8/19) AND T1 10/12 (below 11/12 floor)",
+      "critical_note": "This row has the highest fallback urgency — TIER-1 is failing because total_rooms is missing AND only 4 amenity keys are determined.",
+      "dispatched_jobs": [
+        {
+          "id": "fallback:job-003:google_places",
+          "source": "google_places",
+          "target_fields": ["google_place_id", "website_url", "address_line1"],
+          "reason": "tier2_gap_count:3"
+        },
+        {
+          "id": "fallback:job-003:hotel_website",
+          "source": "hotel_website",
+          "target_fields": ["year_opened", "operator_type", "meeting_rooms_count", "meeting_space_sqm", "room_type_mix"],
+          "reason": "tier2_gap_count:5 + RECOVERS total_rooms from hotel pages where Booking returned null",
+          "discipline_notes": [
+            "HEAD probe first, GET only if robots allows AND domain authorised"
+          ]
+        }
+      ],
+      "expected_post_fallback_coverage": {
+        "tier2_after": "14-16/19",
+        "tier1_after": "12/12 (recovers total_rooms + brings amenities ≥5 once richer source returns canonical strings)",
+        "outcome_projection": "completed OR completed_with_warnings (depends on amenity recovery)"
+      }
+    }
+  ],
+  "aggregate_dispatch_volume": {
+    "total_fallback_jobs_emitted": 6,
+    "by_provider": {
+      "google_places": 3,
+      "hotel_website": 3,
+      "wikidata": 0
+    },
+    "wikidata_dispatch_note": "Wikidata is reserved for year_opened cross-validation OR ownership_structure inquiry on institutional-tier hotels. The 3 sample fixtures have year_opened obtainable from hotel-website (Tier-B) at higher confidence than Wikidata (Tier-F). Wikidata only dispatches when hotel-website fails AND the hotel is gold-candidate."
+  },
+  "discipline_summary": {
+    "scraping_aggressiveness": "ZERO. All 3 hotel-website jobs MUST pass robots.txt check, domain authorisation list (Phase 4 gate), HEAD-only probe, 4-8s jitter.",
+    "no_blanket_crawls": "true. There is no code path that emits more than one fallback job per provider per hotel per cycle.",
+    "live_mode_gating": "All 3 providers throw on live mode in Phase 1. Operator opt-in required per provider for Phase 4+."
+  },
+  "institutional_interpretation": [
+    "The dispatcher emits 2 jobs per Booking-incomplete hotel — one for Google Places (cheap, structured) and one for hotel-website (free, requires discipline).",
+    "Wikidata is dispatched separately as a batched discovery pass once per sweep, not per hotel.",
+    "Field routing is deterministic — same input produces same dispatch plan every time.",
+    "No field is dispatched to multiple providers in parallel — fallback chain is sequential by design, respecting the institutional tier order Booking → Google → Hotel website → Wikidata."
+  ]
+}

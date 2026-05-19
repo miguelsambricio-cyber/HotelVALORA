@@ -11,5 +11,6 @@ export * from "./types";
 export * from "./retry-policy";
 export * from "./in-memory-store";
 export * from "./runner";
+export * from "./fallback-dispatcher";
 
 export const ORCHESTRATOR_MODULE_VERSION = "1.0.0-dry-run";

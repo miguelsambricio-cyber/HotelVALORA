@@ -4,6 +4,29 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-19 — Hotel Enrichment Pipeline · Writer layer + Fallback dispatchers (M5 + M6)
+
+- **Milestones 5 + 6 of autonomous workstream.** Persistence + fallback hierarchy now in place. Phase 1 dry-run preserved end-to-end: no DB writes, no real HTTP, no dev-dep additions. The full enrichment stack (registries → provider → orchestrator → writer → fallback) is now runnable against fixtures and ready for the operator-gated Phase A (apply 0024) + Phase B (RapidAPI live).
+- **Writer module** — `apps/web/src/lib/enrichment/writer/` (~700 LOC). Two implementations of one `EnrichmentWriter` contract: `DryRunWriter` (captures intended writes for review) and `SupabaseWriter` (executes via injected `SupabaseClient`). Both consume the same `IntendedWrite[]` plan from `planIntendedWrites()`. 6-step ordered plan per job: source_record.insert → canonical.upsert → duplicate_candidate.insert (if dedup tier ≠ no_match) → field_provenance.insert × N → audit_event × M → enrichment_run.update.
+- **Clean interface-swap invariant honored** (operator priority #1 for M5): `runEnrichmentJob` core untouched. The Supabase path lives in `seedFromBlockKey(client, bk)` which returns a populated `InMemoryCanonicalStore` — orchestrator's sync canonical-store interface preserved. Worker layer (Phase 3+) does: `bk = blockKey(c); seeded = await seedFromBlockKey(client, bk); result = await runEnrichmentJob(job, { ...ctx, canonicalStore: seeded }); await writer.persist(result, runId)`. Zero changes required to existing orchestrator code.
+- **Migration 0024 patched** to add `block_key text` column on `hotel_canonical` + partial index `hotel_canonical_block_key_idx` (where `deleted_at is null`). Required by `seedFromBlockKey` for O(1) neighborhood lookup. Still NOT applied to staging.
+- **Fallback dispatcher** — `apps/web/src/lib/enrichment/orchestrator/fallback-dispatcher.ts`. Consumes a `JobExecutionResult` with outcome `fallback_required` and emits typed `EnrichmentJob[]` targeted at the appropriate provider per missing TIER-2 field. Deterministic field→provider routing table (`FIELD_TO_FALLBACK`): geo/contact/place_id → `google_places` · year_opened/legal_name/MICE → `hotel_website` · wikidata_qid/ownership → `wikidata`. Priority lane P4 (critical gap). No field is routed to multiple providers in parallel — sequential by design.
+- **3 fallback providers (all Phase 1 dry-run, live throws)**:
+  - **Google Places** (`providers/google-places/`, ~250 LOC): Place Details + Place Search Text. Tier-C with per-field overrides — geo boost 0.90 · contact boost 0.85 · `google_place_id` self-authoritative 1.00. Rating rescaled from 0–5 to 0–10. Field-mask discipline for cost control (~$0.017/Place Details call).
+  - **Hotel-website** (`providers/hotel-website/`, ~480 LOC): **Strictly controlled scraping policy** — robots.txt parser + per-domain compliance cache + `HOTELVALORA_USER_AGENT` constant + HEAD-only `headProbe` + per-domain authorisation list + 4–8s randomized delay above any Crawl-delay + per-domain circuit breaker. Domain authorisation list enforced at the type level: live mode throws if domain not in `config.authorisedDomains`. Tier-B with year/MICE boost — year_opened 0.90 · legal_name 0.90 · meeting_space_sqm 0.85 · operator_type 0.75.
+  - **Wikidata** (`providers/wikidata/`, ~180 LOC): SPARQL query builders for `buildHotelByQidQuery` + `buildHotelByNameAndCityQuery`. Tier-F (0.50) with year_opened boost to 0.65. 1 req/s public endpoint cap. Batched discovery preferred over per-hotel calls. No subscription, no cost — only discipline.
+- **Disciplined scraping confirmed structurally**:
+  - HEAD-only Phase 1 (no GET path exposed on `HotelWebsiteClient`).
+  - robots.txt check is non-skippable — `headProbe()` always calls `getDirectives()` first.
+  - `HOTELVALORA_USER_AGENT` is the single source of truth for the bot identifier; constants in `robots.ts`.
+  - Per-domain authorisation list is a `ReadonlySet<string>` in config — empty by default. Live mode throws on any non-authorised domain. There is no "skip the check" flag.
+- **Fallback dispatch trace artifact** — `orchestrator/fixtures/fallback-dispatch-trace.json`. Hand-computed deterministic dispatcher output applied to the 3 Madrid base fixtures: 6 fallback jobs emitted (3 google_places + 3 hotel_website + 0 wikidata in this round; Wikidata reserved for batched discovery + gold-candidate ownership). Projected post-fallback TIER-2 coverage: 14–17/19 per hotel, sufficient to reach the institutional 80% threshold.
+- Phase 1 hard rules still in force: NO live HTTP · NO DB writes · NO scraping · NO image bulk download · NO touch on underwriting/report-system/sync · migration 0024 not applied · no dev-dep additions.
+- **Forward**: M5+M6 complete; full stack registries → provider → orchestrator → writer → fallback now exists in dry-run mode. The next operator-gated step is Phase A (apply migration 0024 to staging) followed by Phase B (RapidAPI subscription + live mode implementation in `BookingRapidApiClient.executeLive`). Until then, the entire pipeline can be exercised against fixtures + the in-memory canonical store.
+- ENTRYPOINTS.md gains 13 rows.
+
+---
+
 ## 2026-05-19 — Hotel Enrichment Pipeline · Dedup engine + Confidence calculator + Orchestrator (M3 + M4)
 
 - **Milestones 3 + 4 of autonomous workstream.** Three institutional pillars of the canonical hotel intelligence moat now in place: dedup quality · confidence layering · canonicalization conflict resolution. All Phase 1 dry-run: no DB writes, no real HTTP, no dev-dep additions.

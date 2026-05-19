@@ -110,6 +110,20 @@ Maps tasks to exact files. Start here before scanning.
 | Job runner — full pipeline: fetch → parse → map → dedup → conflict-resolve → coverage → outcome | `apps/web/src/lib/enrichment/orchestrator/runner.ts` |
 | Orchestrator demo trace (4-job sequence demonstrating dedup auto_merge + per-field conflict review queue) | `apps/web/src/lib/enrichment/orchestrator/fixtures/demo-execution-trace.json` |
 | Near-duplicate fixture (Ritz variant — exercises auto_merge tier + conflict-resolver review-queue routing) | `apps/web/src/lib/enrichment/providers/booking-rapidapi/fixtures/madrid-ritz-near-duplicate.json` |
+| **Writer module (M5)** — persistence layer · `DryRunWriter` (captures) + `SupabaseWriter` (executes) · shared `IntendedWrite[]` plan | `apps/web/src/lib/enrichment/writer/` |
+| Writer types — IntendedWrite taxonomy · WriterReport · EnrichmentWriter | `apps/web/src/lib/enrichment/writer/types.ts` |
+| Plan generator — `planIntendedWrites(result, ctx)` → 6-step ordered write plan | `apps/web/src/lib/enrichment/writer/intended-writes.ts` |
+| Dry-run writer — captures plan + emits summary; no DB | `apps/web/src/lib/enrichment/writer/dry-run-writer.ts` |
+| Supabase canonical store reader — `seedFromBlockKey` / `seedFromCandidate` / `loadByExternalId` (returns InMemoryCanonicalStore — preserves orchestrator sync interface) | `apps/web/src/lib/enrichment/writer/supabase-canonical-store.ts` |
+| Supabase writer — ordered inserts via injected SupabaseClient (Phase A+) | `apps/web/src/lib/enrichment/writer/supabase-writer.ts` |
+| **Migration 0024 patch** — adds `block_key text` column + partial index on `hotel_canonical` (still NOT applied) | `docs/database/migrations/0024_hotel_enrichment_schema.sql` |
+| **Fallback dispatcher (M6 orchestrator extension)** — consumes `JobExecutionResult` → emits per-provider fallback `EnrichmentJob[]` | `apps/web/src/lib/enrichment/orchestrator/fallback-dispatcher.ts` |
+| Fallback dispatch trace artifact — 3 fixtures × 2 providers per hotel + discipline notes | `apps/web/src/lib/enrichment/orchestrator/fixtures/fallback-dispatch-trace.json` |
+| **Google Places provider (M6)** — Tier-C fallback for geo/contact/place_id · dry-run, live throws | `apps/web/src/lib/enrichment/providers/google-places/` |
+| **Hotel-website provider (M6)** — Tier-B fallback · HEAD-only · robots.txt · per-domain authorisation · 4-8s jitter | `apps/web/src/lib/enrichment/providers/hotel-website/` |
+| Robots.txt parser + per-domain compliance cache + `HOTELVALORA_USER_AGENT` constant | `apps/web/src/lib/enrichment/providers/hotel-website/robots.ts` |
+| **Wikidata provider (M6)** — Tier-F fallback · 1 req/s · batched SPARQL · public endpoint | `apps/web/src/lib/enrichment/providers/wikidata/` |
+| Provider hierarchy + cross-provider invariants documentation | `apps/web/src/lib/enrichment/providers/README.md` |
 | Migration draft (DDL only, NOT applied) | filename reserved: `0008_hotel_enrichment_schema.sql` (to live under `docs/database/migrations/` when phase 2 begins) |
 | Positioning | runs inside existing Data Ingestion Agent (`apps/web/src/lib/ai-agents/agents/data-ingestion.ts`) as `enrich_hotel` tool |
 | Reuse — composite dedup scoring (35/30/20/10/5) | `apps/api/app/services/dedup_service.py` (pattern only — inlined per project rule) |

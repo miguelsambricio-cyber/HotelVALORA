@@ -236,6 +236,9 @@ create table if not exists public.hotel_canonical (
   data_quality_tier        quality_tier_enum not null default 'bronze',
   last_enriched_at         timestamptz,
   enrichment_version       integer not null default 1,
+  -- App-computed dedup blocking key (see apps/web/src/lib/enrichment/dedup/scoring.ts blockKey()).
+  -- Indexed for cheap "find neighborhood by block_key" lookups during dedup.
+  block_key                text,
 
   -- Lifecycle
   status                   hotel_lifecycle_enum not null default 'unverified',
@@ -283,6 +286,10 @@ create index if not exists hotel_canonical_quality_idx
 
 create index if not exists hotel_canonical_status_idx
   on public.hotel_canonical (status)
+  where deleted_at is null;
+
+create index if not exists hotel_canonical_block_key_idx
+  on public.hotel_canonical (block_key)
   where deleted_at is null;
 
 -- ─── HOTEL SOURCE RECORD ─────────────────────────────────────────────────────
