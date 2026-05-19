@@ -46,8 +46,14 @@ export interface RatesRegime {
 export interface LiquidityMetrics {
   transactions_last_12m: number;
   transactions_last_24m: number;
+  /** 5-year window · 60 months. */
+  transactions_last_60m: number;
+  /** 10-year window · 120 months. */
+  transactions_last_120m: number;
   total_volume_last_12m_eur: number;
   total_volume_last_24m_eur: number;
+  total_volume_last_60m_eur: number;
+  total_volume_last_120m_eur: number;
 }
 
 export interface MarketEvidence {

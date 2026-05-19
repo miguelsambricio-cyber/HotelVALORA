@@ -4,6 +4,7 @@ import { EditableTile } from "../primitives/editable-tile";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
+import { SortableGrid } from "../edit/sortable-grid";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 import type { UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 
@@ -23,8 +24,12 @@ export function DtaSection({
 }) {
   const d = bundle.computed.dta;
   const periods = bundle.computed.periods;
-  const cols = 1 + periods.length;
   const exitYear = bundle.computed.exit.exit_year;
+  // Operating schedule · acquisition phase hidden · Concept + visible periods.
+  const operatingCols = periods
+    .slice(0, exitYear + 1)
+    .filter((pd) => (pd.phase ?? "operating") !== "acquisition").length;
+  const cols = 1 + operatingCols;
   const ebitdaLimitPct = bundle.inputs.tax.ebitda_limit_pct * 100;
   const finexpFloorEur = bundle.inputs.tax.finexp_floor_eur;
 
@@ -48,30 +53,39 @@ export function DtaSection({
       status={{ label: "Accounting-grade · roll-forward consistent", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <KpiTile label="Peak DTA balance" value={fmtEUR(peakDta)} sub={`Y${peakDtaYear} · tax €`} highlight />
-            <KpiTile label="DTA released (hold)" value={fmtEUR(totalDtaDecreases)} sub="compensated against capacity" tone="ok" />
-            <KpiTile label="Cash tax paid (hold)" value={fmtEUR(totalCashTax)} sub="CF outflow · 25% × fiscal EBT" />
-            <KpiTile label="DTA at exit" value={fmtEUR(d.dta_end[exitYear] ?? 0)} sub="absorbed by gain on sale" />
-            <EditableTile
-              label="Limit EBITDA %"
-              value={ebitdaLimitPct}
-              format="percent"
-              min={0}
-              max={100}
-              onCommit={(ebitda_limit_pct) => onOverrideChange({ ebitda_limit_pct })}
-              sub="Ley IS art. 16 · 30% standard"
-            />
-            <EditableTile
-              label="Limit compensation"
-              value={finexpFloorEur}
-              format="currency"
-              min={0}
-              onCommit={(finexp_floor_eur) => onOverrideChange({ finexp_floor_eur })}
-              sub="finexp deduction floor · 1M € standard"
-            />
-          </div>
-          <YearGrid periods={periods} caption="DTA · PropCo without Exit Strategy">
+          <SortableGrid
+            gridId="dta.headline"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4"
+            items={[
+              { id: "peak-dta", content: (
+                <KpiTile label="Peak DTA balance" value={fmtEUR(peakDta)} sub={`Y${peakDtaYear} · tax €`} highlight />
+              ) },
+              { id: "dta-released", content: (
+                <KpiTile label="DTA released (hold)" value={fmtEUR(totalDtaDecreases)} sub="compensated against capacity" tone="ok" />
+              ) },
+              { id: "cash-tax", content: (
+                <KpiTile label="Cash tax paid (hold)" value={fmtEUR(totalCashTax)} sub="CF outflow · 25% × fiscal EBT" />
+              ) },
+              { id: "dta-exit", content: (
+                <KpiTile label="DTA at exit" value={fmtEUR(d.dta_end[exitYear] ?? 0)} sub="absorbed by gain on sale" />
+              ) },
+              { id: "limit-ebitda", content: (
+                <EditableTile label="Limit EBITDA %" value={ebitdaLimitPct} format="percent" min={0} max={100}
+                  onCommit={(ebitda_limit_pct) => onOverrideChange({ ebitda_limit_pct })} sub="Ley IS art. 16 · 30% standard" />
+              ) },
+              { id: "limit-compensation", content: (
+                <EditableTile label="Limit compensation" value={finexpFloorEur} format="currency" min={0}
+                  onCommit={(finexp_floor_eur) => onOverrideChange({ finexp_floor_eur })} sub="finexp deduction floor · 1M € standard" />
+              ) },
+            ]}
+          />
+          <YearGrid
+            periods={periods}
+            displayThroughIndex={exitYear}
+            kind="operating"
+            excludeAcquisition
+            caption="DTA · PropCo without Exit Strategy"
+          >
             <DivisionRow label="P&L feeds" columnCount={cols} />
             <YearRow label="EBIT" values={d.ebit} indent={1} />
             <YearRow label="EBITDA (Bº Operativo s/Ley IS)" values={d.ebitda} indent={1} />

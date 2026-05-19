@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 import { SCENARIO_CATALOG, buildBundleForScenario, type UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 import { FloatingKpiStrip, type KpiItem } from "./primitives/floating-kpi-strip";
+import { EditModeBar } from "./edit/edit-mode-bar";
 import { ExecutiveSummarySection } from "./sections/executive-summary-section";
 import { PnlSection } from "./sections/pnl-section";
 import { BalanceSheetSection } from "./sections/balance-sheet-section";
@@ -42,7 +43,10 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
   const onOverrideChange = (patch: UnderwritingInputOverrides) =>
     setOverrides((prev) => ({ ...prev, ...patch }));
 
-  const kpiItems = useMemo(() => buildKpiItems(bundle), [bundle]);
+  const kpiItems = useMemo(
+    () => buildKpiItems(bundle, scenarioId, setScenarioId),
+    [bundle, scenarioId, setScenarioId],
+  );
 
   return (
     <div className="space-y-6">
@@ -60,28 +64,58 @@ export function UnderwritingShell({ bundle: initialBundle }: { bundle: Underwrit
       <CashFlowSection bundle={bundle} />
       <DtaSection bundle={bundle} onOverrideChange={onOverrideChange} />
       <InvestmentSection bundle={bundle} onOverrideChange={onOverrideChange} />
-      <FinancingSection bundle={bundle} />
+      <FinancingSection bundle={bundle} onOverrideChange={onOverrideChange} />
       <ExitSection bundle={bundle} onOverrideChange={onOverrideChange} />
+
+      <EditModeBar />
     </div>
   );
 }
 
 // ─── KPI strip wired to real engine outputs ──────────────────────────
+//
+// Operator-trimmed lineup (2026-05-19):
+//   · Project IRR · Equity IRR · MOIC · Cap Rate scenario picker
+// Avg DSCR + LTV dropped from the sticky strip · they live in the
+// Financing section schedule (DSCR row + LTV row + per-tranche tiles).
 
-function buildKpiItems(bundle: UnderwritingBundle): KpiItem[] {
+function buildKpiItems(
+  bundle: UnderwritingBundle,
+  scenarioId: string,
+  onScenarioChange: (id: string) => void,
+): KpiItem[] {
   const c = bundle.computed;
   const exitYear = c.exit.exit_year;
-  const dscrSlice = c.financing.dscr.slice(1, Math.max(2, exitYear + 1)).filter((v) => Number.isFinite(v) && v > 0);
-  const avgDscr = dscrSlice.length > 0 ? dscrSlice.reduce((a, b) => a + b, 0) / dscrSlice.length : 0;
-  const ltvY1 = (c.financing.ltv_pct[1] ?? 0) * 100;
+  const capRatePct = c.cap_rate.entry.used_pct;
 
   return [
-    { label: "Project IRR", value: fmtPct(c.exit.project_irr_pct), sub: `exit Y${exitYear}`, tone: c.exit.project_irr_pct >= 8 ? "ok" : "info" },
-    { label: "Equity IRR", value: fmtPct(c.exit.equity_irr_pct), sub: `${fmtMoic(c.exit.moic)} MOIC`, tone: c.exit.equity_irr_pct >= 15 ? "ok" : c.exit.equity_irr_pct >= 10 ? "info" : "warn" },
-    { label: "MOIC", value: fmtMoic(c.exit.moic), sub: "× equity" },
-    { label: "Avg DSCR", value: avgDscr > 0 ? avgDscr.toFixed(2).replace(".", ",") : "—", sub: `Y1–Y${exitYear}`, tone: avgDscr >= 1.2 ? "ok" : avgDscr >= 1.0 ? "info" : "warn" },
-    { label: "LTV", value: ltvY1 > 0 ? `${ltvY1.toFixed(1).replace(".", ",")}%` : "—", sub: "Y1 · senior" },
-    { label: "Cap rate", value: `${c.cap_rate.entry.used_pct.toFixed(2).replace(".", ",")}%`, sub: c.cap_rate.entry.source === "dynamic" ? "Dynamic · entry" : "Override · entry", tone: "ok" },
+    {
+      label: "Project IRR",
+      value: fmtPct(c.exit.project_irr_pct),
+      sub: `Unlevered · pre-tax · Y${exitYear}`,
+      tone: c.exit.project_irr_pct >= 8 ? "ok" : "info",
+    },
+    {
+      label: "Equity IRR",
+      value: fmtPct(c.exit.equity_irr_pct),
+      sub: `Levered · post-tax · ${fmtMoic(c.exit.moic)} MOIC`,
+      tone: c.exit.equity_irr_pct >= 15 ? "ok" : c.exit.equity_irr_pct >= 10 ? "info" : "warn",
+    },
+    {
+      label: "MOIC",
+      value: fmtMoic(c.exit.moic),
+      sub: "× equity",
+    },
+    {
+      label: "Cap Rate",
+      value: "", // rendered by the scenario picker
+      sub: `${capRatePct.toFixed(2).replace(".", ",")}% · entry`,
+      scenarioPicker: {
+        options: SCENARIO_CATALOG.map((s) => ({ id: s.id, label: s.label })),
+        activeId: scenarioId,
+        onSelect: onScenarioChange,
+      },
+    },
   ];
 }
 

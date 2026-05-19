@@ -53,7 +53,22 @@ export const financingModule: EngineModule<"financing"> = {
     const totalInterest = schedules.reduce<PeriodSeries>((acc, s) => addSeries(acc, s.interest_expense), z());
     const totalLoanPrincipal = schedules.reduce<PeriodSeries>((acc, s) => addSeries(acc, s.loan_principal), z());
     const totalBulletPrincipal = schedules.reduce<PeriodSeries>((acc, s) => addSeries(acc, s.bullet_principal), z());
+
+    // Upfront fee · default 0.5% of principal · ONE-TIME payment at
+    // operating Y1 (first operating period after closing). Shown as a
+    // row in the portfolio schedule + included in total_payment.
+    const upfrontFeePct = inputs.financing.upfront_fee_pct ?? 0.5;
+    const upfrontFeeTotal = totalPrincipal * (upfrontFeePct / 100);
+    const totalUpfrontFeeAmortized = z();
+    // Y1 is the first operating period · index 1 in the standard yearly axis
+    const y1Idx = Math.min(1, periods.length - 1);
+    if (upfrontFeeTotal > 0 && y1Idx >= 0) {
+      totalUpfrontFeeAmortized[y1Idx] = upfrontFeeTotal;
+    }
+
     const totalPayment = schedules.reduce<PeriodSeries>((acc, s) => addSeries(acc, s.payment), z());
+    // Payment subtotal includes the amortized upfront fee for institutional accuracy.
+    const totalPaymentWithFee = addSeries(totalPayment, totalUpfrontFeeAmortized);
     const totalBofy = schedules.reduce<PeriodSeries>((acc, s) => addSeries(acc, s.bofy_balance), z());
     const totalEofy = schedules.reduce<PeriodSeries>((acc, s) => addSeries(acc, s.eofy_balance), z());
 
@@ -64,12 +79,14 @@ export const financingModule: EngineModule<"financing"> = {
       total_interest_expense: totalInterest,
       total_loan_principal: totalLoanPrincipal,
       total_bullet_principal: totalBulletPrincipal,
-      total_payment: totalPayment,
+      total_payment: totalPaymentWithFee,
       total_bofy_balance: totalBofy,
       total_eofy_balance: totalEofy,
-      dscr: z(), // Block 3B fills via pnl.ebitda_after_replacement
+      dscr: z(), // Block 3B fills via pnl.gross_operating_profit (institutional hospitality DSCR)
       icr: z(),
       ltv_pct: z(),
+      debt_yield_pct: z(), // Block 3B fills · GOP / EoFY balance
+      total_upfront_fee_amortized: totalUpfrontFeeAmortized,
       covenant_breaches: [],
     };
   },

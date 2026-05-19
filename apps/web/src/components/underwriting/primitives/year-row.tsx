@@ -1,19 +1,26 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { PeriodSeries } from "@/lib/underwriting/temporal";
+import { useYearGridContext } from "./year-grid";
 
 /**
  * Single data row in a YearGrid.
  *
- *   · label + optional indent (sub-line under a group header)
- *   · optional assumption cell (when grid has assumptionCol)
- *   · 11 numeric cells (Y0..Y10) · formatted server-side
- *   · optional heatmap polarity tint (good/bad based on improvement)
+ * Corporate light theme · sticky label cell uses white bg so the column
+ * stays legible during horizontal scroll. Negative / positive rows use
+ * amber-700 / emerald-700.
+ *
+ * The row picks values at the `visibleIndices` projected by the parent
+ * grid (which encodes both the `displayThroughIndex` limit and the
+ * `excludeAcquisition` filter). Operating tables drop acquisition
+ * columns entirely · capital tables keep them visible.
  */
 
 export type RowKind = "data" | "subgroup" | "negative" | "positive" | "muted";
 
 export function YearRow({
   label,
+  labelNode,
   values,
   assumption,
   indent = 0,
@@ -21,38 +28,48 @@ export function YearRow({
   format = "currency_compact",
 }: {
   label: string;
+  /** Optional · overrides the plain `label` rendering with a custom node
+   *  (e.g. interactive button + popover for covenant info). */
+  labelNode?: ReactNode;
   values: PeriodSeries;
   assumption?: string;
-  /** 0 = top level · 1 = first indent · 2 = sub-line of sub-line. */
   indent?: 0 | 1 | 2;
   kind?: RowKind;
   format?: "currency_compact" | "percent" | "integer" | "ratio";
 }) {
   const labelTone =
-    kind === "subgroup" ? "text-slate-300 font-bold"
+    kind === "subgroup" ? "text-slate-900 font-bold"
     : kind === "muted" ? "text-slate-500"
-    : "text-slate-200";
+    : "text-slate-700";
 
   const valueTone =
-    kind === "negative" ? "text-amber-200/90"
-    : kind === "positive" ? "text-emerald-200/90"
+    kind === "negative" ? "text-amber-700"
+    : kind === "positive" ? "text-emerald-700"
     : kind === "muted" ? "text-slate-500"
-    : "text-slate-100";
+    : "text-slate-800";
 
   const indentPad = indent === 0 ? "pl-3" : indent === 1 ? "pl-6" : "pl-9";
+  const { visibleIndices } = useYearGridContext();
+  const displayValues = visibleIndices.map((idx) => values[idx] ?? 0);
 
   return (
-    <tr className="border-t border-slate-800/40 align-top">
-      <td className={cn("sticky left-0 z-[1] bg-slate-950/95 py-1.5 pr-2 font-headline text-[11px]", indentPad, labelTone)}>
-        {label}
+    <tr className="border-t border-slate-100 align-top hover:bg-slate-50/60 print:hover:bg-transparent">
+      <td className={cn("sticky left-0 z-[1] bg-white py-1.5 pr-2 font-headline text-[11px]", indentPad, labelTone)}>
+        {labelNode ?? label}
       </td>
       {assumption !== undefined && (
-        <td className="px-2 py-1.5 text-right font-mono text-[10.5px] text-slate-400">
+        <td className="px-2 py-1.5 text-right font-mono text-[10.5px] text-[#005db7] font-semibold">
           {assumption || "—"}
         </td>
       )}
-      {values.map((v, i) => (
-        <td key={i} className={cn("px-2 py-1.5 text-right font-mono text-[10.5px]", valueTone)}>
+      {displayValues.map((v, i) => (
+        <td
+          key={i}
+          className={cn(
+            "px-2 py-1.5 text-right font-mono text-[10.5px] tabular-nums",
+            valueTone,
+          )}
+        >
           {formatCell(v, format)}
         </td>
       ))}

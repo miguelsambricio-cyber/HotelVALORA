@@ -4,12 +4,8 @@ import { cn } from "@/lib/utils";
 /**
  * Reconciliation badge · institutional confidence signal.
  *
- *   · OK · invariant holds (Assets == Eq + Debt · Cash matches CF · etc.)
- *   · WARN · within tolerance but worth checking (e.g. DSCR 1.0–1.1)
- *   · FAIL · invariant broken · engine refuses to publish
- *
- * Block 1: visual primitive only · Block 2 wires real reconciliation
- * results from the engine.
+ * Corporate light theme · matches the P&L's pill conventions
+ * (slate ring-1 + low-saturation background + *-700 text).
  */
 
 export type ReconciliationStatus = "ok" | "warn" | "fail" | "info";
@@ -25,12 +21,12 @@ export function ReconciliationBadge({
 }) {
   const tone =
     status === "ok"
-      ? "bg-emerald-500/15 text-emerald-200 ring-emerald-500/40"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
       : status === "warn"
-        ? "bg-amber-500/15 text-amber-200 ring-amber-500/40"
+        ? "bg-amber-50 text-amber-700 ring-amber-200"
         : status === "info"
-          ? "bg-slate-700/40 text-slate-200 ring-slate-600/60"
-          : "bg-rose-500/15 text-rose-200 ring-rose-500/40";
+          ? "bg-slate-50 text-slate-700 ring-slate-200"
+          : "bg-rose-50 text-rose-700 ring-rose-200";
 
   const Icon =
     status === "ok" ? Check : status === "warn" || status === "info" ? AlertTriangle : CircleAlert;

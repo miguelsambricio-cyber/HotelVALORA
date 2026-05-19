@@ -1,7 +1,13 @@
 import type { EngineModule } from "./_types";
 import type { ExitMetrics } from "../types";
 import { zeroSeries } from "../temporal";
-import { exitValueFromCap, irrPct, moic } from "./formulas";
+import {
+  equityLeveredPosttaxOperatingCf,
+  exitValueFromCap,
+  irrPct,
+  moic,
+  projectUnleveredPretaxOperatingCf,
+} from "./formulas";
 
 /**
  * Module · exit · 4-layer institutional architecture.
@@ -11,20 +17,47 @@ import { exitValueFromCap, irrPct, moic } from "./formulas";
  *   Capital-Structure    · debt unwind (scheduled + bullet + payoff residual)
  *   Equity Layer         · distributable proceeds · IRR · MOIC · MoNic
  *
+ * ── Institutional IRR conventions · 2026-05-19 refactor ─────────────
+ *
+ * The engine now exposes TWO distinct cash-flow layers:
+ *
+ *   PROJECT LAYER · UNLEVERED · PRE-TAX
+ *     · Period 0  : −total_building_cost (full asset outflow)
+ *     · Periods 1..exit  : EBITDA only (no cash tax, no debt service)
+ *     · Period exit  : + exit_price_gross (no fee deduction, no payoff)
+ *     · Why pre-tax: makes the metric structure-agnostic. Two assets in
+ *       different jurisdictions, with different leverage stacks, can be
+ *       compared on operating economics + market cap rates alone.
+ *     · Why no fees: disposition fees and broker costs are sponsor-level
+ *       (financing structure choices). Project IRR strips them out.
+ *
+ *   EQUITY LAYER · LEVERED · POST-TAX
+ *     · Period 0  : −equity_investment (sponsor's equity injection)
+ *     · Periods 1..exit  : EBITDA − cashTax(Ley IS) − debtService
+ *     · Period exit  : + (exit_price_net_of_fees − debt_balance_payoff)
+ *     · Why post-tax: LP cares about what hits the bank account after
+ *       Hacienda. Captures the tax shield from interest deductibility,
+ *       a primary benefit of leverage.
+ *     · Why fees + payoff: disposition fees + full debt payoff at sale
+ *       are real outflows to the equity sponsor.
+ *
+ * Sign conventions:
+ *   · project_cash_flow[0]        NEGATIVE (acquisition + capex outflow)
+ *   · project_cash_flow[t>0]      POSITIVE (EBITDA · pre-tax · pre-debt)
+ *   · project_cash_flow[exit]    += POSITIVE (gross exit price)
+ *   · equity_cash_flow[0]         NEGATIVE (equity injection)
+ *   · equity_cash_flow[t>0]       (EBITDA − cashTax − debtService)
+ *   · equity_cash_flow[exit]     += POSITIVE (exit net of fees − debt payoff)
+ *   · debt_cash_flow[0]           POSITIVE (drawdown to equity sponsor side)
+ *   · debt_cash_flow[t>0]         NEGATIVE (debt service)
+ *
  * Hooks left for Block 6 (Cap Rate Engine) and Block 9 (waterfall):
  *   · exit_cap_rate_used     · already consumed via cap_rate.exit.used_pct
  *   · stabilized_noi         · exposed for Cap Rate Engine confidence sizing
  *   · debt_repayment_at_exit · ready for refinance-vs-sell scenario fork
  *   · promote_waterfall      · NOT YET · Block 9 splits equity_cash_flow
- *                              into LP/GP tranches with hurdles + catchups
- *
- * Sign conventions:
- *   · project_cash_flow[0]    NEGATIVE (acquisition + capex outflow)
- *   · project_cash_flow[t>0]  POSITIVE (operating CF before debt service)
- *   · equity_cash_flow[0]     NEGATIVE (equity injection)
- *   · equity_cash_flow[exit]  POSITIVE (distributions + exit proceeds)
- *   · debt_cash_flow[0]       POSITIVE (drawdown to equity sponsor side)
- *   · debt_cash_flow[t>0]     NEGATIVE (debt service)
+ *                              into LP/GP tranches with hurdles + catchups,
+ *                              populating lp_irr_pct + gp_irr_pct slots.
  */
 export const exitModule: EngineModule<"exit"> = {
   key: "exit",
@@ -46,8 +79,6 @@ export const exitModule: EngineModule<"exit"> = {
 
     // ─── Layer 1 · Operational Exit ─────────────────────────────────
     // Stabilized NOI = EBITDA after Replacement at exit year.
-    // (Operator can later override to "trailing 12-month average" via
-    //  Block 4 setting · MVP uses point-in-time.)
     const stabilizedNoi = pnl.ebitda_after_replacement[exitYear] ?? 0;
 
     // ─── Layer 2 · Market Exit ──────────────────────────────────────
@@ -58,8 +89,6 @@ export const exitModule: EngineModule<"exit"> = {
     const exitPriceNetOfFees = exitPriceGross - exitFeesEur;
 
     // ─── Layer 3 · Capital-Structure Exit ───────────────────────────
-    // Debt repayment at exit = scheduled payment THIS YEAR
-    //   + remaining EoFY balance (paid off in full at sale).
     const debtBalanceAfterScheduled = financing.total_eofy_balance[exitYear] ?? 0;
     const scheduledPaymentExitYr = financing.total_payment[exitYear] ?? 0;
     const debtRepaymentAtExit = scheduledPaymentExitYr + debtBalanceAfterScheduled;
@@ -71,12 +100,12 @@ export const exitModule: EngineModule<"exit"> = {
     const equityCf = zeroSeries(periods);
     const debtCf = zeroSeries(periods);
 
-    // Period 0 · drawdowns + outflows.
+    // Period 0 · sponsor outflows + debt drawdowns.
     projectCf[0] = -investment.total_building_cost;
     equityCf[0] = -equityInvestment;
     debtCf[0] = financing.total_drawdown[0] ?? 0;
 
-    // Periods 1..exitYear · operating cash flows.
+    // Periods 1..exitYear · operating cash flows split by layer.
     for (let t = 1; t <= exitYear; t++) {
       const ebitda = pnl.ebitda_after_replacement[t] ?? 0;
       const cashTax = dta.tax_payment[t] ?? 0;
@@ -84,16 +113,20 @@ export const exitModule: EngineModule<"exit"> = {
       const interest = financing.total_interest_expense[t] ?? 0;
       const principal = (financing.total_loan_principal[t] ?? 0) + (financing.total_bullet_principal[t] ?? 0);
 
-      // Project CF · pre-debt operating cash less cash taxes.
-      projectCf[t] = ebitda - cashTax;
-      // Equity CF · project CF less debt service.
-      equityCf[t] = projectCf[t] - debtService;
+      // PROJECT (unlevered · pre-tax) · operating CF only
+      projectCf[t] = projectUnleveredPretaxOperatingCf(ebitda);
+
+      // EQUITY (levered · post-tax) · operating CF net of debt service + tax
+      equityCf[t] = equityLeveredPosttaxOperatingCf(ebitda, cashTax, debtService);
+
       // Debt CF (sponsor view) · negative outflow during life.
       debtCf[t] = -(interest + principal);
     }
 
-    // Exit-year additions.
-    projectCf[exitYear] += exitPriceNetOfFees;
+    // Exit-year additions · split by layer.
+    //   Project receives the GROSS exit price · pre-tax · pre-fee · pre-payoff.
+    //   Equity receives the NET (after fees + after debt payoff).
+    projectCf[exitYear] += exitPriceGross;
     equityCf[exitYear] += exitPriceNetOfFees - debtBalanceAfterScheduled;
     debtCf[exitYear] += -debtBalanceAfterScheduled;
 
@@ -121,6 +154,11 @@ export const exitModule: EngineModule<"exit"> = {
       debt_cash_flow: debtCf,
       project_irr_pct: Number.isFinite(projectIrrPct) ? projectIrrPct : 0,
       equity_irr_pct: Number.isFinite(equityIrrPct) ? equityIrrPct : 0,
+      // Future-proof slots · populated by Block 9 (waterfall) + Block 10 (post-tax project).
+      project_irr_posttax_pct: null,
+      equity_irr_gross_pct: null,
+      lp_irr_pct: null,
+      gp_irr_pct: null,
       moic: moicValue,
     };
   },
@@ -143,6 +181,10 @@ function zeroExit(n: number, exitYear: number, feePct: number): ExitMetrics {
     debt_cash_flow: z(),
     project_irr_pct: 0,
     equity_irr_pct: 0,
+    project_irr_posttax_pct: null,
+    equity_irr_gross_pct: null,
+    lp_irr_pct: null,
+    gp_irr_pct: null,
     moic: 0,
   };
 }

@@ -114,24 +114,31 @@ export const reconciliationModule: EngineModule<"reconciliation"> = {
       }
     }
 
-    // ─── DSCR / ICR / LTV · post-pass fill ──────────────────────
+    // ─── DSCR / ICR / LTV / DYR · post-pass fill ────────────────
+    // DSCR convention (2026-05-19): institutional hospitality lenders test
+    // GROSS OPERATING PROFIT against debt service · not EBITDA-after-FF&E
+    // (which is too noisy with operator-discretionary reserves).
     const dscrSeries = zeroSeries(periods);
     const icrSeries = zeroSeries(periods);
     const ltvSeries = zeroSeries(periods);
+    const dyrSeries = zeroSeries(periods);
     const assetValueBase = investment?.total_building_cost ?? 0;
     for (let t = 0; t < n; t++) {
-      const noi = pnl.ebitda_after_replacement[t] ?? 0;
+      const gop = pnl.gross_operating_profit[t] ?? 0;
       const interest = fin.total_interest_expense[t] ?? 0;
       const principal = (fin.total_loan_principal[t] ?? 0) + (fin.total_bullet_principal[t] ?? 0);
       const debtService = interest + principal;
-      dscrSeries[t] = dscrFormula(noi, debtService);
-      icrSeries[t] = icrFormula(noi, interest);
-      ltvSeries[t] = ltvFormula(fin.total_eofy_balance[t] ?? 0, assetValueBase);
+      const eofyBalance = fin.total_eofy_balance[t] ?? 0;
+      dscrSeries[t] = dscrFormula(gop, debtService);
+      icrSeries[t] = icrFormula(gop, interest);
+      ltvSeries[t] = ltvFormula(eofyBalance, assetValueBase);
+      dyrSeries[t] = eofyBalance > 0 ? gop / eofyBalance : 0;
     }
     // Patch financing aggregates so Section 7 renders ratios.
     fin.dscr = dscrSeries;
     fin.icr = icrSeries;
     fin.ltv_pct = ltvSeries;
+    fin.debt_yield_pct = dyrSeries;
 
     // ─── I-3 · DSCR ≥ 1.0 between opening and exit ──────────────
     // Skip post-exit periods · no debt service after asset disposal.

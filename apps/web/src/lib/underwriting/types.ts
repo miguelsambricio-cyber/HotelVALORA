@@ -181,6 +181,9 @@ export interface UnderwritingInputs {
     tranches: DebtTranche[];
     /** Macro rate context · referenced by floating-rate tranches. */
     euribor_12m_pct: number;
+    /** Upfront fee · percentage points of principal · amortized linearly
+     *  over senior loan years · default 0.5% (institutional lender fee). */
+    upfront_fee_pct?: number;
   };
 
   exit: {
@@ -329,6 +332,16 @@ export interface BreakdownLine {
   label: string;
   /** Optional · the underwriting driver behind this line (e.g. "11.250 €/key", "2%"). */
   assumption?: string;
+  /** Numeric value of the assumption · used by the editable inline input. */
+  assumption_raw?: number;
+  /**
+   * Kind of the assumption · drives the editable input format + parser.
+   *   · "percent_asking" → % of asking price (0.02 = 2,00%)
+   *   · "percent_subtotal" → % of subtotal / total project (0.05 = 5,00%)
+   *   · "currency_per_key" → € per key (11250 = 11.250 € / key)
+   *   · "currency_total" → absolute € (250000 = 250.000 €)
+   */
+  assumption_kind?: "percent_asking" | "percent_subtotal" | "currency_per_key" | "currency_total";
   total_eur: number;
   per_room_eur: number;
   per_sqm_eur: number;
@@ -384,11 +397,35 @@ export interface ExitMetrics {
   debt_repayment_at_exit: number;
   equity_investment: number;
   profit_share: number;
+
+  // ── Cash-flow layers ─────────────────────────────────────────────
+  // PROJECT LAYER · unlevered · pre-tax · asset-level economics.
+  // EBITDA + exit proceeds (gross). No tax, no debt service.
   project_cash_flow: PeriodSeries;
+
+  // EQUITY LAYER · levered · post-tax · investor economics.
+  // EBITDA − cashTax − debtService + (exit net of fees + debt payoff residual).
   equity_cash_flow: PeriodSeries;
+
+  // Debt service flows (sponsor view · negative outflow during life).
   debt_cash_flow: PeriodSeries;
+
+  // ── IRR layers ───────────────────────────────────────────────────
+  /** Project IRR · UNLEVERED · PRE-TAX · institutional asset benchmark. */
   project_irr_pct: number;
+  /** Equity IRR · LEVERED · POST-TAX · institutional LP return. */
   equity_irr_pct: number;
+
+  // ── Future-proof IRR slots (currently null · populated in later blocks) ──
+  /** Project IRR · unlevered · POST-TAX (NOPAT-based · no tax shield). */
+  project_irr_posttax_pct?: number | null;
+  /** Equity IRR · levered · GROSS of promote (before LP/GP split). */
+  equity_irr_gross_pct?: number | null;
+  /** LP IRR · post-waterfall · sliced from equity_cash_flow after promote. */
+  lp_irr_pct?: number | null;
+  /** GP IRR · catch-up + carry · sliced from equity_cash_flow. */
+  gp_irr_pct?: number | null;
+
   moic: number;
 }
 

@@ -12,8 +12,12 @@ import type { UnderwritingBundle } from "@/lib/underwriting/types";
 export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) {
   const bs = bundle.computed.balance_sheet;
   const periods = bundle.computed.periods;
-  const cols = 1 + periods.length;
   const exitYear = bundle.computed.exit.exit_year;
+  // Operating schedule · acquisition phase hidden · Concept + visible periods.
+  const operatingCols = periods
+    .slice(0, exitYear + 1)
+    .filter((pd) => (pd.phase ?? "operating") !== "acquisition").length;
+  const cols = 1 + operatingCols;
   const recon = bundle.computed.reconciliation;
 
   const totalAssetsY0 = bs.total_assets[0] ?? 0;
@@ -41,7 +45,13 @@ export function BalanceSheetSection({ bundle }: { bundle: UnderwritingBundle }) 
               { label: "Equity · exit", value: fmtEUR(equityExit), sub: `Δ ${signed(equityExit - equityY0)}${fmtEUR(Math.abs(equityExit - equityY0))}`, tone: equityExit > equityY0 ? "ok" : "warn" },
             ]}
           />
-          <YearGrid periods={periods} caption="Balance Sheet · PropCo without Exit Strategy">
+          <YearGrid
+            periods={periods}
+            displayThroughIndex={exitYear}
+            kind="operating"
+            excludeAcquisition
+            caption="Balance Sheet · PropCo without Exit Strategy"
+          >
             <DivisionRow label="Assets" columnCount={cols} />
             <SubtotalRow label="Non Current Assets" values={bs.non_current_assets} tone="subtotal" />
             <YearRow label="Building" values={bs.building} indent={1} />

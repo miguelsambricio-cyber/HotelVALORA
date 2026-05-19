@@ -46,6 +46,45 @@ export function exitNetProceeds(grossExit: number, feePct: number, debtAtExit: n
   return grossExit - fees - debtAtExit;
 }
 
+// ─── Project + Equity cash-flow constructors ─────────────────────────
+//
+// Institutional layer separation · 2026-05-19:
+//
+//   Project Layer (asset economics)
+//     · UNLEVERED · no debt assumed
+//     · PRE-TAX   · ignores corporate income tax + tax shield
+//     · Built from EBITDA + exit proceeds only
+//     · Use case: IC comparison · asset benchmarking · market underwriting
+//
+//   Equity Layer (investor economics)
+//     · LEVERED   · after debt service (interest + principal + bullet)
+//     · POST-TAX  · after cash tax (Ley IS · captures tax shield)
+//     · Built from EBITDA − cashTax − debtService + (exit net of fees + debt payoff)
+//     · Use case: LP return · sponsor underwriting · waterfall feed
+//
+// Future-proof: when LP / GP / promote split arrives, `equityLeveredPosttaxCf`
+// is the input to the waterfall; LP IRR + GP IRR slice it downstream.
+
+/**
+ * Project (unlevered · pre-tax) operating cash flow for a single period.
+ * No debt service · no tax. Asset-level economics only.
+ */
+export function projectUnleveredPretaxOperatingCf(ebitda: number): number {
+  return ebitda;
+}
+
+/**
+ * Equity (levered · post-tax) operating cash flow for a single period.
+ * EBITDA · less cash tax (which embeds the interest tax shield) · less debt service.
+ */
+export function equityLeveredPosttaxOperatingCf(
+  ebitda: number,
+  cashTax: number,
+  debtService: number,
+): number {
+  return ebitda - cashTax - debtService;
+}
+
 // ─── IRR + MOIC ───────────────────────────────────────────────────────
 
 /** MOIC = sum(positive flows) / |sum(negative flows)|. */
@@ -212,6 +251,8 @@ export const FORMULAS = {
   ltv,
   exitValueFromCap,
   exitNetProceeds,
+  projectUnleveredPretaxOperatingCf,
+  equityLeveredPosttaxOperatingCf,
   moic,
   irrPct,
   npv,

@@ -4,17 +4,17 @@ import { EditableTile } from "../primitives/editable-tile";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
+import { SortableGrid } from "../edit/sortable-grid";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 import type { UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 
 /**
  * Section 08 · Exit Strategy · the strongest narrative piece.
  *
- *   A · Returns headline (Project + Equity IRR + MOIC)
- *   B · Entry vs Exit valuation (institutional value creation bridge)
- *   C · Cap rate rationale (consumed from Dynamic Cap Rate Engine)
- *   D · Equity waterfall (cash flow timeline · ready for Block 9 split)
- *   E · Detail schedule (full Project + Equity CF series)
+ * Corporate light theme · highlight tiles + value-creation bridge use
+ * the forest accent (the report's canonical "result" colour); editable
+ * Exit Year + Exit Fee tiles render in blue (#005db7) so the operator
+ * sees one consistent edit signal across every page.
  */
 export function ExitSection({
   bundle,
@@ -27,7 +27,12 @@ export function ExitSection({
   const inv = bundle.computed.investment;
   const fin = bundle.computed.financing;
   const periods = bundle.computed.periods;
-  const cols = 1 + periods.length;
+  const exitYearScope = bundle.computed.exit.exit_year;
+  // Operating schedule · acquisition phase hidden · Concept + visible periods.
+  const operatingCols = periods
+    .slice(0, exitYearScope + 1)
+    .filter((pd) => (pd.phase ?? "operating") !== "acquisition").length;
+  const cols = 1 + operatingCols;
   const asset = bundle.inputs.asset;
   const capEntry = bundle.computed.cap_rate.entry;
   const capExit = bundle.computed.cap_rate.exit;
@@ -38,12 +43,7 @@ export function ExitSection({
   const netEquityProceeds = exitPriceNetOfFees - debtBalanceAfterScheduled;
   const exitPriceSeries = periods.map((_, i) => (i === e.exit_year ? e.exit_price : 0));
 
-  // Value creation bridge components
   const entryValue = inv.total_building_cost;
-  const yieldCompressionValue = capEntry.used_pct !== capExit.used_pct
-    ? (e.exit_price - (e.exit_price * (capEntry.used_pct / capExit.used_pct)))
-    : 0;
-  const noiGrowth = e.exit_price - entryValue - yieldCompressionValue;
 
   return (
     <SectionShell
@@ -54,32 +54,41 @@ export function ExitSection({
       status={{ label: "IC narrative · disposition committee", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Returns headline · 4 results + 3 exit assumption tiles */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            <KpiTile label="Project IRR" value={fmtPct(e.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(e.project_irr_pct, 8)} />
-            <KpiTile label="Equity IRR" value={fmtPct(e.equity_irr_pct)} sub="levered · post-tax" highlight tone={irrTone(e.equity_irr_pct, 12)} />
-            <KpiTile label="MOIC" value={`${e.moic.toFixed(2)}×`} sub="equity multiple" tone={moicTone(e.moic)} />
-            <KpiTile label="Profit share" value={fmtEUR(e.profit_share)} sub="equity gain" tone={e.profit_share > 0 ? "ok" : "warn"} />
-            <EditableTile
-              label="Exit year"
-              value={e.exit_year}
-              format="years"
-              min={1}
-              max={10}
-              onCommit={(exit_year) => onOverrideChange({ exit_year })}
-              sub="hold period · 1-10y"
-            />
-            <KpiTile label="Exit cap rate" value={fmtPct(capExit.used_pct)} sub={capExit.source === "dynamic" ? "Dynamic · exit yield" : "Manual override"} />
-            <EditableTile
-              label="Exit fee"
-              value={exitFeePct}
-              format="percent"
-              min={0}
-              max={10}
-              onCommit={(exit_fee_pct) => onOverrideChange({ exit_fee_pct })}
-              sub="disposition fee · % of exit price"
-            />
-          </div>
+          {/* Returns headline · 5 results + 3 exit assumption tiles · reorderable */}
+          <SortableGrid
+            gridId="exit.headline"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4"
+            items={[
+              { id: "project-irr", content: (
+                <KpiTile label="Project IRR" value={fmtPct(e.project_irr_pct)} sub="Unlevered · pre-tax" tone={irrTone(e.project_irr_pct, 8)} />
+              ) },
+              { id: "equity-irr", content: (
+                <KpiTile label="Equity IRR" value={fmtPct(e.equity_irr_pct)} sub="Levered · post-tax" highlight tone={irrTone(e.equity_irr_pct, 12)} />
+              ) },
+              { id: "moic", content: (
+                <KpiTile label="MOIC" value={`${e.moic.toFixed(2)}×`} sub="equity multiple" tone={moicTone(e.moic)} />
+              ) },
+              { id: "profit-share", content: (
+                <KpiTile label="Profit share" value={fmtEUR(e.profit_share)} sub="equity gain" tone={e.profit_share > 0 ? "ok" : "warn"} />
+              ) },
+              { id: "exit-year", content: (
+                <EditableTile label="Exit year" value={e.exit_year} format="years" min={1} max={10}
+                  onCommit={(exit_year) => onOverrideChange({ exit_year })} sub="hold period · 1-10y" />
+              ) },
+              { id: "exit-cap-rate", content: (
+                <EditableTile label="Exit cap rate" value={capExit.used_pct} format="percent" min={0} max={30}
+                  onCommit={(exit_cap_rate_pct) => onOverrideChange({ exit_cap_rate_pct })}
+                  sub={capExit.source === "dynamic" ? "Dynamic · exit yield" : "Manual override"} />
+              ) },
+              { id: "exit-fee", content: (
+                <EditableTile label="Exit fee" value={exitFeePct} format="percent" min={0} max={10}
+                  onCommit={(exit_fee_pct) => onOverrideChange({ exit_fee_pct })} sub="disposition fee · % of exit price" />
+              ) },
+              { id: "exit-price", content: (
+                <KpiTile label="Exit Price" value={fmtEUR(e.exit_price)} sub={`${fmtEUR(e.exit_price_per_room)} / key · Y${e.exit_year}`} highlight />
+              ) },
+            ]}
+          />
 
           {/* Entry vs exit valuation arc */}
           <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr]">
@@ -92,14 +101,14 @@ export function ExitSection({
                 totalSqm={asset.total_sqm}
                 tone="neutral"
               />
-              <div className="flex flex-col items-center justify-center px-3 print:py-3">
-                <span className="font-headline text-[9px] font-extrabold uppercase tracking-[0.28em] text-lime-300/80 print:text-emerald-700">
+              <div className="flex flex-row items-center justify-center gap-2 px-3 md:flex-col md:gap-0 print:py-3">
+                <span className="font-headline text-[9px] font-extrabold uppercase tracking-[0.28em] text-forest-900">
                   Hold
                 </span>
-                <span className="font-mono text-[24px] font-extrabold text-lime-200 print:text-emerald-700">
+                <span className="font-mono text-[22px] font-extrabold text-forest-900 md:text-[24px]">
                   {e.exit_year}y
                 </span>
-                <span className="font-headline text-[9px] uppercase tracking-[0.18em] text-slate-500 print:text-slate-600">
+                <span className="font-headline text-[9px] uppercase tracking-[0.18em] text-slate-500">
                   →
                 </span>
               </div>
@@ -113,35 +122,39 @@ export function ExitSection({
                 tone="highlight"
               />
             </div>
-          <ValueCreationBridge
-            entryValue={entryValue}
-            exitValue={e.exit_price}
-            noiGrowth={noiGrowth}
-            yieldCompression={yieldCompressionValue}
-            capRateEntry={capEntry.used_pct}
-            capRateExit={capExit.used_pct}
-          />
 
-          {/* Cap rate rationale · exit yield */}
-          <CapRateRationaleStrip dynamic={capExit.dynamic} usedPct={capExit.used_pct} />
-
-          {/* Equity cash flow timeline */}
-          <EquityTimeline equityCf={e.equity_cash_flow} exitYear={e.exit_year} />
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <SummaryStat label="Equity contributed" value={fmtEUR(e.equity_investment)} />
             <SummaryStat label="Net exit proceeds" value={fmtEUR(netEquityProceeds)} tone="ok" />
             <SummaryStat label="Total distributions (cum.)" value={fmtEUR(e.profit_share + e.equity_investment)} tone="ok" />
           </div>
 
-          {/* Project + Equity Cash Flows · per period */}
-          <YearGrid periods={periods} caption="Exit Strategy · Project + Equity Cash Flows">
+          <YearGrid
+            periods={periods}
+            displayThroughIndex={e.exit_year}
+            kind="operating"
+            excludeAcquisition
+            caption="Operating Hold + Exit · Project + Equity Cash Flows · Y1 → Y{exit}"
+          >
             <DivisionRow label="Project Cash Flow" columnCount={cols} />
             <YearRow label="Operating Cash Flow" values={bundle.computed.cash_flow.operating_cash_flow} indent={1} />
             <YearRow label="Exit Price (net of fees)" values={exitPriceSeries} indent={1} kind="positive" />
             <SubtotalRow label="Project Cash Flow" values={e.project_cash_flow} tone="result" />
+            <IrrResultRow
+              label="Project IRR"
+              sublabel="Unlevered · pre-tax"
+              value={e.project_irr_pct}
+              columnCount={cols}
+            />
             <DivisionRow label="Equity Cash Flow" columnCount={cols} />
             <YearRow label="Debt Cash Flows" values={e.debt_cash_flow} indent={1} />
             <SubtotalRow label="Equity Cash Flow" values={e.equity_cash_flow} tone="result" />
+            <IrrResultRow
+              label="Equity IRR"
+              sublabel="Levered · post-tax"
+              value={e.equity_irr_pct}
+              columnCount={cols}
+            />
           </YearGrid>
         </div>
       }
@@ -150,6 +163,52 @@ export function ExitSection({
 }
 
 // ─── Sub-primitives ──────────────────────────────────────────────────
+
+/**
+ * IrrResultRow · prominent row inside the cash-flow YearGrid that
+ * displays the IRR result for the preceding cash-flow subtotal.
+ *
+ * Visual: forest accent band · two-line stacked label (main + sublabel)
+ * with bigger headline type · large mono number right-aligned. Reads as
+ * a single institutional conclusion, not a per-period value.
+ */
+function IrrResultRow({
+  label,
+  sublabel,
+  value,
+  columnCount,
+}: {
+  label: string;
+  sublabel?: string;
+  value: number;
+  columnCount: number;
+}) {
+  const display = !Number.isFinite(value) || value === 0
+    ? "—"
+    : `${value.toFixed(2).replace(".", ",")}%`;
+  return (
+    <tr className="border-t-2 border-forest-900/40 bg-forest-50">
+      <td className="sticky left-0 z-[1] bg-forest-50 px-3 py-3 align-middle">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-headline text-[13px] font-extrabold uppercase tracking-[0.18em] text-forest-900">
+            {label}
+          </span>
+          {sublabel && (
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-slate-600">
+              {sublabel}
+            </span>
+          )}
+        </div>
+      </td>
+      <td
+        colSpan={Math.max(1, columnCount - 1)}
+        className="px-3 py-3 text-right font-mono text-[20px] font-extrabold tabular-nums text-forest-900 sm:text-[22px]"
+      >
+        {display}
+      </td>
+    </tr>
+  );
+}
 
 function ValuationCard({
   label,
@@ -173,20 +232,20 @@ function ValuationCard({
     <div
       className={
         isHighlight
-          ? "rounded-md border-2 border-lime-300/40 bg-lime-300/5 p-4 print:border-emerald-500 print:bg-emerald-50"
-          : "rounded-md border border-slate-800/60 bg-slate-900/40 p-4 print:border-slate-300 print:bg-white"
+          ? "rounded-md border-2 border-forest-900/30 bg-forest-50 p-4"
+          : "rounded-md border border-slate-200 bg-white p-4"
       }
     >
       <div className="flex items-baseline justify-between">
-        <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-400 print:text-slate-600">
+        <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.28em] text-slate-600">
           {label}
         </p>
-        <span className="font-mono text-[10px] text-slate-500 print:text-slate-600">{year}</span>
+        <span className="font-mono text-[10px] text-slate-500">{year}</span>
       </div>
-      <p className={`mt-2 font-mono text-[24px] font-extrabold tabular-nums ${isHighlight ? "text-lime-200 print:text-emerald-700" : "text-slate-100 print:text-slate-900"}`}>
+      <p className={`mt-2 font-mono text-[22px] font-extrabold tabular-nums sm:text-[24px] ${isHighlight ? "text-forest-900" : "text-slate-900"}`}>
         {fmtEUR(value)}
       </p>
-      <ul className="mt-2 space-y-0.5 font-mono text-[10px] text-slate-400 print:text-slate-600">
+      <ul className="mt-2 space-y-0.5 font-mono text-[10px] text-slate-600">
         <li>{fmtEUR(value / rooms)} / key</li>
         <li>{fmtEUR(value / totalSqm)} / m²</li>
         <li>Cap rate · {fmtPct(capRate)}</li>
@@ -195,155 +254,13 @@ function ValuationCard({
   );
 }
 
-function ValueCreationBridge({
-  entryValue,
-  exitValue,
-  noiGrowth,
-  yieldCompression,
-  capRateEntry,
-  capRateExit,
-}: {
-  entryValue: number;
-  exitValue: number;
-  noiGrowth: number;
-  yieldCompression: number;
-  capRateEntry: number;
-  capRateExit: number;
-}) {
-  const totalDelta = exitValue - entryValue;
-  return (
-    <div className="rounded-md border border-slate-800/40 bg-slate-900/30 p-4 print:border-slate-300 print:bg-white">
-      <p className="mb-3 font-headline text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400 print:text-slate-700">
-        Value creation bridge
-      </p>
-      <ol className="space-y-2">
-        <BridgeRow label="Entry valuation" value={entryValue} kind="anchor" sub="Total Investment basis" />
-        <BridgeRow label="NOI growth contribution" value={noiGrowth} kind="delta" sub="EBITDA stabilisation through hold" />
-        <BridgeRow
-          label="Yield compression / expansion"
-          value={yieldCompression}
-          kind="delta"
-          sub={capRateExit > capRateEntry ? `Exit ${fmtPct(capRateExit)} > Entry ${fmtPct(capRateEntry)} · expansion drag` : `Exit ${fmtPct(capRateExit)} ≤ Entry ${fmtPct(capRateEntry)} · compression lift`}
-        />
-        <BridgeRow label="Exit valuation" value={exitValue} kind="result" sub={`Total Δ ${signed(totalDelta)}${fmtEUR(Math.abs(totalDelta))}`} />
-      </ol>
-    </div>
-  );
-}
-
-function BridgeRow({
-  label,
-  value,
-  kind,
-  sub,
-}: {
-  label: string;
-  value: number;
-  kind: "anchor" | "delta" | "result";
-  sub?: string;
-}) {
-  const valueClass =
-    kind === "result" ? "text-lime-200 font-extrabold print:text-emerald-700"
-    : kind === "anchor" ? "text-slate-100 font-bold print:text-slate-900"
-    : value >= 0 ? "text-emerald-200 print:text-emerald-700"
-    : "text-rose-200 print:text-rose-700";
-  return (
-    <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 border-b border-slate-800/40 pb-1.5 last:border-b-0 print:border-slate-200">
-      <div>
-        <p className="font-headline text-[11px] font-bold text-slate-200 print:text-slate-900">{label}</p>
-        {sub && <p className="font-mono text-[9.5px] text-slate-500 print:text-slate-600">{sub}</p>}
-      </div>
-      <span className={`font-mono text-[13.5px] tabular-nums ${valueClass}`}>
-        {kind !== "anchor" && value !== 0 ? signed(value) : ""}
-        {fmtEUR(Math.abs(value))}
-      </span>
-    </li>
-  );
-}
-
-function CapRateRationaleStrip({
-  dynamic,
-  usedPct,
-}: {
-  dynamic: UnderwritingBundle["computed"]["cap_rate"]["exit"]["dynamic"];
-  usedPct: number;
-}) {
-  const confidence = dynamic.confidence;
-  return (
-    <div className="rounded-md border border-slate-800/40 bg-slate-900/30 p-4 print:border-slate-300 print:bg-white">
-      <div className="mb-3 flex items-baseline justify-between">
-        <p className="font-headline text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400 print:text-slate-700">
-          Adjustment stack
-        </p>
-        <span className="font-mono text-[10px] text-slate-500 print:text-slate-600">
-          Confidence {confidence.score_0_100.toFixed(0)}/100 · {confidence.band.replace("_", " ")}
-        </span>
-      </div>
-      <ol className="space-y-1">
-        {dynamic.adjustments.map((a, idx) => (
-          <li key={a.id} className="grid grid-cols-[24px_1fr_72px] items-baseline gap-2 border-b border-slate-800/40 pb-1 last:border-b-0 print:border-slate-200">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-slate-800/80 font-mono text-[9px] font-bold text-slate-300 print:bg-slate-200 print:text-slate-700">
-              {idx + 1}
-            </span>
-            <div>
-              <p className="font-headline text-[10.5px] font-bold text-slate-100 print:text-slate-900">{a.label}</p>
-              <p className="font-mono text-[9px] text-slate-500 print:text-slate-600">{a.rationale}</p>
-            </div>
-            <span className={`text-right font-mono text-[11px] font-bold tabular-nums ${a.category === "base" ? "text-slate-100 print:text-slate-900" : a.delta_pct >= 0 ? "text-amber-200 print:text-amber-700" : "text-emerald-200 print:text-emerald-700"}`}>
-              {a.category === "base" ? `${a.delta_pct.toFixed(2)}%` : `${a.delta_pct >= 0 ? "+" : ""}${a.delta_pct.toFixed(2)}%`}
-            </span>
-          </li>
-        ))}
-        <li className="grid grid-cols-[24px_1fr_72px] items-baseline gap-2 rounded-md bg-lime-300/10 px-1 py-1.5 print:bg-emerald-50">
-          <span />
-          <p className="font-headline text-[11px] font-extrabold uppercase tracking-[0.18em] text-lime-300 print:text-emerald-700">
-            Used at exit
-          </p>
-          <span className="text-right font-mono text-[13px] font-extrabold tabular-nums text-lime-200 print:text-emerald-700">
-            {fmtPct(usedPct)}
-          </span>
-        </li>
-      </ol>
-    </div>
-  );
-}
-
-function EquityTimeline({ equityCf, exitYear }: { equityCf: number[]; exitYear: number }) {
-  const years = Array.from({ length: Math.min(equityCf.length, exitYear + 1) }, (_, i) => i);
-  const maxAbs = Math.max(...equityCf.map(Math.abs), 1);
-  return (
-    <div className="rounded-md border border-slate-800/40 bg-slate-900/30 p-4 print:border-slate-300 print:bg-white">
-      <p className="mb-3 font-headline text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400 print:text-slate-700">
-        Equity cash flow timeline · Y0 → Y{exitYear}
-      </p>
-      <div className="flex items-end justify-around gap-1" style={{ height: 96 }}>
-        {years.map((y) => {
-          const v = equityCf[y] ?? 0;
-          const isPositive = v > 0;
-          const heightPct = Math.max(4, (Math.abs(v) / maxAbs) * 80);
-          return (
-            <div key={y} className="flex flex-1 flex-col items-center justify-end gap-1">
-              <div
-                className={isPositive ? "w-full rounded-t-sm bg-emerald-300/80 print:bg-emerald-500" : "w-full rounded-b-sm bg-rose-300/70 print:bg-rose-400"}
-                style={{ height: `${heightPct}%` }}
-                title={`Y${y} · ${fmtEUR(v)}`}
-              />
-              <span className="font-mono text-[8.5px] text-slate-500 print:text-slate-600">Y{y}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function SummaryStat({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "ok" | "warn" | "neutral" }) {
-  const colour = tone === "ok" ? "text-emerald-200 print:text-emerald-700"
-    : tone === "warn" ? "text-amber-200 print:text-amber-700"
-    : "text-slate-100 print:text-slate-900";
+  const colour = tone === "ok" ? "text-emerald-700"
+    : tone === "warn" ? "text-amber-700"
+    : "text-slate-900";
   return (
-    <div className="rounded-md border border-slate-800/60 bg-slate-900/40 p-3 print:border-slate-300 print:bg-white">
-      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">{label}</p>
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className={`mt-1 font-mono text-[14px] font-extrabold tabular-nums ${colour}`}>{value}</p>
     </div>
   );
@@ -357,11 +274,6 @@ function irrTone(irr: number, target: number): "ok" | "warn" | "negative" {
 
 function moicTone(moic: number): "ok" | "warn" | "negative" {
   return moic >= 1.8 ? "ok" : moic >= 1.3 ? "warn" : "negative";
-}
-
-function signed(n: number): string {
-  if (n === 0) return "";
-  return n > 0 ? "+" : "−";
 }
 
 function fmtEUR(n: number): string {

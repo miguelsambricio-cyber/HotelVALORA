@@ -218,7 +218,8 @@ export const FINANCIAL_STRUCTURE_DEFAULTS: FinancialStructureLine[] = [
   { id: "ltc", label: "Loan-to-Cost (LTC)", value: "60–70", unit: "%", description: "Construction / refurb financing · higher than LTV during reposition" },
   { id: "rate", label: "All-in cost of debt", value: "Euribor 6M + 250–400", unit: "bps", description: "Senior secured · spread depends on asset quality + sponsor track record" },
   { id: "amort", label: "Amortisation", value: "Interest-only", unit: "5y bullet", description: "Bullet structure · principal at exit · refinance flexibility" },
-  { id: "dscr", label: "DSCR covenant", value: "≥ 1.30×", unit: "min", description: "Debt-service coverage ratio · trailing 12-month basis" },
+  { id: "dscr", label: "DSCR covenant", value: "≥ 1.10×", unit: "min", description: "Debt-service coverage ratio · Gross Operating Profit / debt service · institutional hospitality basis" },
+  { id: "dyr", label: "DYR · debt yield covenant", value: "≥ 7.50", unit: "% min", description: "Debt yield ratio · Gross Operating Profit / debt balance · lender stress threshold independent of cap-rate compression" },
   // Exit cap rate retired · now lives in the Dynamic Cap Rate panel below.
   { id: "irr-target", label: "Equity IRR target", value: "15–20", unit: "% net", description: "Levered IRR after fees · institutional minimum for value-add hospitality" },
   { id: "moic", label: "MOIC target", value: "1.8–2.3", unit: "× equity", description: "Multiple on invested capital over hold period" },

@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 /**
  * Sticky section nav (left rail) · investment-memo style.
  *
- *   · sticky on lg+ screens · horizontal scroll-snap chips on mobile
- *   · active section detection via IntersectionObserver on anchor IDs
- *   · clicking an item smooth-scrolls to the section with scroll-mt offset
+ * Corporate light theme · active chip uses forest-900 (the report's
+ * canonical "active state" colour, matching the active scenario pill).
  *
- * Items map to anchor IDs that match SectionShell's `anchorId` prop.
+ * Mobile: horizontal scroll-snap chips above the section column.
+ * Desktop ≥lg: sticky vertical rail.
  */
 export interface NavItem {
   number: number;
@@ -26,7 +26,6 @@ export function StickySectionNav({ items }: { items: NavItem[] }) {
     if (typeof window === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => {
-        // Pick the entry closest to the top viewport edge that's intersecting
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
@@ -46,7 +45,6 @@ export function StickySectionNav({ items }: { items: NavItem[] }) {
       aria-label="Underwriting sections"
       className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
     >
-      {/* Mobile: horizontal scroll chips */}
       <ul className="flex gap-1.5 overflow-x-auto pb-2 lg:hidden">
         {items.map((item) => (
           <li key={item.anchorId} className="shrink-0">
@@ -58,7 +56,6 @@ export function StickySectionNav({ items }: { items: NavItem[] }) {
           </li>
         ))}
       </ul>
-      {/* Desktop: vertical rail */}
       <ul className="hidden flex-col gap-1 lg:flex">
         {items.map((item) => (
           <li key={item.anchorId}>
@@ -86,15 +83,15 @@ function NavChip({
         "block rounded-md ring-1 transition-colors",
         compact ? "px-2.5 py-1" : "px-3 py-2",
         active
-          ? "bg-lime-300/15 text-lime-200 ring-lime-300/40"
-          : "bg-slate-900/40 text-slate-400 ring-slate-700/40 hover:bg-slate-800/60 hover:text-slate-200",
+          ? "bg-forest-900 text-white ring-forest-900"
+          : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50 hover:text-slate-900",
       )}
     >
       <span className="flex items-baseline gap-2">
         <span
           className={cn(
             "font-mono text-[9px] tabular-nums",
-            active ? "text-lime-300/80" : "text-slate-500",
+            active ? "text-white/70" : "text-slate-400",
           )}
         >
           {String(item.number).padStart(2, "0")}

@@ -4,14 +4,15 @@ import { cn } from "@/lib/utils";
 import type { ScenarioCatalogEntry } from "@/lib/underwriting/defaults";
 
 /**
- * ScenarioPicker · sticky segmented control at the top of the underwriting page.
+ * ScenarioPicker · sticky segmented control at the top of the
+ * underwriting page. Conservador / Mercado / Optimista → re-prices the
+ * engine reactively. Hidden in print.
  *
- * Lets the operator switch between Conservador / Mercado / Optimista in
- * one click · the engine re-runs reactively and all 8 sections re-render
- * with the new cap rate, IRR, MOIC, DSCR, etc.
- *
- * Hidden in print (committee PDF carries the snapshot scenario only ·
- * scenario selection is an interactive UX).
+ * Corporate light theme · the active scenario is a forest-900 chip
+ * (same palette as the P&L "ACTIVE" RevPAR scenario button); live
+ * metrics on the right render in blue (#005db7) — the same colour the
+ * operator sees on every editable surface, signalling "these numbers
+ * just changed because you switched scenario".
  */
 export function ScenarioPicker({
   catalog,
@@ -31,13 +32,13 @@ export function ScenarioPicker({
   moic: number;
 }) {
   return (
-    <div className="sticky top-0 z-30 -mx-2 mb-3 rounded-md border border-slate-800/60 bg-slate-950/95 px-3 py-2 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-slate-950/80 print:hidden">
+    <div className="sticky top-0 z-30 -mx-2 mb-3 rounded-md border border-slate-200 bg-white/95 px-3 py-2 shadow-md backdrop-blur supports-[backdrop-filter]:bg-white/85 print:hidden">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-2">
-          <span className="font-headline text-[9px] font-extrabold uppercase tracking-[0.28em] text-lime-300/80">
+          <span className="font-headline text-[9px] font-extrabold uppercase tracking-[0.28em] text-[#005db7]">
             Scenario
           </span>
-          <div role="radiogroup" aria-label="Underwriting scenario" className="inline-flex rounded-md border border-slate-700/60 bg-slate-900/60 p-0.5">
+          <div role="radiogroup" aria-label="Underwriting scenario" className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5">
             {catalog.map((s) => {
               const active = s.id === activeId;
               return (
@@ -51,8 +52,8 @@ export function ScenarioPicker({
                   className={cn(
                     "rounded-sm px-3 py-1 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.18em] transition-colors",
                     active
-                      ? "bg-lime-300 text-forest-900 shadow-sm"
-                      : "text-slate-300 hover:bg-slate-800/80 hover:text-white",
+                      ? "bg-forest-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-white hover:text-slate-900",
                   )}
                 >
                   {s.label}
@@ -79,7 +80,7 @@ function LiveMetric({ label, value }: { label: string; value: string }) {
       <span className="font-headline text-[8.5px] font-bold uppercase tracking-[0.22em] text-slate-500">
         {label}
       </span>
-      <span className="font-mono text-[12px] font-extrabold tabular-nums text-lime-200">{value}</span>
+      <span className="font-mono text-[12px] font-extrabold tabular-nums text-[#005db7]">{value}</span>
     </div>
   );
 }

@@ -85,29 +85,33 @@ export const investmentModule: EngineModule<"investment"> = {
 
     // ─── BreakdownLine helpers ────────────────────────────────────────
     const acqLines: BreakdownLine[] = [
-      mkLine("notary_registry", "Notary & Registry", notary, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.notary_registry_pct)),
-      mkLine("ajd", "AJD · Legal & Stamp Duty", ajd, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.ajd_pct)),
-      mkLine("itp", "ITP · Property Transfer Tax", itp, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.itp_pct)),
-      mkLine("acquisition_fee", "Acquisition fee", acqFee, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.acquisition_fee_pct)),
-      mkLine("key_money", "Key Money Operator", keyMoney, totalBuildingCost, rooms, totalSqm, intSqm),
+      mkLine("notary_registry", "Notary & Registry", notary, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.notary_registry_pct), acquisition.costs.notary_registry_pct, "percent_asking"),
+      mkLine("ajd", "AJD · Legal & Stamp Duty", ajd, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.ajd_pct), acquisition.costs.ajd_pct, "percent_asking"),
+      mkLine("itp", "ITP · Property Transfer Tax", itp, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.itp_pct), acquisition.costs.itp_pct, "percent_asking"),
+      mkLine("acquisition_fee", "Acquisition fee", acqFee, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(acquisition.costs.acquisition_fee_pct), acquisition.costs.acquisition_fee_pct, "percent_asking"),
+      mkLine("key_money", "Key Money Operator", keyMoney, totalBuildingCost, rooms, totalSqm, intSqm, undefined, acquisition.costs.key_money_total, "currency_total"),
     ];
 
     const hardLines: BreakdownLine[] = [
-      mkLine("structure", "Structure", structure, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.hard_cost.structure_pct)),
-      mkLine("asset_content", "Asset content", assetContent, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.hard_cost.asset_content_pct)),
-      mkLine("mep", "MEP · Mechanical, electrical & plumbing", mep, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.hard_cost.mep_per_room)} / key`),
-      mkLine("exterior", "Exterior & others", exterior, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.hard_cost.exterior_pct)),
+      mkLine("structure", "Structure", structure, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.hard_cost.structure_pct), capex.hard_cost.structure_pct, "percent_asking"),
+      mkLine("asset_content", "Asset content", assetContent, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.hard_cost.asset_content_pct), capex.hard_cost.asset_content_pct, "percent_asking"),
+      mkLine("mep", "MEP · Mechanical, electrical & plumbing", mep, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.hard_cost.mep_per_room)} / key`, capex.hard_cost.mep_per_room, "currency_per_key"),
+      mkLine("exterior", "Exterior & others", exterior, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.hard_cost.exterior_pct), capex.hard_cost.exterior_pct, "percent_subtotal"),
     ];
 
     const softLines: BreakdownLine[] = [
-      mkLine("licensing", "Licensing", licensing, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.licensing_pct)),
-      mkLine("technical_consultant", "Technical Consultant", techConsultant, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.technical_consultant_pct)),
-      mkLine("development_fee", "Development fees", devFee, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.development_fee_pct)),
-      mkLine("preopening", "Pre-Opening", preopening, totalBuildingCost, rooms, totalSqm, intSqm),
-      mkLine("ffe", "FF&E", ffe, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.soft_cost.ffe_per_room)} / key`),
-      mkLine("ose", "OS&E", ose, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.soft_cost.ose_per_room)} / key`),
-      mkLine("contingency", "Contingency", contingency, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.contingency_pct)),
-      mkLine("insurance_dev", "Insurance · Seguro de Obra", insurance, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.insurance_pct)),
+      mkLine("licensing", "Licensing", licensing, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.licensing_pct), capex.soft_cost.licensing_pct, "percent_subtotal"),
+      mkLine("technical_consultant", "Technical Consultant", techConsultant, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.technical_consultant_pct), capex.soft_cost.technical_consultant_pct, "percent_subtotal"),
+      mkLine("development_fee", "Development fees", devFee, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.development_fee_pct), capex.soft_cost.development_fee_pct, "percent_subtotal"),
+      mkLine("preopening", "Pre-Opening", preopening, totalBuildingCost, rooms, totalSqm, intSqm, undefined, capex.soft_cost.preopening_total, "currency_total"),
+      mkLine("ffe", "FF&E", ffe, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.soft_cost.ffe_per_room)} / key`, capex.soft_cost.ffe_per_room, "currency_per_key"),
+      mkLine("ose", "OS&E", ose, totalBuildingCost, rooms, totalSqm, intSqm, `${fmtEurCompact(capex.soft_cost.ose_per_room)} / key`, capex.soft_cost.ose_per_room, "currency_per_key"),
+    ];
+
+    // ── PROJECT COST ── canonical admin/financials grouping (Contingency + Insurance)
+    const projectLines: BreakdownLine[] = [
+      mkLine("contingency", "Contingency", contingency, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.contingency_pct), capex.contingency_pct, "percent_subtotal"),
+      mkLine("insurance_dev", "Insurance · Seguro de Obra", insurance, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.insurance_pct), capex.soft_cost.insurance_pct, "percent_asking"),
     ];
 
     const capexPhases: CapexPhase[] = [
@@ -143,7 +147,7 @@ export const investmentModule: EngineModule<"investment"> = {
       acquisition: acqLines,
       capex_hard_cost: hardLines,
       capex_soft_cost: softLines,
-      capex_project: [],
+      capex_project: projectLines,
       capex_phases: capexPhases,
       stabilized_yield_progression: yieldSeries,
     };
@@ -165,11 +169,15 @@ function mkLine(
   sqm: number,
   intSqm: number,
   assumption?: string,
+  assumption_raw?: number,
+  assumption_kind?: BreakdownLine["assumption_kind"],
 ): BreakdownLine {
   return {
     id,
     label,
     assumption,
+    assumption_raw,
+    assumption_kind,
     total_eur: total,
     per_room_eur: round0(perKey(total, rooms)),
     per_sqm_eur: round0(perSqm(total, sqm)),

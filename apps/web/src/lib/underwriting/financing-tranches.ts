@@ -127,12 +127,21 @@ export interface FinancingPortfolioSchedule {
   total_bofy_balance: PeriodSeries;
   total_eofy_balance: PeriodSeries;
 
-  /** Coverage ratios (BLOCK 5+ computes from CF). */
+  /** Coverage ratios (BLOCK 5+ computes from CF).
+   *  DSCR = Gross Operating Profit / debt service (institutional convention
+   *  for hospitality · operator-explicit choice 2026-05-19). */
   dscr: PeriodSeries;
   icr: PeriodSeries;
 
   /** Aggregate LTV per period. */
   ltv_pct: PeriodSeries;
+
+  /** Debt Yield Ratio · GOP / EoFY debt balance · institutional lender covenant. */
+  debt_yield_pct: PeriodSeries;
+
+  /** Upfront fee · amortized linearly over senior loan years (Y1..maturity).
+   *  Pre-aggregated portfolio series in absolute € per period. */
+  total_upfront_fee_amortized: PeriodSeries;
 
   /** Covenant test results per period · summarised across all tranches. */
   covenant_breaches: Array<{

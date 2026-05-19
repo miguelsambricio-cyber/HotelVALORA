@@ -166,6 +166,8 @@ export interface UnderwritingInputOverrides {
   exit_fee_pct?: number;
   /** Senior tranche · LTV percentage points (e.g. 65 = 65%). */
   ltv_pct?: number;
+  /** Senior CAPEX tranche · LTC percentage points (e.g. 80 = 80% of CAPEX). */
+  ltc_pct?: number;
   /** Corporate income tax rate · percentage points (e.g. 25 = 25%). */
   cit_rate_pct?: number;
   /** Ley IS · EBITDA deduction limit · percentage points (e.g. 30 = 30%). */
@@ -176,6 +178,47 @@ export interface UnderwritingInputOverrides {
   building_years?: number;
   /** Depreciation · MEP useful life · years (e.g. 7). */
   mep_years?: number;
+  /** Site Acquisition · target total € (asking_price absorbs the variance). */
+  site_acquisition_eur?: number;
+  /** CAPEX · target total € · scales every per-key + percent CAPEX line proportionally. */
+  capex_total_eur?: number;
+  /** Total Investment · target total € · scales site_acquisition + CAPEX uniformly. */
+  total_investment_eur?: number;
+  /** Senior tranche · amortization horizon · years (e.g. 10). */
+  senior_years?: number;
+  /** Senior CAPEX tranche · amortization horizon · years (e.g. 7). */
+  capex_years?: number;
+  /** Euribor 12M reference rate · percentage points (e.g. 2.75 = 2.75%). */
+  euribor_pct?: number;
+  /** Senior tranche · margin over Euribor · percentage points (e.g. 1.25). */
+  senior_margin_pct?: number;
+  /** Senior tranche · bullet repayment at maturity · percentage points (e.g. 25 = 25%). */
+  senior_bullet_pct?: number;
+  /** Senior tranche · grace period · whole years (interest-only). */
+  senior_grace_periods?: number;
+  /** Dynamic Cap Rate · entry · manual operator override (percentage points). */
+  cap_rate_entry_pct?: number;
+  /** Exit cap rate · manual operator override (percentage points). */
+  exit_cap_rate_pct?: number;
+  // ── Acquisition cost line overrides (per-line · stored as raw policy value) ──
+  acq_notary_registry_pct?: number;
+  acq_ajd_pct?: number;
+  acq_itp_pct?: number;
+  acq_acquisition_fee_pct?: number;
+  acq_key_money_total?: number;
+  // ── CAPEX line overrides · raw policy values ──
+  capex_structure_pct?: number;
+  capex_asset_content_pct?: number;
+  capex_mep_per_room?: number;
+  capex_exterior_pct?: number;
+  capex_licensing_pct?: number;
+  capex_technical_consultant_pct?: number;
+  capex_development_fee_pct?: number;
+  capex_preopening_total?: number;
+  capex_ffe_per_room?: number;
+  capex_ose_per_room?: number;
+  capex_contingency_pct?: number;
+  capex_insurance_pct?: number;
 }
 
 /**
@@ -250,6 +293,15 @@ function applyOverrides(
       return t;
     });
   }
+  if (overrides.ltc_pct !== undefined) {
+    // Mutate the senior CAPEX tranche's LTC-of-total principal spec.
+    cloned.financing.tranches = cloned.financing.tranches.map((t) => {
+      if (t.kind === "senior_capex" && t.principal.kind === "ltc_of_total") {
+        return { ...t, principal: { ...t.principal, ltc_pct: overrides.ltc_pct! } };
+      }
+      return t;
+    });
+  }
   if (overrides.cit_rate_pct !== undefined) {
     // CIT stored as decimal (0.25 = 25%) · UI passes percentage points.
     cloned.tax.cit_rate_pct = overrides.cit_rate_pct / 100;
@@ -269,5 +321,218 @@ function applyOverrides(
   if (overrides.mep_years !== undefined && overrides.mep_years > 0) {
     cloned.depreciation.mep_years = Math.round(overrides.mep_years);
   }
+
+  // ─── Section 06 totals · scale-to-target ───────────────────────────
+  // Site Acquisition target → re-derives asking_price (acq fees recompute
+  // off asking_price downstream, so set asking_price so that
+  // asking_price + sum(asking_price × cost_pct) = target).
+  if (overrides.site_acquisition_eur !== undefined && overrides.site_acquisition_eur > 0) {
+    const c = cloned.acquisition.costs;
+    const feeMultiplier = 1 + c.notary_registry_pct + c.ajd_pct + c.itp_pct + c.acquisition_fee_pct;
+    if (feeMultiplier > 0) {
+      const targetAsking = (overrides.site_acquisition_eur - c.key_money_total) / feeMultiplier;
+      if (targetAsking > 0) {
+        const baseAsking = cloned.acquisition.asking_price;
+        const ratio = targetAsking / baseAsking;
+        cloned.acquisition.asking_price = targetAsking;
+        // Keep hotel_value:asking_price ratio
+        cloned.acquisition.hotel_value *= ratio;
+      }
+    }
+  }
+
+  // CAPEX total target → scale every CAPEX driver proportionally so the
+  // engine's downstream capex_total lands on the user's number.
+  if (overrides.capex_total_eur !== undefined && overrides.capex_total_eur > 0) {
+    const currentCapex = computeCapexTotal(cloned);
+    if (currentCapex > 0) {
+      const ratio = overrides.capex_total_eur / currentCapex;
+      scaleCapexInputs(cloned, ratio);
+    }
+  }
+
+  // Total Investment target → scale site_acquisition + CAPEX equally.
+  // Applied AFTER capex_total_eur so the user's explicit CAPEX target is
+  // preserved relative to the new aggregate.
+  if (overrides.total_investment_eur !== undefined && overrides.total_investment_eur > 0) {
+    const currentTotal = computeTotalInvestment(cloned);
+    if (currentTotal > 0) {
+      const ratio = overrides.total_investment_eur / currentTotal;
+      cloned.acquisition.asking_price *= ratio;
+      cloned.acquisition.hotel_value *= ratio;
+      scaleCapexInputs(cloned, ratio);
+    }
+  }
+
+  // ─── Section 07 financing overrides ────────────────────────────────
+  if (overrides.senior_years !== undefined && overrides.senior_years > 0) {
+    const y = Math.round(overrides.senior_years);
+    cloned.financing.tranches = cloned.financing.tranches.map((t) =>
+      t.kind === "senior_secured"
+        ? { ...t, amortization: { ...t.amortization, years: y }, maturity_periods: y }
+        : t,
+    );
+  }
+  if (overrides.capex_years !== undefined && overrides.capex_years > 0) {
+    const y = Math.round(overrides.capex_years);
+    cloned.financing.tranches = cloned.financing.tranches.map((t) =>
+      t.kind === "senior_capex"
+        ? { ...t, amortization: { ...t.amortization, years: y }, maturity_periods: y }
+        : t,
+    );
+  }
+  if (overrides.euribor_pct !== undefined && overrides.euribor_pct >= 0) {
+    cloned.financing.euribor_12m_pct = overrides.euribor_pct;
+  }
+  if (overrides.senior_margin_pct !== undefined && overrides.senior_margin_pct >= 0) {
+    cloned.financing.tranches = cloned.financing.tranches.map((t) => {
+      if (t.kind === "senior_secured" && t.rate.kind === "floating") {
+        return { ...t, rate: { ...t.rate, margin_pct: overrides.senior_margin_pct! } };
+      }
+      return t;
+    });
+  }
+  if (overrides.senior_bullet_pct !== undefined && overrides.senior_bullet_pct >= 0) {
+    cloned.financing.tranches = cloned.financing.tranches.map((t) => {
+      if (t.kind === "senior_secured" && t.amortization.kind === "bullet") {
+        return { ...t, amortization: { ...t.amortization, bullet_pct: overrides.senior_bullet_pct! } };
+      }
+      return t;
+    });
+  }
+  if (overrides.senior_grace_periods !== undefined && overrides.senior_grace_periods >= 0) {
+    const g = Math.round(overrides.senior_grace_periods);
+    cloned.financing.tranches = cloned.financing.tranches.map((t) =>
+      t.kind === "senior_secured" ? { ...t, grace_periods: g } : t,
+    );
+  }
+
+  if (overrides.cap_rate_entry_pct !== undefined && overrides.cap_rate_entry_pct > 0) {
+    // Operator override of the Dynamic Cap Rate · disables engine-derived path
+    cloned.acquisition.cap_rate = {
+      manual_override_pct: overrides.cap_rate_entry_pct,
+      use_dynamic: false,
+    };
+  }
+
+  if (overrides.exit_cap_rate_pct !== undefined && overrides.exit_cap_rate_pct > 0) {
+    // Operator override of the exit cap rate · same convention as entry
+    cloned.exit.cap_rate = {
+      manual_override_pct: overrides.exit_cap_rate_pct,
+      use_dynamic: false,
+    };
+  }
+
+  // ── Acquisition cost line overrides ──
+  if (overrides.acq_notary_registry_pct !== undefined && overrides.acq_notary_registry_pct >= 0) {
+    cloned.acquisition.costs.notary_registry_pct = overrides.acq_notary_registry_pct;
+  }
+  if (overrides.acq_ajd_pct !== undefined && overrides.acq_ajd_pct >= 0) {
+    cloned.acquisition.costs.ajd_pct = overrides.acq_ajd_pct;
+  }
+  if (overrides.acq_itp_pct !== undefined && overrides.acq_itp_pct >= 0) {
+    cloned.acquisition.costs.itp_pct = overrides.acq_itp_pct;
+  }
+  if (overrides.acq_acquisition_fee_pct !== undefined && overrides.acq_acquisition_fee_pct >= 0) {
+    cloned.acquisition.costs.acquisition_fee_pct = overrides.acq_acquisition_fee_pct;
+  }
+  if (overrides.acq_key_money_total !== undefined && overrides.acq_key_money_total >= 0) {
+    cloned.acquisition.costs.key_money_total = overrides.acq_key_money_total;
+  }
+
+  // ── CAPEX line overrides ──
+  if (overrides.capex_structure_pct !== undefined && overrides.capex_structure_pct >= 0) {
+    cloned.capex.hard_cost.structure_pct = overrides.capex_structure_pct;
+  }
+  if (overrides.capex_asset_content_pct !== undefined && overrides.capex_asset_content_pct >= 0) {
+    cloned.capex.hard_cost.asset_content_pct = overrides.capex_asset_content_pct;
+  }
+  if (overrides.capex_mep_per_room !== undefined && overrides.capex_mep_per_room >= 0) {
+    cloned.capex.hard_cost.mep_per_room = overrides.capex_mep_per_room;
+  }
+  if (overrides.capex_exterior_pct !== undefined && overrides.capex_exterior_pct >= 0) {
+    cloned.capex.hard_cost.exterior_pct = overrides.capex_exterior_pct;
+  }
+  if (overrides.capex_licensing_pct !== undefined && overrides.capex_licensing_pct >= 0) {
+    cloned.capex.soft_cost.licensing_pct = overrides.capex_licensing_pct;
+  }
+  if (overrides.capex_technical_consultant_pct !== undefined && overrides.capex_technical_consultant_pct >= 0) {
+    cloned.capex.soft_cost.technical_consultant_pct = overrides.capex_technical_consultant_pct;
+  }
+  if (overrides.capex_development_fee_pct !== undefined && overrides.capex_development_fee_pct >= 0) {
+    cloned.capex.soft_cost.development_fee_pct = overrides.capex_development_fee_pct;
+  }
+  if (overrides.capex_preopening_total !== undefined && overrides.capex_preopening_total >= 0) {
+    cloned.capex.soft_cost.preopening_total = overrides.capex_preopening_total;
+  }
+  if (overrides.capex_ffe_per_room !== undefined && overrides.capex_ffe_per_room >= 0) {
+    cloned.capex.soft_cost.ffe_per_room = overrides.capex_ffe_per_room;
+  }
+  if (overrides.capex_ose_per_room !== undefined && overrides.capex_ose_per_room >= 0) {
+    cloned.capex.soft_cost.ose_per_room = overrides.capex_ose_per_room;
+  }
+  if (overrides.capex_contingency_pct !== undefined && overrides.capex_contingency_pct >= 0) {
+    cloned.capex.contingency_pct = overrides.capex_contingency_pct;
+  }
+  if (overrides.capex_insurance_pct !== undefined && overrides.capex_insurance_pct >= 0) {
+    cloned.capex.soft_cost.insurance_pct = overrides.capex_insurance_pct;
+  }
+
   return cloned;
+}
+
+/** Inline mini-engine · returns the CAPEX total an engine would compute
+ *  from these inputs (must stay in lock-step with engine/investment.ts). */
+function computeCapexTotal(inputs: UnderwritingInputs): number {
+  const { asset, acquisition, capex } = inputs;
+  const rooms = asset.rooms;
+  const askingPrice = acquisition.asking_price;
+
+  const structure = askingPrice * capex.hard_cost.structure_pct;
+  const assetContent = askingPrice * capex.hard_cost.asset_content_pct;
+  const mep = capex.hard_cost.mep_per_room * rooms;
+  const ffe = capex.soft_cost.ffe_per_room * rooms;
+  const ose = capex.soft_cost.ose_per_room * rooms;
+  const exterior = capex.hard_cost.exterior_pct * (mep + ffe + ose);
+  const hardCostTotal = structure + assetContent + mep + exterior;
+
+  const preopening = capex.soft_cost.preopening_total;
+  const licensing = hardCostTotal * capex.soft_cost.licensing_pct;
+  const tcDevBase = hardCostTotal + preopening + ffe + ose;
+  const techConsultant = tcDevBase * capex.soft_cost.technical_consultant_pct;
+  const devFee = tcDevBase * capex.soft_cost.development_fee_pct;
+  const insurance = askingPrice * capex.soft_cost.insurance_pct;
+
+  const softPre = licensing + techConsultant + devFee + preopening + ffe + ose;
+  const contingency = capex.contingency_pct * (hardCostTotal + softPre);
+  return hardCostTotal + softPre + insurance + contingency;
+}
+
+function computeTotalInvestment(inputs: UnderwritingInputs): number {
+  const { acquisition } = inputs;
+  const c = acquisition.costs;
+  const acqFees = acquisition.asking_price * (c.notary_registry_pct + c.ajd_pct + c.itp_pct + c.acquisition_fee_pct) + c.key_money_total;
+  const siteAcq = acquisition.asking_price + acqFees;
+  return siteAcq + computeCapexTotal(inputs);
+}
+
+/** Scale every CAPEX driver by `ratio` so the engine's capex_total grows
+ *  in lock-step. Percent-of-asking_price inputs scale by `ratio` too;
+ *  asking_price itself stays untouched (callers manage it separately). */
+function scaleCapexInputs(inputs: UnderwritingInputs, ratio: number): void {
+  if (!Number.isFinite(ratio) || ratio === 1) return;
+  const hc = inputs.capex.hard_cost;
+  const sc = inputs.capex.soft_cost;
+  hc.mep_per_room *= ratio;
+  hc.structure_pct *= ratio;
+  hc.asset_content_pct *= ratio;
+  hc.exterior_pct *= ratio;
+  sc.licensing_pct *= ratio;
+  sc.technical_consultant_pct *= ratio;
+  sc.development_fee_pct *= ratio;
+  sc.preopening_total *= ratio;
+  sc.ffe_per_room *= ratio;
+  sc.ose_per_room *= ratio;
+  sc.insurance_pct *= ratio;
+  // contingency_pct stays — it's a % of subtotal which already scaled.
 }

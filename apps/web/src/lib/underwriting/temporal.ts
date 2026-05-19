@@ -29,6 +29,30 @@
 
 export type PeriodKind = "year" | "quarter" | "month";
 
+/**
+ * Underwriting lifecycle phase the period belongs to.
+ *
+ * `acquisition` · capital deployment phase · pre-stabilization.
+ *   Operations are not yet running. Hotel revenue + GOP are not
+ *   applicable. Investment / financing / cash flow activity (CAPEX
+ *   draw, debt drawdown, equity injection, acquisition costs,
+ *   pre-opening) IS happening — this is the core of the underwriting.
+ *
+ * `operating` · post-stabilization · operating hold.
+ *   Hotel is generating revenue and EBITDA. Standard P&L line items
+ *   apply. Debt service runs. Tax accrues.
+ *
+ * Future phases (`stabilization`, `exit`) can be added without
+ * breaking existing consumers — render layers default to `operating`
+ * for any unrecognized phase.
+ *
+ * Future-proof: multi-period acquisitions (phased renovations,
+ * construction periods, staged openings, delayed stabilization) are
+ * supported by tagging more than one period as `acquisition`. The
+ * presentation layer styles every acquisition cell uniformly.
+ */
+export type PeriodPhase = "acquisition" | "operating";
+
 export interface Period {
   /** Stable id · e.g. "y0", "y1", "y7q3", "y3m05". */
   id: string;
@@ -37,6 +61,8 @@ export interface Period {
   index: number;
   /** Display label · e.g. "Year 0", "Y3 Q2", "Y1 Mar". */
   label: string;
+  /** Underwriting lifecycle phase · drives presentational treatment. */
+  phase: PeriodPhase;
   /** Optional · ISO start of the period · only set when real calendar dates land. */
   start_date?: string;
   end_date?: string;
@@ -50,24 +76,48 @@ export type PeriodScalar = number;
 
 // ─── Default period axes ──────────────────────────────────────────────
 
-/** MVP · 11 yearly periods · Y0 .. Y10. */
+/**
+ * MVP · 11 yearly periods · Y0 .. Y10.
+ *
+ * Y0 is tagged `acquisition` (closing year · capital deployment · no
+ * operations yet). Y1..Y10 are `operating`. Multi-period acquisitions
+ * are supported by wrapping the result with `markAcquisitionPhase(...)`.
+ */
 export const YEARLY_PERIODS_Y0_Y10: Period[] = Array.from({ length: 11 }, (_, i) => ({
   id: `y${i}`,
   kind: "year" as const,
   index: i,
   label: `Year ${i}`,
+  phase: i === 0 ? ("acquisition" as PeriodPhase) : ("operating" as PeriodPhase),
 }));
 
+/**
+ * Re-tag a period axis with N acquisition periods at the front.
+ *
+ * Used for phased renovations · construction periods · delayed
+ * stabilization. The first `acquisitionCount` periods become
+ * `acquisition` (presentation muted in operating tables); the rest
+ * become `operating`.
+ */
+export function markAcquisitionPhase(periods: Period[], acquisitionCount = 1): Period[] {
+  return periods.map((p, i) => ({
+    ...p,
+    phase: i < acquisitionCount ? "acquisition" : "operating",
+  }));
+}
+
 /** Future · monthly periods for a given hold (kept here so consumers can switch). */
-export function monthlyPeriods(yearCount: number): Period[] {
+export function monthlyPeriods(yearCount: number, acquisitionMonths = 12): Period[] {
   const out: Period[] = [];
   for (let y = 0; y < yearCount; y++) {
     for (let m = 0; m < 12; m++) {
+      const index = out.length;
       out.push({
         id: `y${y}m${String(m + 1).padStart(2, "0")}`,
         kind: "month",
-        index: out.length,
+        index,
         label: `Y${y} M${m + 1}`,
+        phase: index < acquisitionMonths ? "acquisition" : "operating",
       });
     }
   }
@@ -75,15 +125,17 @@ export function monthlyPeriods(yearCount: number): Period[] {
 }
 
 /** Future · quarterly periods. */
-export function quarterlyPeriods(yearCount: number): Period[] {
+export function quarterlyPeriods(yearCount: number, acquisitionQuarters = 4): Period[] {
   const out: Period[] = [];
   for (let y = 0; y < yearCount; y++) {
     for (let q = 1; q <= 4; q++) {
+      const index = out.length;
       out.push({
         id: `y${y}q${q}`,
         kind: "quarter",
-        index: out.length,
+        index,
         label: `Y${y} Q${q}`,
+        phase: index < acquisitionQuarters ? "acquisition" : "operating",
       });
     }
   }

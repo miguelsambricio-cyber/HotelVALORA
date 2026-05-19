@@ -2,6 +2,7 @@
 
 import { SectionShell } from "../primitives/section-shell";
 import { EditableTile } from "../primitives/editable-tile";
+import { SortableGrid } from "../edit/sortable-grid";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 import type { ScenarioCatalogEntry, UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
 import { cn } from "@/lib/utils";
@@ -9,17 +10,13 @@ import { cn } from "@/lib/utils";
 /**
  * Section 01 · Executive Summary · institutional underwriting control layer.
  *
- * Flat flow · no nested boxes · no narrative · no risk panel:
- *   1. Editable drivers (lime) + computed outputs (slate) in one grid
+ * Flat flow · no nested boxes · no risk panel:
+ *   1. Editable drivers (blue) + computed outputs (slate) in one grid
  *   2. Scenario picker strip (full-width segmented control)
  *   3. Returns KPI grid (scenario-sensitive results)
  *
  * Live editable drivers (re-prices the engine on commit):
- *   · N° Keys          · integer · re-runs investment + CAPEX + tranche sizing
- *   · Asking Price     · currency · re-runs acquisition + hotel_value scales proportionally
- *   · Hotel Value      · currency · drives entry cap rate basis
- *   · Exit Year        · 1-10 · controls hold period + exit valuation
- *   · LTV %            · 0-100 · mutates senior tranche LTV-of-value spec
+ *   · N° Keys · Asking Price · Exit Year · LTV %
  */
 export function ExecutiveSummarySection({
   bundle,
@@ -39,16 +36,15 @@ export function ExecutiveSummarySection({
   const c = bundle.computed;
   const exit = c.exit;
   const inv = c.investment;
-  const capEntry = c.cap_rate.entry;
-  const stabilisedYield = inv.stabilized_yield_progression[exit.exit_year] ?? 0;
-  const ltcPct = inv.total_building_cost > 0
-    ? (c.financing.total_principal / inv.total_building_cost) * 100
+  const capExit = c.cap_rate.exit;
+  // Stabilized yield · operator wants Y5 explicitly (independent of exit year)
+  const stabilisedYieldY5 = inv.stabilized_yield_progression[5] ?? 0;
+  // % LTV combined · displays the AGGREGATE LTV (total senior + CAPEX debt
+  // divided by hotel value) · institutional convention. On edit, sets both
+  // tranches to the entered percentage so they stay in lock-step.
+  const aggregateLtvPct = inv.hotel_value > 0
+    ? (c.financing.total_principal / inv.hotel_value) * 100
     : 0;
-  // Senior tranche LTV (percentage points) for the editable LTV tile.
-  const seniorTranche = bundle.inputs.financing.tranches.find((t) => t.kind === "senior_secured");
-  const ltvPct = seniorTranche && seniorTranche.principal.kind === "ltv_of_value"
-    ? seniorTranche.principal.ltv_pct
-    : 65;
 
   return (
     <SectionShell
@@ -59,47 +55,50 @@ export function ExecutiveSummarySection({
       status={{ label: "Investment committee draft", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          {/* Drivers · 4 editable (lime) + 4 computed (slate) */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
-            <EditableTile
-              label="N° Keys"
-              value={asset.rooms}
-              format="integer"
-              min={1}
-              onCommit={(rooms) => onOverrideChange({ rooms })}
-              sub="re-prices the underwriting"
-            />
-            <EditableTile
-              label="Asking Price"
-              value={acq.asking_price}
-              format="currency"
-              min={0}
-              onCommit={(asking_price) => onOverrideChange({ asking_price })}
-              sub="hotel value scales proportionally"
-            />
-            <EditableTile
-              label="Exit Year"
-              value={exit.exit_year}
-              format="years"
-              min={1}
-              max={10}
-              onCommit={(exit_year) => onOverrideChange({ exit_year })}
-              sub="hold period · 1-10y"
-            />
-            <EditableTile
-              label="LTV %"
-              value={ltvPct}
-              format="percent"
-              min={0}
-              max={100}
-              onCommit={(v) => onOverrideChange({ ltv_pct: v })}
-              sub="senior tranche · LTV of hotel value"
-            />
-            <DriverTile label="Total Investment" value={fmtEUR(inv.total_building_cost)} sub={`${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`} highlight />
-            <DriverTile label="Equity Investment" value={fmtEUR(exit.equity_investment)} sub={`${fmtPct((exit.equity_investment / Math.max(inv.total_building_cost, 1)) * 100)} of total`} />
-            <DriverTile label="% LTC" value={fmtPct(ltcPct)} sub={fmtEUR(c.financing.total_principal)} />
-            <DriverTile label="Dynamic Cap Rate" value={fmtPct(capEntry.used_pct)} sub={capEntry.source === "dynamic" ? "Dynamic · entry" : "Manual override"} />
-          </div>
+          {/* Drivers · 4 editable (blue) + 4 computed · reorderable in edit mode */}
+          <SortableGrid
+            gridId="exec-summary.drivers"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4"
+            items={[
+              { id: "keys", content: (
+                <EditableTile label="N° Keys" value={asset.rooms} format="integer" min={1}
+                  onCommit={(rooms) => onOverrideChange({ rooms })} sub="re-prices the underwriting" />
+              ) },
+              { id: "asking-price", content: (
+                <EditableTile label="Asking Price" value={acq.asking_price} format="currency" min={0}
+                  onCommit={(asking_price) => onOverrideChange({ asking_price })} sub="hotel value scales proportionally" />
+              ) },
+              { id: "exit-year", content: (
+                <EditableTile label="Exit Year" value={exit.exit_year} format="years" min={1} max={10}
+                  onCommit={(exit_year) => onOverrideChange({ exit_year })} sub="hold period · 1-10y" />
+              ) },
+              { id: "ltv-pct", content: (
+                <EditableTile label="% LTV" value={aggregateLtvPct} format="percent" min={0} max={100}
+                  onCommit={(v) => onOverrideChange({ ltv_pct: v, ltc_pct: v })}
+                  sub="aggregate · senior + CAPEX / hotel value" />
+              ) },
+              { id: "total-investment", content: (
+                <DriverTile label="Total Investment" value={fmtEUR(inv.total_building_cost)} sub={`${fmtEUR(div(inv.total_building_cost, asset.rooms))} / key`} highlight />
+              ) },
+              { id: "equity-investment", content: (
+                <DriverTile label="Equity Investment" value={fmtEUR(exit.equity_investment)} sub={`${fmtPct((exit.equity_investment / Math.max(inv.total_building_cost, 1)) * 100)} of total`} />
+              ) },
+              { id: "dynamic-cap-rate", content: (
+                <EditableTile
+                  label="Dynamic Cap Rate"
+                  value={capExit.used_pct}
+                  format="percent"
+                  min={0}
+                  max={30}
+                  onCommit={(exit_cap_rate_pct) => onOverrideChange({ exit_cap_rate_pct })}
+                  sub={capExit.source === "dynamic" ? "Dynamic · exit yield" : "Manual override"}
+                />
+              ) },
+              { id: "exit-price", content: (
+                <DriverTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtEUR(exit.exit_price_per_room)} / key · Y${exit.exit_year}`} />
+              ) },
+            ]}
+          />
 
           {/* Scenario picker · drives the engine re-price */}
           <ScenarioStrip
@@ -108,14 +107,25 @@ export function ExecutiveSummarySection({
             onChange={onScenarioChange}
           />
 
-          {/* Returns · scenario-sensitive */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            <ResultTile label="Project IRR" value={fmtPct(exit.project_irr_pct)} sub="unlevered · pre-tax" tone={irrTone(exit.project_irr_pct, 8)} />
-            <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
-            <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
-            <ResultTile label="Stabilised Yield" value={fmtPct(stabilisedYield * 100)} sub={`Year ${exit.exit_year}`} />
-            <ResultTile label="Exit Price" value={fmtEUR(exit.exit_price)} sub={`${fmtEUR(exit.exit_price_per_room)} / key`} />
-          </div>
+          {/* Returns · scenario-sensitive · reorderable in edit mode */}
+          <SortableGrid
+            gridId="exec-summary.returns"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            items={[
+              { id: "project-irr", content: (
+                <ResultTile label="Project IRR" value={fmtPct(exit.project_irr_pct)} sub="Unlevered · pre-tax" tone={irrTone(exit.project_irr_pct, 8)} />
+              ) },
+              { id: "equity-irr", content: (
+                <ResultTile label="Equity IRR" value={fmtPct(exit.equity_irr_pct)} sub="Levered · post-tax" tone={irrTone(exit.equity_irr_pct, 12)} highlight />
+              ) },
+              { id: "moic", content: (
+                <ResultTile label="MOIC" value={`${exit.moic.toFixed(2).replace(".", ",")}×`} sub="equity multiple" tone={moicTone(exit.moic)} />
+              ) },
+              { id: "stabilised-yield-y5", content: (
+                <ResultTile label="Stabilized Yield" value={fmtPct(stabilisedYieldY5 * 100)} sub="Year 5" />
+              ) },
+            ]}
+          />
         </div>
       }
     />
@@ -140,23 +150,23 @@ function DriverTile({
       className={cn(
         "rounded-md border p-3 print:break-inside-avoid",
         highlight
-          ? "border-lime-300/40 bg-lime-300/5 print:border-emerald-500 print:bg-emerald-50"
-          : "border-slate-800/60 bg-slate-900/40 print:border-slate-300 print:bg-white",
+          ? "border-forest-900/30 bg-forest-50"
+          : "border-slate-200 bg-white",
       )}
     >
-      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
         {label}
       </p>
       <p
         className={cn(
-          "mt-1 font-mono text-[17px] font-extrabold tabular-nums",
-          highlight ? "text-lime-200 print:text-emerald-700" : "text-white print:text-slate-900",
+          "mt-1 font-mono text-[16px] font-extrabold tabular-nums sm:text-[17px]",
+          highlight ? "text-forest-900" : "text-slate-900",
         )}
       >
         {value}
       </p>
       {sub && (
-        <p className="mt-0.5 truncate font-mono text-[9.5px] text-slate-500 print:text-slate-600">
+        <p className="mt-0.5 truncate font-mono text-[9.5px] text-slate-500">
           {sub}
         </p>
       )}
@@ -180,26 +190,26 @@ function ResultTile({
   highlight?: boolean;
 }) {
   const valueTone =
-    tone === "ok" ? "text-emerald-300 print:text-emerald-700"
-    : tone === "warn" ? "text-amber-300 print:text-amber-700"
-    : tone === "negative" ? "text-rose-300 print:text-rose-700"
-    : highlight ? "text-lime-200 print:text-emerald-700"
-    : "text-white print:text-slate-900";
+    tone === "ok" ? "text-emerald-700"
+    : tone === "warn" ? "text-amber-700"
+    : tone === "negative" ? "text-rose-700"
+    : highlight ? "text-forest-900"
+    : "text-slate-900";
   return (
     <div
       className={cn(
         "rounded-md border p-3 print:break-inside-avoid",
         highlight
-          ? "border-lime-300/40 bg-lime-300/5 print:border-emerald-500 print:bg-emerald-50"
-          : "border-slate-800/60 bg-slate-900/40 print:border-slate-300 print:bg-white",
+          ? "border-forest-900/30 bg-forest-50"
+          : "border-slate-200 bg-white",
       )}
     >
-      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+      <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
         {label}
       </p>
-      <p className={cn("mt-1 font-mono text-[17px] font-extrabold tabular-nums", valueTone)}>{value}</p>
+      <p className={cn("mt-1 font-mono text-[16px] font-extrabold tabular-nums sm:text-[17px]", valueTone)}>{value}</p>
       {sub && (
-        <p className="mt-0.5 truncate font-mono text-[9.5px] text-slate-500 print:text-slate-600">{sub}</p>
+        <p className="mt-0.5 truncate font-mono text-[9.5px] text-slate-500">{sub}</p>
       )}
     </div>
   );
@@ -218,19 +228,19 @@ function ScenarioStrip({
 }) {
   const active = catalog.find((s) => s.id === activeId);
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border border-slate-800/60 bg-slate-950/60 p-3 print:break-inside-avoid print:border-slate-300 print:bg-white">
+    <div className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 bg-slate-50/60 p-3 print:break-inside-avoid print:bg-white">
       <div className="min-w-0">
-        <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500 print:text-slate-600">
+        <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
           Cap Rate Scenario
         </p>
-        <p className="mt-0.5 font-mono text-[10px] text-slate-400 print:text-slate-600">
+        <p className="mt-0.5 font-mono text-[10px] text-slate-500">
           {active?.hint ?? "scenario adjustment applied"}
         </p>
       </div>
       <div
         role="radiogroup"
         aria-label="Cap rate scenario"
-        className="ml-auto inline-flex rounded-md border border-slate-700/60 bg-slate-900/60 p-0.5 print:hidden"
+        className="ml-auto inline-flex rounded-md border border-slate-200 bg-white p-0.5 print:hidden"
       >
         {catalog.map((s) => {
           const isActive = s.id === activeId;
@@ -245,8 +255,8 @@ function ScenarioStrip({
               className={cn(
                 "rounded-sm px-4 py-1.5 font-headline text-[10.5px] font-extrabold uppercase tracking-[0.18em] transition-colors",
                 isActive
-                  ? "bg-lime-300 text-forest-900 shadow-sm"
-                  : "text-slate-300 hover:bg-slate-800/80 hover:text-white",
+                  ? "bg-forest-900 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
               )}
             >
               {s.label}

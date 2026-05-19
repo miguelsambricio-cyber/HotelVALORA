@@ -4,19 +4,27 @@ import { EditableTile } from "../primitives/editable-tile";
 import { YearGrid } from "../primitives/year-grid";
 import { YearRow } from "../primitives/year-row";
 import { SubtotalRow, DivisionRow } from "../primitives/subtotal-row";
+import { SortableGrid } from "../edit/sortable-grid";
 import type { UnderwritingBundle } from "@/lib/underwriting/types";
 import type { UnderwritingInputOverrides } from "@/lib/underwriting/defaults";
+import { computePL } from "@/lib/report/financials/calculations";
+import { getDefaultAssumptions } from "@/lib/report/financials/assumptions";
 
 /**
  * Section 02 · P&L · USALI structure · institutional headline + detail.
  *
- * Headline KPIs (operator priority set · 2026-05-18):
- *   1. Stabilised GOP
- *   2. GOP margin               · GOP / Total Revenue
- *   3. Stabilised EBITDA
- *   4. EBITDA margin            · EBITDA / Total Revenue
- *   5. EBITDA per key
- *   6. CIT %                    · editable · drives engine re-price
+ * Headline KPIs (operator priority set · 2026-05-19):
+ *   1. Stabilised GOP           · from /report/financials/pl
+ *   2. GOP margin               · GOP / Total Revenue · from P&L page
+ *   3. EBITDA margin            · EBITDA / Total Revenue · from P&L page
+ *   4. EBITDA per key           · from P&L page
+ *   5. CIT %                    · editable · drives engine re-price
+ *
+ * Headline source: `computePL(getDefaultAssumptions())` from the
+ * standalone /report/financials/pl page. The numbers MATCH that page
+ * exactly. The 5-year table below still consumes the engine's pl module
+ * (different shape · richer year axis Y0..Y10). The architectural
+ * unification is documented in docs/underwriting/pl-data-divergence.md.
  */
 export function PnlSection({
   bundle,
@@ -27,25 +35,30 @@ export function PnlSection({
 }) {
   const p = bundle.computed.pnl;
   const periods = bundle.computed.periods;
-  const cols = 1 + periods.length;
   const exitYear = bundle.computed.exit.exit_year;
+  // Operating schedule · acquisition periods hidden from the P&L view.
+  // Concept column + every period in [0..exitYear] whose phase is operating.
+  const operatingPeriodsInRange = periods
+    .slice(0, exitYear + 1)
+    .filter((pd) => (pd.phase ?? "operating") !== "acquisition");
+  const cols = 1 + operatingPeriodsInRange.length;
   const rooms = bundle.inputs.asset.rooms;
   const citRatePct = bundle.inputs.tax.cit_rate_pct * 100; // decimal → percentage points
 
-  const stabilisedYr = Math.max(1, exitYear);
-  const stabilisedRevenue =
-    (p.hotel[stabilisedYr] ?? 0) +
-    (p.fb[stabilisedYr] ?? 0) +
-    (p.other_departments[stabilisedYr] ?? 0);
-  const stabilisedGop = p.gross_operating_profit[stabilisedYr] ?? 0;
-  const stabilisedEbitda = p.ebitda_after_replacement[stabilisedYr] ?? 0;
+  // Headline tiles consume the standalone /report/financials/pl page model
+  // so GOP + EBITDA + margins MATCH that page exactly. The P&L page works
+  // on a 5-year horizon (Y1..Y5) · we anchor on Year 3 (stabilised) per
+  // institutional convention used by /pl's EBITDA Stabilized card.
+  const plPage = computePL(getDefaultAssumptions());
+  const plStabilizedIdx = 2; // Y3 · stabilised year on the P&L page
+  const stabilisedRevenue = plPage.results.totalRevenue[plStabilizedIdx] ?? 0;
+  const stabilisedGop = plPage.results.gop[plStabilizedIdx] ?? 0;
+  const stabilisedEbitda = plPage.results.ebitda[plStabilizedIdx] ?? 0;
 
   const gopMarginPct = stabilisedRevenue > 0
     ? (stabilisedGop / stabilisedRevenue) * 100
     : 0;
-  const ebitdaMarginPct = stabilisedRevenue > 0
-    ? (stabilisedEbitda / stabilisedRevenue) * 100
-    : 0;
+  const ebitdaMarginPct = (plPage.results.ebitdaMargin[plStabilizedIdx] ?? 0) * 100;
   const ebitdaPerKey = rooms > 0 ? stabilisedEbitda / rooms : 0;
 
   return (
@@ -57,23 +70,35 @@ export function PnlSection({
       status={{ label: "Operating truth · engine-driven", tone: "info" }}
       summary={
         <div className="space-y-6 print:space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <PnlKpi label="Stabilised GOP" value={fmtEUR(stabilisedGop)} sub={`Y${stabilisedYr} · pre owner costs`} highlight />
-            <PnlKpi label="GOP margin" value={fmtPct(gopMarginPct)} sub="% of total revenue" tone={marginTone(gopMarginPct, 30)} />
-            <PnlKpi label="Stabilised EBITDA" value={fmtEUR(stabilisedEbitda)} sub={`Y${stabilisedYr} · post replacement`} highlight />
-            <PnlKpi label="EBITDA margin" value={fmtPct(ebitdaMarginPct)} sub="% of total revenue" tone={marginTone(ebitdaMarginPct, 25)} />
-            <PnlKpi label="EBITDA per key" value={fmtEUR(ebitdaPerKey)} sub={`${rooms} keys`} />
-            <EditableTile
-              label="CIT %"
-              value={citRatePct}
-              format="percent"
-              min={0}
-              max={100}
-              onCommit={(cit_rate_pct) => onOverrideChange({ cit_rate_pct })}
-              sub="Spanish Ley IS · 25% standard"
-            />
-          </div>
-          <YearGrid periods={periods} caption="P&L · PropCo without Exit Strategy">
+          <SortableGrid
+            gridId="pnl.headline"
+            className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4"
+            items={[
+              { id: "stab-gop", content: (
+                <PnlKpi label="Stabilised GOP" value={fmtEUR(stabilisedGop)} sub="Y3 · from /pl page" highlight />
+              ) },
+              { id: "gop-margin", content: (
+                <PnlKpi label="GOP Margin" value={fmtPct(gopMarginPct)} sub="GOP / Revenue" tone={marginTone(gopMarginPct, 30)} />
+              ) },
+              { id: "ebitda-margin", content: (
+                <PnlKpi label="EBITDA Margin" value={fmtPct(ebitdaMarginPct)} sub="EBITDA / Revenue" tone={marginTone(ebitdaMarginPct, 25)} />
+              ) },
+              { id: "ebitda-per-key", content: (
+                <PnlKpi label="EBITDA per key" value={fmtEUR(ebitdaPerKey)} sub={`${rooms} keys · Y3`} />
+              ) },
+              { id: "cit-pct", content: (
+                <EditableTile label="CIT %" value={citRatePct} format="percent" min={0} max={100}
+                  onCommit={(cit_rate_pct) => onOverrideChange({ cit_rate_pct })} sub="Spanish Ley IS · 25% standard" />
+              ) },
+            ]}
+          />
+          <YearGrid
+            periods={periods}
+            displayThroughIndex={exitYear}
+            kind="operating"
+            excludeAcquisition
+            caption="P&L · PropCo without Exit Strategy"
+          >
             <DivisionRow label="Revenue" columnCount={cols} />
             <YearRow label="Hotel" values={p.hotel} indent={1} />
             <YearRow label="F&B" values={p.fb} indent={1} />

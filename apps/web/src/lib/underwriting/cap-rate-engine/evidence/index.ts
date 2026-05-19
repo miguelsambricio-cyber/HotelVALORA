@@ -101,7 +101,16 @@ export function buildMarketEvidence(
   const mostRecent = dates.length ? dates[dates.length - 1] : null;
   const oldest = dates.length ? dates[0] : null;
 
-  const liquidity = computeLiquidity(inScope, asOf);
+  // Liquidity is computed from a wider pool (scope-filtered but NOT staleness-filtered)
+  // so the 5-year and 10-year windows can count older transactions for market-depth
+  // context. The cap-rate computation itself still uses `inScope` (staleness-filtered).
+  const liquidityPool = comps.filter((c) => {
+    if (Math.abs(starOrder(c.category) - starOrder(asset.category)) > 1) return false;
+    if (scopeLabel.startsWith("submarket")) return normalize(c.submarket) === normalize(asset.submarket);
+    if (scopeLabel.startsWith("market")) return normalize(c.market) === normalize(asset.market);
+    return true; // national fallback
+  });
+  const liquidity = computeLiquidity(liquidityPool, asOf);
 
   return {
     context: {
@@ -155,20 +164,32 @@ function quantile(sorted: number[], q: number): number {
 function computeLiquidity(comps: CompTransaction[], asOf: Date): LiquidityMetrics {
   const ms12m = 365 * 24 * 60 * 60 * 1000;
   const ms24m = 2 * ms12m;
+  const ms60m = 5 * ms12m;
+  const ms120m = 10 * ms12m;
   let t12 = 0;
   let t24 = 0;
+  let t60 = 0;
+  let t120 = 0;
   let v12 = 0;
   let v24 = 0;
+  let v60 = 0;
+  let v120 = 0;
   for (const c of comps) {
     const ageMs = asOf.getTime() - new Date(c.transaction_date).getTime();
     if (ageMs <= ms12m) { t12++; v12 += c.price_total_eur; }
     if (ageMs <= ms24m) { t24++; v24 += c.price_total_eur; }
+    if (ageMs <= ms60m) { t60++; v60 += c.price_total_eur; }
+    if (ageMs <= ms120m) { t120++; v120 += c.price_total_eur; }
   }
   return {
     transactions_last_12m: t12,
     transactions_last_24m: t24,
+    transactions_last_60m: t60,
+    transactions_last_120m: t120,
     total_volume_last_12m_eur: v12,
     total_volume_last_24m_eur: v24,
+    total_volume_last_60m_eur: v60,
+    total_volume_last_120m_eur: v120,
   };
 }
 

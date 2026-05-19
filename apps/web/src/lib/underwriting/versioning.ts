@@ -17,8 +17,23 @@
  * change those shapes without a version bump.
  */
 
-export const SCHEMA_VERSION = "1.0.0" as const;
-export const ENGINE_VERSION = "0.1.0-scaffold" as const;
+export const SCHEMA_VERSION = "1.1.0" as const;
+export const ENGINE_VERSION = "0.2.0" as const;
+
+/**
+ * Version history · most recent first.
+ *
+ * 0.2.0 (2026-05-19) · Project + Equity IRR layer separation.
+ *   · Project IRR semantics changed: NOW unlevered · pre-tax (EBITDA + gross exit only).
+ *     Previously subtracted cash tax + used net exit price (effectively post-tax + net of fees).
+ *   · Equity IRR unchanged in math · clarified as levered · post-tax.
+ *   · ExitMetrics gains future slots: project_irr_posttax_pct, equity_irr_gross_pct,
+ *     lp_irr_pct, gp_irr_pct (null in MVP · populated by Block 9 waterfall + Block 10).
+ *   · Schema bumped to 1.1.0 because ExitMetrics shape now has new optional fields.
+ *   · Snapshots created with engine 0.1.0 will compute different Project IRR on recompute.
+ *
+ * 0.1.0-scaffold (2026-05-15) · initial engine.
+ */
 
 /** Bumps · semver-style · MAJOR breaks reproducibility, MINOR adds fields, PATCH fixes. */
 export type SemverString = `${number}.${number}.${number}${string}`;

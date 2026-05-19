@@ -1,13 +1,16 @@
 import { cn } from "@/lib/utils";
 import type { PeriodSeries } from "@/lib/underwriting/temporal";
+import { useYearGridContext } from "./year-grid";
 
 /**
- * Highlighted subtotal row · used for GOP · EBITDA · NOI · GOP · etc.
- * Lime band when tone="result", slate band when tone="subtotal".
+ * Highlighted subtotal row · GOP · EBITDA · NOI · etc.
  *
- * Block 2 refactor (2026-05-18) · switched to PeriodSeries · cell count
- * derives from values.length so the row matches the grid even when the
- * temporal axis is monthly / quarterly.
+ * Corporate light theme · subtotal = slate band · result = forest accent
+ * (the same forest-900 palette the P&L uses for the dark EBITDA hero) ·
+ * warning = amber band.
+ *
+ * The row picks values at the `visibleIndices` projected by the parent
+ * grid (encodes both displayThroughIndex limit + excludeAcquisition).
  */
 export function SubtotalRow({
   label,
@@ -23,30 +26,36 @@ export function SubtotalRow({
   format?: "currency_compact" | "percent" | "integer" | "ratio";
 }) {
   const rowCls =
-    tone === "result" ? "bg-lime-300/10 border-lime-300/30"
-    : tone === "warning" ? "bg-amber-500/10 border-amber-500/30"
-    : "bg-slate-800/40";
+    tone === "result" ? "bg-forest-50 border-forest-900/20"
+    : tone === "warning" ? "bg-amber-50 border-amber-200"
+    : "bg-slate-100";
   const labelCls =
-    tone === "result" ? "text-lime-200 font-extrabold"
-    : tone === "warning" ? "text-amber-200 font-extrabold"
-    : "text-slate-100 font-extrabold";
+    tone === "result" ? "text-forest-900 font-extrabold"
+    : tone === "warning" ? "text-amber-800 font-extrabold"
+    : "text-slate-900 font-extrabold";
   const valueCls =
-    tone === "result" ? "text-lime-200 font-extrabold"
-    : tone === "warning" ? "text-amber-200 font-extrabold"
-    : "text-slate-100 font-extrabold";
+    tone === "result" ? "text-forest-900 font-extrabold"
+    : tone === "warning" ? "text-amber-800 font-extrabold"
+    : "text-slate-900 font-extrabold";
+
+  const { visibleIndices } = useYearGridContext();
+  const displayValues = visibleIndices.map((idx) => values[idx] ?? 0);
 
   return (
-    <tr className={cn("border-t border-slate-800/60 align-top", rowCls)}>
+    <tr className={cn("border-t border-slate-200 align-top", rowCls)}>
       <td className={cn("sticky left-0 z-[1] bg-inherit px-3 py-1.5 font-headline text-[11.5px]", labelCls)}>
         {label}
       </td>
       {assumption !== undefined && (
-        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-slate-300 font-bold">
+        <td className="px-2 py-1.5 text-right font-mono text-[11px] text-[#005db7] font-bold">
           {assumption || "—"}
         </td>
       )}
-      {values.map((v, i) => (
-        <td key={i} className={cn("px-2 py-1.5 text-right font-mono text-[11px]", valueCls)}>
+      {displayValues.map((v, i) => (
+        <td
+          key={i}
+          className={cn("px-2 py-1.5 text-right font-mono text-[11px] tabular-nums", valueCls)}
+        >
           {formatCell(v, format)}
         </td>
       ))}
@@ -79,15 +88,13 @@ function formatCell(n: number, kind: "currency_compact" | "percent" | "integer" 
 /**
  * Section-divider row (e.g. inside CF between Investment and Financing).
  * Renders an empty band with just the label.
- *
- * Takes columnCount so it stretches to match the parent grid's width.
  */
 export function DivisionRow({ label, columnCount }: { label: string; columnCount: number }) {
   return (
     <tr>
       <td
         colSpan={columnCount}
-        className="border-t border-slate-800/60 bg-slate-900/40 px-3 py-1 font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-500"
+        className="border-t border-slate-200 bg-slate-50 px-3 py-1 font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-500"
       >
         {label}
       </td>
