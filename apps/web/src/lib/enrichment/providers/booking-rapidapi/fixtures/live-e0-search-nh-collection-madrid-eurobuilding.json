@@ -1,0 +1,27 @@
+{
+  "status": true,
+  "message": "Success",
+  "timestamp": 1779210027071,
+  "data": [
+    {
+      "dest_id": "90659",
+      "search_type": "hotel",
+      "roundtrip": "GhBkOWJjNzc5NWE0M2QwNmM1IAAoATICZW46IU5IIENvbGxlY3Rpb24gTWFkcmlkIEV1cm9idWlsZGluZ0AASgBQAA==",
+      "country": "Spain",
+      "name": "NH Collection Madrid Eurobuilding",
+      "hotels": 1,
+      "label": "NH Collection Madrid Eurobuilding, Madrid, Community of Madrid, Spain",
+      "nr_hotels": 1,
+      "image_url": "https://cf.bstatic.com/xdata/images/hotel/150x150/575329523.jpg?k=36fb89997e71f30510424ccd305dc763979aad50c9fea933c8dc98387733c7fe&o=",
+      "city_name": "Madrid",
+      "longitude": -3.6858435,
+      "lc": "en",
+      "region": "Community of Madrid",
+      "dest_type": "hotel",
+      "latitude": 40.458286,
+      "city_ufi": -390625,
+      "type": "ho",
+      "cc1": "es"
+    }
+  ]
+}

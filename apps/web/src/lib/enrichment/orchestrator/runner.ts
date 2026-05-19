@@ -23,15 +23,21 @@
 
 import {
   parseHotelData,
-  parseFacilitiesResponse,
+  parseHotelDualSource,
+  unwrapEnvelope,
 } from "../providers/booking-rapidapi/parse";
 import {
   mapToCanonical,
   type CanonicalHotelDraft,
 } from "../providers/booking-rapidapi/map-to-canonical";
 import type {
-  RapidApiHotelData,
-  RapidApiFacilitiesResponse,
+  BookingDualSource,
+  BookingEnvelope,
+  BookingFacilitiesData,
+  BookingFacilitiesResponse,
+  BookingHotelDetailsData,
+  BookingHotelDetailsResponse,
+  BookingSearchHit,
 } from "../providers/booking-rapidapi/types";
 
 import { blockKey } from "../dedup/scoring";
@@ -123,11 +129,16 @@ export async function runEnrichmentJob(
   const startedAt = Date.now();
   const warnings: string[] = [];
 
-  // 1. Fetch source data (provider-specific). In dry-run this is a
-  //    no-op for the client itself; fixtures may be loaded by the
-  //    caller and passed through `params.fixture` instead.
-  let rawE2: RapidApiHotelData | null = null;
-  let rawE3: RapidApiFacilitiesResponse | null = null;
+  // 1. Fetch source data (provider-specific). Accepted shapes:
+  //    - { e1Hit, e2Detail, e3Facilities? }              — new dual-source (post-live-validation)
+  //    - { e1Hit, e2Detail (envelope), e3Facilities? }   — same, envelopes auto-unwrapped
+  //    - { e2: detail }                                  — legacy single-source (M2 synthetic fixtures)
+  //    - BookingHotelDetailsData / envelope              — single-source legacy
+  //    - null                                            — dry-run no-op
+  let e1Hit: BookingSearchHit | null = null;
+  let e2Detail: BookingHotelDetailsData | null = null;
+  let e3Facilities: BookingFacilitiesData | null = null;
+
   try {
     const fetched = await ctx.fetchSourceData(job);
     if (!fetched) {
@@ -139,13 +150,24 @@ export async function runEnrichmentJob(
         completedAt: ctx.now(),
       };
     }
-    // Caller may return an object with e2 + optional e3, or just e2.
-    if (typeof fetched === "object" && "e2" in (fetched as object)) {
-      const f = fetched as { e2: RapidApiHotelData; e3?: RapidApiFacilitiesResponse };
-      rawE2 = f.e2;
-      rawE3 = f.e3 ?? null;
+    const f = fetched as Record<string, unknown>;
+    if (typeof fetched === "object" && fetched !== null && ("e1Hit" in f || "e2Detail" in f)) {
+      e1Hit = (f.e1Hit as BookingSearchHit | null) ?? null;
+      const e2Raw = f.e2Detail as BookingEnvelope<BookingHotelDetailsData> | BookingHotelDetailsData | null;
+      e2Detail = e2Raw ? unwrapEnvelope<BookingHotelDetailsData>(e2Raw) : null;
+      const e3Raw = f.e3Facilities as BookingFacilitiesResponse | BookingFacilitiesData | null | undefined;
+      e3Facilities = e3Raw ? unwrapEnvelope<BookingFacilitiesData>(e3Raw) : null;
+    } else if (typeof fetched === "object" && fetched !== null && "e2" in f) {
+      // Legacy shape from M2 synthetic fixtures
+      const e2Raw = f.e2 as BookingEnvelope<BookingHotelDetailsData> | BookingHotelDetailsData;
+      e2Detail = unwrapEnvelope<BookingHotelDetailsData>(e2Raw);
+      const e3Raw = f.e3 as BookingFacilitiesResponse | BookingFacilitiesData | null | undefined;
+      e3Facilities = e3Raw ? unwrapEnvelope<BookingFacilitiesData>(e3Raw) : null;
     } else {
-      rawE2 = fetched as RapidApiHotelData;
+      // Bare detail (envelope or unwrapped)
+      e2Detail = unwrapEnvelope<BookingHotelDetailsData>(
+        fetched as BookingEnvelope<BookingHotelDetailsData> | BookingHotelDetailsData,
+      );
     }
   } catch (err) {
     return {
@@ -162,7 +184,7 @@ export async function runEnrichmentJob(
     };
   }
 
-  if (!rawE2) {
+  if (!e1Hit && !e2Detail) {
     return {
       job,
       outcome: "fixture_not_found",
@@ -172,8 +194,11 @@ export async function runEnrichmentJob(
     };
   }
 
-  // 2. Parse + map
-  const parsed = parseHotelData(rawE2);
+  // 2. Parse + map (dual-source path; legacy single-source still works)
+  const parsed = (e1Hit || e3Facilities)
+    ? parseHotelDualSource({ e1Hit, e2Detail, e3Facilities })
+    : parseHotelData(e2Detail!);
+
   if (parsed.hasCriticalGaps) {
     return {
       job,
@@ -189,27 +214,7 @@ export async function runEnrichmentJob(
     };
   }
 
-  const extraFacilities = rawE3 ? parseFacilitiesResponse(rawE3).facilities : [];
-  const mapping = mapToCanonical(parsed.parsed, { extraFacilities });
-
-  // 2b. Filter — excluded accommodation types (hostels, apartments, B&Bs,
-  //      vacation rentals, etc.) never enter the canonical pipeline.
-  //      Saves budget on fallback dispatch and keeps the institutional
-  //      graph clean.
-  if (mapping.diagnostics.excludedByType) {
-    return {
-      job,
-      outcome: "excluded_by_filter",
-      draft: mapping.draft,
-      warnings: [
-        ...warnings,
-        ...mapping.diagnostics.notes,
-        `accommodation_type:${parsed.parsed.accommodationTypeName ?? "unknown"}`,
-      ],
-      durationMs: Date.now() - startedAt,
-      completedAt: ctx.now(),
-    };
-  }
+  const mapping = mapToCanonical(parsed.parsed);
 
   // 3. Dedup against block-key neighborhood
   const draftCandidate = draftToDedupCandidate(mapping.draft, `draft:${job.id}`);

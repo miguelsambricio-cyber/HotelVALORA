@@ -207,12 +207,80 @@ Budget impact of this validation: **3 calls** out of Pro 25k monthly = 0.012%.
 
 ---
 
-## 9 · Next operator decision
+## 9 · Branded validation findings (Option B executed 2026-05-19)
 
-| Option | What it means |
-|---|---|
-| **A · Update parser to handle E1+E2 combined** | I land §5.1–§5.6 changes, run integration test against live fixtures, prepare Phase C smoke pilot plan. ~400 LOC delta. |
-| **B · Do one more validation call against branded hotel first** | I make 2 additional calls (E1 search by `name=Marriott Madrid`, E2 detail for first hit) to confirm chain field behavior. 2 more calls (0.008% budget). Then proceed to A. |
-| **C · Reconsider publisher** | If you'd prefer a publisher with a richer single-call E2 (chain/photo/phone/rooms all in one), I survey alternatives on RapidAPI. Higher cost likely. |
+Second smoke (2 additional calls — 0.008% budget):
 
-My recommendation: **B then A**. Two extra calls give us confidence in the chain handling; then a single mechanical update aligns the parser with what's actually returned. Phase C smoke pilot follows immediately.
+- **Test property:** `NH Collection Madrid Eurobuilding` (hotel_id `90659`, `accommodation_type_name="Hotels"`, district `Chamartín`, zip `28036`)
+- **Discovery path:** E0 `searchDestination?query=NH+Collection+Madrid+Eurobuilding` → returned `dest_type="hotel"` entry directly with `dest_id=90659`. No need for E1+filter — E0 hotel-type entries surface branded hotels by name.
+
+**Branded vs Independent E2 comparison:**
+
+| Field | NH Collection (branded, 90659) | AmazINN Hostel (indie, 12269658) | Verdict |
+|---|---|---|---|
+| `chain_name` / `chain_id` / `brand` | ABSENT | ABSENT | **booking-com15 has NO chain fields in E2 — even for global chains** |
+| `class` / `accuratePropertyClass` / `propertyClass` / `qualityClass` | ABSENT in E2 | ABSENT in E2 | Confirmed: star comes from E1 only |
+| `room_count` / `nr_rooms` / `total_rooms` | ABSENT | ABSENT | Confirmed: rooms via fallback only |
+| `phone` / `email` / `website` | ABSENT | ABSENT | Confirmed: contact via fallback only |
+| `main_photo_url` / `photoUrls` (E2) | ABSENT | ABSENT | Confirmed: photos via E1 only |
+| `wifi_review_score` | PRESENT (rating: 8.6) | ABSENT | Branded properties get granular review dimensions |
+| `breakfast_review_score` | PRESENT (9.1 from 107 reviews) | ABSENT | Same |
+| `family_facilities[]` | 2 entries | 1 entry | Branded richer |
+| `aggregated_data` | 5 keys | 5 keys | Same structure both |
+| `review_nr` | 2024 | 206 | Branded accumulates more reviews |
+| `accommodation_type_name` | `"Hotels"` ✓ | `"Hostels"` (excluded by registry) | Filter must run pre-enrich |
+| `is_family_friendly` | 0 | 0 | Same |
+| `facilities_block.facilities[]` length | 11 | 8 | Branded slightly richer |
+
+### Strategic conclusion
+
+booking-com15's E2 endpoint is **structurally identical** in field coverage between branded and independent properties. The publisher does not expose chain affiliation, star rating, room count, contact details, or media URLs in E2 — for ANY property type.
+
+**The chain extraction must be registry-driven** (deterministic name-pattern match against `brands.ts`) — not source-driven. This is actually a stronger institutional architecture than relying on a Booking field that would be publisher-fragile.
+
+The branded hotels DO surface 2 unique signals worth capturing:
+- `wifi_review_score` — useful for institutional digital-readiness analysis
+- `breakfast_review_score` — useful for F&B positioning
+
+These are now modeled in `ParsedHotel.wifiReviewScore` and `parsed.breakfastReviewScore` (v2 parser, this milestone).
+
+---
+
+## 10 · Parser/mapper v2 update (LANDED 2026-05-19)
+
+§5 plan executed. Code changes shipped on this branch:
+
+| File | Change | LOC delta |
+|---|---|---|
+| `apps/web/src/lib/enrichment/providers/booking-rapidapi/types.ts` | Rewrote to live-validated shape: `BookingEnvelope<T>`, `BookingSearchHitProperty` (camelCase E1), `BookingHotelDetailsData` (snake_case actual E2), `BookingDualSource`. Legacy aliases preserved with `@deprecated` JSDoc for backwards compat. | +300 |
+| `apps/web/src/lib/enrichment/providers/booking-rapidapi/parse.ts` | Added `unwrapEnvelope<T>()`, `pickStarRating(property)` tiebreaker (accuratePropertyClass > propertyClass > qualityClass), `parseE1Hit(hit)`, `parseE2Detail(detail)`, `parseFacilitiesResponse(raw)`, `parseHotelDualSource({e1Hit, e2Detail, e3Facilities})` (the new primary entry point). Legacy `parseHotelData(raw)` shim still works (auto-unwraps envelope, treats as E2-only). 3 new `ParsedHotel` fields: `wifiReviewScore`, `breakfastReviewScore`, `isFamilyFriendly`. | +180 |
+| `apps/web/src/lib/enrichment/providers/booking-rapidapi/endpoints.ts` | Confirmed paths (`/api/v1/hotels/searchDestination`, `/api/v1/hotels/searchHotels`, `/api/v1/hotels/getHotelDetails`, `/api/v1/hotels/getHotelFacilities`). Added required params (`arrival_date`, `departure_date`, `adults`, `children_age`, `room_qty`, `units`, `temperature_unit`, `languagecode`, `currency_code`) — without these E1/E2 return 400. `search_type` (NOT `dest_type`) for E1. | +35 |
+| `apps/web/src/lib/enrichment/orchestrator/runner.ts` | Accepts new dual-source fetch shape `{e1Hit, e2Detail, e3Facilities?}` AND legacy `{e2, e3?}` AND bare detail (envelope auto-unwrapped). Uses `parseHotelDualSource()` when E1 hit present, else falls back to `parseHotelData()`. | +25 |
+| `map-to-canonical.ts`, `dedup/*`, `confidence/*`, `writer/*` | **No changes** — they consume `ParsedHotel` which preserves all v1 field names. | 0 |
+
+TypeScript compile: PASSED (`tsc --noEmit` clean, no warnings introduced).
+
+End-to-end smoke test against the saved live fixtures (`live-e1-search-hotels-madrid.json` + `live-e2-hotel-details-madrid.json`):
+
+- Parser extracts hotel_id=12269658, name="AmazINN Stay Madrid Gran Via", reviewScore=7, reviewCount=206, mainPhotoUrl (square1024 URL), countryCode=ES, address/city/district/zip/cc1/accommodation_type all populated.
+- 8 facilities parsed from `facilities_block.facilities[]`.
+- starRating returns null (propertyClass=0 = unrated; validator correctly drops 0).
+- All E2-absent fields (chain, rooms, phone, email, website, photos) correctly land as null — flagged for fallback.
+
+---
+
+## 11 · Ready for Phase C smoke pilot
+
+Pre-flight checklist for the 50-hotel Madrid smoke pilot:
+
+- [x] Migration 0024 applied to staging Supabase
+- [x] `executeLive` HTTP path implemented + tested live
+- [x] Parser/mapper aligned with booking-com15 actual wire shape
+- [x] Branded vs independent behavior confirmed identical in E2 (chain registry handles brand extraction)
+- [x] `accuratePropertyClass > propertyClass > qualityClass` tiebreaker codified
+- [x] `accommodation_type_name="Hotels"` filter to be applied to E1 results BEFORE enrich (pre-flight item for the smoke pilot runner)
+- [x] Wire-shape findings documented for future maintainers
+- [ ] Worker layer wiring (E1 hits → enrich jobs → E2 fetch → dedup → writer) — Phase C scope
+- [ ] Phase C operator gate
+
+**Operator gate**: ready when you authorize the 50-hotel pilot. Budget ~150 calls (≈ 0.6% of Pro 25k monthly).

@@ -13,10 +13,10 @@
 
 import type { BookingRapidApiClient } from "./client";
 import type {
-  RapidApiLocationsResponse,
-  RapidApiSearchResponse,
-  RapidApiHotelDataResponse,
-  RapidApiFacilitiesResponse,
+  BookingLocationsResponse,
+  BookingSearchResponse,
+  BookingHotelDetailsResponse,
+  BookingFacilitiesResponse,
   RapidApiResult,
 } from "./types";
 
@@ -34,8 +34,8 @@ export const PATH_E0_LOCATIONS = "/api/v1/hotels/searchDestination";
 export function searchLocations(
   client: BookingRapidApiClient,
   params: LocationsSearchParams,
-): Promise<RapidApiResult<RapidApiLocationsResponse>> {
-  return client.execute<RapidApiLocationsResponse>(PATH_E0_LOCATIONS, {
+): Promise<RapidApiResult<BookingLocationsResponse>> {
+  return client.execute<BookingLocationsResponse>(PATH_E0_LOCATIONS, {
     query: params.query,
     languagecode: params.languagecode ?? "en-us",
   });
@@ -47,14 +47,20 @@ export function searchLocations(
 
 export interface HotelsSearchParams {
   destId: string;
-  destType?: "city" | "region" | "district";
-  pageSize?: number;
-  offset?: number;
-  sortBy?: "popularity" | "review_score_and_price" | "class_descending";
-  arrivalDate?: string; // YYYY-MM-DD — some publishers require a date window
-  departureDate?: string; // YYYY-MM-DD
+  /** booking-com15 expects `search_type` (NOT `dest_type`). Confirmed live. */
+  searchType?: "CITY" | "REGION" | "DISTRICT" | "LANDMARK";
+  pageNumber?: number;          // 1-indexed, default 1
+  sortBy?: "popularity" | "review_score_and_price" | "class_descending" | "price";
+  /** YYYY-MM-DD — REQUIRED by booking-com15 (E1 returns 400 without it). */
+  arrivalDate: string;
+  departureDate: string;
   adults?: number;
-  rooms?: number;
+  roomQty?: number;
+  childrenAge?: string;         // CSV ages, empty string for "no children"
+  languagecode?: string;
+  currencyCode?: string;
+  units?: "metric" | "imperial";
+  temperatureUnit?: "c" | "f";
 }
 
 export const PATH_E1_SEARCH = "/api/v1/hotels/searchHotels";
@@ -62,59 +68,54 @@ export const PATH_E1_SEARCH = "/api/v1/hotels/searchHotels";
 export function searchHotels(
   client: BookingRapidApiClient,
   params: HotelsSearchParams,
-): Promise<RapidApiResult<RapidApiSearchResponse>> {
-  return client.execute<RapidApiSearchResponse>(PATH_E1_SEARCH, {
+): Promise<RapidApiResult<BookingSearchResponse>> {
+  return client.execute<BookingSearchResponse>(PATH_E1_SEARCH, {
     dest_id: params.destId,
-    dest_type: params.destType ?? "city",
-    page_size: params.pageSize ?? 60,
-    offset: params.offset ?? 0,
+    search_type: params.searchType ?? "CITY",
+    page_number: params.pageNumber ?? 1,
     sort_by: params.sortBy ?? "popularity",
     arrival_date: params.arrivalDate,
     departure_date: params.departureDate,
     adults: params.adults ?? 2,
-    rooms: params.rooms ?? 1,
+    children_age: params.childrenAge ?? "",
+    room_qty: params.roomQty ?? 1,
+    units: params.units ?? "metric",
+    temperature_unit: params.temperatureUnit ?? "c",
+    languagecode: params.languagecode ?? "en-us",
+    currency_code: params.currencyCode ?? "EUR",
   });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
 // E2 — hotels/data (single hotel detail)
-//
-// booking-com15 REQUIRES stay-window params even for metadata-only fetch
-// (else returns 400). The pipeline uses a stable 1-night window 7 days in
-// the future to make TTL-aligned re-fetches idempotent and predictable.
 // ───────────────────────────────────────────────────────────────────────────
 
 export interface HotelDataParams {
-  hotelId: string;
-  languagecode?: string;
-  arrivalDate?: string;     // YYYY-MM-DD; defaults to today+7
-  departureDate?: string;   // YYYY-MM-DD; defaults to today+8
+  hotelId: string | number;
+  /** Same required params as E1 — booking-com15 returns 400 without them. */
+  arrivalDate: string;
+  departureDate: string;
   adults?: number;
+  childrenAge?: string;
   roomQty?: number;
+  languagecode?: string;
+  currencyCode?: string;
   units?: "metric" | "imperial";
   temperatureUnit?: "c" | "f";
-  currencyCode?: string;
 }
 
 export const PATH_E2_DATA = "/api/v1/hotels/getHotelDetails";
 
-function defaultStayWindow(now: Date = new Date()): { arrival: string; departure: string } {
-  const arrival = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
-  const departure = new Date(now.getTime() + 8 * 86400000).toISOString().slice(0, 10);
-  return { arrival, departure };
-}
-
 export function getHotelData(
   client: BookingRapidApiClient,
   params: HotelDataParams,
-): Promise<RapidApiResult<RapidApiHotelDataResponse>> {
-  const window = defaultStayWindow();
-  return client.execute<RapidApiHotelDataResponse>(PATH_E2_DATA, {
+): Promise<RapidApiResult<BookingHotelDetailsResponse>> {
+  return client.execute<BookingHotelDetailsResponse>(PATH_E2_DATA, {
     hotel_id: params.hotelId,
-    arrival_date: params.arrivalDate ?? window.arrival,
-    departure_date: params.departureDate ?? window.departure,
+    arrival_date: params.arrivalDate,
+    departure_date: params.departureDate,
     adults: params.adults ?? 2,
-    children_age: "",
+    children_age: params.childrenAge ?? "",
     room_qty: params.roomQty ?? 1,
     units: params.units ?? "metric",
     temperature_unit: params.temperatureUnit ?? "c",
@@ -132,9 +133,17 @@ export const PATH_E3_FACILITIES = "/api/v1/hotels/getHotelFacilities";
 export function getHotelFacilities(
   client: BookingRapidApiClient,
   params: HotelDataParams,
-): Promise<RapidApiResult<RapidApiFacilitiesResponse>> {
-  return client.execute<RapidApiFacilitiesResponse>(PATH_E3_FACILITIES, {
+): Promise<RapidApiResult<BookingFacilitiesResponse>> {
+  return client.execute<BookingFacilitiesResponse>(PATH_E3_FACILITIES, {
     hotel_id: params.hotelId,
+    arrival_date: params.arrivalDate,
+    departure_date: params.departureDate,
+    adults: params.adults ?? 2,
+    children_age: params.childrenAge ?? "",
+    room_qty: params.roomQty ?? 1,
+    units: params.units ?? "metric",
+    temperature_unit: params.temperatureUnit ?? "c",
     languagecode: params.languagecode ?? "en-us",
+    currency_code: params.currencyCode ?? "EUR",
   });
 }
