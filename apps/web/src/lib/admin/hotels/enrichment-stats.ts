@@ -1,11 +1,10 @@
 import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-// Tables from migration 0024 (hotel_canonical / hotel_source_record /
-// hotel_field_provenance / hotel_duplicate_candidate) and the
-// hotel_coverage_madrid_v view are not yet in the generated Database
-// types. Cast the client to an untyped form for these calls until the
-// types generator is rerun.
+// Tables/views from migrations 0024 + ad-hoc views (hotel_canonical /
+// hotel_source_record / hotel_field_provenance / hotel_duplicate_candidate /
+// hotel_readiness_market_v / market / submarket) are not yet in the generated
+// Database types. Cast the client to an untyped form until types are regenerated.
 
 export interface EnrichmentSnapshot {
   city: string;
@@ -26,25 +25,40 @@ export interface EnrichmentSnapshot {
     avg_t2_pct_deprecated: number;
     institutional_passing_rate_deprecated: number;
     goal_reached_deprecated: boolean;
-    /** v2-oriented · count of CORE-UNDERWRITING fields filled per hotel · 8 fields */
-    avg_underwriting_fields_filled: number;
+  };
+  readiness: {
+    underwriting_ready_n: number;
+    underwriting_partial_n: number;
+    library_ready_n: number;
+    library_partial_n: number;
+    premium_report_ready_n: number;
+    branded_underwriting_partial_n: number;
+    indie_underwriting_partial_n: number;
+    underwriting_ready_rate: number;
+    underwriting_partial_rate: number;
+    library_partial_rate: number;
+    premium_report_ready_rate: number;
+    avg_core_fields_filled: number;
     underwriting_fields_total: number;
   };
   cohort: {
     branded_n: number;
     indie_n: number;
+    documented_indie_n: number;
     branded_with_operator: number;
     indie_no_parent_operator: number;
   };
+  submarketDistribution: { name: string; tier: number; n: number }[];
   priorityFields: {
     phone: number;
     website_url: number;
     google_place_id: number;
     address_line1: number;
+    market_id: number;
+    submarket_id: number;
     total_rooms: number;
     year_opened: number;
     wikidata_qid: number;
-    /** branded-only denominator for operator_id */
     operator_id_branded: number;
   };
   provenance: {
@@ -64,11 +78,8 @@ export interface EnrichmentSnapshot {
 
 const CITY = "Madrid";
 
-// Excluded from the admin / underwriting scope (hidden, NOT deleted).
-// Stays enriched + indexed in canonical; just out-of-view for the
-// Phase D admin panel until the v2 readiness model lands.
 const NAME_EXCLUDE_REGEX =
-  /\b(hostel|albergue|aparthotel|apartahotel|apartamentos|apartments|bob\s?w|smartrental|smart\s?rental|the social hub)\b/i;
+  /\b(hostel|albergue|aparthotel|apartahotel|apartamentos|apartments|bob\s?w|smartrental|smart\s?rental|the social hub|tu casa)\b/i;
 const TYPE_EXCLUDE = new Set(["hostel", "aparthotel", "serviced_apartments", "flex_living"]);
 
 function isCore(h: { canonical_name: string | null; hotel_type: string | null }): boolean {
@@ -111,13 +122,14 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
     year_opened: number | null;
     operator_id: string | null;
     wikidata_qid: string | null;
+    documented_independent: boolean | null;
     last_enriched_at: string | null;
   };
 
   const canonRes = await sb
     .from("hotel_canonical")
     .select(
-      "id,canonical_name,hotel_type,brand_family,data_quality_tier,phone,website_url,google_place_id,address_line1,postal_code,market_id,submarket_id,chain_scale,segment,operator_type,total_rooms,year_opened,operator_id,wikidata_qid,last_enriched_at",
+      "id,canonical_name,hotel_type,brand_family,data_quality_tier,phone,website_url,google_place_id,address_line1,postal_code,market_id,submarket_id,chain_scale,segment,operator_type,total_rooms,year_opened,operator_id,wikidata_qid,documented_independent,last_enriched_at",
     )
     .eq("city_normalized", CITY);
 
@@ -125,25 +137,21 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
   const allHotels = canonRes.data as unknown as CanonRow[];
   if (allHotels.length === 0) return null;
 
-  // Split: core (visible) vs hidden non-core
   const hotels = allHotels.filter(isCore);
   const hidden = allHotels.filter((h) => !isCore(h));
   const hotelIds = hotels.map((h) => h.id);
 
-  const [coverageRes, sourcesRes, provRowsRes, dedupRes] = await Promise.all([
+  const [coverageRes, readinessRes, submarketRes, sourcesRes, provRowsRes, dedupRes] = await Promise.all([
     sb.from("hotel_coverage_madrid_v").select("*").limit(1),
+    sb.from("hotel_readiness_market_v").select("*").limit(50),
+    sb.from("submarket").select("id,name,institutional_tier").limit(50),
     sb.from("hotel_source_record").select("source").in("hotel_id", hotelIds),
-    sb
-      .from("hotel_field_provenance")
-      .select("id", { count: "exact", head: true })
-      .in("hotel_id", hotelIds),
+    sb.from("hotel_field_provenance").select("id", { count: "exact", head: true }).in("hotel_id", hotelIds),
     sb.from("hotel_duplicate_candidate").select("status, tier"),
   ]);
 
   const coverageRow = (coverageRes.data?.[0] ?? null) as
     | {
-        country_code: string;
-        city_normalized: string;
         hotels_total: number;
         hotels_gold: number;
         hotels_silver: number;
@@ -160,55 +168,72 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
 
   if (!coverageRow) return null;
 
+  // Find the Madrid row in the readiness aggregate
+  const readinessRow = ((readinessRes.data ?? []) as unknown[])
+    .map((r) => r as {
+      country_code: string;
+      city_normalized: string;
+      hotels_total: number;
+      underwriting_ready_n: number;
+      underwriting_partial_n: number;
+      library_ready_n: number;
+      library_partial_n: number;
+      premium_report_ready_n: number;
+      branded_n: number;
+      indie_n: number;
+      documented_indie_n: number;
+      branded_underwriting_partial_n: number;
+      indie_underwriting_partial_n: number;
+      underwriting_ready_rate: string | number | null;
+      underwriting_partial_rate: string | number | null;
+      library_partial_rate: string | number | null;
+      premium_report_ready_rate: string | number | null;
+      avg_core_fields_filled: string | number | null;
+    })
+    .find((r) => r.country_code === "ES" && r.city_normalized === CITY);
+
+  const submarketRows = ((submarketRes.data ?? []) as unknown[]).map((r) => r as {
+    id: string;
+    name: string;
+    institutional_tier: number;
+  });
+
   const total = hotels.length;
   const branded = hotels.filter((h) => h.brand_family);
   const indie = hotels.filter((h) => !h.brand_family);
 
-  // Per-tier counts on the CORE-SCOPE only (coverage view counts the full
-  // 224; we re-derive on the filtered subset so the panel is internally
-  // consistent).
   const gold = hotels.filter((h) => h.data_quality_tier === "gold").length;
   const silver = hotels.filter((h) => h.data_quality_tier === "silver").length;
   const bronze = hotels.filter((h) => h.data_quality_tier === "bronze").length;
   const quarantined = hotels.filter((h) => h.data_quality_tier === "quarantined").length;
+
+  // Submarket distribution on core scope
+  const submarketCounts = new Map<string, number>();
+  for (const h of hotels) {
+    if (!h.submarket_id) continue;
+    submarketCounts.set(h.submarket_id, (submarketCounts.get(h.submarket_id) ?? 0) + 1);
+  }
+  const submarketDistribution = submarketRows
+    .map((s) => ({ name: s.name, tier: s.institutional_tier, n: submarketCounts.get(s.id) ?? 0 }))
+    .filter((s) => s.n > 0)
+    .sort((a, b) => a.tier - b.tier || b.n - a.n);
 
   const priorityFields = {
     phone: hotels.filter((h) => h.phone).length,
     website_url: hotels.filter((h) => h.website_url).length,
     google_place_id: hotels.filter((h) => h.google_place_id).length,
     address_line1: hotels.filter((h) => h.address_line1).length,
+    market_id: hotels.filter((h) => h.market_id).length,
+    submarket_id: hotels.filter((h) => h.submarket_id).length,
     total_rooms: hotels.filter((h) => h.total_rooms != null).length,
     year_opened: hotels.filter((h) => h.year_opened != null).length,
     wikidata_qid: hotels.filter((h) => h.wikidata_qid).length,
     operator_id_branded: branded.filter((h) => h.operator_id).length,
   };
 
-  // CORE underwriting fields per cap-rate engine — counts how many of
-  // the 8 fields each hotel has populated. Bypasses the equal-weight v1
-  // T2 trap; surfaces actual underwriting readiness signal.
-  // Note: market_id / submarket_id are 0% globally today (PostGIS pending).
-  const UW_FIELDS_TOTAL = 8;
-  const underwritingFilledPerHotel = hotels.map(
-    (h) =>
-      (h.chain_scale ? 1 : 0) +
-      (h.segment ? 1 : 0) +
-      (h.total_rooms != null ? 1 : 0) +
-      (h.market_id ? 1 : 0) +
-      (h.submarket_id ? 1 : 0) +
-      (h.postal_code ? 1 : 0) +
-      ((h.year_opened != null) ? 1 : 0) +
-      (h.operator_type ? 1 : 0),
-  );
-  const avg_underwriting_fields_filled =
-    underwritingFilledPerHotel.length === 0
-      ? 0
-      : underwritingFilledPerHotel.reduce((a, b) => a + b, 0) / underwritingFilledPerHotel.length;
-
   const sourceRows = (sourcesRes.data ?? []) as Array<{ source: string }>;
   const bySourceMap = new Map<string, number>();
-  for (const r of sourceRows) {
-    bySourceMap.set(r.source, (bySourceMap.get(r.source) ?? 0) + 1);
-  }
+  for (const r of sourceRows) bySourceMap.set(r.source, (bySourceMap.get(r.source) ?? 0) + 1);
   const by_source = Array.from(bySourceMap.entries())
     .map(([source, n]) => ({ source, n }))
     .sort((a, b) => b.n - a.n);
@@ -221,30 +246,27 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
     dismissed: dedupRows.filter((d) => d.status === "dismissed").length,
   };
 
-  // Structural blockers (gap to 100%) — exclude operator_id which is
-  // by-design split (branded vs indie · surfaced in the cohort section
-  // instead of as a defect).
   const structuralBlockers = (
     [
       {
-        field: "total_rooms",
+        field: "total_rooms / total_keys",
         missing: total - priorityFields.total_rooms,
-        note: "Booking E2 does not expose · Wikidata P1106 sparse for ES · path forward: D-8",
+        note: "Booking E2 does not expose · Wikidata P1106 sparse for ES · path forward: D-8 hotel-website (gated)",
       },
       {
         field: "year_opened",
         missing: total - priorityFields.year_opened,
-        note: "Wikidata P571 sparse for ES (1 hit in 66) · path forward: D-8 chain websites",
+        note: "Wikidata P571 sparse for ES (1 hit in 66) · path forward: D-8 chain websites (gated)",
       },
       {
-        field: "market_id / submarket_id",
-        missing: total,
-        note: "0% across the corpus · path forward: PostGIS Madrid polygons workstream",
+        field: "operator_type (indies)",
+        missing: indie.length,
+        note: "Indies remain operator_type='unknown' · no inference applied without operator authorization (would default to 'owned' if approved)",
       },
       {
-        field: "wikidata_qid",
+        field: "wikidata_qid (indies)",
         missing: total - priorityFields.wikidata_qid,
-        note: "59% hit rate on branded · not applicable to indies without notability",
+        note: "59% hit rate on branded · not applicable to most indies without notability presence",
       },
     ] as Array<{ field: string; missing: number; note: string }>
   )
@@ -271,21 +293,36 @@ export async function loadEnrichmentSnapshot(): Promise<EnrichmentSnapshot | nul
       silver,
       bronze,
       quarantined,
-      t1_passing: coverageRow.hotels_t1_passing, // approximation — view counts full 224
+      t1_passing: coverageRow.hotels_t1_passing,
       t2_v1_passing_deprecated: coverageRow.hotels_t2_passing,
       avg_t1_pct: Number(coverageRow.avg_t1_pct ?? 0),
       avg_t2_pct_deprecated: Number(coverageRow.avg_t2_pct ?? 0),
       institutional_passing_rate_deprecated: Number(coverageRow.institutional_passing_rate ?? 0),
       goal_reached_deprecated: coverageRow.goal_reached,
-      avg_underwriting_fields_filled,
-      underwriting_fields_total: UW_FIELDS_TOTAL,
+    },
+    readiness: {
+      underwriting_ready_n: readinessRow?.underwriting_ready_n ?? 0,
+      underwriting_partial_n: readinessRow?.underwriting_partial_n ?? 0,
+      library_ready_n: readinessRow?.library_ready_n ?? 0,
+      library_partial_n: readinessRow?.library_partial_n ?? 0,
+      premium_report_ready_n: readinessRow?.premium_report_ready_n ?? 0,
+      branded_underwriting_partial_n: readinessRow?.branded_underwriting_partial_n ?? 0,
+      indie_underwriting_partial_n: readinessRow?.indie_underwriting_partial_n ?? 0,
+      underwriting_ready_rate: Number(readinessRow?.underwriting_ready_rate ?? 0),
+      underwriting_partial_rate: Number(readinessRow?.underwriting_partial_rate ?? 0),
+      library_partial_rate: Number(readinessRow?.library_partial_rate ?? 0),
+      premium_report_ready_rate: Number(readinessRow?.premium_report_ready_rate ?? 0),
+      avg_core_fields_filled: Number(readinessRow?.avg_core_fields_filled ?? 0),
+      underwriting_fields_total: 8,
     },
     cohort: {
       branded_n: branded.length,
       indie_n: indie.length,
+      documented_indie_n: readinessRow?.documented_indie_n ?? 0,
       branded_with_operator: branded.filter((h) => h.operator_id).length,
-      indie_no_parent_operator: indie.length, // by design
+      indie_no_parent_operator: indie.length,
     },
+    submarketDistribution,
     priorityFields,
     provenance: {
       source_records: sourceRows.length,

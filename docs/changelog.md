@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Phase E · readiness v2 live · markets/submarkets + deterministic derivations
+
+Autonomous-mode execution per operator authorization. Goal: get 253 core hotels production-ready end-to-end. Three workstreams shipped to feature branch:
+
+- **Markets + submarkets schema + Madrid seed.** New `public.market` table (1 row · Madrid · ES) + new `public.submarket` table (20 rows seeded). Madrid submarkets classified by institutional_tier: T1 core = Centro/Salamanca/Chamberí/Retiro/Chamartín/Barajas-Aeropuerto · T2 = Tetuán/Hortaleza/Arganzuela/Moncloa-Aravaca · T3 = Ciudad Lineal/San Blas/Fuencarral/Carabanchel/Latina/Villaverde/Villa de Vallecas/Usera. Each carries postal_prefixes[] + neighborhood_aliases[] + reserved geom geography column (polygons deferred). Indexes on (market_id) + GIST on geom.
+- **Backfill: 224/224 hotels gain market_id + submarket_id** in two passes — (1) neighborhood alias match (conf 0.85), (2) postal_prefix fallback (conf 0.70). Closes the 0 → 224 gap on the two biggest underwriting-critical structural blockers. 448 provenance rows added.
+- **Submarket distribution Madrid 224:** Centro 96 · Salamanca 27 · Chamberí 12 · Chamartín 10 · Barajas 9 · Retiro 8 = 162 T1 institutional core (72.3%) · Tetuán/Hortaleza/Arganzuela/Moncloa T2 = 31 (13.8%) · Ciudad Lineal/San Blas/Fuencarral/etc T3 = 31 (13.8%).
+- **operator_type deterministic derivation.** All 224 hotels had `operator_type='unknown'` (Booking default). Updated 111 branded → `'managed'` (conservative defensible chain-default · conf 0.70). 113 indies remain `'unknown'` (no evidence to assert owned/lease without operator authorization). One-hotel name correction: "Tu casa con terraza en Madrid" reclassified hotel_type='aparthotel' (was null · vacation rental slipped through Phase D type filter · now auto-hidden by scope regex).
+- **Schema: documented_independent boolean column** added to `hotel_canonical` (default false). Operator-set flag for indies that should be eligible for premium reports (e.g. luxury boutique without chain parent). Non-destructive additive change.
+- **v2 readiness views live.** Four views: `hotel_underwriting_ready_v` (8 cap-rate-engine inputs · chain_scale/segment/keys/market/submarket/postal/year/operator_type · `is_underwriting_ready` full 8-of-8 + `is_underwriting_partial` 6-of-8 for stub-report eligibility) · `hotel_library_ready_v` (+ hero/amenities≥5/review_score · `is_library_ready` + `is_library_partial`) · `hotel_premium_report_ready_v` (+ brand_family OR documented_independent + room_type_mix + MICE-when-applicable). Aggregated by `hotel_readiness_market_v`.
+- **Madrid headline post-derivation:** `underwriting_ready` full 8/8 = 0 (blocked by total_rooms + year_opened universally · both require D-8 hotel-website fallback gated) · `underwriting_partial` 6/8 = **111 (49.5%)** — all branded hotels qualify · `library_partial` = 33 (14.7%) · `premium_report_ready` = 0 (blocked on room_type_mix + MICE for luxury/upper_upscale). avg core_fields_filled = 5.50 / 8.
+- **Admin panel rewritten to consume readiness v2.** New "Underwriting readiness · v2 active" KPI block above the fold replaces the legacy "Core underwriting fields" placeholder. 4 readiness stats (8/8 · 6/8 · library_partial · premium_report_ready) + cohort split (branded partial / indie partial / documented indies). New "Submarket distribution" tier-tagged stat grid. Header badge shows "readiness v2 · ACTIVE" + "T2 v1 spec · LEGACY". Transition banner now references the live readiness views. Legacy T2 v1 stays in collapsible block.
+- Files: SQL schema/views applied via MCP · `apps/web/src/lib/admin/hotels/enrichment-stats.ts` (rewritten · new shape) · `apps/web/src/components/admin/hotels/enrichment-panel.tsx` (rewritten · v2 stats prominent).
+
+---
+
 ## 2026-05-20 — Admin · /user/admin/hotels panel UX/semantic v2 (pre-merge review)
 
 - **6 operator-approved fixes applied to the Phase D enrichment panel** before any merge to main. The risk identified was semantic/UI, not technical: the v1 panel surfaced deprecated T2 metrics as active KPIs, which could induce incorrect decisions about model quality. Patch makes the panel honest about its own state.
