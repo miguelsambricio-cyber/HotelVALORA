@@ -7,9 +7,13 @@ import { useCompset }      from "@/lib/hooks/use-compset";
 import { useMapViewport }  from "@/hooks/maps/use-map-viewport";
 import { MapControls }     from "./map-controls";
 import { MapLegend }       from "./map-legend";
-import { CompetitorPanel } from "./competitor-panel";
-import { ExploreHelper }   from "./explore-helper";
-import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
+import { CompetitorPanel }        from "./competitor-panel";
+import { AssetSelectionPanel }    from "./asset-selection-panel";
+import {
+  ALL_MADRID_AS_COMPETITORS,
+  DEFAULT_LAYERS,
+  RECOMMENDED_MADRID_ANCHORS,
+} from "@/lib/api/compset";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
 import type { MapLayer, MapLayerId } from "@/types/compset";
 import { useState } from "react";
@@ -173,8 +177,8 @@ function ExploreMode() {
         className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-30"
       />
 
-      <ExploreHelper
-        hotelCount={ALL_MADRID_AS_COMPETITORS.length}
+      <AssetSelectionPanel
+        recommended={RECOMMENDED_MADRID_ANCHORS}
         className="absolute top-4 right-4 bottom-4 z-30"
       />
     </section>
