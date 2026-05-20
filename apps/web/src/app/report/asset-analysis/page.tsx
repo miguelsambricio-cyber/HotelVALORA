@@ -11,15 +11,48 @@ import {
   PropertyGallery,
   MethodologyNote,
 } from "@/components/report/asset-analysis";
-import { getMockAssetAnalysis } from "@/lib/report/asset-analysis-data";
+import {
+  getMockAssetAnalysis,
+  type AssetAnalysisData,
+} from "@/lib/report/asset-analysis-data";
+import {
+  getCanonicalHotelById,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
+import { mapCanonicalToAssetAnalysis } from "@/lib/report/canonical-mappers/asset-analysis";
 import { HotelToggle } from "./hotel-toggle";
 
 export const metadata: Metadata = {
   title: "Asset Analysis — HotelVALORA",
 };
 
-export default function AssetAnalysisPage() {
-  const data = getMockAssetAnalysis();
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: {
+    canonical_id?: string;
+    hotel_id?: string;
+  };
+}
+
+async function loadAssetAnalysisData(
+  searchParams: PageProps["searchParams"],
+): Promise<{ data: AssetAnalysisData; source: "canonical" | "mock" }> {
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (canonicalId) {
+    const hotel = await getCanonicalHotelById(canonicalId);
+    if (hotel) {
+      return { data: mapCanonicalToAssetAnalysis(hotel), source: "canonical" };
+    }
+  }
+  return { data: getMockAssetAnalysis(), source: "mock" };
+}
+
+export default async function AssetAnalysisPage({ searchParams = {} }: PageProps) {
+  const { data } = await loadAssetAnalysisData(searchParams);
 
   const headerActions = (
     <div className="flex items-center gap-4">

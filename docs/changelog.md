@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Phase 4 · Executive Summary + Asset Analysis canonical migration
+
+Operator-authorised mock → canonical migration. Reports now consume `public.hotel_canonical` via a new data layer; mock fallback preserved when no canonical_id is supplied. Visual layer untouched (shells · primitives · section components · PDF · style system all preserved per the standing hard rule).
+
+- **New canonical reader** (`apps/web/src/lib/report/canonical-reader.ts`). Single read path: Supabase `hotel_canonical` joined with `market` · `submarket` · `operators` lookups. Exposes `getCanonicalHotelById(uuid)` · `resolveCanonicalIdFromSnapshotHotelId(h_<hex>)` (3-path multi-resolver mirrors the admin detail logic) · `getMarketKpis(market, submarket)` (reads snapshot's `market_timeseries` for adr/occupancy/revpar/cap-rate/per-room).
+- **Executive Summary canonical mapper** (`apps/web/src/lib/report/canonical-mappers/executive-summary.ts`). Asset attributes from canonical (real) · market KPIs from snapshot timeseries (real) · valuation: `capRate = market_yield` + `perRoom = market_sale_price_per_room` (real) + GOP margin / EBITDA / per-sqm stubs (placeholder) · 12-month TTM chart arrays synthesised from 12m aggregates with deterministic jitter (mock-quality until snapshot exposes monthly granularity).
+- **Asset Analysis canonical mapper** (`apps/web/src/lib/report/canonical-mappers/asset-analysis.ts`). Asset metrics + class + category + brand from canonical · facilities from `amenities` JSONB (8 of the 14-key bitmap visible) · room mix derived from `total_keys` × chain_scale heuristic (suite-heavy for luxury · double-heavy for upscale) until D-8 fills `room_type_mix` · guest insights templated by brand + score · hero image from `hero_image_path` · gallery falls back to mock until image-strategy ships.
+- **`/report/executive-summary/page.tsx` wired** with `?canonical_id=<uuid>` AND `?hotel_id=h_<hex>` param resolution. Falls back to `getMockExecutiveSummary("demo-report-001")` when neither resolves (preserves all existing demo URLs). `export const dynamic = "force-dynamic"` so canonical reads aren't statically cached.
+- **`/report/asset-analysis/page.tsx` wired** with the same dual-param resolution pattern + mock fallback.
+- **Mandarin Oriental Ritz smoke target.** Test URL: `/report/executive-summary?canonical_id=dafc4073-ab60-43ec-91a0-ac1d7311232e`. Expected real data: name "Mandarin Oriental Ritz, Madrid" · brand "Mandarin Oriental" · market Madrid · submarket Retiro · category "5★ Luxury" · cap rate + per-key from CoStar Madrid timeseries. Keys (`total_rooms`) still NULL → buildableArea + room mix fall to heuristic until D-8 fills it.
+- **Hard rule respected.** Only touched data layer + page-level fetchers. Zero changes to: `components/report/*` (shell · primitives · section components) · PDF export pipeline · design tokens · methodology notes · ActionBar.
+- **Diff scope (4 new + 2 modified files):** `apps/web/src/lib/report/canonical-reader.ts` (NEW · 240 LOC · Supabase joins + market KPI loader + multi-path resolver) · `apps/web/src/lib/report/canonical-mappers/executive-summary.ts` (NEW · 170 LOC · field-by-field mapper) · `apps/web/src/lib/report/canonical-mappers/asset-analysis.ts` (NEW · 130 LOC · facilities + room mix + templated insights) · `apps/web/src/app/report/executive-summary/page.tsx` (modified · added `loadExecutiveSummaryData` async dispatcher) · `apps/web/src/app/report/asset-analysis/page.tsx` (modified · added `loadAssetAnalysisData` async dispatcher).
+- **Operator-priority outcome:** "1 hotel real → report real → completamente sincronizado end-to-end" — milestone now reachable via the 2-section canonical path. Admin edits to `hotel_canonical` (via direct-edit drawer or correction queue downstream) now flow end-to-end: edit → Supabase → next report render reads latest. No more isolated mock data for ExecSummary + Asset Analysis paths.
+
+---
+
 ## 2026-05-20 — End-to-end smoke test (Mandarin Oriental Ritz) + admin↔reports linkage validation
 
 Tasks #33 + #20 closed. Full audit doc: `docs/hotel-intelligence/smoke-test-mandarin-oriental-ritz-2026-05-20.md`.

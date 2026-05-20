@@ -5,14 +5,63 @@ import { MarketSection } from "@/components/report/executive-summary/market-sect
 import { ValuationSection } from "@/components/report/executive-summary/valuation-section";
 import { ActionBar } from "@/components/report/executive-summary/action-bar";
 import { MethodologicalNote } from "@/components/report/ui/methodological-note";
-import { getMockExecutiveSummary } from "@/lib/report/executive-summary-data";
+import {
+  getMockExecutiveSummary,
+  type ExecutiveSummaryData,
+} from "@/lib/report/executive-summary-data";
+import {
+  getCanonicalHotelById,
+  getMarketKpis,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
+import { mapCanonicalToExecutiveSummary } from "@/lib/report/canonical-mappers/executive-summary";
 
 export const metadata = {
   title: "Executive Summary — HotelVALORA",
 };
 
-export default function ExecutiveSummaryPage() {
-  const data = getMockExecutiveSummary("demo-report-001");
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: {
+    /** Supabase canonical UUID · primary route. */
+    canonical_id?: string;
+    /** Synthetic snapshot hotel_id (`h_<hex>`) · resolved via multi-path matcher. */
+    hotel_id?: string;
+    /** Operator-friendly fallback (e.g. ?reportId=demo-report-001) · keeps mock visible. */
+    reportId?: string;
+  };
+}
+
+async function loadExecutiveSummaryData(
+  searchParams: PageProps["searchParams"],
+): Promise<{ data: ExecutiveSummaryData; source: "canonical" | "mock"; canonical_id?: string }> {
+  // Phase 4 · resolve to a canonical hotel id when either param is present
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+
+  if (canonicalId) {
+    const hotel = await getCanonicalHotelById(canonicalId);
+    if (hotel) {
+      const marketKpi = await getMarketKpis(hotel.market_name, hotel.submarket_name);
+      return {
+        data: mapCanonicalToExecutiveSummary(hotel, marketKpi),
+        source: "canonical",
+        canonical_id: canonicalId,
+      };
+    }
+  }
+  // Fallback · keep demo content visible when no canonical_id resolves
+  return {
+    data: getMockExecutiveSummary(searchParams?.reportId ?? "demo-report-001"),
+    source: "mock",
+  };
+}
+
+export default async function ExecutiveSummaryPage({ searchParams = {} }: PageProps) {
+  const { data } = await loadExecutiveSummaryData(searchParams);
 
   return (
     <ReportShell>
