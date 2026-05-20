@@ -40,6 +40,13 @@ def _hkey(s: str) -> str:
 
 
 HOTEL_HEADER_ALIASES: dict[str, str] = {
+    # ── HotelVALORA enrichment passthrough (Supabase hotel_canonical bridge) ──
+    "phone": "phone", "telefono": "phone", "phone_number": "phone",
+    "website_url": "website_url", "website": "website_url", "url_website": "website_url", "sitio_web": "website_url",
+    "google_place_id": "google_place_id", "place_id": "google_place_id",
+    "wikidata_qid": "wikidata_qid", "qid": "wikidata_qid",
+    "canonical_id_supabase": "canonical_id_supabase",
+    "data_quality_tier": "data_quality_tier", "quality_tier": "data_quality_tier",
     # Identification
     "property_id": "costar_property_id", "costar_property_id": "costar_property_id", "inmueble_id": "costar_property_id", "id_inmueble": "costar_property_id",
     "name": "name", "nombre": "name", "property_name": "name", "hotel_name": "name", "nombre_hotel": "name", "hotel": "name",
@@ -747,5 +754,18 @@ def normalise_hotel_row(raw: dict[str, Any]) -> tuple[dict[str, Any] | None, lis
         "flood_plain_zone": (raw.get("flood_plain_zone") or None) or None,
         "_match_name": normalise_str_for_key(name),
         "_match_address": normalise_address(raw.get("address_line")),
+        # ── HotelVALORA enrichment passthrough (v1.4 · 2026-05-20) ──
+        # Supabase hotel_canonical bridge + Google Places + Wikidata enrichment.
+        # Direct passthrough · no normalisation · build_masters writes them
+        # to COSTAR_MASTER_HOTELESperMARKET so operators see the full
+        # institutional dataset in their review xlsx.
+        "phone": (raw.get("phone") or None) or None,
+        "website_url": (raw.get("website_url") or None) or None,
+        "google_place_id": (raw.get("google_place_id") or None) or None,
+        "wikidata_qid": (raw.get("wikidata_qid") or None) or None,
+        "canonical_id_supabase": (raw.get("canonical_id_supabase") or None) or None,
+        "data_quality_tier": (raw.get("data_quality_tier") or None) or None,
+        "enrichment_sources": (raw.get("enrichment_sources") or None) or None,
+        "last_scraped_at": (raw.get("last_scraped_at") or None) or None,
     }
     return row, reasons

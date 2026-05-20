@@ -410,6 +410,14 @@ HOTELS_BY_MARKET_COLUMNS: list[tuple[str, str, bool, str]] = [
     ("enrichment_confidence", "numeric", False, "0–1 match confidence at enrichment time."),
     ("profile_completeness_score", "numeric", False, "0–100 % of priority enrichment fields populated."),
     ("last_scraped_at", "timestamp", False, "ISO timestamp of last enrichment scrape."),
+    # ── HotelVALORA enrichment passthrough (v1.4 · 2026-05-20) ──
+    # Supabase hotel_canonical bridge + Google Places / Wikidata enrichment fields.
+    ("phone", "text", False, "Hotel contact phone (E.164 when normalized) · sourced from Google Places fallback."),
+    ("website_url", "text", False, "Hotel website URL · Google Places fallback or chain registry."),
+    ("google_place_id", "text", False, "Google Places id (Places API New v1) · self-authoritative."),
+    ("wikidata_qid", "text", False, "Wikidata Q-id when matched via SPARQL · cross-reference utility."),
+    ("canonical_id_supabase", "text", False, "UUID v4 bridging to Supabase public.hotel_canonical(id) — institutional canonical layer."),
+    ("data_quality_tier", "text", False, "Data quality tier · gold / silver / bronze / quarantined · per Supabase hotel_canonical."),
     # Commercial context
     ("competitive_set_ids", "text[]", False, "Sibling hotel_ids in the property's competitive set."),
     ("transactions_history_ref", "text", False, "Foreign key into HOTEL_TRANSACCIONES_MASTER when the hotel has known transaction history."),
@@ -582,7 +590,12 @@ ENRICHMENT_PREFIX = "manual_enrichment"
 
 
 def _read_env_local() -> dict[str, str]:
-    """Lightweight parser for apps/web/.env.local · KEY=VALUE per line."""
+    """Lightweight parser for apps/web/.env.local · KEY=VALUE per line.
+
+    Strips surrounding double-quotes from values (Vercel CLI dumps quote
+    secrets) and treats literal empty strings ('""', "''") as absent so
+    downstream code doesn't try to fetch from a quoted-empty URL.
+    """
     env_path = ROOT.parent.parent / "apps" / "web" / ".env.local"
     if not env_path.exists():
         return {}
@@ -592,7 +605,12 @@ def _read_env_local() -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         k, v = line.split("=", 1)
-        out[k.strip()] = v.strip()
+        v = v.strip()
+        if (len(v) >= 2 and v[0] == v[-1] and v[0] in ('"', "'")):
+            v = v[1:-1]
+        if v == "":
+            continue
+        out[k.strip()] = v
     return out
 
 
@@ -957,10 +975,17 @@ def _hotel_to_row(h: dict, enrichment: dict, snapshot: dict) -> dict:
         "cancellation_policy": p.get("cancellation_policy"),
         "smoking_policy": p.get("smoking_policy"),
         "coords_source": coords_source,
-        "enrichment_sources": ", ".join(meta.get("enrichment_sources") or []),
+        "enrichment_sources": h.get("enrichment_sources") or ", ".join(meta.get("enrichment_sources") or []),
         "enrichment_confidence": meta.get("enrichment_confidence"),
         "profile_completeness_score": meta.get("profile_completeness_score"),
-        "last_scraped_at": meta.get("last_scraped_at"),
+        "last_scraped_at": h.get("last_scraped_at") or meta.get("last_scraped_at"),
+        # ── HotelVALORA enrichment passthrough (v1.4 · 2026-05-20) ──
+        "phone": h.get("phone"),
+        "website_url": h.get("website_url"),
+        "google_place_id": h.get("google_place_id"),
+        "wikidata_qid": h.get("wikidata_qid"),
+        "canonical_id_supabase": h.get("canonical_id_supabase"),
+        "data_quality_tier": h.get("data_quality_tier"),
         # Commercial context
         "competitive_set_ids": ", ".join(h.get("competitive_set_ids") or []),
         "transactions_history_ref": h.get("transactions_history_ref"),

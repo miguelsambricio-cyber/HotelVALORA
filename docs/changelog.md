@@ -4,6 +4,21 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — COSTAR_MASTER_HOTELESperMARKET refreshed with enriched Supabase canonical (224 Madrid hotels)
+
+Operator-facing master xlsx (`services/costar/MASTER/COSTAR_MASTER_HOTELESperMARKET.xlsx`) updated with all enrichment captured during Phase D + E. Goes from 364 → 530 rows (224 net new Madrid hotels from `hotel_canonical` + dedup against existing CoStar inventory). 6 new enrichment columns added end-to-end through the ingest pipeline.
+
+- **New columns added (v1.4 schema)** in `HOTELS_BY_MARKET_COLUMNS`: `phone` · `website_url` · `google_place_id` · `wikidata_qid` · `canonical_id_supabase` · `data_quality_tier`. Bridges the master xlsx to the institutional canonical layer (`public.hotel_canonical.id` via `canonical_id_supabase`) so the operator can cross-reference any row back to Supabase.
+- **HOTEL_HEADER_ALIASES extended** in `normalization.py` to recognize the new fields when CSV ingests bring them in. Reads `phone` / `website_url` / `google_place_id` / `wikidata_qid` / `canonical_id_supabase` / `data_quality_tier` / `enrichment_sources` from any source CSV with those headers.
+- **`normalise_hotel_row` row dict extended** to passthrough the new fields without normalisation (they're already curated upstream in the Supabase canonical layer).
+- **`_hotel_to_row` in `build_masters.py` extended** to map the new fields from snapshot row to xlsx cells.
+- **Bug fix in `_read_env_local`** (build_masters.py): strips surrounding double-quotes from env values and treats literal empty strings (`""`) as absent. Previously this blocked `_load_enrichment_from_storage` with a "unknown url type: '\"\"/storage/v1/object/list/...'" warning that aborted the HOTELESperMARKET write half of the time.
+- **New CLI helper**: `services/costar/scripts/dump_canonical_to_master_csv.py` — reads the MCP `execute_sql` result file (or any JSON dump of `public.hotel_canonical`), writes a CSV in the CoStar canonical schema to `HOTELESperMARKET/INPUT/`. The existing `ingest.py` pipeline absorbs the CSV via the same supersede + dedup + reconciliation discipline as a real CoStar export.
+- **Post-refresh master state**: 530 rows · 159 columns · enrichment coverage for the 224 Madrid Phase-D corpus: `phone` 209 (93%) · `website_url` 216 (96%) · `google_place_id` 218 (97%) · `wikidata_qid` 66 (29%) · `canonical_id_supabase` 224 (100%) · `data_quality_tier` 224 (100%, gold 109 / silver 2 / bronze 113). Dedup queue: 12 fuzzy duplicates surfaced as `suspected_duplicate` between our new rows and pre-existing CoStar entries — operator review queue working as designed.
+- **Workflow for future refreshes**: (1) close Excel · (2) MCP query on hotel_canonical · (3) `python services/costar/scripts/dump_canonical_to_master_csv.py <mcp-dump.txt>` · (4) `python services/costar/scripts/ingest.py`. The master regenerates with provenance trail in the `INGESTION_LOG` sheet.
+
+---
+
 ## 2026-05-20 — Phase E · readiness v2 live · markets/submarkets + deterministic derivations
 
 Autonomous-mode execution per operator authorization. Goal: get 253 core hotels production-ready end-to-end. Three workstreams shipped to feature branch:
