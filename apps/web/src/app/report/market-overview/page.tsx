@@ -10,14 +10,46 @@ import {
   HorizontalInsightScroller,
   MarketInsightCard,
 } from "@/components/report/market-overview";
-import { getMockMarketOverview } from "@/lib/report/market-overview-data";
+import {
+  getMockMarketOverview,
+  type MarketOverviewData,
+} from "@/lib/report/market-overview-data";
+import {
+  getCanonicalHotelById,
+  getMarketKpis,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
+import { mapCanonicalToMarketOverview } from "@/lib/report/canonical-mappers/market-overview";
 
 export const metadata: Metadata = {
   title: "Market Overview — HotelVALORA",
 };
 
-export default function MarketOverviewPage() {
-  const data = getMockMarketOverview();
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: { canonical_id?: string; hotel_id?: string };
+}
+
+async function loadMarketOverviewData(
+  searchParams: PageProps["searchParams"],
+): Promise<{ data: MarketOverviewData; source: "canonical" | "mock" }> {
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (canonicalId) {
+    const hotel = await getCanonicalHotelById(canonicalId);
+    if (hotel) {
+      const marketKpi = await getMarketKpis(hotel.market_name, hotel.submarket_name);
+      return { data: mapCanonicalToMarketOverview(hotel, marketKpi), source: "canonical" };
+    }
+  }
+  return { data: getMockMarketOverview(), source: "mock" };
+}
+
+export default async function MarketOverviewPage({ searchParams = {} }: PageProps) {
+  const { data } = await loadMarketOverviewData(searchParams);
 
   const headerActions = (
     <div className="flex items-center gap-4">

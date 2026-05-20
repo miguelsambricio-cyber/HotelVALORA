@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Phase 4 wave 2 · Competitive Set + Market Overview canonical + admin↔reports bridge + 253 audit
+
+Continuation of mock → canonical migration. Now 4 of 7 report sections backed by `public.hotel_canonical`. Admin detail page surfaces "View as report" links so the operator closes the end-to-end loop visually in one click. Comprehensive 253-corpus sync audit committed.
+
+- **Competitive Set canonical mapper** (`apps/web/src/lib/report/canonical-mappers/competitive-set.ts`). Subject hotel from canonical · 4 peer properties picked by `same chain_scale + Madrid + neq subject_id` ranked by haversine distance to subject. Per-property facilities mapped from `amenities` JSONB · keys + stars + submarket + locationScore from canonical fields. Gallery falls back to mock until per-peer hero images ship.
+- **Market Overview canonical mapper** (`apps/web/src/lib/report/canonical-mappers/market-overview.ts`). Minimal-viable: `hotelLabel` overridden with canonical hotel name · numeric KPI fields (ADR/occupancy/RevPAR/Yield) in any insight overridden from `getMarketKpis` snapshot timeseries · narrative content + 4-scope structure + map imagery + corporate-sports + demand-generator gallery preserved from mock (full curated-narrative rewrite is a future workstream).
+- **`/report/competitive-set/page.tsx` wired** with `?canonical_id=` + `?hotel_id=` resolution + mock fallback + `force-dynamic`.
+- **`/report/market-overview/page.tsx` wired** same pattern.
+- **Admin → reports bridge live.** `/user/admin/hotels/[hotelId]` sidebar now shows a "View as report · canonical-backed" group with 4 buttons (Executive Summary · Asset Analysis · Competitive Set · Market Overview) above the "Open underwriting view" button. Each button links to `/report/<section>?canonical_id=<resolved-uuid>`. Buttons only render when the hotel resolves to a canonical row (via the 3-path resolver); otherwise an amber callout explains that the report would render the demo mock and points to the correction queue. Discrete caption: *"Reports read live from `hotel_canonical`. Any edit you make above propagates to the next render."*
+- **253-corpus sync audit doc** (`docs/hotel-intelligence/corpus-sync-audit-2026-05-20.md`). 8 sections covering canonical state vs 253 target · 4-of-7 report-section migration coverage · admin propagation status matrix · 4 smoke-test target IDs · remaining work · verifiable acceptance criteria. Findings: 224 canonical hotels (88 % of 253 target) · 100 % market+submarket linkage · 100 % geo/hero · 93-97 % phone/website/place_id · 50 % branded with operator linkage · 0 % keys/year (structural · D-8 gated). Phase 4 operational TODAY for 112 branded Madrid hotels across 4 of 7 report sections.
+- **Hard rule respected end-to-end.** Zero touches to UI shells · primitives · section components · PDF pipeline · methodology notes · design tokens. Only data layer + page-level dispatchers + admin sidebar (admin layer · already operator-facing).
+
+---
+
 ## 2026-05-20 — Phase 4 · Executive Summary + Asset Analysis canonical migration
 
 Operator-authorised mock → canonical migration. Reports now consume `public.hotel_canonical` via a new data layer; mock fallback preserved when no canonical_id is supplied. Visual layer untouched (shells · primitives · section components · PDF · style system all preserved per the standing hard rule).

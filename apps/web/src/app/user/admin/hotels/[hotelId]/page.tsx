@@ -526,6 +526,53 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
             <span className="text-lime-300">→</span>
           </Link>
 
+          {/* Phase 4 · canonical-backed reports · only enabled when the hotel
+                resolves to a Supabase canonical row (otherwise the report
+                would render the demo mock and not the operator's intent). */}
+          {resolvedCanonicalId && (
+            <div className="space-y-1.5">
+              <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                View as report · canonical-backed
+              </p>
+              <Link
+                href={`/report/executive-summary?canonical_id=${encodeURIComponent(resolvedCanonicalId)}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+              >
+                Executive Summary
+                <span className="font-mono text-[10px] text-slate-400">→</span>
+              </Link>
+              <Link
+                href={`/report/asset-analysis?canonical_id=${encodeURIComponent(resolvedCanonicalId)}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+              >
+                Asset Analysis
+                <span className="font-mono text-[10px] text-slate-400">→</span>
+              </Link>
+              <Link
+                href={`/report/competitive-set?canonical_id=${encodeURIComponent(resolvedCanonicalId)}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+              >
+                Competitive Set
+                <span className="font-mono text-[10px] text-slate-400">→</span>
+              </Link>
+              <Link
+                href={`/report/market-overview?canonical_id=${encodeURIComponent(resolvedCanonicalId)}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+              >
+                Market Overview
+                <span className="font-mono text-[10px] text-slate-400">→</span>
+              </Link>
+              <p className="font-mono text-[9.5px] leading-snug text-slate-500">
+                Reports read live from <code>hotel_canonical</code>. Any edit you make above propagates to the next render.
+              </p>
+            </div>
+          )}
+          {!resolvedCanonicalId && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 font-mono text-[10.5px] leading-snug text-amber-900">
+              Not linked to Supabase canonical yet · report views would render the demo mock. Use the correction queue to bridge this hotel into the canonical layer first.
+            </div>
+          )}
+
           <Section title="Provenance">
             <Pair
               label="Ingestion batch"

@@ -5,14 +5,45 @@ import { ActionBar } from "@/components/report/executive-summary/action-bar";
 import { CompetitiveSetTable } from "@/components/report/competitive-set/competitive-set-table";
 import { HotelGalleryGrid } from "@/components/report/competitive-set/hotel-gallery-grid";
 import { PrimeToggle } from "@/components/report/competitive-set/prime-toggle";
-import { getMockCompetitiveSet } from "@/lib/report/competitive-set-data";
+import {
+  getMockCompetitiveSet,
+  type CompetitiveSetData,
+} from "@/lib/report/competitive-set-data";
+import {
+  getCanonicalHotelById,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
+import { mapCanonicalToCompetitiveSet } from "@/lib/report/canonical-mappers/competitive-set";
 
 export const metadata: Metadata = {
   title: "Competitive Set — HotelVALORA",
 };
 
-export default function CompetitiveSetPage() {
-  const data = getMockCompetitiveSet();
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: { canonical_id?: string; hotel_id?: string };
+}
+
+async function loadCompetitiveSetData(
+  searchParams: PageProps["searchParams"],
+): Promise<{ data: CompetitiveSetData; source: "canonical" | "mock" }> {
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (canonicalId) {
+    const hotel = await getCanonicalHotelById(canonicalId);
+    if (hotel) {
+      const data = await mapCanonicalToCompetitiveSet(hotel);
+      return { data, source: "canonical" };
+    }
+  }
+  return { data: getMockCompetitiveSet(), source: "mock" };
+}
+
+export default async function CompetitiveSetPage({ searchParams = {} }: PageProps) {
+  const { data } = await loadCompetitiveSetData(searchParams);
 
   return (
     <ReportShell>
