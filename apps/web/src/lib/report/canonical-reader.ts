@@ -292,15 +292,18 @@ function toBundle(
     market_sale_price_per_room: row ? num(row.market_sale_price_per_room) : null,
     period: row ? ((row.period as string | null) ?? null) : null,
   };
-  // Yield + per-room are NEVER populated in CoStar Madrid snapshot.
-  // Fill from the institutional baseline so the valuation block has a
-  // defensible anchor regardless of which level resolved ADR/Occ/RevPAR.
+  // market_yield · NEVER populated by CoStar Madrid snapshot · baseline-fill
+  // so the valuation block has a defensible anchor regardless of which level
+  // resolved ADR/Occ/RevPAR.
   if (baselineFill && bundle.market_yield === null) {
     bundle.market_yield = baseline.market_yield;
   }
-  if (baselineFill && bundle.market_sale_price_per_room === null) {
-    bundle.market_sale_price_per_room = baseline.market_sale_price_per_room;
-  }
+  // market_sale_price_per_room · intentionally NOT baseline-filled. The
+  // Executive Summary mapper applies a chain_scale-tiered €/key (Madrid 2024
+  // institutional medians · 155k economy → 800k luxury) which is much more
+  // per-asset accurate than the market-wide 285k median. The mapper picks up
+  // this field directly when CoStar finally publishes real submarket-level
+  // transaction figures (then the override supersedes the tier).
   return bundle;
 }
 
