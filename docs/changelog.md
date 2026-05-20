@@ -4,6 +4,24 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — HotelRow inline enrichment · tier pill + phone/website/wikidata/place_id badges
+
+In-place integration of the Supabase canonical enrichment data into the existing `HotelRow` component on `/user/admin/hotels` (no new sections; operator-requested minimal surface).
+
+- **Added optional enrichment fields to `HotelReferenceRecord` type** (`apps/web/src/lib/admin/hotels/types.ts`): `phone` · `website_url` · `google_place_id` · `wikidata_qid` · `canonical_id_supabase` · `data_quality_tier` · `enrichment_sources` · `last_scraped_at`. These mirror the columns that `services/costar/scripts/normalise_hotel_row` now passes through to `snapshot.json` (so the snapshot already carries them since the v1.4 build_masters update).
+- **HotelRow header line** gains a small `gold` / `silver` / `bronze` / `quarantined` data-quality pill (Supabase canonical) right after the NEW badge, before the chain_scale chip. Tone-coded: amber-gold / slate / orange-bronze / rose-quarantined. Tooltip surfaces the full label. Pill is only rendered when `data_quality_tier` is present.
+- **HotelRow metadata line** (mono · 10.5px) now displays inline icons + text:
+  - `Phone` icon + number when `phone` is present
+  - `Globe` icon + website host (stripped of `www.`) when `website_url` is present
+  - Small `Q<NNN>` pill when `wikidata_qid` is present (tooltip = full QID)
+  - Small `GP` pill when `google_place_id` is present (tooltip = full place_id)
+  - All cells inline-flex with `gap-x-3` — wraps gracefully if row is narrow
+- **Confidence% kept** as the trailing element of the mono line (slate-400, subdued).
+- No new sections added · no new database queries · the data is already in snapshot.json after the previous v1.4 ingest run. Zero performance cost.
+- File: `apps/web/src/app/user/admin/hotels/page.tsx` (HotelRow function rewritten · ~30 lines net) · `apps/web/src/lib/admin/hotels/types.ts` (8 new optional fields appended).
+
+---
+
 ## 2026-05-20 — Revert dense EnrichmentPanel + fix submarket taxonomy to CoStar canonical
 
 Operator feedback: the EnrichmentPanel added on /user/admin/hotels was too dense — too much information surfaced at once — and the submarket taxonomy used Madrid administrative districts instead of CoStar's institutional commercial submarkets. Both reverted/fixed in one pass.

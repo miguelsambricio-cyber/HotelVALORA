@@ -9,6 +9,8 @@ import {
   ExternalLink,
   ArrowUpRight,
   ChevronDown,
+  Phone,
+  Globe,
 } from "lucide-react";
 import {
   loadHotelsSnapshot,
@@ -1100,6 +1102,28 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
         : completeness.score > 0
           ? "bg-orange-100 text-orange-800 ring-orange-200"
           : "bg-slate-100 text-slate-600 ring-slate-200";
+
+  // v1.4 enrichment passthrough · pill tone for data_quality_tier (Supabase canonical)
+  const tier = hotel.data_quality_tier;
+  const tierTone =
+    tier === "gold"
+      ? "bg-amber-50 text-amber-800 ring-amber-300"
+      : tier === "silver"
+        ? "bg-slate-100 text-slate-700 ring-slate-300"
+        : tier === "bronze"
+          ? "bg-orange-50 text-orange-800 ring-orange-200"
+          : tier === "quarantined"
+            ? "bg-rose-50 text-rose-800 ring-rose-200"
+            : "";
+  const websiteHost = (() => {
+    if (!hotel.website_url) return null;
+    try {
+      return new URL(hotel.website_url).hostname.replace(/^www\./, "");
+    } catch {
+      return null;
+    }
+  })();
+
   return (
     <Link
       href={`/user/admin/hotels/${encodeURIComponent(hotel.hotel_id)}`}
@@ -1120,6 +1144,14 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
               className="inline-flex items-center rounded bg-emerald-600 px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] text-white"
             >
               NEW
+            </span>
+          )}
+          {tier && tierTone && (
+            <span
+              title={`Data quality tier · ${tier} (Supabase canonical)`}
+              className={`inline-flex items-center rounded px-1.5 py-0.5 font-headline text-[9px] font-extrabold uppercase tracking-[0.22em] ring-1 ${tierTone}`}
+            >
+              {tier}
             </span>
           )}
           {hotel.chain_scale && (
@@ -1149,10 +1181,38 @@ function HotelRow({ hotel }: { hotel: HotelRecord }) {
           {hotel.country} · {hotel.market_name}
           {hotel.submarket_name ? ` · ${hotel.submarket_name}` : ""}
         </p>
-        <p className="mt-1 font-mono text-[10.5px] text-slate-500">
-          {hotel.rooms_count ? `${hotel.rooms_count} rooms · ` : ""}
-          {hotel.year_opened ? `opened ${hotel.year_opened} · ` : ""}
-          confidence {(conf * 100).toFixed(0)}%
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10.5px] text-slate-500">
+          {hotel.rooms_count ? <span>{hotel.rooms_count} rooms</span> : null}
+          {hotel.year_opened ? <span>opened {hotel.year_opened}</span> : null}
+          {hotel.phone ? (
+            <span className="inline-flex items-center gap-1 text-slate-600" title={`Phone · ${hotel.phone}`}>
+              <Phone size={9} className="text-slate-400" aria-hidden />
+              {hotel.phone}
+            </span>
+          ) : null}
+          {websiteHost ? (
+            <span className="inline-flex items-center gap-1 text-slate-600" title={`Website · ${hotel.website_url}`}>
+              <Globe size={9} className="text-slate-400" aria-hidden />
+              {websiteHost}
+            </span>
+          ) : null}
+          {hotel.wikidata_qid ? (
+            <span
+              title={`Wikidata · ${hotel.wikidata_qid}`}
+              className="inline-flex items-center rounded bg-slate-100 px-1 text-[9.5px] font-bold text-slate-600 ring-1 ring-slate-200"
+            >
+              {hotel.wikidata_qid}
+            </span>
+          ) : null}
+          {hotel.google_place_id ? (
+            <span
+              title={`Google Places · ${hotel.google_place_id}`}
+              className="inline-flex items-center rounded bg-slate-100 px-1 text-[9.5px] font-bold text-slate-600 ring-1 ring-slate-200"
+            >
+              GP
+            </span>
+          ) : null}
+          <span className="text-slate-400">conf {(conf * 100).toFixed(0)}%</span>
         </p>
       </div>
       <ArrowUpRight size={14} className="shrink-0 text-slate-300 group-hover:text-forest-900" />

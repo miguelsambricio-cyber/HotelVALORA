@@ -107,6 +107,22 @@ export interface HotelReferenceRecord {
   // enrichment fills the operator-experience gap.
   profile?: HotelProfile;
   _enrichment_meta?: EnrichmentMeta;
+
+  // ── v1.4 · HotelVALORA enrichment passthrough (2026-05-20) ──
+  // Top-level fields written by services/costar/scripts/normalise_hotel_row
+  // when the source CSV carries them (from Supabase hotel_canonical bridge).
+  // The HotelRow surfaces these inline without adding new sections.
+  phone?: string | null;
+  website_url?: string | null;
+  google_place_id?: string | null;
+  wikidata_qid?: string | null;
+  canonical_id_supabase?: string | null;
+  /** Data-quality tier per Supabase hotel_canonical (gold/silver/bronze/quarantined).
+   *  Surfaced inline in HotelRow as a small pill. */
+  data_quality_tier?: "gold" | "silver" | "bronze" | "quarantined" | string | null;
+  /** Plus-separated provenance list (e.g. "rapidapi_booking+google_places+wikidata"). */
+  enrichment_sources?: string | null;
+  last_scraped_at?: string | null;
 }
 
 /**
