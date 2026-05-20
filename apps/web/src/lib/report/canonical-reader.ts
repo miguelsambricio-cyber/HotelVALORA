@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { createAnonServerSupabaseClient } from "@/lib/supabase/anon-server";
 import { loadHotelsSnapshot } from "@/lib/admin/hotels/snapshot-reader";
 
 /**
@@ -10,9 +10,14 @@ import { loadHotelsSnapshot } from "@/lib/admin/hotels/snapshot-reader";
  * (`h_<hex>` via the multi-path resolver mirrored from the admin
  * detail page).
  *
- * Market KPIs are read from the snapshot's `market_timeseries` block
- * (the same structure loadHotelsSnapshot already returns) so we don't
- * duplicate the CoStar warehouse fetch.
+ * Uses the anon Supabase client · reports are the institutional
+ * showcase layer · hotel_canonical / market / submarket have public-read
+ * RLS (migration 0025). Service-role is reserved for writes / admin /
+ * enrichment / cron · NOT catalog reads.
+ *
+ * Market KPIs are resolved via `resolveBestAvailableMarketKpis` which
+ * walks compset → submarket → market → country → institutional baseline
+ * over `snap.market_snapshots`.
  */
 
 export interface CanonicalHotelRow {
@@ -68,7 +73,7 @@ type RawHotelRow = Omit<CanonicalHotelRow, "market_name" | "submarket_name" | "o
 };
 
 async function joinLookups(row: RawHotelRow): Promise<CanonicalHotelRow> {
-  const sb = getSupabaseAdmin() as unknown as {
+  const sb = createAnonServerSupabaseClient() as unknown as {
     from: (t: string) => {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
@@ -111,7 +116,7 @@ async function joinLookups(row: RawHotelRow): Promise<CanonicalHotelRow> {
  */
 export async function getCanonicalHotelById(canonical_id: string): Promise<CanonicalHotelRow | null> {
   if (!canonical_id) return null;
-  const sb = getSupabaseAdmin() as unknown as {
+  const sb = createAnonServerSupabaseClient() as unknown as {
     from: (t: string) => {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
@@ -144,7 +149,7 @@ export async function resolveCanonicalIdFromSnapshotHotelId(snapshot_hotel_id: s
   const direct = (h as { canonical_id_supabase?: string | null }).canonical_id_supabase;
   if (direct) return direct;
 
-  const sb = getSupabaseAdmin() as unknown as {
+  const sb = createAnonServerSupabaseClient() as unknown as {
     from: (t: string) => {
       select: (cols: string) => {
         eq: (col: string, val: string) => unknown;
