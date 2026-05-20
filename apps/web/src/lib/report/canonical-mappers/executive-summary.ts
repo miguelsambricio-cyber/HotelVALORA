@@ -198,7 +198,23 @@ export function mapCanonicalToExecutiveSummary(
   };
 
   const capRate = engineRun?.capRate.used_pct ?? marketKpi?.market_yield ?? 6.5;
-  const perRoom = marketKpi?.market_sale_price_per_room ?? 200_000;
+  // €/key by chain_scale · Madrid 2024 institutional medians (CBRE/JLL/Cushman
+  // transaction benchmarks 2023-2024). Replaces the flat 285k baseline that
+  // produced the institutionally-inverted "luxury < upscale" valuation result
+  // (luxury hotels are smaller in keys but command much higher €/key).
+  const perKeyByScale = (s: string | null): number => {
+    if (s === "luxury") return 800_000;        // Mandarin/Four Seasons/Rosewood band
+    if (s === "upper_upscale") return 500_000; // Hyatt/Marriott Auditorium/NH Collection
+    if (s === "upscale") return 340_000;       // AC by Marriott/Hilton Garden Inn/Catalonia
+    if (s === "upper_midscale") return 250_000;
+    if (s === "midscale") return 200_000;
+    if (s === "economy") return 155_000;
+    return 285_000;                            // unknown · prudent Madrid average
+  };
+  // Market override · when CoStar publishes a per-room transaction figure for
+  // the submarket, that supersedes the chain_scale table (more current data).
+  // Today CoStar never populates this column · so we always use the tier.
+  const perRoom = marketKpi?.market_sale_price_per_room ?? perKeyByScale(hotel.chain_scale);
   const sqmPerKey = engineRun?.assetBasics.total_sqm && engineRun.assetBasics.rooms
     ? engineRun.assetBasics.total_sqm / engineRun.assetBasics.rooms
     : 38;
