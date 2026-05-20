@@ -32,6 +32,14 @@ interface CompsetMapGLAnalysisProps extends CompsetMapGLBaseProps {
   referenceHotel: CompetitorHotel;
   competitors: CompetitorHotel[];
   suggested: CompetitorHotel[];
+  /** Optional · /compset panel-sync contract. When provided:
+   *   · pins switch to direct-click-no-popup behavior (same as explore)
+   *   · matching pin gets the inspected halo
+   *   · parent owns inspectedHotelId state · panel reacts in sync
+   *  Standalone embedded usages (report-map.tsx) omit this prop so the
+   *  KPI popup behavior is preserved where there's no side panel. */
+  onPinClick?: (hotelId: string) => void;
+  inspectedHotelId?: string | null;
 }
 
 interface CompsetMapGLExploreProps extends CompsetMapGLBaseProps {
@@ -140,12 +148,17 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         ))
       ) : (
         <>
-          {/* ── Reference hotel pin ─────────────────────────────────────── */}
+          {/* ── Reference hotel pin ─────────────────────────────────────── *
+           *  Reference pin never gets the inspected halo (it already has
+           *  its own brand-color emphasis). Click still goes through
+           *  onPinClick when provided · parent handles "subject clicked"
+           *  semantics (typically clears competitor inspection).        */}
           <HotelMarker
             hotel={props.referenceHotel}
             type="reference"
             isSelected={popupHotelId === props.referenceHotel.id}
             onSelect={setPopupHotelId}
+            onPinClick={props.onPinClick}
           />
 
           {/* ── Active competitor pins ──────────────────────────────────── */}
@@ -156,6 +169,8 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
               type="competitor"
               isSelected={popupHotelId === hotel.id}
               onSelect={setPopupHotelId}
+              isInspected={props.inspectedHotelId === hotel.id}
+              onPinClick={props.onPinClick}
             />
           ))}
 
@@ -167,6 +182,8 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
               type="suggested"
               isSelected={popupHotelId === hotel.id}
               onSelect={setPopupHotelId}
+              isInspected={props.inspectedHotelId === hotel.id}
+              onPinClick={props.onPinClick}
             />
           ))}
         </>

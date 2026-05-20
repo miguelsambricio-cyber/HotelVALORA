@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Building2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,9 @@ interface CompetitorPanelProps {
   onToggle: () => void;
   onAdd: (hotel: CompetitorHotel) => void;
   onRemove: (id: string) => void;
+  /** Map↔Panel sync · matching card gets highlight + scrollIntoView.
+   *  Source of truth lives in <AnalysisMode /> (compset-map.tsx). */
+  inspectedHotelId?: string | null;
   className?: string;
 }
 
@@ -27,8 +31,24 @@ export function CompetitorPanel({
   onToggle,
   onAdd,
   onRemove,
+  inspectedHotelId = null,
   className,
 }: CompetitorPanelProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  // When the map inspects a competitor / suggested, scroll the matching
+  // card into view. Mirrors the AssetSelectionPanel pattern.
+  useEffect(() => {
+    if (!inspectedHotelId) return;
+    const body = bodyRef.current;
+    if (!body) return;
+    const el = body.querySelector<HTMLElement>(
+      `[data-competitor-card-id="${inspectedHotelId}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [inspectedHotelId]);
   return (
     /*
      * flex-row-reverse: panel body renders on the RIGHT, toggle tab on the LEFT.
@@ -64,7 +84,10 @@ export function CompetitorPanel({
           </div>
 
           {/* Scrollable list */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-4 min-h-0">
+          <div
+            ref={bodyRef}
+            className="flex-1 overflow-y-auto p-3 space-y-4 min-h-0"
+          >
             {isLoading ? (
               <div className="flex items-center justify-center h-32">
                 <div className="w-5 h-5 rounded-full border-2 border-forest-900/30 border-t-forest-900 animate-spin" />
@@ -88,6 +111,7 @@ export function CompetitorPanel({
                           hotel={h}
                           variant="active"
                           onRemove={onRemove}
+                          isInspected={inspectedHotelId === h.id}
                         />
                       ))}
                     </div>
@@ -107,6 +131,7 @@ export function CompetitorPanel({
                           hotel={h}
                           variant="suggested"
                           onAdd={onAdd}
+                          isInspected={inspectedHotelId === h.id}
                         />
                       ))}
                     </div>
