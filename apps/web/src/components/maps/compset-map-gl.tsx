@@ -38,8 +38,11 @@ interface CompsetMapGLExploreProps extends CompsetMapGLBaseProps {
   mode: "explore";
   /** All hotels rendered as uniform pins when no subject is selected. */
   exploreHotels: CompetitorHotel[];
-  /** Triggered from popup CTA · navigates to /compset?ref=<id>. */
-  onExploreSelect: (hotelId: string) => void;
+  /** Direct pin click handler · NO popup · parent owns two-click
+   *  inspect/commit state. Receives the clicked hotel id. */
+  onPinClick: (hotelId: string) => void;
+  /** When set, the matching pin gets the inspect halo (glow + scale). */
+  inspectedHotelId?: string | null;
 }
 
 export type CompsetMapGLProps = CompsetMapGLAnalysisProps | CompsetMapGLExploreProps;
@@ -121,15 +124,18 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       {historicoEnabled && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON}  />}
 
       {isExplore ? (
-        /* ── Explore mode · uniform pins · click popup → onExploreSelect ── */
+        /* ── Explore mode · uniform pins · two-click pattern via onPinClick ──
+         *   1st click → inspect (parent sets inspectedHotelId · pin glows)
+         *   2nd click on same pin → commit (parent navigates to ?ref=<id>) */
         props.exploreHotels.map((hotel) => (
           <HotelMarker
             key={hotel.id}
             hotel={hotel}
             type="explore"
-            isSelected={popupHotelId === hotel.id}
-            onSelect={setPopupHotelId}
-            onAnalyze={props.onExploreSelect}
+            isSelected={false}
+            onSelect={() => { /* unused in explore mode */ }}
+            isInspected={props.inspectedHotelId === hotel.id}
+            onPinClick={props.onPinClick}
           />
         ))
       ) : (

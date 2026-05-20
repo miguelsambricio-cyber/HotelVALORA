@@ -9,11 +9,7 @@ import { MapControls }     from "./map-controls";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
 import { AssetSelectionPanel }    from "./asset-selection-panel";
-import {
-  ALL_MADRID_AS_COMPETITORS,
-  DEFAULT_LAYERS,
-  RECOMMENDED_MADRID_ANCHORS,
-} from "@/lib/api/compset";
+import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
 import type { MapLayer, MapLayerId } from "@/types/compset";
 import { useState } from "react";
@@ -132,21 +128,34 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
   );
 }
 
-/* ─── Explore mode · all-Madrid pins · click → /compset?ref=<id> ───────── */
+/* ─── Explore mode · two-click pin pattern · map↔panel sync ──────────────
+ *   1st click on a pin    → inspect: set inspectedHotelId · pin glows ·
+ *                           panel scrolls to + highlights matching card
+ *   2nd click on same pin → commit:  router.push(/compset?ref=<id>)
+ *   click on different pin → reset previous · inspect new
+ *   card click in panel   → direct commit (cards are explicit intent) */
 
 function ExploreMode() {
   const router = useRouter();
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
-
-  // Layers are local state here · the explore mode doesn't share a
-  // store with the analysis hook, so toggling stays self-contained.
   const [layers, setLayers] = useState<MapLayer[]>(DEFAULT_LAYERS);
+  const [inspectedHotelId, setInspectedHotelId] = useState<string | null>(null);
+
   function toggleLayer(id: MapLayerId) {
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, enabled: !l.enabled } : l)));
   }
 
-  function handleExploreSelect(hotelId: string) {
+  function commitSelection(hotelId: string) {
     router.push(`/compset?ref=${encodeURIComponent(hotelId)}`);
+  }
+
+  function handlePinClick(hotelId: string) {
+    // Same pin clicked twice → commit. Different pin → inspect new.
+    if (inspectedHotelId === hotelId) {
+      commitSelection(hotelId);
+    } else {
+      setInspectedHotelId(hotelId);
+    }
   }
 
   return (
@@ -160,7 +169,8 @@ function ExploreMode() {
           viewState={viewState}
           onViewStateChange={setViewState}
           exploreHotels={ALL_MADRID_AS_COMPETITORS}
-          onExploreSelect={handleExploreSelect}
+          onPinClick={handlePinClick}
+          inspectedHotelId={inspectedHotelId}
           layers={layers}
         />
       </div>
@@ -178,7 +188,10 @@ function ExploreMode() {
       />
 
       <AssetSelectionPanel
-        recommended={RECOMMENDED_MADRID_ANCHORS}
+        recommended={ALL_MADRID_AS_COMPETITORS}
+        inspectedHotelId={inspectedHotelId}
+        onInspect={setInspectedHotelId}
+        onCommit={commitSelection}
         className="absolute top-4 right-4 bottom-4 z-30"
       />
     </section>

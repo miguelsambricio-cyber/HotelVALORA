@@ -26,13 +26,9 @@ function StarRow({ count }: { count: number }) {
 function HotelPopup({
   hotel,
   onClose,
-  onAnalyze,
 }: {
   hotel: CompetitorHotel;
   onClose: () => void;
-  /** When provided, popup renders a "Iniciar análisis" CTA at the bottom.
-   *  Used in explore mode to navigate /compset?ref=<hotel.id>. */
-  onAnalyze?: (hotelId: string) => void;
 }) {
   return (
     <Popup
@@ -74,16 +70,6 @@ function HotelPopup({
             </div>
           ))}
         </div>
-
-        {onAnalyze && (
-          <button
-            type="button"
-            onClick={() => onAnalyze(hotel.id)}
-            className="mt-2 w-full py-1.5 bg-forest-900 text-white text-[10px] font-bold uppercase tracking-[0.18em] rounded-md hover:brightness-110 transition-all shadow"
-          >
-            Iniciar análisis →
-          </button>
-        )}
       </div>
     </Popup>
   );
@@ -103,14 +89,38 @@ const PIN_STYLES: Record<HotelPinType, string> = {
 interface HotelMarkerProps {
   hotel: CompetitorHotel;
   type: HotelPinType;
+  /** Analysis-mode popup toggle · true → popup is shown. */
   isSelected: boolean;
+  /** Analysis-mode popup toggle callback. */
   onSelect: (id: string | null) => void;
-  /** Optional callback forwarded to popup CTA (explore mode). */
-  onAnalyze?: (hotelId: string) => void;
+  /** Explore-mode inspect highlight · true → halo + scale-up. */
+  isInspected?: boolean;
+  /** Explore-mode direct click handler. When provided:
+   *    · pin click triggers `onPinClick(hotel.id)` instead of toggling popup
+   *    · the popup is NEVER rendered for this marker
+   *  This is the contract used by the asset-selection workspace where
+   *  the two-click pattern (1 inspect · 2 commit) lives in parent state. */
+  onPinClick?: (hotelId: string) => void;
 }
 
-export function HotelMarker({ hotel, type, isSelected, onSelect, onAnalyze }: HotelMarkerProps) {
+export function HotelMarker({
+  hotel,
+  type,
+  isSelected,
+  onSelect,
+  isInspected = false,
+  onPinClick,
+}: HotelMarkerProps) {
   const isRef = type === "reference";
+  const isExploreMode = onPinClick !== undefined;
+
+  function handleClick() {
+    if (isExploreMode) {
+      onPinClick!(hotel.id);
+    } else {
+      onSelect(isSelected ? null : hotel.id);
+    }
+  }
 
   return (
     <>
@@ -118,14 +128,16 @@ export function HotelMarker({ hotel, type, isSelected, onSelect, onAnalyze }: Ho
         longitude={hotel.coordinates.lng}
         latitude={hotel.coordinates.lat}
         anchor="center"
-        onClick={() => onSelect(isSelected ? null : hotel.id)}
+        onClick={handleClick}
       >
         <div className="flex flex-col items-center cursor-pointer group">
           <div
             className={cn(
-              "rounded-full transition-transform group-hover:scale-110",
+              "rounded-full transition-all duration-200 group-hover:scale-110",
               PIN_STYLES[type],
-              isSelected && "ring-2 ring-offset-1 ring-forest-700 scale-110"
+              isSelected && "ring-2 ring-offset-1 ring-forest-700 scale-110",
+              // Explore-mode inspect halo · scales up + glow ring + brand color
+              isInspected && "!w-6 !h-6 !bg-forest-900 !shadow-lg ring-4 ring-forest-900/30 ring-offset-2 scale-110"
             )}
           />
           {isRef && (
@@ -136,12 +148,11 @@ export function HotelMarker({ hotel, type, isSelected, onSelect, onAnalyze }: Ho
         </div>
       </Marker>
 
-      {isSelected && (
-        <HotelPopup
-          hotel={hotel}
-          onClose={() => onSelect(null)}
-          onAnalyze={onAnalyze}
-        />
+      {/* Popup is rendered ONLY in analysis mode (when onPinClick is not
+       *  provided). Explore mode shows NO popup · all communication
+       *  happens via pin glow + panel sync. */}
+      {isSelected && !isExploreMode && (
+        <HotelPopup hotel={hotel} onClose={() => onSelect(null)} />
       )}
     </>
   );
