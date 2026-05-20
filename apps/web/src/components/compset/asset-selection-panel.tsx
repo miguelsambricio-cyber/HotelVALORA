@@ -1,51 +1,101 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, MapPinned } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CompetitorHotel } from "@/types/compset";
 import type { HotelSearchHit } from "@/types/hotel-search";
+import { RECOMMENDED_MADRID_ANCHOR_IDS } from "@/lib/data/madrid-hotels";
 import { PanelSearchBar } from "./panel-search-bar";
 import { RecommendedAssetCard } from "./recommended-asset-card";
 
 /**
  * Right-edge panel rendered on bare `/compset` (explore mode).
  *
- * Replaces the older `<ExploreHelper />` narrative card. Mirrors the
- * geometry and shell of `<CompetitorPanel />` (analysis mode) so the
- * user perceives ONE workspace evolving between two states:
+ * Replaces the older `<ExploreHelper />` narrative card and shares the
+ * shell geometry of `<CompetitorPanel />` (analysis mode) so the user
+ * perceives ONE workspace evolving between two states:
  *
- *   Estado A · explore  · "Selección de activo" · search + recommended
+ *   Estado A · explore  · "Selección de activo" · search + tile list
  *   Estado B · analysis · "CompSet activo"      · subject + competitors
  *
- * The visible difference is ONLY the eyebrow label and the body content.
- * Width / toggle tab / glass-overlay shell / footer position are identical.
+ * Map↔Panel sync contract (this panel is one half of it):
+ *   · `inspectedHotelId`  · prop · the hotel currently highlighted on
+ *                                  the map (from the parent ExploreMode).
+ *                                  Matching card glows + scrolls into view.
+ *   · `onInspect(id)`     · prop · called when the user clicks a card the
+ *                                  FIRST time · parent sets inspectedHotelId
+ *                                  · pin glows in sync.
+ *   · `onCommit(id)`      · prop · called when the user clicks an already-
+ *                                  inspected card OR confirms the selection
+ *                                  · parent navigates to /compset?ref=<id>.
  *
- * Both selection paths (search and recommended tile click) navigate to
- * `/compset?ref=<hotel.id>` · the canonical entry into analysis mode.
+ * Two-click pattern is symmetric across map AND panel: the FIRST click on
+ * a card inspects (highlight only) · the SECOND click commits navigation.
+ * Search results commit directly · the search bar is an explicit intent
+ * channel where the visitor already typed a known hotel.
  */
 
 interface AssetSelectionPanelProps {
-  /** Curated 5-tile anchor set rendered under the search bar. */
+  /** Full 18-hotel list rendered as scrollable tiles. */
   recommended: CompetitorHotel[];
+  /** Currently inspected hotel id (from the map · single source of truth). */
+  inspectedHotelId: string | null;
+  /** Inspect callback · sets the inspectedHotelId in parent. */
+  onInspect: (hotelId: string | null) => void;
+  /** Commit callback · navigates to /compset?ref=<id>. */
+  onCommit: (hotelId: string) => void;
   className?: string;
 }
 
-export function AssetSelectionPanel({ recommended, className }: AssetSelectionPanelProps) {
-  const router = useRouter();
+export function AssetSelectionPanel({
+  recommended,
+  inspectedHotelId,
+  onInspect,
+  onCommit,
+  className,
+}: AssetSelectionPanelProps) {
   const [panelOpen, setPanelOpen] = useState(true);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
-  function goToAnalysis(hotelId: string) {
-    router.push(`/compset?ref=${encodeURIComponent(hotelId)}`);
-  }
+  // Sort anchors first (5 curated names) · then the remaining 13 hotels.
+  const sortedAssets = useMemo(() => {
+    const anchorSet = new Set(RECOMMENDED_MADRID_ANCHOR_IDS);
+    const anchors = recommended.filter((h) => anchorSet.has(h.id));
+    const rest = recommended.filter((h) => !anchorSet.has(h.id));
+    return [...anchors, ...rest];
+  }, [recommended]);
+
+  // When the map inspects a hotel, scroll the matching card into view AND
+  // auto-open the panel if it was collapsed (so the highlight is visible).
+  useEffect(() => {
+    if (!inspectedHotelId) return;
+    if (!panelOpen) setPanelOpen(true);
+    const body = bodyRef.current;
+    if (!body) return;
+    const el = body.querySelector<HTMLElement>(
+      `[data-asset-card-id="${inspectedHotelId}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    // panelOpen intentionally omitted from deps · we only auto-open on
+    // inspect transitions, not on user-driven toggles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inspectedHotelId]);
 
   function handleSearchSelect(hotel: HotelSearchHit) {
-    goToAnalysis(hotel.id);
+    // Search is explicit intent · commit directly (no inspect intermediate).
+    onCommit(hotel.id);
   }
 
-  function handleRecommendedSelect(hotel: CompetitorHotel) {
-    goToAnalysis(hotel.id);
+  function handleCardClick(hotel: CompetitorHotel) {
+    // Two-click pattern · mirrors pin behavior.
+    if (inspectedHotelId === hotel.id) {
+      onCommit(hotel.id);
+    } else {
+      onInspect(hotel.id);
+    }
   }
 
   return (
@@ -73,25 +123,40 @@ export function AssetSelectionPanel({ recommended, className }: AssetSelectionPa
             <PanelSearchBar onSelectHotel={handleSearchSelect} />
           </div>
 
-          {/* Body · recommended assets · NO narrative · institutional workflow density */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
-            <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1 px-0.5">
-              Recommended nearby assets ({recommended.length})
-            </p>
-            {recommended.map((hotel) => (
+          {/* Body · scrollable asset tiles */}
+          <div
+            ref={bodyRef}
+            className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0"
+          >
+            <div className="flex items-center justify-between mb-1 px-0.5">
+              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                Recommended nearby assets
+              </p>
+              <span className="text-[10px] font-bold text-slate-400 tabular-nums">
+                {sortedAssets.length}
+              </span>
+            </div>
+            {sortedAssets.map((hotel) => (
               <RecommendedAssetCard
                 key={hotel.id}
                 hotel={hotel}
-                onSelect={handleRecommendedSelect}
+                isInspected={inspectedHotelId === hotel.id}
+                onSelect={handleCardClick}
               />
             ))}
           </div>
 
           {/* Footer · minimal status · mirrors CompetitorPanel CTA slot */}
           <div className="px-3 py-3 border-t border-slate-200/60 flex-shrink-0 text-center">
-            <p className="text-[10px] font-medium text-slate-500 tracking-tight">
-              Cobertura Madrid Tier-2 · 18 activos institucionales
-            </p>
+            {inspectedHotelId ? (
+              <p className="text-[10px] font-medium text-forest-900 tracking-tight">
+                Click de nuevo en el pin o card para confirmar selección
+              </p>
+            ) : (
+              <p className="text-[10px] font-medium text-slate-500 tracking-tight">
+                Click pin · 1 inspect · 2 commit
+              </p>
+            )}
           </div>
         </div>
       </div>

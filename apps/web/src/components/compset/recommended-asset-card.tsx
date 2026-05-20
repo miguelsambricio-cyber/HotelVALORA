@@ -18,17 +18,31 @@ import { cn } from "@/lib/utils";
 interface RecommendedAssetCardProps {
   hotel: CompetitorHotel;
   onSelect: (hotel: CompetitorHotel) => void;
+  /** True when the matching map pin is inspected · card glows + lifts. */
+  isInspected?: boolean;
 }
 
-export function RecommendedAssetCard({ hotel, onSelect }: RecommendedAssetCardProps) {
+export function RecommendedAssetCard({
+  hotel,
+  onSelect,
+  isInspected = false,
+}: RecommendedAssetCardProps) {
   return (
     <button
       type="button"
       onClick={() => onSelect(hotel)}
-      aria-label={`Iniciar análisis de ${hotel.name}`}
+      data-asset-card-id={hotel.id}
+      aria-label={
+        isInspected
+          ? `Confirmar selección de ${hotel.name}`
+          : `Inspeccionar ${hotel.name}`
+      }
+      aria-pressed={isInspected}
       className={cn(
-        "w-full text-left bg-white rounded-xl p-2.5 border border-slate-200/80 shadow-sm",
-        "hover:border-forest-900/40 hover:shadow-md transition-all group"
+        "w-full text-left rounded-xl p-2.5 border shadow-sm transition-all group",
+        isInspected
+          ? "bg-forest-900/[0.04] border-forest-900 shadow-md ring-1 ring-forest-900/20"
+          : "bg-white border-slate-200/80 hover:border-forest-900/40 hover:shadow-md"
       )}
     >
       {/* Header row · name + arrow */}
@@ -58,7 +72,12 @@ export function RecommendedAssetCard({ hotel, onSelect }: RecommendedAssetCardPr
         </div>
         <ArrowRight
           size={12}
-          className="flex-shrink-0 text-slate-300 group-hover:text-forest-900 group-hover:translate-x-0.5 transition-all mt-0.5"
+          className={cn(
+            "flex-shrink-0 transition-all mt-0.5",
+            isInspected
+              ? "text-forest-900 translate-x-0.5"
+              : "text-slate-300 group-hover:text-forest-900 group-hover:translate-x-0.5"
+          )}
           aria-hidden
         />
       </div>
