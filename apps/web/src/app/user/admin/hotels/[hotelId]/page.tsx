@@ -14,8 +14,10 @@ import {
   type HotelRecord,
 } from "@/lib/admin/hotels/snapshot-reader";
 import { CorrectionForm } from "@/components/admin/hotels/correction-form";
+import { EditHotelDrawer } from "@/components/admin/hotels/edit-hotel-drawer";
 import { EnrichmentModal } from "@/components/admin/hotels/enrichment-modal";
 import { BookingEnrichButton } from "@/components/admin/hotels/booking-enrich-button";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   CANONICAL_FACILITIES,
   summariseCanonicalFacilities,
@@ -37,8 +39,15 @@ export async function generateMetadata({ params }: { params: { hotelId: string }
 
 export default async function HotelDetailPage({ params }: { params: { hotelId: string } }) {
   const hotelId = decodeURIComponent(params.hotelId);
-  const hotel = await findHotelById(hotelId);
-  if (!hotel) notFound();
+  const baseHotel = await findHotelById(hotelId);
+  if (!baseHotel) notFound();
+
+  // Overlay: when the hotel is linked to the Supabase canonical layer,
+  // any admin-direct edits live there (durable across deploys). Merge
+  // the latest canonical values on top of the snapshot.json baseline
+  // so the operator immediately sees their edits without waiting for
+  // an ingest rebuild.
+  const hotel = await applySupabaseOverlay(baseHotel);
 
   const [
     compsets,
@@ -499,6 +508,15 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
 
         {/* Sidebar (1/3) */}
         <aside className="space-y-5">
+          {/* Admin direct-edit · faster than the operator-correction queue
+                which is reserved for end-user feedback. Writes straight to
+                Supabase canonical hotel_canonical row. */}
+          <EditHotelDrawer
+            hotelId={hotelId}
+            canonicalIdSupabase={(hotel as HotelRecord & { canonical_id_supabase?: string | null }).canonical_id_supabase ?? null}
+            currentValues={correctableCurrentValues(hotel)}
+          />
+
           {/* Phase 3.b · jump to the dedicated underwriting screen */}
           <Link
             href={`/user/admin/hotels/${encodeURIComponent(hotelId)}/underwriting`}
@@ -623,6 +641,67 @@ const CORRECTABLE_FIELDS = [
   "data_quality_tier",
   "notes",
 ] as const;
+
+/**
+ * Overlay admin-direct edits from Supabase canonical on top of the
+ * snapshot.json baseline. Only runs when the hotel carries a
+ * canonical_id_supabase bridge (every Phase D Madrid hotel). When the
+ * Supabase row has values that differ from the snapshot, the Supabase
+ * value wins — that's the admin's most recent direct edit.
+ *
+ * Field map mirrors direct-edit.ts (snapshot key ← Supabase column).
+ */
+async function applySupabaseOverlay(base: HotelRecord): Promise<HotelRecord> {
+  const linked = (base as HotelRecord & { canonical_id_supabase?: string | null }).canonical_id_supabase;
+  if (!linked) return base;
+  try {
+    const sb = getSupabaseAdmin() as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          eq: (col: string, val: string) => {
+            limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
+          };
+        };
+      };
+    };
+    const res = await sb
+      .from("hotel_canonical")
+      .select(
+        "canonical_name,brand,chain_scale,hotel_type,total_rooms,year_opened,year_renovated_last,address_line1,postal_code,neighborhood,lat,lng,meeting_rooms_count,meeting_space_sqm,phone,website_url,google_place_id,wikidata_qid,data_quality_tier,updated_at",
+      )
+      .eq("id", linked)
+      .limit(1);
+    if (res.error || !res.data || res.data.length === 0) return base;
+    const sb_row = res.data[0] as Record<string, unknown>;
+    const overlay: Partial<HotelRecord> = {};
+    const apply = (snapKey: keyof HotelRecord, sbKey: string) => {
+      const v = sb_row[sbKey];
+      if (v !== undefined) (overlay as Record<string, unknown>)[snapKey as string] = v;
+    };
+    apply("name" as keyof HotelRecord, "canonical_name");
+    apply("brand" as keyof HotelRecord, "brand");
+    apply("chain_scale" as keyof HotelRecord, "chain_scale");
+    apply("segment_type" as keyof HotelRecord, "hotel_type");
+    apply("rooms_count" as keyof HotelRecord, "total_rooms");
+    apply("year_opened" as keyof HotelRecord, "year_opened");
+    apply("year_last_renovated" as keyof HotelRecord, "year_renovated_last");
+    apply("address_line" as keyof HotelRecord, "address_line1");
+    apply("postal_code" as keyof HotelRecord, "postal_code");
+    apply("neighborhood" as keyof HotelRecord, "neighborhood");
+    apply("latitude" as keyof HotelRecord, "lat");
+    apply("longitude" as keyof HotelRecord, "lng");
+    apply("meeting_rooms_count" as keyof HotelRecord, "meeting_rooms_count");
+    apply("meeting_space_sqm" as keyof HotelRecord, "meeting_space_sqm");
+    apply("phone" as keyof HotelRecord, "phone");
+    apply("website_url" as keyof HotelRecord, "website_url");
+    apply("google_place_id" as keyof HotelRecord, "google_place_id");
+    apply("wikidata_qid" as keyof HotelRecord, "wikidata_qid");
+    apply("data_quality_tier" as keyof HotelRecord, "data_quality_tier");
+    return { ...base, ...overlay };
+  } catch {
+    return base;
+  }
+}
 
 function correctableCurrentValues(hotel: HotelRecord): Record<string, string> {
   // Stringify each correctable field's current value for the form pre-fill.

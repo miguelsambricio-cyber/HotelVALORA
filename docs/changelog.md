@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Hotel detail · admin direct-edit drawer (faster than correction queue)
+
+Operator feedback: `/user/admin/hotels/[hotelId]` is the internal admin surface — editing should be in-place, not via a review queue. The correction form stays for end-user feedback (when a regular user spots wrong data); the admin gets a direct path.
+
+- **New "Edit hotel" button** at the top of the detail sidebar, above the existing "Open underwriting view" link. Opens a right-side drawer with all 27 editable fields grouped by section (Identification · Classification · Property · Location · Facilities · Contact · External IDs · Quality).
+- **Drawer UX:** fields pre-fill with current values · dirty fields highlighted amber · footer shows modified count · "Apply changes" button disabled until at least one field changes. Submitting writes all edits in a single transaction.
+- **Persistence: Supabase `hotel_canonical`** (durable layer · single source of truth for admin edits). The legacy snapshot.json bundle is immutable on Vercel runtime — direct filesystem writes don't survive deploys, so the architecture had to land on Supabase. The Supabase UPDATE itself is the audit (`updated_at` timestamp + future `audit_logs` integration).
+- **Server action `applyDirectHotelEditAction`** in `apps/web/src/lib/admin/hotels/direct-edit.ts`. Maps snapshot-shape field names (name/rooms_count/address_line/etc.) to Supabase columns (canonical_name/total_rooms/address_line1/etc.) via a FIELD_MAP. Numeric fields auto-coerced. Unmappable fields (score_costar, owner, total_floors, gross_building_sqm, parking_spaces, notes, category) are skipped and reported back to the operator so they know to use the correction queue for those instead.
+- **Render-time overlay** (`applySupabaseOverlay`): when the detail page loads, if the hotel has `canonical_id_supabase` set, the Supabase row's latest values are fetched and overlaid on top of the snapshot.json baseline. Admin edits become visible instantly — no waiting for an ingest rebuild. Pure additive read (overlay merges only fields the admin can directly edit).
+- **Linked vs unlinked hotels.** Direct edit available for every hotel that has `canonical_id_supabase` (the Phase D Madrid corpus · 224 hotels today). For unlinked hotels (legacy CoStar-only entries), the Edit button is disabled with a tooltip pointing to the correction queue.
+- **Audit trail:** Supabase UPDATE bumps `updated_at` on the row. The drawer surfaces success state inline (X fields applied · Y skipped) so the operator confirms each save. Future iteration: dedicated `hotel_admin_edits` audit table or integration with the existing `audit_logs`.
+- **Both edit paths remain.** Drawer (direct · admin · instant) sits at the top of the sidebar; Submit correction (queue · review · for end-user feedback) stays in its existing position at the bottom of the sidebar. Different intents, different mechanisms.
+- Files: `apps/web/src/lib/admin/hotels/direct-edit.ts` (NEW · server action + field map) · `apps/web/src/components/admin/hotels/edit-hotel-drawer.tsx` (NEW · client drawer with 27 fields grouped by section + dirty tracking + disabled state) · `apps/web/src/app/user/admin/hotels/[hotelId]/page.tsx` (Edit button wired above the underwriting link · `applySupabaseOverlay` helper merges canonical values into hotel record at render time).
+
+---
+
 ## 2026-05-20 — Hotel detail correction form · expanded to 27 fields + current-value prefill
 
 Operator reported: hotel detail page lacked the ability to manually correct attributes. The CorrectionForm existed but was limited to 13 fields and didn't show current values — operator had to know what was there + retype from scratch.
