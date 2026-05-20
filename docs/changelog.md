@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Dedup consolidation layer · non-destructive · 9 marks applied · admin Search filtered
+
+Operator strategic direction: non-destructive dedup with full audit. Use flags (`canonical_survivor_id` · `duplicate_of_id` · `dedup_status` · `hidden_from_admin` · `hidden_from_reports`) — NO auto-delete, NO destructive merge. Identity resolution must evolve away from name-only hash → toward multi-factor (geo · postal · normalized_address · operator/brand · phone · place_id · fuzzy name).
+
+- **New table `public.hotel_dedup_mark`** in Supabase: lives separate from snapshot.json so it survives Vercel deploys + snapshot rebuilds. Columns: `snapshot_hotel_id` (unique · synthetic sha256) · `canonical_survivor_snapshot_id` · `canonical_supabase_id` (FK to hotel_canonical) · `dedup_status` (canonical/duplicate_marked/dedup_review/sibling/clean) · `hidden_from_admin` · `hidden_from_reports` · `match_evidence` (jsonb · multi-factor signal blob) · `reason` · `marked_at` · `marked_by` · `resolved_at` · `resolved_by`. Indexes on status + both survivor pointers.
+- **9 dup pairs seeded as `duplicate_marked` + `hidden_from_admin=true` + `hidden_from_reports=true`** (from the 2026-05-20 audit): BLESS · Crowne Plaza · Plaza España · Hotel Único · Mandarin Oriental Ritz · Santo Mauro · Vincci Vía 66 · Érase un Hotel · El Corte Inglés (phantom). Each carries `match_evidence` JSON with `name_prefix_match` · `postal_code` · `evidence_strength` for future audit. Survivor pointer set to the long-name canonical-linked row.
+- **TS helper `loadDedupMarks()`** (`apps/web/src/lib/admin/hotels/dedup-marks.ts`): server-only · 60s in-memory cache · returns `byHotelId` map + `hiddenFromAdmin` + `hiddenFromReports` sets. Single Supabase fetch per page render; graceful fallback on error.
+- **`/user/admin/hotels` Search view filters** dup-hidden rows at render time (`filteredAll` excludes anything in `dedupMarks.hiddenFromAdmin`). Discrete amber caption surfaces `N snapshot rows hidden from this view (marked as duplicates in hotel_dedup_mark · canonical survivors kept). Non-destructive · full audit trail.` so the operator knows the filter is active.
+- **Architectural intent documented**: identity resolution should evolve away from name-only sha256 hash. The `match_evidence` jsonb is the substrate for the future multi-factor resolver (Task #31): geo proximity + postal + normalized_address + operator/brand + phone + google_place_id + fuzzy canonical name with weighted composite score. The current dedup marks layer provides the audit-friendly home for those automated decisions.
+- **False positives stay as siblings**: the audit found Eric Vökel × 3 (different addresses) and SmartRental Capital vs Centric (different properties) are siblings of the same brand cluster — NOT duplicates. These are kept as distinct rows and will be marked `dedup_status='sibling'` in a future pass; the cluster relationship feeds the compset workstream where same-brand same-submarket properties define competitor sets.
+- Files: SQL schema + seed applied via MCP · `apps/web/src/lib/admin/hotels/dedup-marks.ts` (NEW · server-only loader + cache) · `apps/web/src/app/user/admin/hotels/page.tsx` (Promise.all loader + filter at `filteredAll` + amber caption when dups hidden).
+
+---
+
 ## 2026-05-20 — Snapshot dedup audit + BLESS / Palladium brand fix + registry extension
 
 Operator-driven corrections after spotting BLESS Hotel Madrid with empty brand_family + concerns about duplicates between snapshot and Supabase canonical.

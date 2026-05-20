@@ -24,6 +24,7 @@ import { AddDealModal } from "@/components/admin/hotels/add-deal-modal";
 import { BulkBookingButton } from "@/components/admin/hotels/bulk-booking-button";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 import { hasMaterialReview } from "@/lib/admin/hotels/review-reasons";
+import { loadDedupMarks } from "@/lib/admin/hotels/dedup-marks";
 
 export const dynamic = "force-dynamic";
 
@@ -186,7 +187,10 @@ function classifyType(hotel: HotelRecord): "hotel" | "tourist_apartments" | "hos
 }
 
 export default async function HotelsPage({ searchParams = {} }: PageProps) {
-  const snap = await loadHotelsSnapshot();
+  const [snap, dedupMarks] = await Promise.all([
+    loadHotelsSnapshot(),
+    loadDedupMarks(),
+  ]);
   const diag = getSnapshotDiagnostics();
   const activeTab: TabId =
     TAB_IDS.includes((searchParams.tab as TabId) ?? DEFAULT_TAB) ? ((searchParams.tab as TabId) ?? DEFAULT_TAB) : DEFAULT_TAB;
@@ -209,10 +213,17 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10) || 1);
 
   const filteredAll = snap
-    ? snap.hotels.filter((h) =>
-        matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, enrichmentFilter, typeFilter, statusFilter, needsReviewOnly }),
-      )
+    ? snap.hotels.filter((h) => {
+        // Dedup overlay · hide rows marked hidden_from_admin (non-destructive ·
+        // see public.hotel_dedup_mark · canonical_survivor_snapshot_id is the
+        // kept row).
+        if (dedupMarks.hiddenFromAdmin.has(h.hotel_id)) return false;
+        return matchesQuery(h, { q, marketFilter, countryFilter, chainFilter, affiliationFilter, enrichmentFilter, typeFilter, statusFilter, needsReviewOnly });
+      })
     : [];
+  const dedupHiddenInSnapshot = snap
+    ? snap.hotels.filter((h) => dedupMarks.hiddenFromAdmin.has(h.hotel_id)).length
+    : 0;
   const sorted = sortHotels(filteredAll, sortKey);
   // No pagination — operator scrolls within the fixed-height container
   // to browse all matches. Renders every filtered hotel into the DOM
@@ -769,6 +780,11 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
               </p>
             );
           })()}
+          {dedupHiddenInSnapshot > 0 && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 font-mono text-[10.5px] leading-snug text-amber-900">
+              Dedup overlay · <span className="font-bold">{dedupHiddenInSnapshot}</span> snapshot row{dedupHiddenInSnapshot === 1 ? "" : "s"} hidden from this view (marked as duplicates in <code>hotel_dedup_mark</code> · canonical survivors kept). Non-destructive · full audit trail.
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">
             <label className="inline-flex items-center gap-1.5">
               <input
