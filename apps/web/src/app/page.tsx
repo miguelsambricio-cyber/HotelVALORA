@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { HeroSection } from "@/components/landing/hero-section";
 import { PricingSection } from "@/components/landing/pricing-section";
-import { LandingFooter } from "@/components/landing/landing-footer";
+import { InstitutionalFooter } from "@/components/layout/institutional-footer";
 
 export const metadata: Metadata = {
   title: "HotelVALORA | Valora Hoteles en Segundos",
@@ -29,7 +29,7 @@ export default function LandingPage() {
       <div className="landing-scroll flex flex-col">
         <HeroSection />
         <PricingSection />
-        <LandingFooter />
+        <InstitutionalFooter variant="slim" />
       </div>
     </div>
   );

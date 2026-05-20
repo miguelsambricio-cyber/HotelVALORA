@@ -5,31 +5,29 @@
  *
  * Owns router navigation so the server-component HeroSection stays clean.
  *
- * Routing contract (post-Tier-1 restoration · 2026-05-20):
- *   onSelect    → /madrid-centro?q=<hotel name>  · curated showcase chooser
- *                                                  (soft-match against the
- *                                                   3-hotel Madrid Centro
- *                                                   institutional dataset)
- *   onViewAll   → /madrid-centro?q=<query>        · same · always lands on
- *                                                  a populated surface ·
- *                                                  free-text Enter target
- *   onMapView   → /compset                        · institutional map flow
- *                                                  (Mapbox GL interactive ·
- *                                                  competitor panel ·
- *                                                  separate from the
- *                                                  curated showcase)
+ * Routing contract (post-Tier-2 institutional flow restoration · 2026-05-20):
  *
- * Why two destinations:
- *   · `/madrid-centro` is the curated demo · 3 anonymised reference hotels ·
- *     deterministic SSG · always populated.
- *   · `/compset` is the institutional workflow surface · interactive map +
- *     competitor selection · the canonical step-2 of the valuation flow.
- *   The Map button explicitly opts into `/compset` so the institutional
- *   flow stays reachable from the landing. A previous revision routed Map
- *   to `/madrid-centro` which collapsed the two surfaces · this restored.
+ *   onSelect(hotel) → /compset?ref=<hotel.id>     · institutional flow ·
+ *                                                  subject hotel drives the
+ *                                                  map viewport and the
+ *                                                  Haversine-derived compset
+ *   onViewAll(query)→ /compset?q=<text>           · same flow · server-side
+ *                                                  soft-match against the
+ *                                                  canonical Madrid registry ·
+ *                                                  falls back to default
+ *                                                  Bless Hotel Madrid when
+ *                                                  the query doesn't match
+ *   onMapView()     → /compset                    · direct map entry
  *
- * Why not /assets/hotels: that route fronts the FastAPI dashboard which is
- * no longer wired in production · would yield an empty table.
+ * Why every path lands on /compset:
+ *   The institutional flow is `landing → search → map → compset →
+ *   underwriting`. Routing all three handlers to /compset preserves the
+ *   geo-driven mental model · the visitor never lands on an empty page
+ *   or a curated chooser when their intent was a real subject hotel.
+ *
+ * /madrid-centro remains a separate curated showcase (3 anonymised
+ * Madrid hotels) accessible by direct URL · it is no longer a search
+ * destination as of this commit.
  */
 
 import { useRouter } from "next/navigation";
@@ -44,15 +42,15 @@ export function HeroSearch({ className }: HeroSearchProps) {
   const router = useRouter();
 
   function handleSelect(hotel: HotelSearchHit) {
-    router.push(`/madrid-centro?q=${encodeURIComponent(hotel.name)}`);
+    router.push(`/compset?ref=${encodeURIComponent(hotel.id)}`);
   }
 
   function handleViewAll(query: string) {
     const q = query.trim();
     if (q.length === 0) {
-      router.push("/madrid-centro");
+      router.push("/compset");
     } else {
-      router.push(`/madrid-centro?q=${encodeURIComponent(q)}`);
+      router.push(`/compset?q=${encodeURIComponent(q)}`);
     }
   }
 

@@ -1,85 +1,64 @@
 import type { CompetitorHotel, MapLayer } from "@/types/compset";
+import {
+  MADRID_HOTELS,
+  buildCompsetForHotel,
+  DEFAULT_MADRID_HOTEL_ID,
+  type MadridHotelEntry,
+} from "@/lib/data/madrid-hotels";
 
-export const REFERENCE_HOTEL: CompetitorHotel = {
-  id: "ref-001",
-  name: "Hotel Las Casas de la Judería",
-  city: "Sevilla",
-  address: "Callejón Dos Hermanas, 7",
-  stars: 4,
-  adr: 185,
-  revpar: 138,
-  occupancy: 74,
-  category: "Urban Luxury",
-  coordinates: { lng: -5.9927, lat: 37.3845 },
-};
+/**
+ * Compset API adapter — Tier 2 Madrid-mock implementation.
+ *
+ * Source-of-truth is the canonical Madrid registry in
+ * lib/data/madrid-hotels.ts. The subject hotel id (default
+ * "bless-hotel-madrid") drives the compset · the helper
+ * `buildCompsetForHotel` computes 4 active competitors + 3 suggested
+ * by Haversine distance with ±1 star similarity.
+ *
+ * Replaces the previous Sevilla mock (Hotel Las Casas de la Judería ·
+ * Alfonso XIII · Mercer · EME Catedral · Villapanés · Gran Meliá Colón)
+ * which had no relation to the institutional Madrid workflow.
+ *
+ * Tier 3 swap (when Supabase is ready):
+ *   fetchCompset(hotelId) → Supabase query against hotel_canonical +
+ *   PostGIS proximity search · response shape unchanged.
+ */
 
-export const MOCK_ACTIVE_COMPETITORS: CompetitorHotel[] = [
-  {
-    id: "comp-001",
-    name: "Hotel Alfonso XIII",
-    city: "Sevilla",
-    address: "Calle San Fernando, 2",
-    stars: 5,
-    adr: 420,
-    revpar: 315,
-    occupancy: 75,
-    category: "Luxury",
-    brand: "Marriott",
-    coordinates: { lng: -5.9950, lat: 37.3820 },
-  },
-  {
-    id: "comp-002",
-    name: "Hotel Mercer Sevilla",
-    city: "Sevilla",
-    address: "Calle Castelar, 26",
-    stars: 5,
-    adr: 310,
-    revpar: 248,
-    occupancy: 80,
-    category: "Boutique Luxury",
-    coordinates: { lng: -5.9938, lat: 37.3897 },
-  },
-  {
-    id: "comp-003",
-    name: "EME Catedral Hotel",
-    city: "Sevilla",
-    address: "Calle Alemanes, 27",
-    stars: 5,
-    adr: 265,
-    revpar: 198,
-    occupancy: 75,
-    category: "Design Hotel",
-    coordinates: { lng: -5.9921, lat: 37.3865 },
-  },
-];
+function toCompetitorHotel(h: MadridHotelEntry): CompetitorHotel {
+  return {
+    id: h.id,
+    name: h.name,
+    city: "Madrid",
+    address: h.address,
+    stars: h.stars,
+    adr: h.adr,
+    revpar: h.revpar,
+    occupancy: h.occupancy,
+    category: h.category,
+    brand: h.brand,
+    coordinates: h.coordinates,
+  };
+}
 
-export const MOCK_SUGGESTED_COMPETITORS: CompetitorHotel[] = [
-  {
-    id: "sugg-001",
-    name: "Hotel Palacio de Villapanés",
-    city: "Sevilla",
-    address: "Calle Santiago, 31",
-    stars: 5,
-    adr: 290,
-    revpar: 218,
-    occupancy: 75,
-    category: "Palace Hotel",
-    coordinates: { lng: -5.9940, lat: 37.3884 },
-  },
-  {
-    id: "sugg-002",
-    name: "Gran Meliá Colón",
-    city: "Sevilla",
-    address: "Canalejas, 1",
-    stars: 5,
-    adr: 245,
-    revpar: 184,
-    occupancy: 75,
-    category: "Urban Luxury",
-    brand: "Meliá",
-    coordinates: { lng: -5.9951, lat: 37.3862 },
-  },
-];
+/** Canonical default reference hotel for /compset when no ?ref param. */
+export const REFERENCE_HOTEL: CompetitorHotel = toCompetitorHotel(
+  MADRID_HOTELS.find((h) => h.id === DEFAULT_MADRID_HOTEL_ID) ?? MADRID_HOTELS[0],
+);
+
+/**
+ * Backwards-compat exports · used by older /compset render paths
+ * (some sub-components import these directly).
+ * The default 4 active + 3 suggested are computed against the canonical
+ * default reference hotel so the legacy direct-import callsites get a
+ * Madrid-coherent set instead of the previous Sevilla mocks.
+ */
+const DEFAULT_COMPSET = buildCompsetForHotel(DEFAULT_MADRID_HOTEL_ID);
+
+export const MOCK_ACTIVE_COMPETITORS: CompetitorHotel[] =
+  DEFAULT_COMPSET.competitors.map(toCompetitorHotel);
+
+export const MOCK_SUGGESTED_COMPETITORS: CompetitorHotel[] =
+  DEFAULT_COMPSET.suggested.map(toCompetitorHotel);
 
 export const DEFAULT_LAYERS: MapLayer[] = [
   { id: "heatmap",   label: "Heatmap",         enabled: true },
@@ -88,15 +67,26 @@ export const DEFAULT_LAYERS: MapLayer[] = [
 ];
 
 /**
- * Fetches the compset for a given reference hotel.
- * Real endpoint: GET /api/v1/assets/hotels/{id}/compset
+ * Fetches the compset for a given reference hotel · Madrid registry.
+ *
+ * Honours the `hotelId` argument (default: canonical Bless Hotel
+ * Madrid) so the search → /compset?ref flow drives a per-subject map.
+ *
+ * Tier 3 swap path: replace this body with a Supabase query.
  */
-export async function fetchCompset(_hotelId: string) {
-  // TODO: replace with real API call when endpoint is ready
+export async function fetchCompset(hotelId: string): Promise<{
+  referenceHotel: CompetitorHotel;
+  competitors: CompetitorHotel[];
+  suggested: CompetitorHotel[];
+}> {
+  // Simulate realistic network latency · matches previous behaviour so
+  // skeleton/loading states still animate.
   await new Promise<void>((r) => setTimeout(r, 400));
+
+  const { subject, competitors, suggested } = buildCompsetForHotel(hotelId);
   return {
-    referenceHotel: REFERENCE_HOTEL,
-    competitors:    MOCK_ACTIVE_COMPETITORS,
-    suggested:      MOCK_SUGGESTED_COMPETITORS,
+    referenceHotel: toCompetitorHotel(subject),
+    competitors: competitors.map(toCompetitorHotel),
+    suggested: suggested.map(toCompetitorHotel),
   };
 }

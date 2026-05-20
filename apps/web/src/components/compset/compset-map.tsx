@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
 import { useCompset }      from "@/lib/hooks/use-compset";
 import { useMapViewport }  from "@/hooks/maps/use-map-viewport";
 import { MapControls }     from "./map-controls";
@@ -41,6 +42,26 @@ export function CompsetMap({ referenceHotelId }: CompsetMapProps) {
 
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
 
+  // Re-center the map on the subject hotel when it loads / changes.
+  // The institutional flow expects `?ref=<hotel>` to drive the
+  // viewport · without this effect the map would stay anchored on
+  // DEFAULT_VIEWPORT (Madrid Centro / Puerta del Sol) regardless of
+  // the resolved subject. We guard against re-centring twice for the
+  // same subject id so user pan/zoom interactions are not reset.
+  const lastCenteredId = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLoading) return;
+    if (lastCenteredId.current === referenceHotel.id) return;
+    lastCenteredId.current = referenceHotel.id;
+    setViewState({
+      longitude: referenceHotel.coordinates.lng,
+      latitude: referenceHotel.coordinates.lat,
+      zoom: 15,
+      pitch: 0,
+      bearing: 0,
+    });
+  }, [isLoading, referenceHotel.id, referenceHotel.coordinates.lng, referenceHotel.coordinates.lat, setViewState]);
+
   return (
     <section
       aria-label="Mapa de competidores"
@@ -58,21 +79,25 @@ export function CompsetMap({ referenceHotelId }: CompsetMapProps) {
         />
       </div>
 
-      {/* ── Map controls (top-right) ─────────────────────────────────────── */}
+      {/* ── Map controls ─────────────────────────────────────────────────
+       *  Desktop (md+): top-right · classic Mapbox convention.
+       *  Mobile (< md): top-left so it doesn't collide with the
+       *  CompetitorPanel that hugs the right edge. */}
       <MapControls
-        className="absolute right-8 top-8 z-30"
+        className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
       />
 
-      {/* ── Map legend (bottom-left) ─────────────────────────────────────── */}
+      {/* ── Map legend ───────────────────────────────────────────────────
+       *  Bottom-left on all viewports · z-30 same as controls. */}
       <MapLegend
         layers={layers}
         onToggleLayer={toggleLayer}
-        className="absolute left-8 bottom-8 z-30"
+        className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-30"
       />
 
-      {/* ── Competitor panel (right edge) ─────────────────────────────────── */}
+      {/* ── Competitor panel (right edge) ─────────────────────────────── */}
       <CompetitorPanel
         referenceHotel={referenceHotel}
         competitors={competitors}
