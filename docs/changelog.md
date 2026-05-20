@@ -4,6 +4,15 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — /user/admin/hotels Search · Phase 1 default to hotels only
+
+- **Type filter now defaults to `hotel`** when no `?type=` query param is set. Hides hostels + tourist_apartments by default so the Search hotels table preview focuses on the institutional cohort. Operators can still surface hostels/apartments by selecting them explicitly in the Type dropdown, or by setting `?type=` (empty) to see all three types.
+- **Visual caption added** under the Search hotels filter bar when the Phase 1 default is active: shows the hidden count (`Hidden: N hostels · M tourist apartments`) and the instruction for the operator to switch via the Type dropdown.
+- No data is excluded from DB / canonical / ingest pipeline — purely a default-view change. KPI strip totals + tab counters still reflect the full inventory.
+- File: `apps/web/src/app/user/admin/hotels/page.tsx` (one default + one caption block · ~10 lines net).
+
+---
+
 ## 2026-05-20 — COSTAR_MASTER_HOTELESperMARKET refreshed with enriched Supabase canonical (224 Madrid hotels)
 
 Operator-facing master xlsx (`services/costar/MASTER/COSTAR_MASTER_HOTELESperMARKET.xlsx`) updated with all enrichment captured during Phase D + E. Goes from 364 → 530 rows (224 net new Madrid hotels from `hotel_canonical` + dedup against existing CoStar inventory). 6 new enrichment columns added end-to-end through the ingest pipeline.

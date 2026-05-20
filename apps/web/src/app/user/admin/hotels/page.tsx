@@ -200,7 +200,10 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
   const affiliationFilter = (searchParams.affiliation ?? "").trim();
   const enrichmentFilter = (searchParams.enrichment ?? "").trim();
   // New 3-bucket filters (2026-05-14)
-  const typeFilter = (searchParams.type ?? "").trim();
+  // Phase 1 default (2026-05-20): hotels only. Operator can switch to
+  // hostels or tourist_apartments via the Type dropdown — `?type=hostel`
+  // or `?type=tourist_apartments`. Explicit `?type=` (empty) shows all.
+  const typeFilter = (searchParams.type === undefined ? "hotel" : searchParams.type).trim();
   const statusFilter = (searchParams.status ?? "").trim();
   const needsReviewOnly = searchParams.needs_review === "1";
   const sortKey: SortKey =
@@ -758,6 +761,19 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
               options={["complete", "enriched", "partial"]}
             />
           </div>
+          {typeFilter === "hotel" && searchParams.type === undefined && (() => {
+            const hostels = (snap?.hotels ?? []).filter((h) => classifyType(h) === "hostel").length;
+            const apartments = (snap?.hotels ?? []).filter((h) => classifyType(h) === "tourist_apartments").length;
+            return (
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-[10.5px] leading-snug text-slate-600">
+                Phase 1 default · showing <span className="font-bold text-forest-900">hotels only</span>. {hostels + apartments > 0 && (
+                  <>
+                    Hidden: {hostels} hostel{hostels === 1 ? "" : "s"} · {apartments} tourist apartment{apartments === 1 ? "" : "s"}. To view them, choose &ldquo;hostel&rdquo; or &ldquo;tourist_apartments&rdquo; in the Type dropdown.
+                  </>
+                )}
+              </p>
+            );
+          })()}
           <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-600">
             <label className="inline-flex items-center gap-1.5">
               <input
