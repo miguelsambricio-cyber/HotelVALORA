@@ -212,9 +212,16 @@ export function mapCanonicalToExecutiveSummary(
     return 285_000;                            // unknown · prudent Madrid average
   };
   // Market override · when CoStar publishes a per-room transaction figure for
-  // the submarket, that supersedes the chain_scale table (more current data).
-  // Today CoStar never populates this column · so we always use the tier.
-  const perRoom = marketKpi?.market_sale_price_per_room ?? perKeyByScale(hotel.chain_scale);
+  // the submarket level (NOT the institutional baseline fill), that supersedes
+  // the chain_scale table. Today CoStar never populates this column · so the
+  // tier is the operational source. We explicitly exclude `source === "baseline"`
+  // because the baseline's 285k is a market-wide median · the chain_scale tier
+  // produces a much more accurate per-asset anchor.
+  const marketPerRoomOverride =
+    marketKpi && marketKpi.source !== "baseline" && marketKpi.market_sale_price_per_room
+      ? marketKpi.market_sale_price_per_room
+      : null;
+  const perRoom = marketPerRoomOverride ?? perKeyByScale(hotel.chain_scale);
   const sqmPerKey = engineRun?.assetBasics.total_sqm && engineRun.assetBasics.rooms
     ? engineRun.assetBasics.total_sqm / engineRun.assetBasics.rooms
     : 38;
