@@ -4,6 +4,19 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Revert dense EnrichmentPanel + fix submarket taxonomy to CoStar canonical
+
+Operator feedback: the EnrichmentPanel added on /user/admin/hotels was too dense — too much information surfaced at once — and the submarket taxonomy used Madrid administrative districts instead of CoStar's institutional commercial submarkets. Both reverted/fixed in one pass.
+
+- **EnrichmentPanel removed from /user/admin/hotels.** Files deleted: `apps/web/src/components/admin/hotels/enrichment-panel.tsx` + `apps/web/src/lib/admin/hotels/enrichment-stats.ts`. Page reverts to the prior shape (KPI strip · sticky tab bar · Search hotels table · reconciliation queue · transactions/projects search · corrections audit · analytics) plus the Phase 1 Type filter default (`type=hotel`) that survives from the previous commit.
+- **Submarket taxonomy fixed to CoStar canonical 8** (per `services/costar/MASTER/COSTAR_MASTER_SUBMERCADOS.xlsx`). Replaced the 20 Madrid administrative districts (Centro/Salamanca/Chamberí/Chamartín/Tetuán/Hortaleza/Arganzuela/Moncloa/Ciudad Lineal/San Blas/Carabanchel/Fuencarral/Vallecas/Usera/Villaverde/Vicálvaro/Latina/Moratalaz/Retiro/Barajas) with the 8 institutional CoStar submarkets: **Madrid Centre · Chamartin & Plaza de Castilla · Salamanca · Arguelles & Chamberi · Retiro · Barajas/Hortaleza/San Blas · Madrid Surrounding · Madrid Province Regional**. Postal-prefix + neighborhood-alias mappings updated to match CoStar's commercial submarket boundaries (Tetuán → Chamartin/Plaza de Castilla · Moncloa-Aravaca + Arguelles → Arguelles & Chamberi · Ciudad Lineal → Barajas/Hortaleza/San Blas · Arganzuela → Retiro · Carabanchel/Fuencarral/Latina/Vallecas etc. → Madrid Surrounding).
+- **224 Madrid hotels re-backfilled** with corrected `submarket_id`. New distribution: Madrid Centre 96 · Barajas/Hortaleza/San Blas 36 · Salamanca 27 · Chamartin & Plaza de Castilla 19 · Arguelles & Chamberi 18 · Retiro 16 · Madrid Surrounding 12 · Madrid Province Regional 0.
+- **Master COSTAR_MASTER_HOTELESperMARKET.xlsx regenerated** with the CoStar submarket names (530 rows). Operator-facing review now matches CoStar's institutional taxonomy directly.
+- DB readiness views (`hotel_underwriting_ready_v` · `hotel_library_ready_v` · `hotel_premium_report_ready_v` · `hotel_readiness_market_v`) + the `documented_independent` column + the operator_type derivation for branded hotels + the provenance backfill (508 source records + 5176 field rows) + the Type-filter Phase 1 default — all preserved. None of the underlying data work was reverted; only the dense UI panel.
+- Files: `apps/web/src/app/user/admin/hotels/page.tsx` (3 deletions · removed import + Promise.all + EnrichmentPanel call) · component+loader files deleted · `services/costar/MASTER/COSTAR_MASTER_HOTELESperMARKET.xlsx` (regenerated with corrected submarkets).
+
+---
+
 ## 2026-05-20 — /user/admin/hotels Search · Phase 1 default to hotels only
 
 - **Type filter now defaults to `hotel`** when no `?type=` query param is set. Hides hostels + tourist_apartments by default so the Search hotels table preview focuses on the institutional cohort. Operators can still surface hostels/apartments by selecting them explicitly in the Type dropdown, or by setting `?type=` (empty) to see all three types.

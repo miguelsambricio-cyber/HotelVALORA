@@ -22,8 +22,6 @@ import { AddDealModal } from "@/components/admin/hotels/add-deal-modal";
 import { BulkBookingButton } from "@/components/admin/hotels/bulk-booking-button";
 import { computeProfileCompleteness } from "@/lib/admin/hotels/profile-completeness";
 import { hasMaterialReview } from "@/lib/admin/hotels/review-reasons";
-import { loadEnrichmentSnapshot } from "@/lib/admin/hotels/enrichment-stats";
-import { EnrichmentPanel } from "@/components/admin/hotels/enrichment-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -186,10 +184,7 @@ function classifyType(hotel: HotelRecord): "hotel" | "tourist_apartments" | "hos
 }
 
 export default async function HotelsPage({ searchParams = {} }: PageProps) {
-  const [snap, enrichmentSnapshot] = await Promise.all([
-    loadHotelsSnapshot(),
-    loadEnrichmentSnapshot().catch(() => null),
-  ]);
+  const snap = await loadHotelsSnapshot();
   const diag = getSnapshotDiagnostics();
   const activeTab: TabId =
     TAB_IDS.includes((searchParams.tab as TabId) ?? DEFAULT_TAB) ? ((searchParams.tab as TabId) ?? DEFAULT_TAB) : DEFAULT_TAB;
@@ -522,8 +517,6 @@ export default async function HotelsPage({ searchParams = {} }: PageProps) {
           </>
         );
       })()}
-
-      <EnrichmentPanel snapshot={enrichmentSnapshot} />
 
       {/* Phase 3.d · Sticky tab bar — institutional terminal IA.
             Each tab is its own URL slice (?tab=...). Counters reflect the
