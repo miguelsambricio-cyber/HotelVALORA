@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — End-to-end smoke test (Mandarin Oriental Ritz) + admin↔reports linkage validation
+
+Tasks #33 + #20 closed. Full audit doc: `docs/hotel-intelligence/smoke-test-mandarin-oriental-ritz-2026-05-20.md`.
+
+- **Subject:** Mandarin Oriental Ritz Madrid (canonical_id `dafc4073-…`). 5-star luxury · branded · operator linked · Retiro submarket · gold tier · 6/8 underwriting core fields filled · `is_underwriting_partial=true`.
+- **Canonical layer state ✅:** all admin-editable fields populated correctly (name · brand · brand_family · chain_scale · star_rating · address · postal · neighborhood · lat/lng · geom · phone · website · place_id · operator · submarket · hero · data_quality_tier). Structural blockers: `total_rooms` · `year_opened` · `meeting_*` · `wikidata_qid` (D-8 gated · documented).
+- **Provenance + dedup ✅:** 5176 field provenance rows · 508 source records · 9 dedup marks active · short-name dup of this hotel (`h_300adfec…`) correctly hidden from admin Search · survivor `h_da959d1a…` resolves via canonical_name prefix match.
+- **Admin loop ✅:** detail page renders correctly · "Edit hotel" button shows "direct" (linked) · 27 fields in drawer with dirty-tracking + amber-highlighting · server action persists to Supabase · `applySupabaseOverlay` surfaces edits immediately on refresh. Correction queue (operator-feedback path) coexists at bottom of sidebar.
+- **🚨 Critical gap found · Reports ← canonical linkage NOT WIRED.** All 7 report sections (Executive Summary · Asset Analysis · CAPEX · Competitive Set · Market Overview · Projects · Transactions) read from `getMock*()` functions with hardcoded demo data ("Hotel Gran Central Madrid" / "Hotel personalizado"). Zero canonical reads. Admin edits do NOT propagate to reports. snapshot.json NOT read by reports either — they're isolated.
+- **Three-source consumer architecture required** for end-to-end report wiring: (1) `getHotelCanonical(id)` for asset attributes · (2) `getMarketKPIs(market, submarket)` for ADR/RevPAR/occupancy from CoStar warehouse · (3) `runUnderwriting(id)` from cap-rate engine. Only (1) has a Supabase implementation today.
+- **§7 of smoke test doc lays out the migration path:** Phase 4 mock → canonical. Each section can flip independently. Recommended first migration: Executive Summary (smallest mapper · biggest visibility). Estimated ~3-4 eng days for ExecSummary + Asset Analysis end-to-end · cap-rate engine entry point is the largest variable.
+- **Hard rule respected:** smoke test did NOT touch `/report/*` UI components. Migration path (when greenlit) touches `lib/report/*-data.ts` (data layer · safe) and page-level fetchers (data swap · no UI change).
+- **Inventory milestone status (per operator priority "core hotels sync'd · no real dups · stable admin↔reports linkage · coherent underwriting fields"):** admin loop COMPLETE · canonical inventory PRODUCTION-READY for opt-in consumers · report loop BLOCKED on Phase 4 migration.
+
+---
+
 ## 2026-05-20 — Dedup consolidation layer · non-destructive · 9 marks applied · admin Search filtered
 
 Operator strategic direction: non-destructive dedup with full audit. Use flags (`canonical_survivor_id` · `duplicate_of_id` · `dedup_status` · `hidden_from_admin` · `hidden_from_reports`) — NO auto-delete, NO destructive merge. Identity resolution must evolve away from name-only hash → toward multi-factor (geo · postal · normalized_address · operator/brand · phone · place_id · fuzzy name).
