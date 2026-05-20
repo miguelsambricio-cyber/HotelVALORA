@@ -55,10 +55,10 @@ export function PricingSection() {
   return (
     <section
       aria-label="Planes y precios"
-      className="w-full bg-slate-50 py-12 px-8 border-t border-slate-200 flex-grow flex flex-col justify-center"
+      className="w-full bg-slate-50 py-6 md:py-8 px-6 md:px-8 border-t border-slate-200 flex-grow flex flex-col justify-center"
     >
-      <div className="max-w-6xl mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+      <div className="max-w-5xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
           {PLANS.map((plan) => (
             <PricingCard key={plan.id} plan={plan} />
           ))}

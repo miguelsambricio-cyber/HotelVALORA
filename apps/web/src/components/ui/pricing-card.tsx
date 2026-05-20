@@ -25,10 +25,10 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
     <article
       aria-label={`Plan ${plan.name}`}
       className={cn(
-        "relative bg-white p-8 rounded-3xl group overflow-hidden transition-all flex flex-col justify-between",
+        "relative bg-white p-5 rounded-2xl group overflow-hidden transition-all flex flex-col justify-between",
         plan.featured
-          ? "border-2 border-forest-900 shadow-2xl scale-105 z-20"
-          : "border border-slate-200 shadow-sm hover:shadow-xl"
+          ? "border-2 border-forest-900 shadow-xl scale-[1.02] z-20"
+          : "border border-slate-200 shadow-sm hover:shadow-md"
       )}
     >
       {/* Decorative brand watermark — purely presentational */}
@@ -38,47 +38,47 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
         alt=""
         aria-hidden
         className={cn(
-          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 pointer-events-none select-none z-0",
+          "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 pointer-events-none select-none z-0",
           plan.featured ? "opacity-[0.05]" : "opacity-[0.03]"
         )}
       />
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-3">
           {plan.featured ? (
-            <span className="inline-block px-3 py-1 bg-forest-900 text-white text-[10px] font-bold tracking-[0.2em] rounded-full uppercase mb-4">
+            <span className="inline-block px-2.5 py-0.5 bg-forest-900 text-white text-[9px] font-bold tracking-[0.2em] rounded-full uppercase mb-2">
               {plan.tier}
             </span>
           ) : (
-            <span className="block text-xs font-bold tracking-[0.3em] text-slate-400 uppercase">
+            <span className="block text-[10px] font-bold tracking-[0.28em] text-slate-400 uppercase">
               {plan.tier}
             </span>
           )}
 
           <h3
             className={cn(
-              "text-3xl font-extrabold text-forest-900",
-              !plan.featured && "mt-2"
+              "text-2xl font-extrabold text-forest-900 tracking-tight",
+              !plan.featured && "mt-1"
             )}
           >
             {plan.name}
           </h3>
 
           {plan.subtitle && (
-            <p className="text-forest-700 font-semibold mt-1 text-sm opacity-80">
+            <p className="text-forest-700 font-semibold mt-0.5 text-[12px] opacity-80">
               {plan.subtitle}
             </p>
           )}
         </div>
 
         {/* Features */}
-        <ul className="space-y-3 mb-8 flex-grow" aria-label={`Características del plan ${plan.name}`}>
+        <ul className="space-y-1.5 mb-4 flex-grow" aria-label={`Características del plan ${plan.name}`}>
           {plan.features.map((feature) => (
             <li
               key={feature.text}
               className={cn(
-                "flex items-center gap-3 text-sm",
+                "flex items-center gap-2 text-[12.5px] leading-snug",
                 plan.featured
                   ? "font-semibold text-slate-800"
                   : "font-medium text-slate-500"
@@ -94,9 +94,9 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
         <Link
           href={plan.href}
           className={cn(
-            "block w-full py-3 text-center font-bold rounded-xl transition-all uppercase text-xs tracking-widest",
+            "block w-full py-2 text-center font-bold rounded-lg transition-all uppercase text-[10.5px] tracking-[0.18em]",
             plan.featured
-              ? "bg-forest-900 text-white shadow-lg shadow-forest-900/20 hover:brightness-110"
+              ? "bg-forest-900 text-white shadow-md shadow-forest-900/20 hover:brightness-110"
               : "border-2 border-forest-900 text-forest-900 group-hover:bg-forest-900 group-hover:text-white"
           )}
         >

@@ -34,16 +34,22 @@ export function CompetitorPanel({
      * flex-row-reverse: panel body renders on the RIGHT, toggle tab on the LEFT.
      * Container is absolute right-4, so it naturally hugs the right edge of the map.
      * When panel closes (w-0), only the toggle tab (w-8) remains visible near the edge.
+     *
+     * Mobile sizing (< md, 2026-05-20):
+     *   Panel width is clamped to min(w-72, calc(100vw-72px)) so on narrow
+     *   viewports it doesn't cover the entire map. On md+ it stays w-72.
      */
     <div className={cn("flex flex-row-reverse items-start h-full", className)}>
       {/* Panel body */}
       <div
         className={cn(
           "h-full overflow-hidden transition-all duration-300",
-          panelOpen ? "w-72" : "w-0"
+          panelOpen
+            ? "w-[min(288px,calc(100vw-72px))] md:w-72"
+            : "w-0"
         )}
       >
-        <div className="w-72 h-full glass-overlay border border-white/50 rounded-xl shadow-xl flex flex-col overflow-hidden">
+        <div className="w-[min(288px,calc(100vw-72px))] md:w-72 h-full glass-overlay border border-white/50 rounded-xl shadow-xl flex flex-col overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-200/60 flex-shrink-0">
             <p className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">

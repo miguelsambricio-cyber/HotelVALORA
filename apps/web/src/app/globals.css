@@ -333,21 +333,23 @@
   min-height: 450px;
 }
 
-/* Compset page viewport layout */
+/* Compset page viewport layout · single-screen institutional flow
+ * Calculation: 100vh − LandingHeader (84px) − InstitutionalFooter
+ * slim variant (~48px including border). Previously assumed a 72px
+ * LandingFooter; migrated 2026-05-20 to the canonical slim footer. */
 @media (min-height: 800px) {
   .compset-main {
     display: flex;
     flex-direction: column;
-    /* subtract header (84px) + footer (~72px) */
-    height: calc(100vh - 84px - 72px);
+    height: calc(100vh - 84px - 48px);
   }
   .compset-map-container {
-    flex: 1 1 50%;
+    flex: 1 1 55%;
     min-height: 350px;
   }
   .compset-monetization {
     flex: 0 0 auto;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
   }
 }
