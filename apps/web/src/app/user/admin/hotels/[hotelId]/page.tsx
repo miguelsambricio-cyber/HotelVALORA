@@ -574,7 +574,11 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
               <code className="mx-1 rounded bg-slate-100 px-1 font-mono text-[10.5px]">ingest.py</code>
               run picks it up and applies a supersede row in the master.
             </p>
-            <CorrectionForm hotelId={hotel.hotel_id} fields={CORRECTABLE_FIELDS} />
+            <CorrectionForm
+              hotelId={hotel.hotel_id}
+              fields={CORRECTABLE_FIELDS}
+              currentValues={correctableCurrentValues(hotel)}
+            />
           </Section>
         </aside>
       </div>
@@ -583,20 +587,77 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
 }
 
 const CORRECTABLE_FIELDS = [
+  // ── Identification ─────────────────────────────────────────────
   "name",
   "brand",
   "operator",
   "owner",
+  // ── Classification ─────────────────────────────────────────────
   "chain_scale",
   "category",
   "segment_type",
+  // ── Property characteristics ───────────────────────────────────
   "rooms_count",
   "year_opened",
   "year_last_renovated",
+  "total_floors",
+  "gross_building_sqm",
+  // ── Location ───────────────────────────────────────────────────
   "address_line",
+  "postal_code",
   "neighborhood",
+  "latitude",
+  "longitude",
+  // ── Facilities · scoring ───────────────────────────────────────
+  "meeting_rooms_count",
+  "meeting_space_sqm",
+  "parking_spaces",
   "score_costar",
+  // ── Contact (v1.4 enrichment passthrough) ──────────────────────
+  "phone",
+  "website_url",
+  // ── External identifiers (cross-reference) ─────────────────────
+  "google_place_id",
+  "wikidata_qid",
+  // ── Quality / governance ───────────────────────────────────────
+  "data_quality_tier",
+  "notes",
 ] as const;
+
+function correctableCurrentValues(hotel: HotelRecord): Record<string, string> {
+  // Stringify each correctable field's current value for the form pre-fill.
+  // null/undefined → empty string so the input renders blank.
+  const v = (x: unknown): string => (x === null || x === undefined ? "" : String(x));
+  return {
+    name: v(hotel.name),
+    brand: v(hotel.brand),
+    operator: v(hotel.operator),
+    owner: v(hotel.owner),
+    chain_scale: v(hotel.chain_scale),
+    category: v(hotel.category),
+    segment_type: v(hotel.segment_type),
+    rooms_count: v(hotel.rooms_count),
+    year_opened: v(hotel.year_opened),
+    year_last_renovated: v(hotel.year_last_renovated),
+    total_floors: v(hotel.total_floors),
+    gross_building_sqm: v(hotel.gross_building_sqm),
+    address_line: v(hotel.address_line),
+    postal_code: v(hotel.postal_code),
+    neighborhood: v(hotel.neighborhood),
+    latitude: v(hotel.latitude),
+    longitude: v(hotel.longitude),
+    meeting_rooms_count: v(hotel.meeting_rooms_count),
+    meeting_space_sqm: v(hotel.meeting_space_sqm),
+    parking_spaces: v(hotel.parking_spaces),
+    score_costar: v(hotel.score_costar),
+    phone: v(hotel.phone),
+    website_url: v(hotel.website_url),
+    google_place_id: v(hotel.google_place_id),
+    wikidata_qid: v(hotel.wikidata_qid),
+    data_quality_tier: v(hotel.data_quality_tier),
+    notes: v(hotel.notes),
+  };
+}
 
 // ── Phase 3.e · Hotel profile enrichment section ────────────────────────────
 

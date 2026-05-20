@@ -4,6 +4,25 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Hotel detail correction form · expanded to 27 fields + current-value prefill
+
+Operator reported: hotel detail page lacked the ability to manually correct attributes. The CorrectionForm existed but was limited to 13 fields and didn't show current values — operator had to know what was there + retype from scratch.
+
+- **CORRECTABLE_FIELDS expanded from 13 → 27 fields** on `/user/admin/hotels/[hotelId]`. New entries grouped by section:
+  - Property characteristics: `total_floors` · `gross_building_sqm`
+  - Location: `postal_code` · `latitude` · `longitude`
+  - Facilities: `meeting_rooms_count` · `meeting_space_sqm` · `parking_spaces`
+  - Contact (v1.4 enrichment): `phone` · `website_url`
+  - External identifiers: `google_place_id` · `wikidata_qid`
+  - Quality / governance: `data_quality_tier` · `notes`
+- **CorrectionForm UX upgrade.** Selecting a field auto-loads its current value into the proposed input (in-place edit pattern). Read-only "Current value" panel renders above the input so the operator confirms what's being replaced. Submit button disabled until proposed differs from current (prevents accidental no-op corrections). Empty fields display `(empty)` placeholder.
+- **No server-action change required** — `submitHotelCorrection()` already accepted arbitrary field names (no whitelist enforcement). Validation happens downstream in `services/costar/scripts/corrections.py` per the existing append-only supersede pattern.
+- New helper `correctableCurrentValues(hotel)` in the detail page renders the 27 fields' current values as strings (handles null/undefined/numbers/booleans uniformly).
+- Pipeline behaviour unchanged: pending corrections still write to `services/costar/corrections/<YYYY-MM>.jsonl` · next `python services/costar/scripts/ingest.py` consumes + applies via supersede with full provenance trail (`_corrections` array on the hotel record).
+- Files: `apps/web/src/app/user/admin/hotels/[hotelId]/page.tsx` (CORRECTABLE_FIELDS expanded + helper added · 50 lines net) · `apps/web/src/components/admin/hotels/correction-form.tsx` (rewritten with currentValues prop · prefill effect · current-value display · disabled-when-unchanged button).
+
+---
+
 ## 2026-05-20 — HotelRow inline enrichment · tier pill + phone/website/wikidata/place_id badges
 
 In-place integration of the Supabase canonical enrichment data into the existing `HotelRow` component on `/user/admin/hotels` (no new sections; operator-requested minimal surface).
