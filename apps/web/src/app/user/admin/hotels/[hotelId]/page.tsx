@@ -47,7 +47,7 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
   // the latest canonical values on top of the snapshot.json baseline
   // so the operator immediately sees their edits without waiting for
   // an ingest rebuild.
-  const hotel = await applySupabaseOverlay(baseHotel);
+  const { hotel, resolvedCanonicalId } = await applySupabaseOverlay(baseHotel);
 
   const [
     compsets,
@@ -513,7 +513,7 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
                 Supabase canonical hotel_canonical row. */}
           <EditHotelDrawer
             hotelId={hotelId}
-            canonicalIdSupabase={(hotel as HotelRecord & { canonical_id_supabase?: string | null }).canonical_id_supabase ?? null}
+            canonicalIdSupabase={resolvedCanonicalId}
             currentValues={correctableCurrentValues(hotel)}
           />
 
@@ -651,56 +651,91 @@ const CORRECTABLE_FIELDS = [
  *
  * Field map mirrors direct-edit.ts (snapshot key ← Supabase column).
  */
-async function applySupabaseOverlay(base: HotelRecord): Promise<HotelRecord> {
-  const linked = (base as HotelRecord & { canonical_id_supabase?: string | null }).canonical_id_supabase;
-  if (!linked) return base;
+async function applySupabaseOverlay(
+  base: HotelRecord,
+): Promise<{ hotel: HotelRecord; resolvedCanonicalId: string | null }> {
+  // Resolve canonical_id_supabase from any signal available on the snapshot
+  // row. Production deploys may load an OLD snapshot from Supabase Storage
+  // that pre-dates the canonical_id_supabase passthrough — so we resolve
+  // the bridge server-side at render time. Priorities:
+  //   1. hotel.canonical_id_supabase from snapshot (if present)
+  //   2. lookup by canonical_name + city_normalized='Madrid'
+  //   3. null (hotel is genuinely not in the canonical layer)
+  const baseExt = base as HotelRecord & {
+    canonical_id_supabase?: string | null;
+  };
+  let resolvedId: string | null = baseExt.canonical_id_supabase ?? null;
+  let sbRow: Record<string, unknown> | null = null;
+
   try {
     const sb = getSupabaseAdmin() as unknown as {
       from: (t: string) => {
         select: (cols: string) => {
           eq: (col: string, val: string) => {
+            eq: (col: string, val: string) => {
+              limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
+            };
             limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
           };
         };
       };
     };
-    const res = await sb
-      .from("hotel_canonical")
-      .select(
-        "canonical_name,brand,chain_scale,hotel_type,total_rooms,year_opened,year_renovated_last,address_line1,postal_code,neighborhood,lat,lng,meeting_rooms_count,meeting_space_sqm,phone,website_url,google_place_id,wikidata_qid,data_quality_tier,updated_at",
-      )
-      .eq("id", linked)
-      .limit(1);
-    if (res.error || !res.data || res.data.length === 0) return base;
-    const sb_row = res.data[0] as Record<string, unknown>;
-    const overlay: Partial<HotelRecord> = {};
-    const apply = (snapKey: keyof HotelRecord, sbKey: string) => {
-      const v = sb_row[sbKey];
-      if (v !== undefined) (overlay as Record<string, unknown>)[snapKey as string] = v;
-    };
-    apply("name" as keyof HotelRecord, "canonical_name");
-    apply("brand" as keyof HotelRecord, "brand");
-    apply("chain_scale" as keyof HotelRecord, "chain_scale");
-    apply("segment_type" as keyof HotelRecord, "hotel_type");
-    apply("rooms_count" as keyof HotelRecord, "total_rooms");
-    apply("year_opened" as keyof HotelRecord, "year_opened");
-    apply("year_last_renovated" as keyof HotelRecord, "year_renovated_last");
-    apply("address_line" as keyof HotelRecord, "address_line1");
-    apply("postal_code" as keyof HotelRecord, "postal_code");
-    apply("neighborhood" as keyof HotelRecord, "neighborhood");
-    apply("latitude" as keyof HotelRecord, "lat");
-    apply("longitude" as keyof HotelRecord, "lng");
-    apply("meeting_rooms_count" as keyof HotelRecord, "meeting_rooms_count");
-    apply("meeting_space_sqm" as keyof HotelRecord, "meeting_space_sqm");
-    apply("phone" as keyof HotelRecord, "phone");
-    apply("website_url" as keyof HotelRecord, "website_url");
-    apply("google_place_id" as keyof HotelRecord, "google_place_id");
-    apply("wikidata_qid" as keyof HotelRecord, "wikidata_qid");
-    apply("data_quality_tier" as keyof HotelRecord, "data_quality_tier");
-    return { ...base, ...overlay };
+
+    const SELECT =
+      "id,canonical_name,brand,chain_scale,hotel_type,total_rooms,year_opened,year_renovated_last,address_line1,postal_code,neighborhood,lat,lng,meeting_rooms_count,meeting_space_sqm,phone,website_url,google_place_id,wikidata_qid,data_quality_tier,updated_at";
+
+    if (resolvedId) {
+      // Path 1: we have the id from the snapshot — direct fetch.
+      const r1 = await sb.from("hotel_canonical").select(SELECT).eq("id", resolvedId).limit(1);
+      if (!r1.error && r1.data && r1.data.length > 0) sbRow = r1.data[0] as Record<string, unknown>;
+    } else if (base.name) {
+      // Path 2: name lookup · scoped to Madrid (current Phase D corpus).
+      const r2 = await sb
+        .from("hotel_canonical")
+        .select(SELECT)
+        .eq("canonical_name", base.name)
+        .eq("city_normalized", "Madrid")
+        .limit(1);
+      if (!r2.error && r2.data && r2.data.length > 0) {
+        sbRow = r2.data[0] as Record<string, unknown>;
+        const sbId = sbRow["id"];
+        if (typeof sbId === "string") resolvedId = sbId;
+      }
+    }
   } catch {
-    return base;
+    return { hotel: base, resolvedCanonicalId: resolvedId };
   }
+
+  if (!sbRow) return { hotel: base, resolvedCanonicalId: resolvedId };
+
+  const overlay: Record<string, unknown> = {};
+  const apply = (snapKey: string, sbKey: string) => {
+    const v = sbRow![sbKey];
+    if (v !== undefined && v !== null) overlay[snapKey] = v;
+  };
+  apply("name", "canonical_name");
+  apply("brand", "brand");
+  apply("chain_scale", "chain_scale");
+  apply("segment_type", "hotel_type");
+  apply("rooms_count", "total_rooms");
+  apply("year_opened", "year_opened");
+  apply("year_last_renovated", "year_renovated_last");
+  apply("address_line", "address_line1");
+  apply("postal_code", "postal_code");
+  apply("neighborhood", "neighborhood");
+  apply("latitude", "lat");
+  apply("longitude", "lng");
+  apply("meeting_rooms_count", "meeting_rooms_count");
+  apply("meeting_space_sqm", "meeting_space_sqm");
+  apply("phone", "phone");
+  apply("website_url", "website_url");
+  apply("google_place_id", "google_place_id");
+  apply("wikidata_qid", "wikidata_qid");
+  apply("data_quality_tier", "data_quality_tier");
+  // Always populate canonical_id_supabase from the resolved id so the
+  // drawer's "linked" state stays consistent across renders.
+  if (resolvedId) overlay["canonical_id_supabase"] = resolvedId;
+  return { hotel: { ...base, ...overlay } as HotelRecord, resolvedCanonicalId: resolvedId };
 }
 
 function correctableCurrentValues(hotel: HotelRecord): Record<string, string> {
