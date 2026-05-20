@@ -343,6 +343,23 @@ export const MADRID_HOTELS: MadridHotelEntry[] = [
 /** Default hotel id when caller doesn't pass a ref param. */
 export const DEFAULT_MADRID_HOTEL_ID = "bless-hotel-madrid";
 
+/**
+ * Curated institutional anchor set surfaced in the `/compset` asset
+ * selection panel under "Recommended nearby assets". Five high-recall
+ * Madrid names spanning Centro / Salamanca / Cuatro Caminos /
+ * Chamartín so the visitor sees geographic coverage at a glance.
+ *
+ * These are hand-picked as quick-select tiles · not auto-derived from
+ * proximity (no user location available pre-selection).
+ */
+export const RECOMMENDED_MADRID_ANCHOR_IDS: readonly string[] = [
+  "bless-hotel-madrid",
+  "vp-plaza-espana-design",
+  "eurostars-madrid-tower",
+  "hyatt-regency-hesperia-madrid",
+  "nh-collection-eurobuilding",
+];
+
 /** Returns a hotel by id · null if not found. */
 export function findHotelById(id: string): MadridHotelEntry | null {
   return MADRID_HOTELS.find((h) => h.id === id) ?? null;

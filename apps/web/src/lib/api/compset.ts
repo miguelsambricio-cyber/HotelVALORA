@@ -3,6 +3,7 @@ import {
   MADRID_HOTELS,
   buildCompsetForHotel,
   DEFAULT_MADRID_HOTEL_ID,
+  RECOMMENDED_MADRID_ANCHOR_IDS,
   type MadridHotelEntry,
 } from "@/lib/data/madrid-hotels";
 
@@ -75,6 +76,17 @@ export const DEFAULT_LAYERS: MapLayer[] = [
  */
 export const ALL_MADRID_AS_COMPETITORS: CompetitorHotel[] =
   MADRID_HOTELS.map(toCompetitorHotel);
+
+/**
+ * Curated institutional anchor set surfaced in the asset-selection
+ * panel · 5 high-recall Madrid names spanning multiple submarkets.
+ * Drives the "Recommended nearby assets" tile list inside the panel.
+ */
+export const RECOMMENDED_MADRID_ANCHORS: CompetitorHotel[] =
+  RECOMMENDED_MADRID_ANCHOR_IDS
+    .map((id) => MADRID_HOTELS.find((h) => h.id === id))
+    .filter((h): h is MadridHotelEntry => h !== undefined)
+    .map(toCompetitorHotel);
 
 /**
  * Fetches the compset for a given reference hotel · Madrid registry.
