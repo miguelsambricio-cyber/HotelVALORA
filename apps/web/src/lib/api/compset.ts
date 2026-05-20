@@ -67,6 +67,16 @@ export const DEFAULT_LAYERS: MapLayer[] = [
 ];
 
 /**
+ * All Madrid hotels in CompetitorHotel shape · drives the bare-/compset
+ * institutional explore mode. The map renders ONE pin per hotel so the
+ * visitor can browse the universe before choosing a subject. Click on a
+ * pin opens its popup with a "Iniciar análisis" CTA that navigates to
+ * /compset?ref=<hotel.id> · the canonical entry into analysis mode.
+ */
+export const ALL_MADRID_AS_COMPETITORS: CompetitorHotel[] =
+  MADRID_HOTELS.map(toCompetitorHotel);
+
+/**
  * Fetches the compset for a given reference hotel · Madrid registry.
  *
  * Honours the `hotelId` argument (default: canonical Bless Hotel

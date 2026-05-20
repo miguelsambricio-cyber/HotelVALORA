@@ -8,6 +8,17 @@
 import { PricingCard } from "@/components/ui/pricing-card";
 import type { PricingPlan } from "@/types/hotel-search";
 
+/**
+ * Routing contract (post-QA #001 entry-flow wiring):
+ *
+ *   Pro / Premium "Seleccionar"  → /pricing#<plan-id>
+ *     (institutional subscription comparison surface · plan-jump anchor)
+ *
+ *   Free "EMPEZAR AHORA"         → /compset
+ *     (no hotel context yet at landing → kick off the institutional flow
+ *      at the explore map · user picks a subject hotel → analysis mode →
+ *      "Continuar" → /report/executive-summary?ref=<id>)
+ */
 const PLANS: PricingPlan[] = [
   {
     id: "pro",
@@ -20,7 +31,7 @@ const PLANS: PricingPlan[] = [
       { text: "IRR Project",             icon: "check" },
     ],
     ctaLabel: "Seleccionar",
-    href: "/register?plan=pro",
+    href: "/pricing#pro",
   },
   {
     id: "free",
@@ -33,7 +44,7 @@ const PLANS: PricingPlan[] = [
       { text: "Algoritmo avanzado v4.0",  icon: "verified" },
     ],
     ctaLabel: "EMPEZAR AHORA",
-    href: "/register",
+    href: "/compset",
     featured: true,
   },
   {
@@ -47,7 +58,7 @@ const PLANS: PricingPlan[] = [
       { text: "Underwriting & IRR Equity",  icon: "check" },
     ],
     ctaLabel: "Seleccionar",
-    href: "/register?plan=premium",
+    href: "/pricing#premium",
   },
 ];
 

@@ -18,7 +18,7 @@ export interface CompetitorHotel {
   coordinates: { lng: number; lat: number };
 }
 
-export type HotelPinType = "reference" | "competitor" | "suggested";
+export type HotelPinType = "reference" | "competitor" | "suggested" | "explore";
 
 export interface MapLayer {
   id: "heatmap" | "metro" | "historico";

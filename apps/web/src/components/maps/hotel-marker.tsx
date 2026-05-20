@@ -26,9 +26,13 @@ function StarRow({ count }: { count: number }) {
 function HotelPopup({
   hotel,
   onClose,
+  onAnalyze,
 }: {
   hotel: CompetitorHotel;
   onClose: () => void;
+  /** When provided, popup renders a "Iniciar análisis" CTA at the bottom.
+   *  Used in explore mode to navigate /compset?ref=<hotel.id>. */
+  onAnalyze?: (hotelId: string) => void;
 }) {
   return (
     <Popup
@@ -70,6 +74,16 @@ function HotelPopup({
             </div>
           ))}
         </div>
+
+        {onAnalyze && (
+          <button
+            type="button"
+            onClick={() => onAnalyze(hotel.id)}
+            className="mt-2 w-full py-1.5 bg-forest-900 text-white text-[10px] font-bold uppercase tracking-[0.18em] rounded-md hover:brightness-110 transition-all shadow"
+          >
+            Iniciar análisis →
+          </button>
+        )}
       </div>
     </Popup>
   );
@@ -81,6 +95,7 @@ const PIN_STYLES: Record<HotelPinType, string> = {
   reference:  "w-6 h-6 bg-forest-900 border-4 border-white shadow-lg animate-pulse",
   competitor: "w-4 h-4 bg-blue-600 border-2 border-white shadow-md",
   suggested:  "w-4 h-4 bg-blue-400 border-2 border-dashed border-blue-300 shadow-md opacity-60",
+  explore:    "w-5 h-5 bg-forest-700 border-2 border-white shadow-md",
 };
 
 // ── HotelMarker ───────────────────────────────────────────────────────────────
@@ -90,9 +105,11 @@ interface HotelMarkerProps {
   type: HotelPinType;
   isSelected: boolean;
   onSelect: (id: string | null) => void;
+  /** Optional callback forwarded to popup CTA (explore mode). */
+  onAnalyze?: (hotelId: string) => void;
 }
 
-export function HotelMarker({ hotel, type, isSelected, onSelect }: HotelMarkerProps) {
+export function HotelMarker({ hotel, type, isSelected, onSelect, onAnalyze }: HotelMarkerProps) {
   const isRef = type === "reference";
 
   return (
@@ -120,7 +137,11 @@ export function HotelMarker({ hotel, type, isSelected, onSelect }: HotelMarkerPr
       </Marker>
 
       {isSelected && (
-        <HotelPopup hotel={hotel} onClose={() => onSelect(null)} />
+        <HotelPopup
+          hotel={hotel}
+          onClose={() => onSelect(null)}
+          onAnalyze={onAnalyze}
+        />
       )}
     </>
   );
