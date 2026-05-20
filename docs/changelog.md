@@ -4,6 +4,21 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — QA Ticket #001 CLOSED · Landing + Institutional Entry Flow
+
+End-to-end institutional entry flow shipped to production. Landing → search/explore → compset → underwriting now reads as one coherent workspace · Bloomberg/CoStar terminal density · no marketing-pulse animations · map and panel coordinated in both `/compset` modes via a single inspect-then-commit pattern.
+
+- **Landing structural parity** with `/compset` (`f5ad6e3`). `landing-viewport` / `landing-scroll` retired in favor of mirroring `compset-main`: hero absorbs the available vertical space (`.landing-hero` ≡ `.compset-map-container`), pricing band anchors bottom (`.landing-pricing` ≡ `.compset-monetization`), footer is a sibling of `<main>` — same pixel position between surfaces, no layout shift on transition.
+- **Entry flow wiring** (`bfca00e`). Hero search Enter → `/compset?ref=<id>` (autocomplete focus) or `/compset?q=<text>` (server soft-match). Bare `/compset` enters EXPLORE mode: all 18 Madrid hotels as uniform pins, no subject. "EMPEZAR AHORA" on landing → `/compset`; "Continuar" on compset analysis mode → `/report/executive-summary?ref=<id>`. New `/pricing` institutional page (Hero + 3 plan cards + comparison matrix + trust strip + hash anchors for `#pro` / `#premium`).
+- **Asset selection panel** (`22befe8`). Right-edge panel in explore mode mirrors `<CompetitorPanel />` shell exactly (width clamp · glass-overlay · header/body/footer rows · toggle tab). Header eyebrow `Selección de activo` + integrated `<PanelSearchBar />` (compact panel-scoped search reusing `useHotelSearch`). Body = 18 recommended assets as clickable tiles. Replaces the old narrative ExploreHelper card (which read as onboarding/demo, not workflow).
+- **Two-click pin + map↔panel sync · explore mode** (`81d8672`). 1st click on a pin → inspect (pin halo · panel card highlights + scrollIntoView · panel auto-opens). 2nd click on same pin → commit (`router.push('/compset?ref=<id>')`). Different pin → switch. NO popups · NO overlays · NO tooltips. Same pattern on cards (symmetric UX). Search bar commits directly (explicit intent).
+- **Institutional stability · no pulsing on persistent markers** (`06cd9af`). Reference pin (`maps/hotel-marker.tsx`) and library promoted markers (`library/hotel-map-marker.tsx`) — `animate-pulse` replaced by static halo (`ring-4 + ring-offset-2` for reference · `ring-[5px] + ring-offset-2` for promoted). Loading skeletons (login, dynamic-import fallbacks, route-level loading.tsx) keep `animate-pulse` since they're transient/justified. Admin status dots (14 files, conditional warning pulses) kept as-is pending a separate UX call.
+- **Map↔Panel sync · analysis mode** (`afbd49a`). Same pattern extended to `/compset?ref=X`: click competitor / suggested pin → halo + matching `CompetitorCard` highlight (forest-900 border + ring + bg + lift) + scrollIntoView via `[data-competitor-card-id]` querySelector. Toggle on same pin (clear). Subject pin click clears competitor inspection. `<ReportMap />` (embedded `/report` widget) keeps the legacy KPI popup since it has no side panel — backwards-compatible via the discriminated union on `<CompsetMapGL />` (`onPinClick` opt-in).
+- **State**. 12 items shipped across 6 commits · all on `origin/main` via the feature-branch → cherry-pick → push pattern (zero touch to agent-2 enrichment surfaces). Typecheck 0 errors · build 0 errors across all commits. `/compset` route 4.86 → 6.8 kB (+1.94 kB for explore mode + asset selection panel + two-click pattern + sync logic). `/pricing` new static route 218 B. Task #127 (Production Readiness Snapshot · post-QA) closed.
+- **Outstanding nice-touches** (separate UX calls, not blockers): panel→map hover sync (optional); admin status dots conversion from pulse to static severity treatment; connectivity-status-bar custom 3s breathing keyframe (auth scope only).
+
+---
+
 ## 2026-05-20 — Phase 4 wave 2 · Competitive Set + Market Overview canonical + admin↔reports bridge + 253 audit
 
 Continuation of mock → canonical migration. Now 4 of 7 report sections backed by `public.hotel_canonical`. Admin detail page surfaces "View as report" links so the operator closes the end-to-end loop visually in one click. Comprehensive 253-corpus sync audit committed.
