@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Snapshot dedup audit + BLESS / Palladium brand fix + registry extension
+
+Operator-driven corrections after spotting BLESS Hotel Madrid with empty brand_family + concerns about duplicates between snapshot and Supabase canonical.
+
+- **Snapshot dedup audit complete** (530 hotels · 3-axis fuzzy match: postal+name24 · postal+addr24 · name30-only cross-postal). Result: 498 unique hotels confirmed · **9 duplicate groups (18 hotels) requiring consolidation** · 14 hotels flagged as false positives (real siblings: SmartRental Capital vs Centric · Eric Vökel × 3 different suites · 6 address-coincidence pairs).
+- **9 confirmed dup pairs documented** in `docs/hotel-intelligence/snapshot-dedup-audit-2026-05-20.md`: BLESS Hotel Madrid · Crowne Plaza Centre Retiro · Hotel Madrid Plaza España · Hotel Único Madrid · Mandarin Oriental Ritz · Santo Mauro Luxury Collection · Vincci Vía 66 · Érase un Hotel · El Corte Inglés Hotel. Pattern: each pair has one "long-name" row with `canonical_id_supabase` linked (KEEP) and one "short-name" row from the older Booking-truncated ingest pass (DROP).
+- **Root cause** identified: synthetic `hotel_id = sha256(country|market|name)` produces different IDs when two ingest passes use different name strings for the same property — the previous Booking+Phase C ingest used Booking-truncated names ("BLESS Hotel Madrid") while the Phase D Supabase re-ingest used full Supabase canonical names ("BLESS Hotel Madrid - The Leading Hotels of the World"). Both rows survive instead of one superseding the other.
+- **BLESS canonical fix applied to Supabase.** Row `eabde8b9-41b1-4eec-b528-916768ce8f31` updated: `brand` "Bless" → **"BLESS"** · `brand_family` NULL → **"Palladium Hotel Group"** · `operator_id` NULL → **`5c29d98a-f6ff-4371-946a-c68c24432116`** (Palladium operator row) · `chain_scale` → **luxury** (it's a Leading Hotels of the World property) · `operator_type` "unknown" → **"managed"**. Audit blob recorded in `source_confidence.brand_family_corrected`.
+- **Brand registry extended** (`apps/web/src/lib/enrichment/registries/brands.ts`) with 3 new Palladium entries: `bless` (luxury) · `ushuaia` (upper_upscale) · `tres-h` (TRS Hotels · upper_upscale). Future Booking enrichment passes will auto-link these brands to the Palladium operator.
+- **Resolution plan** (documented · not yet implemented): extend `services/costar/scripts/ingest.py` → `ingest_hotels` with a post-pass that groups by `(postal_code, soundex(stopword_strip(name)))` and prefers the `canonical_id_supabase`-linked row + marks the others as `deduplicated_into` for audit. Manual operator review via direct-edit drawer remains the immediate path for ad-hoc dedup.
+- Files: `docs/hotel-intelligence/snapshot-dedup-audit-2026-05-20.md` (NEW · full audit report) · `apps/web/src/lib/enrichment/registries/brands.ts` (3 Palladium brands added) · Supabase row updated via MCP execute_sql.
+
+---
+
 ## 2026-05-20 — Hotel detail · admin direct-edit drawer (faster than correction queue)
 
 Operator feedback: `/user/admin/hotels/[hotelId]` is the internal admin surface — editing should be in-place, not via a review queue. The correction form stays for end-user feedback (when a regular user spots wrong data); the admin gets a direct path.
