@@ -16,7 +16,7 @@ import {
 } from "@/lib/report/market-overview-data";
 import {
   getCanonicalHotelById,
-  getMarketKpis,
+  resolveBestAvailableMarketKpis,
   resolveCanonicalIdFromSnapshotHotelId,
 } from "@/lib/report/canonical-reader";
 import { mapCanonicalToMarketOverview } from "@/lib/report/canonical-mappers/market-overview";
@@ -41,7 +41,11 @@ async function loadMarketOverviewData(
   if (canonicalId) {
     const hotel = await getCanonicalHotelById(canonicalId);
     if (hotel) {
-      const marketKpi = await getMarketKpis(hotel.market_name, hotel.submarket_name);
+      const marketKpi = await resolveBestAvailableMarketKpis(
+        hotel.market_name,
+        hotel.submarket_name,
+        { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
+      );
       return { data: mapCanonicalToMarketOverview(hotel, marketKpi), source: "canonical" };
     }
   }

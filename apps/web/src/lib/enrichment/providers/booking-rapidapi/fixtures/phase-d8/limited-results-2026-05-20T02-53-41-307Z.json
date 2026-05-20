@@ -1,0 +1,98 @@
+[
+  {
+    "canonical_id": "370c1972-aa94-4841-b90b-10b773b0df18",
+    "name": "Hilton Madrid Airport",
+    "domain": "www.hilton.com",
+    "url": "https://www.hilton.com/en/hotels/madaphi-hilton-madrid-airport/",
+    "started_at": "2026-05-20T02:52:49.903Z",
+    "robots": {
+      "ok": true,
+      "disallows": [
+        "*/search/",
+        "*/checkin/",
+        "*/partner/",
+        "/*.jhtml*",
+        "*/book/",
+        "*/guest/",
+        "*/auth/",
+        "*/group-search/",
+        "*/find-hotels/",
+        "*/event-locations/",
+        "*/group-locations/",
+        "*/confirmation/",
+        "*/personalized/",
+        "*/attend-my-event/",
+        "*/business/",
+        "*/modify/",
+        "*/public/",
+        "/*20000",
+        "*/locales/",
+        "*/auth2/",
+        "*/hrcc/"
+      ],
+      "crawlDelay": 0
+    },
+    "head": {
+      "ok": true,
+      "status": 200,
+      "finalUrl": "https://www.hilton.com/en/hotels/madaphi-hilton-madrid-airport/",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "extraction": null,
+    "error": "GET failed: The operation was aborted due to timeout",
+    "elapsed_ms": 37282
+  },
+  {
+    "canonical_id": "651f9675-301c-43f7-820a-82e3f129b9f3",
+    "name": "AC Hotel Recoletos by Marriott",
+    "domain": "www.marriott.com",
+    "url": "https://www.marriott.com/en-us/hotels/madrt-ac-hotel-recoletos/overview/",
+    "started_at": "2026-05-20T02:53:34.253Z",
+    "robots": {
+      "ok": true,
+      "disallows": [
+        "/zh/",
+        "/einterface/",
+        "/hotels/newAdaptiveRoomTypePhotoViewer",
+        "/reservation/availabilitySearch.mi",
+        "/aries-search/",
+        "/offers/preview/",
+        "/search/",
+        "/en-gb/search/",
+        "/es/search/",
+        "/fr/search/",
+        "/pt-br/search/",
+        "/id/search/",
+        "/zh-hk/search/",
+        "/ja/search/",
+        "/ko/search/",
+        "/th/search/",
+        "/vi/search/",
+        "/ar/search/",
+        "/he/search/",
+        "/da/search/",
+        "/de/search/",
+        "/el/search/",
+        "/it/search/",
+        "/nl/search/",
+        "/no/search/",
+        "/ru/search/",
+        "/pl-pl/search/",
+        "/fi/search/",
+        "/sv/search/",
+        "/tr-tr/search/",
+        "/hi/search/"
+      ],
+      "crawlDelay": 0
+    },
+    "head": {
+      "ok": false,
+      "status": 404,
+      "finalUrl": "https://www.marriott.com/en-us/hotels/madrt-ac-hotel-recoletos/overview/",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "extraction": null,
+    "error": "HEAD failed: 404",
+    "elapsed_ms": 7054
+  }
+]
