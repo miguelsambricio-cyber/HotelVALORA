@@ -203,21 +203,28 @@
   }
 }
 
-/* Viewport-optimized landing layout — fills screen on tall desktops.
- * Goal: hero + pricing + footer fit in a single 100vh viewport without
- * vertical scroll on desktop-institutional viewports.
+/* Landing page viewport layout · institutional flow continuity ·
+ * MUST match /compset structure exactly so pricing/footer sit at the
+ * SAME pixel-position between landing ↔ compset (no jumps · no shifts).
  *
- * `.landing-pricing` mirrors the `.compset-monetization` pattern from
- * the /compset surface so both pricing layouts have identical density
- * (the institutional canonical reference is /compset). */
+ * Mirrors the /compset rules below:
+ *   .landing-main      ≡  .compset-main
+ *   .landing-hero      ≡  .compset-map-container
+ *   .landing-pricing   ≡  .compset-monetization
+ *
+ * Height formula: 100vh − LandingHeader (84px) − InstitutionalFooter
+ * slim (48px). On viewports < 800px the height calc is dropped and
+ * flex-grow takes over so content can scroll naturally on tablets
+ * and short laptops where the single-screen guarantee is relaxed. */
 @media (min-height: 800px) {
-  .landing-viewport {
-    height: 100vh;
-    overflow: hidden;
+  .landing-main {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 84px - 48px);
   }
-  .landing-scroll {
-    flex: 1;
-    overflow-y: auto;
+  .landing-hero {
+    flex: 1 1 55%;
+    min-height: 350px;
   }
   .landing-pricing {
     flex: 0 0 auto;
