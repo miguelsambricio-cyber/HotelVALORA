@@ -36,6 +36,8 @@ interface CompetitorCardProps {
   variant: "active" | "suggested";
   onAdd?: (hotel: CompetitorHotel) => void;
   onRemove?: (id: string) => void;
+  /** Map↔Panel sync · matching map pin is inspected · highlight + lift. */
+  isInspected?: boolean;
 }
 
 export function CompetitorCard({
@@ -43,14 +45,20 @@ export function CompetitorCard({
   variant,
   onAdd,
   onRemove,
+  isInspected = false,
 }: CompetitorCardProps) {
   return (
     <div
+      data-competitor-card-id={hotel.id}
       className={cn(
         "bg-white rounded-xl p-3 border transition-all",
-        variant === "active"
-          ? "border-forest-900/20 shadow-sm"
-          : "border-slate-200 opacity-75 hover:opacity-100"
+        isInspected
+          // Inspected state overrides variant border · same brand glow
+          // as RecommendedAssetCard / panel inspect treatment.
+          ? "border-forest-900 shadow-md ring-1 ring-forest-900/20 bg-forest-900/[0.04] opacity-100"
+          : variant === "active"
+            ? "border-forest-900/20 shadow-sm"
+            : "border-slate-200 opacity-75 hover:opacity-100"
       )}
     >
       {/* Header row */}

@@ -40,7 +40,20 @@ export function CompsetMap({ referenceHotelId, mode = "analysis" }: CompsetMapPr
   return <AnalysisMode referenceHotelId={referenceHotelId} />;
 }
 
-/* ─── Analysis mode · subject + competitors + suggested ────────────────── */
+/* ─── Analysis mode · subject + competitors + suggested ──────────────────
+ *
+ * Map↔Panel sync contract (mirrors ExploreMode below):
+ *   1st click on a competitor/suggested pin → inspect: pin halo + card
+ *     highlight + scrollIntoView + panel auto-opens if collapsed
+ *   2nd click on the same pin → toggle off (clear inspection · pin halo
+ *     removed · card highlight removed)
+ *   Click on a different pin → switch inspection
+ *   Click on subject (reference) pin → clear competitor inspection
+ *
+ * No popups in /compset analysis mode · all communication via pin glow
+ * + panel card sync. The embedded /report map (report-map.tsx) is a
+ * separate consumer of CompsetMapGL that does NOT pass onPinClick · it
+ * keeps the legacy popup behavior since it has no side panel.        */
 
 function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
   const {
@@ -58,13 +71,9 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
   } = useCompset(referenceHotelId);
 
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
+  const [inspectedHotelId, setInspectedHotelId] = useState<string | null>(null);
 
   // Re-center the map on the subject hotel when it loads / changes.
-  // The institutional flow expects `?ref=<hotel>` to drive the
-  // viewport · without this effect the map would stay anchored on
-  // DEFAULT_VIEWPORT (Madrid Centro / Puerta del Sol) regardless of
-  // the resolved subject. We guard against re-centring twice for the
-  // same subject id so user pan/zoom interactions are not reset.
   const lastCenteredId = useRef<string | null>(null);
   useEffect(() => {
     if (isLoading) return;
@@ -79,6 +88,32 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
     });
   }, [isLoading, referenceHotel.id, referenceHotel.coordinates.lng, referenceHotel.coordinates.lat, setViewState]);
 
+  // Auto-open the panel when a pin is inspected so the highlighted
+  // card is visible. Mirrors the AssetSelectionPanel behavior.
+  useEffect(() => {
+    if (inspectedHotelId && !panelOpen) {
+      setPanelOpen(true);
+    }
+    // panelOpen intentionally omitted from deps — only react to inspect
+    // transitions, not to user-driven toggles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inspectedHotelId]);
+
+  // Reset inspection when the subject hotel changes (route navigation).
+  useEffect(() => {
+    setInspectedHotelId(null);
+  }, [referenceHotel.id]);
+
+  function handlePinClick(hotelId: string) {
+    if (hotelId === referenceHotel.id) {
+      // Subject click · clear any active competitor inspection.
+      setInspectedHotelId(null);
+      return;
+    }
+    // Competitor / suggested · toggle (same pin clicked twice clears).
+    setInspectedHotelId((prev) => (prev === hotelId ? null : hotelId));
+  }
+
   return (
     <section
       aria-label="Mapa de competidores"
@@ -92,6 +127,8 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
           competitors={competitors}
           suggested={suggested}
           layers={layers}
+          onPinClick={handlePinClick}
+          inspectedHotelId={inspectedHotelId}
         />
       </div>
 
@@ -116,6 +153,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         onToggle={() => setPanelOpen(!panelOpen)}
         onAdd={addCompetitor}
         onRemove={removeCompetitor}
+        inspectedHotelId={inspectedHotelId}
         className="absolute top-4 right-4 bottom-4 z-30"
       />
 
