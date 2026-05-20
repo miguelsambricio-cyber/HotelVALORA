@@ -203,7 +203,13 @@
   }
 }
 
-/* Viewport-optimized landing layout — fills screen on tall desktops */
+/* Viewport-optimized landing layout — fills screen on tall desktops.
+ * Goal: hero + pricing + footer fit in a single 100vh viewport without
+ * vertical scroll on desktop-institutional viewports.
+ *
+ * `.landing-pricing` mirrors the `.compset-monetization` pattern from
+ * the /compset surface so both pricing layouts have identical density
+ * (the institutional canonical reference is /compset). */
 @media (min-height: 800px) {
   .landing-viewport {
     height: 100vh;
@@ -213,6 +219,19 @@
     flex: 1;
     overflow-y: auto;
   }
+  .landing-pricing {
+    flex: 0 0 auto;
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+}
+
+/* Default density (below 800px viewport height) — natural padding so
+ * the pricing band still breathes on tablets / short laptops where
+ * the single-screen guarantee is relaxed. */
+.landing-pricing {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
