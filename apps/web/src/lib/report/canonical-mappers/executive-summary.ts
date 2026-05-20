@@ -149,11 +149,31 @@ export function mapCanonicalToExecutiveSummary(
   hotel: CanonicalHotelRow,
   marketKpi: MarketKpiBundle | null,
 ): ExecutiveSummaryData {
-  const keys = hotel.total_keys ?? hotel.total_rooms ?? 0;
+  // Canonical-first · falls back to engine heuristic rooms when canonical
+  // has neither total_keys nor total_rooms (~50 % of branded Madrid corpus
+  // today). Without this fallback every value derived from `keys` (estimated
+  // value · range · €/sqm · buildable area) collapses to 0 · creating a
+  // visual "0,0M€" disaster while cap-rate + scenario + GOP still render.
+  const canonicalKeys = hotel.total_keys ?? hotel.total_rooms;
   // Brand fallback: when brand is null but family is set, use family
   const brand = hotel.brand ?? hotel.brand_family ?? "Independent";
 
-  // Asset attributes from canonical (real)
+  // Valuation: cap-rate engine output (real · 5-layer model) + market-derived per-key.
+  // Engine recommendation supersedes the raw market_yield · it adjusts for
+  // category · size · renovation · operator · macro · liquidity · scenario.
+  // Run engine FIRST so we have engine heuristic rooms available downstream.
+  let engineRun: UnderwritingRunResult | null = null;
+  try {
+    engineRun = runForHotel(hotel);
+  } catch {
+    engineRun = null;
+  }
+  // Final keys count · canonical when available · else engine heuristic
+  const keys = canonicalKeys ?? engineRun?.assetBasics.rooms ?? 0;
+  // Provenance signal · downstream provenance/methodology can read this
+  const keysFromHeuristic = canonicalKeys === null && engineRun !== null;
+
+  // Asset attributes from canonical (real · engine fallback for keys)
   const asset = {
     name: hotel.canonical_name ?? "—",
     address: hotel.address_line1 ?? "—",
@@ -167,7 +187,7 @@ export function mapCanonicalToExecutiveSummary(
     brand,
   };
 
-  // Market KPIs from snapshot.market_timeseries (real where available)
+  // Market KPIs from resolveBestAvailableMarketKpis (real submarket where available)
   const adrSpot = marketKpi?.adr_spot ?? marketKpi?.adr_12m ?? 0;
   const occSpot = marketKpi?.occupancy_spot ?? marketKpi?.occupancy_12m ?? 0;
   const revparSpot = marketKpi?.revpar_spot ?? marketKpi?.revpar_12m ?? 0;
@@ -177,15 +197,6 @@ export function mapCanonicalToExecutiveSummary(
     revpar: Number(revparSpot.toFixed(0)),
   };
 
-  // Valuation: cap-rate engine output (real · 5-layer model) + market-derived per-key.
-  // Engine recommendation supersedes the raw market_yield · it adjusts for
-  // category · size · renovation · operator · macro · liquidity · scenario.
-  let engineRun: UnderwritingRunResult | null = null;
-  try {
-    engineRun = runForHotel(hotel);
-  } catch {
-    engineRun = null;
-  }
   const capRate = engineRun?.capRate.used_pct ?? marketKpi?.market_yield ?? 6.5;
   const perRoom = marketKpi?.market_sale_price_per_room ?? 200_000;
   const sqmPerKey = engineRun?.assetBasics.total_sqm && engineRun.assetBasics.rooms
@@ -227,7 +238,7 @@ export function mapCanonicalToExecutiveSummary(
     capRate: Number(capRate.toFixed(2)),
     exitYear: "TTM",
     scenario: engineRun
-      ? `Engine · base · ${marketKpi?.source_label ?? "no market source"}`
+      ? `Engine · base · ${marketKpi?.source_label ?? "no market source"}${keysFromHeuristic ? " · keys heurístico" : ""}`
       : (marketKpi?.source_label ?? "Mercado"),
     valuationRangeLow,
     valuationRangeHigh,
