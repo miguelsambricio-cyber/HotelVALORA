@@ -4,6 +4,18 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Cross-segment engine validator + migration 0025 staged · preview gap diagnosed
+
+Engine validation done across 3 cohorts (luxury · upscale branded · independent). All cohorts pass · no NaN / null / absurd values · institutional spreads (0.30pp luxury→upscale · 35-40 % GOP · 5.7-8.1k €/sqm · narrow valuation band 94-107 %). Engine demonstrated NOT overfit to Mandarin Ritz. Preview rendering blocked by pre-existing env-config gap (service-role key not in preview env). Migration 0025 staged to fix architectural smell of using service-role for public catalog reads.
+
+- **Cross-segment validator** (`apps/web/scripts/cross-segment-validation.mjs`). Self-contained tsx script that hard-codes the 3 cohort snapshots, mirrors `runForHotel` + Executive Summary valuation block math, then runs deterministic sanity checks (no NaN · range coherence · cap-rate within 3.5-10% institutional band · GOP within 25-50% · €/sqm within 1.5-20k Madrid prime band). Output table compares cohort caps · confidence · €/sqm · GOP to confirm cross-cohort drift stays within 0.05-3pp.
+- **Validator findings**: luxury Mandarin 6.00% · upscale AC 6.30% · independent 7 Islas 6.30%. Confidence 66/75/70. Estimated values 43.6 / 51.3 / 42.8 M€. Engine differentiates luxury from upscale correctly (30pp spread) and assigns higher confidence to AC (more 4-star comps in seed pool) than Mandarin (scarcer 5-star comps). All within institutional defensibility.
+- **Preview env diagnosis**. `/report/executive-summary?canonical_id=...` returns 500 on preview deployments because `canonical-reader.ts` calls `getSupabaseAdmin()` which requires `SUPABASE_SERVICE_ROLE_KEY` · env var configured in Production only. Engine wire-up is NOT the regression cause · the gap is pre-existing and was not previously observed because validation always ran on Production.
+- **Phase A operational fix** (operator-executed) · `vercel env add SUPABASE_SERVICE_ROLE_KEY preview` to unblock preview QA tonight.
+- **Phase B migration 0025 staged** (`docs/database/migrations/0025_public_read_rls_catalog.sql`). Adds `SELECT` policies for role `public` on `hotel_canonical` (where `deleted_at IS NULL`), enables RLS + adds public read on `market` + `submarket`. Aligns data layer with the showcase-mode middleware (anon traffic to `/report/*` is allowed by design). After apply, `canonical-reader.ts` switches from `getSupabaseAdmin()` to `createAnonServerSupabaseClient()` · service-role reserved for writes / admin mutations / enrichment / cron only. Migration is reversible · idempotent · includes sanity-probe `DO` block that raises if any policy fails to land. **NOT YET APPLIED · awaits operator authorization.**
+
+---
+
 ## 2026-05-20 — Cap-rate engine wired · 1 hotel underwriting_ready · D-8 bot-defense finding
 
 Milestone unlocked: **first hotel in the corpus crosses `is_underwriting_ready = true`** end-to-end. The cap-rate engine (5-layer dynamic model) is now wired into the Executive Summary canonical mapper. D-8 chain-website fallback hit enterprise bot defense at Hilton + Marriott and was paused per operator policy ("NO aggressive scraping") in favour of manual operator backfill for the institutional luxury subset.
