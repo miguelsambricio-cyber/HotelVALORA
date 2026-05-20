@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — `resolveBestAvailableMarketKpis` · 6-level KPI ladder + Madrid 2024 baseline
+
+Operator's architectural clarification absorbed: CoStar KPIs are aggregated by country / market / submarket / class / compset — never per-hotel. The correct underwriting path is `hotel → resolve best-available KPI level → engine → valuation`. Compset is the strategic primary layer (most operationally realistic proxy); submarket / market / country are intermediate; institutional baseline is the explicit final anchor.
+
+- **`resolveBestAvailableMarketKpis(market_name, submarket_name, ctx)`** in `apps/web/src/lib/report/canonical-reader.ts`. 5-level fallback walking compset → submarket → market → country → MADRID_2024_INSTITUTIONAL_BASELINE. Reads from `snap.market_snapshots` (69 rows · 3 granularities: country_listing / market / submarket · proper market_name + submarket_name fields) NOT `market_timeseries` (356 rows · all market_name=null · wrong key the legacy reader was using · root cause of the 0/0/0 visual surfacing).
+- **`MarketKpiBundle.source`** field exposed (`"compset"|"submarket"|"market"|"country"|"baseline"`) + `source_label` (human-readable · e.g. "CoStar submarket · Retiro"). Executive Summary mapper propagates via the existing `valuation.scenario` row · investors see provenance with NO UI change ("Engine · base · CoStar submarket · Retiro"). Methodology note already-rendered remains untouched.
+- **`MADRID_2024_INSTITUTIONAL_BASELINE`** exported constant: `adr_12m=218 · occupancy_12m=0.74 · revpar_12m=161.32 · market_yield=6.5 · per_room=285000`. Anchored on CoStar Madrid 12m + Cushman/Colliers/Savills yield + CBRE/JLL transaction medians 2023-2024. CoStar does NOT populate market_yield + market_sale_price_per_room in this snapshot · baseline always fills these two regardless of which level resolved ADR/Occ/RevPAR.
+- **3-hotel probe confirms** real submarket KPIs flow end-to-end: Mandarin Ritz · Retiro · ADR 250.52 / Occ 75.0% / RevPAR 187.96 · AC Recoletos · Salamanca · ADR 247.83 / Occ 74.2% / RevPAR 183.85 · 7 Islas · Madrid Centre · ADR 233.25 / Occ 78.9% / RevPAR 184.02. Estimated values now coherent: 43.6 / 51.3 / 42.75 M€ (vs the 30M€ ceiling caused by the legacy 200k per-room fallback).
+- **`getMarketKpis` deprecated** as a thin shim over the resolver · kept for backwards-compat during Phase 4 transition. Executive Summary + Market Overview pages migrated to call the resolver directly.
+- **Compset slot intentional**. `snap.compsets`, `snap.compset_performance`, `snap.compset_membership` are all `length=0` in the current snapshot · Phase 2 compset ingestion hasn't populated them. The resolver's level 1 falls through automatically to submarket. Once compsets land, level 1 starts answering without further code change.
+- **Hard rule preserved**. Zero touches to UI shells / primitives / section components / methodology note / PDF / design tokens / `/report/*` routes. Only the data layer (resolver) + page-level dispatchers (1 line per page).
+
+---
+
 ## 2026-05-20 — Cross-segment engine validator + migration 0025 staged · preview gap diagnosed
 
 Engine validation done across 3 cohorts (luxury · upscale branded · independent). All cohorts pass · no NaN / null / absurd values · institutional spreads (0.30pp luxury→upscale · 35-40 % GOP · 5.7-8.1k €/sqm · narrow valuation band 94-107 %). Engine demonstrated NOT overfit to Mandarin Ritz. Preview rendering blocked by pre-existing env-config gap (service-role key not in preview env). Migration 0025 staged to fix architectural smell of using service-role for public catalog reads.

@@ -226,7 +226,9 @@ export function mapCanonicalToExecutiveSummary(
     ebitdaAfterReplacement,
     capRate: Number(capRate.toFixed(2)),
     exitYear: "TTM",
-    scenario: engineRun ? "Engine · base" : "Mercado",
+    scenario: engineRun
+      ? `Engine · base · ${marketKpi?.source_label ?? "no market source"}`
+      : (marketKpi?.source_label ?? "Mercado"),
     valuationRangeLow,
     valuationRangeHigh,
     estimatedValue,
