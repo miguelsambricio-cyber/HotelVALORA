@@ -671,12 +671,8 @@ async function applySupabaseOverlay(
     const sb = getSupabaseAdmin() as unknown as {
       from: (t: string) => {
         select: (cols: string) => {
-          eq: (col: string, val: string) => {
-            eq: (col: string, val: string) => {
-              limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
-            };
-            limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
-          };
+          eq: (col: string, val: string) => unknown;
+          ilike: (col: string, val: string) => unknown;
         };
       };
     };
@@ -684,20 +680,79 @@ async function applySupabaseOverlay(
     const SELECT =
       "id,canonical_name,brand,chain_scale,hotel_type,total_rooms,year_opened,year_renovated_last,address_line1,postal_code,neighborhood,lat,lng,meeting_rooms_count,meeting_space_sqm,phone,website_url,google_place_id,wikidata_qid,data_quality_tier,updated_at";
 
+    const runQuery = async (
+      builder: unknown,
+    ): Promise<Record<string, unknown> | null> => {
+      const r = (await (builder as Promise<{
+        data: unknown[] | null;
+        error: unknown;
+      }>)) as { data: unknown[] | null; error: unknown };
+      if (r.error || !r.data || r.data.length === 0) return null;
+      return r.data[0] as Record<string, unknown>;
+    };
+
     if (resolvedId) {
-      // Path 1: we have the id from the snapshot — direct fetch.
-      const r1 = await sb.from("hotel_canonical").select(SELECT).eq("id", resolvedId).limit(1);
-      if (!r1.error && r1.data && r1.data.length > 0) sbRow = r1.data[0] as Record<string, unknown>;
-    } else if (base.name) {
-      // Path 2: name lookup · scoped to Madrid (current Phase D corpus).
-      const r2 = await sb
-        .from("hotel_canonical")
-        .select(SELECT)
-        .eq("canonical_name", base.name)
-        .eq("city_normalized", "Madrid")
-        .limit(1);
-      if (!r2.error && r2.data && r2.data.length > 0) {
-        sbRow = r2.data[0] as Record<string, unknown>;
+      // Path 0: we have the id from the snapshot · direct fetch.
+      sbRow = await runQuery(
+        (sb.from("hotel_canonical").select(SELECT) as {
+          eq: (col: string, val: string) => { limit: (n: number) => unknown };
+        })
+          .eq("id", resolvedId)
+          .limit(1),
+      );
+    }
+
+    if (!sbRow && base.name) {
+      // Path 1 · exact name + Madrid city
+      sbRow = await runQuery(
+        ((
+          (sb.from("hotel_canonical").select(SELECT) as {
+            eq: (col: string, val: string) => unknown;
+          }).eq("canonical_name", base.name) as {
+            eq: (col: string, val: string) => unknown;
+          }
+        ).eq("city_normalized", "Madrid") as {
+          limit: (n: number) => unknown;
+        }).limit(1),
+      );
+
+      // Path 2 · Supabase canonical_name starts with snapshot name
+      // (e.g. snapshot "BLESS Hotel Madrid" vs Supabase
+      // "BLESS Hotel Madrid - The Leading Hotels of the World")
+      if (!sbRow) {
+        sbRow = await runQuery(
+          ((
+            (sb.from("hotel_canonical").select(SELECT) as {
+              ilike: (col: string, val: string) => unknown;
+            }).ilike("canonical_name", `${base.name}%`) as {
+              eq: (col: string, val: string) => unknown;
+            }
+          ).eq("city_normalized", "Madrid") as {
+            limit: (n: number) => unknown;
+          }).limit(1),
+        );
+      }
+
+      // Path 3 · postal_code + first address segment (handles encoding
+      // differences in the name like Vel*zquez vs Velázquez)
+      if (!sbRow && base.postal_code && base.address_line) {
+        const segment = (base.address_line as string).split(",")[0].trim().slice(0, 14);
+        if (segment.length >= 4) {
+          sbRow = await runQuery(
+            ((
+              (sb.from("hotel_canonical").select(SELECT) as {
+                eq: (col: string, val: string) => unknown;
+              }).eq("postal_code", base.postal_code) as {
+                ilike: (col: string, val: string) => unknown;
+              }
+            ).ilike("address_line1", `%${segment}%`) as {
+              limit: (n: number) => unknown;
+            }).limit(1),
+          );
+        }
+      }
+
+      if (sbRow) {
         const sbId = sbRow["id"];
         if (typeof sbId === "string") resolvedId = sbId;
       }
