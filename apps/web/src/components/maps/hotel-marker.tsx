@@ -77,8 +77,24 @@ function HotelPopup({
 
 // ── Pin dot ───────────────────────────────────────────────────────────────────
 
+/**
+ * Pin styling · ALL variants are static · NO continuous animations.
+ *
+ * Institutional UX guideline (QA #001 close-out): map markers must be
+ * stable for long-form reading. Pulsing / blinking / opacity-cycling
+ * cause fatigue and pull the workspace into "marketing live-feed"
+ * register instead of "Bloomberg / CoStar terminal" register.
+ *
+ * The reference pin asserts itself via:
+ *   · brand color (forest-900)
+ *   · slightly larger footprint (6x6 vs 4-5 for others)
+ *   · thick white border (4px)
+ *   · static halo ring (ring-4 forest-900/15 + ring-offset-2)
+ *   · larger drop shadow
+ * NOT via animation.
+ */
 const PIN_STYLES: Record<HotelPinType, string> = {
-  reference:  "w-6 h-6 bg-forest-900 border-4 border-white shadow-lg animate-pulse",
+  reference:  "w-6 h-6 bg-forest-900 border-4 border-white shadow-lg ring-4 ring-forest-900/15 ring-offset-2",
   competitor: "w-4 h-4 bg-blue-600 border-2 border-white shadow-md",
   suggested:  "w-4 h-4 bg-blue-400 border-2 border-dashed border-blue-300 shadow-md opacity-60",
   explore:    "w-5 h-5 bg-forest-700 border-2 border-white shadow-md",

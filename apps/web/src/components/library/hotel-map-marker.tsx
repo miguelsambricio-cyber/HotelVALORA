@@ -26,8 +26,10 @@ const CATEGORY_TIP: Record<ReportCategory, string> = {
  * Position uses `mockPosition` (top%, left%) — these will be replaced by
  * a real lat/lng projection once a map provider is wired.
  *
- * The TOP PROMOTE marker pulses softly to draw the eye, matching the
- * Stitch reference behaviour.
+ * The TOP PROMOTE marker stands out via STATIC visual emphasis (larger
+ * ring + offset · brand lime fill) · no continuous animation.
+ * Institutional UX rule (QA #001): map pins must be stable for long-form
+ * reading · pulsing causes fatigue.
  */
 export function HotelMapMarker({
   report,
@@ -51,7 +53,9 @@ export function HotelMapMarker({
           className={cn(
             "block h-3 w-3 rounded-full ring-[3px] transition-transform",
             CATEGORY_DOT[report.category],
-            isPromoted && "animate-pulse",
+            // Promoted markers stand out via a thicker static ring + offset,
+            // NOT pulsing animation.
+            isPromoted && "ring-[5px] ring-offset-2 ring-offset-transparent",
             selected && "scale-125 ring-[5px]",
             "group-hover:scale-110",
             "group-focus-visible:ring-blue-700/40",
