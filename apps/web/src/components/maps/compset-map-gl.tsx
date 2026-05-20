@@ -21,14 +21,28 @@ import { MapPolygonLayer }  from "./map-polygon-layer";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface CompsetMapGLProps {
+interface CompsetMapGLBaseProps {
   viewState: MapViewport;
   onViewStateChange: (vs: MapViewport) => void;
+  layers: MapLayer[];
+}
+
+interface CompsetMapGLAnalysisProps extends CompsetMapGLBaseProps {
+  mode?: "analysis";
   referenceHotel: CompetitorHotel;
   competitors: CompetitorHotel[];
   suggested: CompetitorHotel[];
-  layers: MapLayer[];
 }
+
+interface CompsetMapGLExploreProps extends CompsetMapGLBaseProps {
+  mode: "explore";
+  /** All hotels rendered as uniform pins when no subject is selected. */
+  exploreHotels: CompetitorHotel[];
+  /** Triggered from popup CTA · navigates to /compset?ref=<id>. */
+  onExploreSelect: (hotelId: string) => void;
+}
+
+export type CompsetMapGLProps = CompsetMapGLAnalysisProps | CompsetMapGLExploreProps;
 
 // ── Token fallback ────────────────────────────────────────────────────────────
 
@@ -57,14 +71,8 @@ function TokenMissing() {
 
 // ── CompsetMapGL ──────────────────────────────────────────────────────────────
 
-export function CompsetMapGL({
-  viewState,
-  onViewStateChange,
-  referenceHotel,
-  competitors,
-  suggested,
-  layers,
-}: CompsetMapGLProps) {
+export function CompsetMapGL(props: CompsetMapGLProps) {
+  const { viewState, onViewStateChange, layers } = props;
   const mapRef = useRef<MapRef>(null);
   const [popupHotelId, setPopupHotelId] = useState<string | null>(null);
 
@@ -80,6 +88,8 @@ export function CompsetMapGL({
       setPopupHotelId(null);
     }
   }
+
+  const isExplore = props.mode === "explore";
 
   return (
     <Map
@@ -110,35 +120,51 @@ export function CompsetMapGL({
       {metroEnabled     && <MapMetroLayer    data={METRO_LINE_DATA}          />}
       {historicoEnabled && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON}  />}
 
-      {/* ── Reference hotel pin ─────────────────────────────────────────── */}
-      <HotelMarker
-        hotel={referenceHotel}
-        type="reference"
-        isSelected={popupHotelId === referenceHotel.id}
-        onSelect={setPopupHotelId}
-      />
+      {isExplore ? (
+        /* ── Explore mode · uniform pins · click popup → onExploreSelect ── */
+        props.exploreHotels.map((hotel) => (
+          <HotelMarker
+            key={hotel.id}
+            hotel={hotel}
+            type="explore"
+            isSelected={popupHotelId === hotel.id}
+            onSelect={setPopupHotelId}
+            onAnalyze={props.onExploreSelect}
+          />
+        ))
+      ) : (
+        <>
+          {/* ── Reference hotel pin ─────────────────────────────────────── */}
+          <HotelMarker
+            hotel={props.referenceHotel}
+            type="reference"
+            isSelected={popupHotelId === props.referenceHotel.id}
+            onSelect={setPopupHotelId}
+          />
 
-      {/* ── Active competitor pins ──────────────────────────────────────── */}
-      {competitors.map((hotel) => (
-        <HotelMarker
-          key={hotel.id}
-          hotel={hotel}
-          type="competitor"
-          isSelected={popupHotelId === hotel.id}
-          onSelect={setPopupHotelId}
-        />
-      ))}
+          {/* ── Active competitor pins ──────────────────────────────────── */}
+          {props.competitors.map((hotel) => (
+            <HotelMarker
+              key={hotel.id}
+              hotel={hotel}
+              type="competitor"
+              isSelected={popupHotelId === hotel.id}
+              onSelect={setPopupHotelId}
+            />
+          ))}
 
-      {/* ── Suggested pins ──────────────────────────────────────────────── */}
-      {suggested.map((hotel) => (
-        <HotelMarker
-          key={hotel.id}
-          hotel={hotel}
-          type="suggested"
-          isSelected={popupHotelId === hotel.id}
-          onSelect={setPopupHotelId}
-        />
-      ))}
+          {/* ── Suggested pins ──────────────────────────────────────────── */}
+          {props.suggested.map((hotel) => (
+            <HotelMarker
+              key={hotel.id}
+              hotel={hotel}
+              type="suggested"
+              isSelected={popupHotelId === hotel.id}
+              onSelect={setPopupHotelId}
+            />
+          ))}
+        </>
+      )}
     </Map>
   );
 }

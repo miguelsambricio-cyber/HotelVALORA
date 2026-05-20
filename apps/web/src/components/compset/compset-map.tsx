@@ -2,12 +2,17 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useCompset }      from "@/lib/hooks/use-compset";
 import { useMapViewport }  from "@/hooks/maps/use-map-viewport";
 import { MapControls }     from "./map-controls";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel } from "./competitor-panel";
+import { ExploreHelper }   from "./explore-helper";
+import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
+import type { MapLayer, MapLayerId } from "@/types/compset";
+import { useState } from "react";
 
 // Dynamically import the Mapbox GL component — SSR disabled to avoid
 // mapbox-gl touching the DOM during server rendering.
@@ -23,9 +28,21 @@ const CompsetMapGL = dynamic<CompsetMapGLProps>(
 
 interface CompsetMapProps {
   referenceHotelId?: string;
+  /** When "explore", renders all Madrid hotels as uniform pins · no
+   *  subject hotel · no CompetitorPanel. Defaults to "analysis". */
+  mode?: "analysis" | "explore";
 }
 
-export function CompsetMap({ referenceHotelId }: CompsetMapProps) {
+export function CompsetMap({ referenceHotelId, mode = "analysis" }: CompsetMapProps) {
+  if (mode === "explore") {
+    return <ExploreMode />;
+  }
+  return <AnalysisMode referenceHotelId={referenceHotelId} />;
+}
+
+/* ─── Analysis mode · subject + competitors + suggested ────────────────── */
+
+function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
   const {
     referenceHotel,
     competitors,
@@ -67,7 +84,6 @@ export function CompsetMap({ referenceHotelId }: CompsetMapProps) {
       aria-label="Mapa de competidores"
       className="relative w-full overflow-hidden compset-map-container bg-slate-200"
     >
-      {/* ── Real Mapbox GL map ──────────────────────────────────────────── */}
       <div className="absolute inset-0 z-0">
         <CompsetMapGL
           viewState={viewState}
@@ -79,25 +95,18 @@ export function CompsetMap({ referenceHotelId }: CompsetMapProps) {
         />
       </div>
 
-      {/* ── Map controls ─────────────────────────────────────────────────
-       *  Desktop (md+): top-right · classic Mapbox convention.
-       *  Mobile (< md): top-left so it doesn't collide with the
-       *  CompetitorPanel that hugs the right edge. */}
       <MapControls
         className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
       />
 
-      {/* ── Map legend ───────────────────────────────────────────────────
-       *  Bottom-left on all viewports · z-30 same as controls. */}
       <MapLegend
         layers={layers}
         onToggleLayer={toggleLayer}
         className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-30"
       />
 
-      {/* ── Competitor panel (right edge) ─────────────────────────────── */}
       <CompetitorPanel
         referenceHotel={referenceHotel}
         competitors={competitors}
@@ -115,6 +124,59 @@ export function CompsetMap({ referenceHotelId }: CompsetMapProps) {
           {error}
         </div>
       )}
+    </section>
+  );
+}
+
+/* ─── Explore mode · all-Madrid pins · click → /compset?ref=<id> ───────── */
+
+function ExploreMode() {
+  const router = useRouter();
+  const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
+
+  // Layers are local state here · the explore mode doesn't share a
+  // store with the analysis hook, so toggling stays self-contained.
+  const [layers, setLayers] = useState<MapLayer[]>(DEFAULT_LAYERS);
+  function toggleLayer(id: MapLayerId) {
+    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, enabled: !l.enabled } : l)));
+  }
+
+  function handleExploreSelect(hotelId: string) {
+    router.push(`/compset?ref=${encodeURIComponent(hotelId)}`);
+  }
+
+  return (
+    <section
+      aria-label="Mapa de exploración institucional"
+      className="relative w-full overflow-hidden compset-map-container bg-slate-200"
+    >
+      <div className="absolute inset-0 z-0">
+        <CompsetMapGL
+          mode="explore"
+          viewState={viewState}
+          onViewStateChange={setViewState}
+          exploreHotels={ALL_MADRID_AS_COMPETITORS}
+          onExploreSelect={handleExploreSelect}
+          layers={layers}
+        />
+      </div>
+
+      <MapControls
+        className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+      />
+
+      <MapLegend
+        layers={layers}
+        onToggleLayer={toggleLayer}
+        className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-30"
+      />
+
+      <ExploreHelper
+        hotelCount={ALL_MADRID_AS_COMPETITORS.length}
+        className="absolute top-4 right-4 bottom-4 z-30"
+      />
     </section>
   );
 }
