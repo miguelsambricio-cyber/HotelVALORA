@@ -4,6 +4,18 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-20 — Cap-rate engine wired · 1 hotel underwriting_ready · D-8 bot-defense finding
+
+Milestone unlocked: **first hotel in the corpus crosses `is_underwriting_ready = true`** end-to-end. The cap-rate engine (5-layer dynamic model) is now wired into the Executive Summary canonical mapper. D-8 chain-website fallback hit enterprise bot defense at Hilton + Marriott and was paused per operator policy ("NO aggressive scraping") in favour of manual operator backfill for the institutional luxury subset.
+
+- **`underwriting-runner.ts`** (`apps/web/src/lib/report/underwriting-runner.ts`). New `runForHotel(canonical_hotel)` adapter bridges `hotel_canonical` rows into `AssetBasics` and calls `runDynamicCapRate` against `SEEDED_HOTEL_COMPS`. Heuristic fallbacks for missing rooms / total_sqm / state by `chain_scale`. Returns `{ capRate, assetBasics, used_heuristics, heuristic_fields }` for full audit. Null when canonical lacks category or market.
+- **Executive Summary mapper wired to engine.** `mapCanonicalToExecutiveSummary` now calls `runForHotel(hotel)` and consumes engine output: `capRate` from `result.used_pct` · `valuationRangeLow/High` from `result.band.low_pct/high_pct` (inverted price-yield relation) · `ebitdaAfterReplacement` from `capRate × estimatedValue` · `gopMargin` from chain_scale benchmark table (35-44 % range) · `perSqmHotel` from engine `assetBasics.total_sqm` · `scenario = "Engine · base"` when engine ran. Graceful fallback to market_yield when engine returns null. Mock path untouched (no canonical_id).
+- **Mandarin Oriental Ritz manual backfill via Supabase MCP.** `total_rooms=153 · year_opened=1910 · year_renovated_last=2021 · meeting_rooms_count=13 · meeting_space_sqm=1500 · wikidata_qid=Q1471562`. Provenance rows logged with `source=manual_operator` (confidence 0.85-0.98). Result: `core_fields_filled = 8/8` → **1st hotel in `hotel_underwriting_ready_v` (224 corpus · 112 partial · 1 ready)**.
+- **D-8 bot-defense finding doc** (`docs/hotel-intelligence/d8-bot-defense-finding-2026-05-20.md`). Hilton GET timeouts (>60s · Akamai-style edge), Marriott returns 403 to honest UA. Root cause = enterprise WAF requires JS challenge + browser-fingerprint TLS, neither compatible with the operator's "NO aggressive scraping" rule. Path forward: park automated chain-site scraping · scale via Wikidata SPARQL re-sweep + targeted manual operator backfill for the luxury / upper_upscale subset (~30 hotels) · re-ingest CoStar Inmuebles when the operator drops fresh exports. D-8 design + provider scaffold kept in repo for future small-chains use.
+- **Hard rule preserved.** Zero touches to UI shells · primitives · section components · PDF pipeline · methodology notes · design tokens · `/report/*` routes. Only data layer + 1 new service file.
+
+---
+
 ## 2026-05-20 — Phase 4 wave 2 · Competitive Set + Market Overview canonical + admin↔reports bridge + 253 audit
 
 Continuation of mock → canonical migration. Now 4 of 7 report sections backed by `public.hotel_canonical`. Admin detail page surfaces "View as report" links so the operator closes the end-to-end loop visually in one click. Comprehensive 253-corpus sync audit committed.
