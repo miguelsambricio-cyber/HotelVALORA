@@ -41,6 +41,7 @@ export async function upsertHotelReportLibrary(
   hotel: CanonicalHotelRow,
   snapshot: ReportSnapshot,
 ): Promise<void> {
+  console.log(`[hotel_report_library] upsert start · canonical_id=${hotel.id} · ${hotel.canonical_name}`);
   try {
     // Cast around the auto-generated Database type which doesn't yet
     // include `hotel_report_library` (migration 0026 · regenerate types
@@ -107,20 +108,22 @@ export async function upsertHotelReportLibrary(
       .maybeSingle();
 
     if (existing) {
-      await sb
+      const upd = await sb
         .from("hotel_report_library")
         .update({
           ...payload,
           render_count: (existing.render_count ?? 0) + 1,
         })
         .eq("id", existing.id);
+      console.log(`[hotel_report_library] UPDATE existing · ${hotel.id} · err=${JSON.stringify(upd?.error ?? null)}`);
     } else {
-      await sb
+      const ins = await sb
         .from("hotel_report_library")
         .insert({ ...payload, render_count: 1 });
+      console.log(`[hotel_report_library] INSERT new · ${hotel.id} · err=${JSON.stringify(ins?.error ?? null)}`);
     }
   } catch (err) {
     // Library write must NOT block report rendering · log + swallow
-    console.error("[hotel_report_library] upsert failed:", err);
+    console.error("[hotel_report_library] upsert failed:", err instanceof Error ? err.message : String(err));
   }
 }
