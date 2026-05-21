@@ -145,6 +145,33 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   const historicoEnabled = layers.find((l) => l.id === "historico")?.enabled ?? false;
   const avuxi = props.avuxi ?? false;
 
+  // ── DIAGNOSTIC LOGS · 2026-05-21 · Production metro regression hunt ──
+  // Remove after the manual MapMetroLayer regression on hotelvalora.com is
+  // confirmed fixed. These logs are flag-OFF safe (no PII · no token).
+  if (typeof window !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.log("[compset-map-gl] AVUXI enabled:", avuxi);
+    // eslint-disable-next-line no-console
+    console.log("[compset-map-gl] layers prop:", JSON.stringify(layers));
+    // eslint-disable-next-line no-console
+    console.log(
+      "[compset-map-gl] heatmapEnabled:", heatmapEnabled,
+      "· eatingEnabled:", eatingEnabled,
+      "· metroEnabled:", metroEnabled,
+      "· historicoEnabled:", historicoEnabled,
+    );
+    if (!avuxi && metroEnabled) {
+      // eslint-disable-next-line no-console
+      console.log("[compset-map-gl] → will render <MapMetroLayer>");
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[compset-map-gl] → NOT rendering <MapMetroLayer> · avuxi:",
+        avuxi, "metroEnabled:", metroEnabled,
+      );
+    }
+  }
+
   function handleMapClick(e: MapMouseEvent) {
     // Deselect popup when clicking on empty map area
     if (!(e.originalEvent.target as HTMLElement).closest(".hotel-popup")) {
