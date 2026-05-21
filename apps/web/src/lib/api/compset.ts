@@ -61,10 +61,23 @@ export const MOCK_ACTIVE_COMPETITORS: CompetitorHotel[] =
 export const MOCK_SUGGESTED_COMPETITORS: CompetitorHotel[] =
   DEFAULT_COMPSET.suggested.map(toCompetitorHotel);
 
+/**
+ * CAPAS panel default state · Phase 2 (2026-05-22).
+ *
+ * 4 institutional toggles in 3 groups:
+ *   · DEMANDA TURÍSTICA · heatmap (Demanda Turística · default ON) +
+ *                         eating (Gastronomía · default OFF · radio)
+ *   · MOVILIDAD         · metro (Conectividad · default ON)
+ *   · ZONIFICACIÓN      · historico (Centro Histórico · default ON · HV-native)
+ *
+ * Label text is the institutional vocabulary surfaced to end users.
+ * Internal IDs stay stable to avoid breaking downstream consumers.
+ */
 export const DEFAULT_LAYERS: MapLayer[] = [
-  { id: "heatmap",   label: "Heatmap",         enabled: true },
-  { id: "metro",     label: "Líneas de Metro",  enabled: true },
-  { id: "historico", label: "Centro Histórico", enabled: true },
+  { id: "heatmap",   label: "Demanda Turística", enabled: true  },
+  { id: "eating",    label: "Gastronomía",       enabled: false },
+  { id: "metro",     label: "Conectividad",      enabled: true  },
+  { id: "historico", label: "Centro Histórico",  enabled: true  },
 ];
 
 /**
