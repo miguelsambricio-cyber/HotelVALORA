@@ -140,37 +140,9 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
   const heatmapEnabled   = layers.find((l) => l.id === "heatmap")?.enabled   ?? false;
-  const eatingEnabled    = layers.find((l) => l.id === "eating")?.enabled    ?? false;
   const metroEnabled     = layers.find((l) => l.id === "metro")?.enabled     ?? false;
   const historicoEnabled = layers.find((l) => l.id === "historico")?.enabled ?? false;
   const avuxi = props.avuxi ?? false;
-
-  // ── DIAGNOSTIC LOGS · 2026-05-21 · Production metro regression hunt ──
-  // Remove after the manual MapMetroLayer regression on hotelvalora.com is
-  // confirmed fixed. These logs are flag-OFF safe (no PII · no token).
-  if (typeof window !== "undefined") {
-    // eslint-disable-next-line no-console
-    console.log("[compset-map-gl] AVUXI enabled:", avuxi);
-    // eslint-disable-next-line no-console
-    console.log("[compset-map-gl] layers prop:", JSON.stringify(layers));
-    // eslint-disable-next-line no-console
-    console.log(
-      "[compset-map-gl] heatmapEnabled:", heatmapEnabled,
-      "· eatingEnabled:", eatingEnabled,
-      "· metroEnabled:", metroEnabled,
-      "· historicoEnabled:", historicoEnabled,
-    );
-    if (!avuxi && metroEnabled) {
-      // eslint-disable-next-line no-console
-      console.log("[compset-map-gl] → will render <MapMetroLayer>");
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(
-        "[compset-map-gl] → NOT rendering <MapMetroLayer> · avuxi:",
-        avuxi, "metroEnabled:", metroEnabled,
-      );
-    }
-  }
 
   function handleMapClick(e: MapMouseEvent) {
     // Deselect popup when clicking on empty map area
@@ -198,6 +170,7 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       </div>
     )}
     <Map
+      id="hv-compset-mapbox-map"
       ref={mapRef}
       mapboxAccessToken={MAPBOX_TOKEN}
       longitude={viewState.longitude}
@@ -237,30 +210,26 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       attributionControl={false}
       reuseMaps
     >
-      {/* ── GL Layers (order matters: heatmap/transit first, then polygon) ───
-       *  Phase 2 (2026-05-22):
-       *    · When `avuxi=false` (default · flag OFF) · manual layers render
-       *      from lib/maps/geo-data.ts (Madrid POIs / L1+L6 / Almendra)
-       *    · When `avuxi=true` (flag ON) · manual heatmap + metro skipped ·
-       *      <AvuxiOverlay> drives heatmap + transit via CAPAS toggle state
-       *  Centro Histórico (<MapPolygonLayer>) renders identically in BOTH
-       *  states · HV-native · independent of AVUXI. */}
+      {/* ── GL Layers · Phase 2.A validation rewrite (2026-05-21) ──────────
+       *
+       *  When `avuxi=false` (Production · flag OFF):
+       *    · Manual heatmap + metro + historic polygon render as before ·
+       *      unchanged from pre-Phase-2 production behavior.
+       *
+       *  When `avuxi=true` (Preview · flag ON):
+       *    · ALL manual layers temporarily removed for a clean AVUXI
+       *      validation (operator request 2026-05-21 · "no quiero seguir
+       *      depurando mientras todavía existan capas legacy mezcladas").
+       *    · Only AvuxiOverlay mounts · AVUXI's native UI is left VISIBLE
+       *      so the operator can validate sightseeing / eating / transport
+       *      / metro stations render correctly against the raw SDK.
+       *    · Centro Histórico polygon will return as an HV-native layer
+       *      in a later commit once AVUXI is confirmed working.       */}
       {!avuxi && heatmapEnabled && <MapHeatmapLayer  data={TOURIST_HEATMAP_DATA} />}
       {!avuxi && metroEnabled   && <MapMetroLayer    data={METRO_LINE_DATA}     />}
-      {historicoEnabled         && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON} />}
+      {!avuxi && historicoEnabled && <MapPolygonLayer data={HISTORIC_CENTER_POLYGON} />}
 
-      {/* AVUXI overlay child · only mounted when feature flag is ON ·
-       *  uses useMap() hook to access mapbox-gl instance · drives heatmap
-       *  + transit visibility from CAPAS toggle state · hides AVUXI's
-       *  native UI via single CSS rule. */}
-      {avuxi && (
-        <AvuxiOverlay
-          enabled
-          sightseeingOn={heatmapEnabled}
-          eatingOn={eatingEnabled}
-          transitOn={metroEnabled}
-        />
-      )}
+      {avuxi && <AvuxiOverlay enabled />}
 
       {isExplore ? (
         /* ── Explore mode · uniform pins · two-click pattern via onPinClick ──
