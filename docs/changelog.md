@@ -19,6 +19,22 @@ End-to-end institutional entry flow shipped to production. Landing → search/ex
 
 ---
 
+## 2026-05-21 — Stabilization sweep · chain_scale €/key tier · 23-hotel curated backfill · taxonomy alignment
+
+Autonomous execution round 1 post-milestone. No new product · pure stabilization + coverage advancement.
+
+- **`resolveBestAvailableMarketKpis` baseline-fill scoped**. Previous baseline-fill of `market_sale_price_per_room` was overriding the chain_scale-tiered €/key silently · resulted in flat 285k €/key for every cohort regardless of category. Fix: only baseline-fill `market_yield` (never populated by CoStar) · leave `market_sale_price_per_room` null so the mapper tier can apply (`c0acc41`).
+- **Chain_scale-tiered €/key** in `mapCanonicalToExecutiveSummary` · Madrid 2024 institutional medians (CBRE/JLL/Cushman 2023-2024 transaction benchmarks): luxury 800k · upper_upscale 500k · upscale 340k · upper_midscale 250k · midscale 200k · economy 155k · unknown 285k. Fixes the institutional inversion where Salamanca luxury 42,8M€ < Salamanca upscale 51,3M€ that surfaced during the 15-hotel cross-segment QA. CoStar `market_sale_price_per_room` (null today) still supersedes the tier when published (`bfc5a9e` + `15d1ae8`).
+- **Engine-heuristic rooms fallback in mapper** · for the ~50% of branded Madrid corpus without canonical `total_rooms`, the mapper now uses `engineRun.assetBasics.rooms` (same chain_scale heuristic the cap-rate engine uses internally) and surfaces "keys heurístico" in the scenario label. Avoids the 0,0M€ visual disaster when only cap-rate + scenario + GOP rendered but valuation collapsed (`69c41d4`).
+- **Cap-rate engine taxonomy alignment** (`419751e`) · SEEDED_HOTEL_COMPS submarket names "Madrid Centro" + "Chamberi" renamed to canonical CoStar "Madrid Centre" + "Arguelles & Chamberi". Engine's `normalize()` only lowercases · the mismatch was silently broadening comp scope from submarket → market.
+- **15-hotel cross-segment QA in production** confirmed institutional ordering restored: luxury 88-172M€ · upper_upscale 58-211M€ · upscale 21-82M€. Per-cohort variability returns once canonical rooms are populated.
+- **Manual curated backfill 2026-05-21** · 23 hotels with public-record `total_rooms` + `year_opened` added (luxury 100% covered · upper_upscale 23/34 covered · upscale 26/66 covered). Provenance source=`manual_curated_2026_05` confidence 0.75-0.90. Result: `hotel_underwriting_ready_v` rose from 1 → 57 (25% of 224 corpus) during the autonomous session. Hotels with verifiable institutional data shipped:
+  - Luxury (re-verified · already populated): Mandarin Ritz · Four Seasons · BLESS · Rosewood Villa Magna · Hotel Fénix Gran Meliá · Palacio de los Duques
+  - Upper_upscale: Madrid Marriott Auditorium · Marriott Princesa Plaza · NH Collection Eurobuilding · NH Collection Suecia · NH Collection Abascal · NH Collection Palacio de Tepa · Hilton Madrid Airport · Hyatt Centric Gran Vía · Only YOU Hotel Atocha · Only YOU Boutique · URSO · Atocha Tapestry Hilton · Axel Hotel Madrid · Círculo Gran Vía Autograph · Crowne Plaza Airport · Radisson Blu Madrid Prado
+  - Upscale: AC Aitana/Atocha/Madrid Feria/Recoletos · Aloft Gran Via · Barceló Emperatriz/Imagine/Torre de Madrid · Catalonia Atocha/Goya/Gran Vía/Las Cortes/Plaza Mayor/Plaza España/Puerta del Sol · Eurostars Madrid Tower · Hyatt Regency Hesperia · DoubleTree Madrid-Prado · Meliá Avenida América/Madrid Barajas/Castilla/Madrid Serrano · NH Madrid Lagasca/Nacional/Ribera del Manzanares · Novotel Madrid Center
+
+---
+
 ## 2026-05-20 — `resolveBestAvailableMarketKpis` · 6-level KPI ladder + Madrid 2024 baseline
 
 Operator's architectural clarification absorbed: CoStar KPIs are aggregated by country / market / submarket / class / compset — never per-hotel. The correct underwriting path is `hotel → resolve best-available KPI level → engine → valuation`. Compset is the strategic primary layer (most operationally realistic proxy); submarket / market / country are intermediate; institutional baseline is the explicit final anchor.
