@@ -20,6 +20,7 @@ export function PlatformIntegrationTile({
 }) {
   const status = classifyPlatformIntegration(integration);
   const signal = signalFromStatus(status, integration);
+  const displayLabel = resolveStatusLabel(integration, status);
   return (
     <IntegrationDetailSheet
       title={integration.name}
@@ -27,7 +28,7 @@ export function PlatformIntegrationTile({
         <IntegrationTile
           signal={signal}
           name={integration.name}
-          statusLabel={STATUS_LABEL[status]}
+          statusLabel={displayLabel}
           status={status}
           regionLabel={integration.provider}
           description={integration.purpose}
@@ -35,9 +36,23 @@ export function PlatformIntegrationTile({
         />
       }
     >
-      <PlatformIntegrationDetail integration={integration} status={status} />
+      <PlatformIntegrationDetail integration={integration} status={status} displayLabel={displayLabel} />
     </IntegrationDetailSheet>
   );
+}
+
+/**
+ * Surface the raw platform status (e.g. "Testing") when it carries
+ * more semantic detail than the unified hero-KPI bucket. The hero card
+ * still counts testing as partial · the per-integration tile shows it
+ * literally.
+ */
+function resolveStatusLabel(
+  integration: PlatformIntegrationDescriptor,
+  unified: UnifiedStatus,
+): string {
+  if (integration.status === "testing") return "Testing";
+  return STATUS_LABEL[unified];
 }
 
 function signalFromStatus(
@@ -77,16 +92,18 @@ const STATUS_LABEL: Record<UnifiedStatus, string> = {
 function PlatformIntegrationDetail({
   integration,
   status,
+  displayLabel,
 }: {
   integration: PlatformIntegrationDescriptor;
   status: UnifiedStatus;
+  displayLabel: string;
 }) {
   return (
     <div className="space-y-5">
       {/* Header: provider + state */}
       <div>
         <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
-          {integration.provider} · Status · {STATUS_LABEL[status]}
+          {integration.provider} · Status · {displayLabel}
         </p>
         <p className="mt-2 text-[12.5px] leading-relaxed text-slate-300/90">
           {integration.purpose}

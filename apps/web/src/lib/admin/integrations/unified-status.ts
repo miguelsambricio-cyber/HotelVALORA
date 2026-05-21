@@ -68,6 +68,10 @@ export function classifyPlatformIntegration(p: PlatformIntegrationDescriptor): U
   if (p.status === "planned") return "planned";
   if (p.status === "configured_not_wired") return "not_wired";
   if (p.status === "partial") return "partial";
+  // "testing" rolls up to the PARTIAL bucket for the hero KPI (it's
+  // wired on one surface but not in production yet). The card itself
+  // still displays the raw "Testing" status via the detail sheet.
+  if (p.status === "testing") return "partial";
   // status === "live" · operator-managed without cron → still PARTIAL
   // per the executive definition (manual workflows + exports count).
   if (p.operatorManaged && p.cronDependencies.length === 0) {

@@ -22,6 +22,8 @@ export function PlatformIntegrationCard({
         return "bg-emerald-500/20 text-emerald-100 ring-emerald-500/40";
       case "partial":
         return "bg-amber-500/15 text-amber-100 ring-amber-500/40";
+      case "testing":
+        return "bg-sky-500/15 text-sky-100 ring-sky-500/40";
       case "configured_not_wired":
         return "bg-slate-700/40 text-slate-200 ring-lime-300/40";
       case "planned":
@@ -31,6 +33,7 @@ export function PlatformIntegrationCard({
   const statusLabel = (() => {
     switch (integration.status) {
       case "configured_not_wired": return "configured · not wired";
+      case "testing": return "testing";
       default: return integration.status;
     }
   })();

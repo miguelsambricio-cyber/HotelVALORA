@@ -22,6 +22,7 @@
 export type PlatformIntegrationStatus =
   | "live"
   | "partial"
+  | "testing"
   | "configured_not_wired"
   | "planned";
 
@@ -33,6 +34,7 @@ export type PlatformIntegrationLayer =
   | "communications"
   | "relationship_intelligence"
   | "external_data"
+  | "maps_geo_intelligence"
   | "commercial"
   | "developer_infrastructure";
 
@@ -591,6 +593,45 @@ const EXTERNAL_DATA: PlatformIntegrationDescriptor[] = [
   },
 ];
 
+const MAPS_GEO_INTELLIGENCE: PlatformIntegrationDescriptor[] = [
+  {
+    id: "avuxi-map-layers",
+    name: "AVUXI",
+    provider: "AVUXI",
+    layer: "maps_geo_intelligence",
+    status: "testing",
+    purpose:
+      "Tourism heatmaps, attractions, gastronomy and transport layers for hotel underwriting maps. Worldwide popularity scores derived from 60+ public data sources · 2M activity signals/hour · used by Booking · Kayak · Priceline · Sonder.",
+    authMethod: "Public scriptId · domain-restricted in the AVUXI dashboard (hotelvalora.com authorised)",
+    envVars: [],
+    tables: [],
+    cronDependencies: [],
+    consumedBy: [
+      "/experiment-avuxi (validation surface · institutional category curation applied)",
+      "/experiment-avuxi-sandbox (raw AVUXI reference · pure HTML/JS test)",
+    ],
+    operatorManaged: false,
+    signal: "ok",
+    accountProvisioned: true,
+    nextMilestone:
+      "Phase 1 migration · inject AVUXI in CompsetMapGL · retire manual heatmap + metro from lib/maps/geo-data.ts · port the INSTITUTIONAL_CATEGORIES curation hook (3 of 6 categories visible) into a reusable client-side helper.",
+    notes: [
+      "Product: Map Layers for Mapbox (NOT Map Layers for Google Maps). Confirmed in AVUXI dashboard 2026-05-21.",
+      "ScriptId: fad4d930-e615-4c0c-9d15-e5f8fdd2224a (operator-provisioned · institutional · NOT the demo id 67d80ff2-… from the documentation snippet).",
+      "Coverage: worldwide for heatmaps + POIs (algorithm-driven) · 70+ cities for transit (curated) · 30+ for Top Areas neighborhood labels.",
+      "Categories: eating · sightseeing · shopping · nightlife · food · transport (heatmap variants) · metro (standalone button). Institutional curation surfaces only 3: Atracción turística · Gastronomía · Conectividad.",
+      "Pricing: free tier ≤ 1000 widget loads/month · paid tier negotiated with AVUXI sales pre-launch.",
+      "SDK signature: AVUXI.mapStart(map, mapboxglNamespace, scriptId, options) · 4 args.",
+      "Dependency: Mapbox GL · AVUXI does not work without a Mapbox base map underneath.",
+    ],
+    externalLinks: [
+      { label: "AVUXI platform dashboard", href: "https://platform.avuxi.com/" },
+      { label: "Map Layers for Mapbox · product page", href: "https://www.avuxi.com/topplace/map-layers" },
+      { label: "Integration evaluation doc", href: "https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/docs/maps/avuxi-evaluation.md" },
+    ],
+  },
+];
+
 const COMMERCIAL: PlatformIntegrationDescriptor[] = [
   {
     id: "subscription-engine",
@@ -716,6 +757,7 @@ export const PLATFORM_INTEGRATIONS: PlatformIntegrationDescriptor[] = [
   ...COMMUNICATIONS,
   ...RELATIONSHIP_INTELLIGENCE,
   ...EXTERNAL_DATA,
+  ...MAPS_GEO_INTELLIGENCE,
   ...COMMERCIAL,
   ...DEVELOPER_INFRASTRUCTURE,
 ];
@@ -761,6 +803,11 @@ export const PLATFORM_LAYER_META: Record<PlatformIntegrationLayer, {
     subtitle: "Third-party APIs that enrich the canonical hotel registry — Booking (RapidAPI) for property + room data, Google Places for geocoding. Provenance ranks below operator-managed inputs.",
     order: 7.5,
   },
+  maps_geo_intelligence: {
+    label: "Maps / Geo Intelligence",
+    subtitle: "Geo-context overlays layered on top of the canonical Mapbox base — popularity heatmaps · transit curation · POI categorisation. Mapbox itself remains in Infrastructure as the foundation; this layer carries the third-party intelligence providers that ride on top.",
+    order: 7.7,
+  },
   commercial: {
     label: "Commercial / Monetization",
     subtitle: "Catalogue · campaign attribution · billing wire to the bank.",
@@ -788,7 +835,7 @@ export function platformIntegrationsByLayer(): Array<{
       rows: PLATFORM_INTEGRATIONS
         .filter((p) => p.layer === layer)
         .sort((a, b) => {
-          const rank = { live: 0, partial: 1, configured_not_wired: 2, planned: 3 } as const;
+          const rank = { live: 0, partial: 1, testing: 1.5, configured_not_wired: 2, planned: 3 } as const;
           const rA = rank[a.status];
           const rB = rank[b.status];
           if (rA !== rB) return rA - rB;
