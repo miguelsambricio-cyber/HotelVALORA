@@ -51,34 +51,10 @@ const AVUXI_HOSTS = ["avuxi.com", "topplaces.avuxi.com", "api.avuxi.com"];
 const AVUXI_DOM_HOOK = ".category-control-container";
 const AVUXI_BTN_SELECTOR = ".category-btn";
 
-interface AVUXIOptions {
-  buttonOrientation?: "horizontal" | "vertical";
-  buttonBackgroundColor?: string;
-  buttonForegroundColor?: string;
-  buttonLocation?: "tr" | "tl" | "br" | "bl";
-  showLegend?: boolean;
-  language?: string;
-  showMetro?: boolean;
-  defaultCategory?: string;
-  initialZoom?: number;
-  initialLocation?: { lat: number; lng: number };
-  opacity?: number;
-}
-
-declare global {
-  interface Window {
-    AVUXI?: {
-      // 4-arg signature per the operator's AVUXI dashboard reference:
-      //   (map, mapboxgl-namespace, scriptId, options)
-      mapStart: (
-        mapInstance: unknown,
-        mapboxglNamespace: unknown,
-        scriptId: string,
-        options: AVUXIOptions,
-      ) => void;
-    };
-  }
-}
+// AVUXI types + script constants live in `@/lib/maps/avuxi` so the
+// global Window augmentation is declared exactly once.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import "@/lib/maps/avuxi";
 
 interface CityEntry {
   id: string;

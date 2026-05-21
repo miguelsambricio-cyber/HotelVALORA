@@ -30,8 +30,10 @@ import { MapLegend }      from "@/components/compset/map-legend";
 import { HVMap }          from "@/components/maps/hv-map";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
 
-// Phase 2 feature flag · same env var as /compset · default OFF.
-const AVUXI_ENABLED = process.env.NEXT_PUBLIC_AVUXI_ENABLED === "true";
+// Phase 2.A.4 (2026-05-22) · ReportMap stays on the legacy manual layers
+// (heatmap / metro / historic polygon) regardless of the AVUXI feature flag.
+// The Preview validation surface is /compset only · /report/* will adopt
+// the AVUXI surface once /compset is signed off visually.
 
 const CompsetMapGL = dynamic<CompsetMapGLProps>(
   () => import("@/components/maps/compset-map-gl").then((m) => m.CompsetMapGL),
@@ -73,7 +75,6 @@ export function ReportMap({ referenceHotelId, className }: ReportMapProps) {
           competitors={competitors}
           suggested={suggested}
           layers={layers}
-          avuxi={AVUXI_ENABLED}
         />
       </div>
 
