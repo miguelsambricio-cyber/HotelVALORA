@@ -91,7 +91,7 @@ interface ResourceEvent {
 interface InterceptedRequest {
   ts: string;
   url: string;
-  via: "fetch" | "xhr";
+  via: string; // "fetch" | "xhr" — relaxed to string for inference simplicity
   status: number;
   ok: boolean;
   elapsedMs: number;
@@ -217,13 +217,16 @@ export default function ExperimentAvuxiPage() {
     function PatchedXHR(this: XMLHttpRequest) {
       const xhr = new OriginalXHR();
       let capturedUrl = "";
-      const originalOpen = xhr.open.bind(xhr);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (xhr as any).open = function (method: string, url: string | URL, ...rest: any[]) {
+      const originalOpen = xhr.open;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (xhr as any).open = function (method: string, url: string | URL, ...rest: unknown[]) {
         capturedUrl = typeof url === "string" ? url : url.href;
-        return originalOpen(method, capturedUrl, ...rest);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (originalOpen as any).apply(xhr, [method, capturedUrl, ...rest]);
       };
-      const originalSend = xhr.send.bind(xhr);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const originalSend = xhr.send;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (xhr as any).send = function (body?: any) {
         const ts = new Date().toISOString().slice(11, 23);
@@ -243,7 +246,8 @@ export default function ExperimentAvuxiPage() {
             }].slice(-25));
           });
         }
-        return originalSend(body);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (originalSend as any).call(xhr, body);
       };
       return xhr;
     }
@@ -527,10 +531,14 @@ export default function ExperimentAvuxiPage() {
     <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800">
       <LandingHeader />
       <main className="flex-grow relative overflow-hidden">
-        {/* Map */}
-        <div className="absolute inset-0 z-0 bg-slate-200">
+        {/* Map · v5 fix · explicit container id required by AVUXI SDK.
+         *  The SDK reads `map.getContainer().id` as the FIRST operation in
+         *  mapStart. Without an id, the SDK no-ops silently · explains
+         *  DOM mounted = no even with all preconditions green. */}
+        <div id="avuxi-map-host" className="absolute inset-0 z-0 bg-slate-200">
           {MAPBOX_TOKEN ? (
             <Map
+              id="avuxi-map"
               ref={mapRef}
               mapboxAccessToken={MAPBOX_TOKEN}
               initialViewState={{ longitude: city.lng, latitude: city.lat, zoom: city.zoom, pitch: 0, bearing: 0 }}
@@ -538,7 +546,14 @@ export default function ExperimentAvuxiPage() {
               mapStyle="mapbox://styles/mapbox/light-v11"
               attributionControl={false}
               reuseMaps
-              onLoad={() => { log("mapbox-gl onLoad"); setMapReady(true); }}
+              onLoad={() => {
+                log("mapbox-gl onLoad");
+                setMapReady(true);
+                // Diagnostic · log the actual container id the SDK will read
+                const m = mapRef.current?.getMap();
+                const containerId = m?.getContainer()?.id ?? "(none)";
+                log(`map container id: "${containerId}" · empty means SDK no-ops`);
+              }}
               onError={(e) => log(`mapbox-gl onError: ${e?.error?.message ?? "unknown"}`)}
             >
               {city.id === "madrid" &&
