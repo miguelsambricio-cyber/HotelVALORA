@@ -1,8 +1,27 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+/**
+ * CompsetMapGL · institutional Mapbox surface for /compset + /report/*.
+ *
+ * Phase 2.A.3 · 2026-05-21 · AVUXI integration inlined byte-for-byte
+ * from /experiment-avuxi. Operator constraint:
+ *   "hacer que /compset renderice exactamente el mismo mapa que
+ *    /experiment-avuxi · misma inicialización AVUXI · mismos heatmaps ·
+ *    misma red de metro · mismas estaciones · mismos controles AVUXI"
+ *
+ * The previous architecture (separate <AvuxiOverlay> component lifted
+ * via dynamic import) introduced enough indirection layers (useMap()
+ * hook · dynamic chunk boundary · prop drilling · sibling-vs-child
+ * positioning) that we got a client-side render exception we couldn't
+ * diagnose remotely. This rewrite inlines AVUXI initialisation logic
+ * directly here · same useState / useEffect / useCallback layout as
+ * the experiment-avuxi page · zero indirection.
+ */
+
+import { useRef, useState, useEffect, useCallback } from "react";
 import Map from "react-map-gl/mapbox";
 import type { MapRef, MapMouseEvent } from "react-map-gl/mapbox";
+import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/maps/map-config";
@@ -14,23 +33,43 @@ import {
 import type { MapViewport } from "@/lib/maps/types";
 import type { CompetitorHotel, MapLayer } from "@/types/compset";
 
-import dynamic from "next/dynamic";
-
 import { HotelMarker }      from "./hotel-marker";
 import { MapHeatmapLayer }  from "./map-heatmap-layer";
 import { MapMetroLayer }    from "./map-metro-layer";
 import { MapPolygonLayer }  from "./map-polygon-layer";
 
-import type { AvuxiOverlayProps } from "./hv-map/avuxi-overlay";
+// ── AVUXI · inlined from /experiment-avuxi ────────────────────────────────────
 
-// AvuxiOverlay loaded ONLY when the avuxi feature flag is ON · dynamic
-// import prevents mapbox-gl static dep from bleeding into the default
-// /report/competitive-set First Load. When flag OFF · this chunk is
-// never fetched · zero behavior change vs pre-Phase-2 production.
-const AvuxiOverlay = dynamic<AvuxiOverlayProps>(
-  () => import("./hv-map/avuxi-overlay").then((m) => m.AvuxiOverlay),
-  { ssr: false, loading: () => null },
-);
+const AVUXI_SCRIPT_URL =
+  "https://scripts.avuxi.com/travel/map-layers/latest/map-layers-for-mapbox.js";
+const AVUXI_SCRIPT_ID = "fad4d930-e615-4c0c-9d15-e5f8fdd2224a";
+
+interface AvuxiOptions {
+  buttonOrientation?: "horizontal" | "vertical";
+  buttonBackgroundColor?: string;
+  buttonForegroundColor?: string;
+  buttonLocation?: "tr" | "tl" | "br" | "bl";
+  showLegend?: boolean;
+  language?: string;
+  showMetro?: boolean;
+  defaultCategory?: string;
+  initialZoom?: number;
+  initialLocation?: { lat: number; lng: number };
+  opacity?: number;
+}
+
+declare global {
+  interface Window {
+    AVUXI?: {
+      mapStart: (
+        mapInstance: unknown,
+        mapboxglNamespace: unknown,
+        scriptId: string,
+        options: AvuxiOptions,
+      ) => void;
+    };
+  }
+}
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -38,11 +77,11 @@ interface CompsetMapGLBaseProps {
   viewState: MapViewport;
   onViewStateChange: (vs: MapViewport) => void;
   layers: MapLayer[];
-  /** Phase 2 feature flag (operator-controlled · NEXT_PUBLIC_AVUXI_ENABLED).
-   *  When true: skips manual `<MapHeatmapLayer>` + `<MapMetroLayer>` ·
-   *  mounts `<AvuxiOverlay>` child of `<Map>` driven by CAPAS toggles.
-   *  When false (default): manual layers render as today · zero AVUXI footprint.
-   *  Centro Histórico (`<MapPolygonLayer>`) is UNAFFECTED in both states. */
+  /** Phase 2 feature flag · NEXT_PUBLIC_AVUXI_ENABLED.
+   *  When true: skips ALL manual layers · injects + initialises AVUXI ·
+   *  AVUXI native UI is left visible (top-right of map).
+   *  When false (default): manual heatmap + metro + historic polygon
+   *  render exactly as today · zero AVUXI footprint. */
   avuxi?: boolean;
 }
 
@@ -76,14 +115,6 @@ export type CompsetMapGLProps = CompsetMapGLAnalysisProps | CompsetMapGLExploreP
 
 // ── Token fallback ────────────────────────────────────────────────────────────
 
-/**
- * Institutional fallback when NEXT_PUBLIC_MAPBOX_TOKEN is missing. The
- * previous version surfaced a dev-facing message ("Configura
- * NEXT_PUBLIC_MAPBOX_TOKEN en .env.local") which leaked operational
- * detail to anyone visiting /compset in production. This version
- * mirrors the SharedMapCard placeholder language used across the Full
- * Report flow · clean · institutional · honest.
- */
 function TokenMissing() {
   return (
     <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center gap-3 text-center px-6">
@@ -107,12 +138,16 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   const [popupHotelId, setPopupHotelId] = useState<string | null>(null);
   const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
   const [styleLoaded, setStyleLoaded] = useState(false);
+
+  // AVUXI state · mirror experiment-avuxi naming exactly
+  const [avuxiGlobalReady, setAvuxiGlobalReady] = useState(false);
+  const [mapStartStatus, setMapStartStatus] = useState<"idle" | "called" | "error">("idle");
   const [mapReady, setMapReady] = useState(false);
 
+  const avuxi = props.avuxi ?? false;
+
   // QA #002 active diagnostic · server-side probe Mapbox endpoints from
-  // the browser to surface 401/403/CORS/network failures visibly. Token
-  // is NEXT_PUBLIC so probing it client-side carries the same auth
-  // posture as mapbox-gl itself · this is the canonical signal.
+  // the browser to surface 401/403/CORS/network failures visibly.
   useEffect(() => {
     if (!MAPBOX_TOKEN) return;
     let cancelled = false;
@@ -138,15 +173,113 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     return () => { cancelled = true; };
   }, []);
 
+  // AVUXI · expose mapboxgl on window (SDK references it internally)
+  useEffect(() => {
+    if (!avuxi) return;
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(window as any).mapboxgl) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).mapboxgl = mapboxgl;
+    }
+  }, [avuxi]);
+
+  // AVUXI · inject script once · idempotent across remounts
+  useEffect(() => {
+    if (!avuxi) return;
+    if (typeof window === "undefined") return;
+    if (window.AVUXI && typeof window.AVUXI.mapStart === "function") {
+      setAvuxiGlobalReady(true);
+      return;
+    }
+    // Reuse an in-flight script tag if another instance already injected it
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[src="${AVUXI_SCRIPT_URL}"]`,
+    );
+    const onScriptReady = () => {
+      let attempts = 0;
+      const probe = window.setInterval(() => {
+        attempts++;
+        if (window.AVUXI && typeof window.AVUXI.mapStart === "function") {
+          window.clearInterval(probe);
+          setAvuxiGlobalReady(true);
+        } else if (attempts >= 30) {
+          window.clearInterval(probe);
+          // eslint-disable-next-line no-console
+          console.error("[avuxi] window.AVUXI never appeared after 3s");
+        }
+      }, 100);
+    };
+    if (existing) {
+      onScriptReady();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = AVUXI_SCRIPT_URL;
+    script.async = true;
+    script.onload = onScriptReady;
+    script.onerror = () => {
+      // eslint-disable-next-line no-console
+      console.error("[avuxi] script failed to load");
+    };
+    document.body.appendChild(script);
+  }, [avuxi]);
+
+  // AVUXI · callMapStart · same guarded shape as experiment-avuxi
+  const callMapStart = useCallback(() => {
+    if (mapStartStatus !== "idle") return false;
+    if (typeof window === "undefined") return false;
+    if (!window.AVUXI || typeof window.AVUXI.mapStart !== "function") return false;
+    const ref = mapRef.current;
+    if (!ref) return false;
+    const mapInstance = ref.getMap();
+    if (!mapInstance) return false;
+    if (typeof mapInstance.loaded === "function" && !mapInstance.loaded()) return false;
+    try {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[avuxi] calling AVUXI.mapStart · container id:",
+        mapInstance.getContainer()?.id || "(empty · SDK will no-op)",
+      );
+      window.AVUXI.mapStart(mapInstance, mapboxgl, AVUXI_SCRIPT_ID, {
+        buttonOrientation: "vertical",
+        buttonLocation: "tr",
+        buttonBackgroundColor: "#ffffff",
+        buttonForegroundColor: "#0E4B31",
+        showLegend: true,
+        language: "es",
+        showMetro: true,
+        defaultCategory: "eating",
+        opacity: 60,
+      });
+      setMapStartStatus("called");
+      // eslint-disable-next-line no-console
+      console.log("[avuxi] AVUXI.mapStart returned · awaiting fetches");
+      return true;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("[avuxi] mapStart threw:", e);
+      setMapStartStatus("error");
+      return false;
+    }
+  }, [mapStartStatus]);
+
+  // AVUXI · auto-fire when preconditions ready (same shape as experiment-avuxi)
+  useEffect(() => {
+    if (!avuxi) return;
+    if (mapStartStatus !== "idle") return;
+    if (!avuxiGlobalReady) return;
+    if (!mapReady) return;
+    callMapStart();
+  }, [avuxi, avuxiGlobalReady, mapReady, mapStartStatus, callMapStart]);
+
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
   const heatmapEnabled   = layers.find((l) => l.id === "heatmap")?.enabled   ?? false;
   const metroEnabled     = layers.find((l) => l.id === "metro")?.enabled     ?? false;
   const historicoEnabled = layers.find((l) => l.id === "historico")?.enabled ?? false;
-  const avuxi = props.avuxi ?? false;
 
   function handleMapClick(e: MapMouseEvent) {
-    // Deselect popup when clicking on empty map area
     if (!(e.originalEvent.target as HTMLElement).closest(".hotel-popup")) {
       setPopupHotelId(null);
     }
@@ -156,10 +289,7 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
 
   return (
     <>
-    {/* QA #002 diagnostic banner · visible to operator without DevTools.
-     *  Shows mapbox-gl errors as they happen + a style-not-loaded warning
-     *  if we get to N seconds without `onStyleData` firing. Self-removes
-     *  on style load. */}
+    {/* QA #002 diagnostic banner */}
     {(diagnosticError || !styleLoaded) && (
       <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-[60] max-w-[90%]">
         <div className={diagnosticError
@@ -212,29 +342,17 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       attributionControl={false}
       reuseMaps
     >
-      {/* ── GL Layers · Phase 2.A validation rewrite (2026-05-21) ──────────
-       *
-       *  When `avuxi=false` (Production · flag OFF):
-       *    · Manual heatmap + metro + historic polygon render as before ·
-       *      unchanged from pre-Phase-2 production behavior.
-       *
-       *  When `avuxi=true` (Preview · flag ON):
-       *    · ALL manual layers temporarily removed for a clean AVUXI
-       *      validation (operator request 2026-05-21 · "no quiero seguir
-       *      depurando mientras todavía existan capas legacy mezcladas").
-       *    · Only AvuxiOverlay mounts · AVUXI's native UI is left VISIBLE
-       *      so the operator can validate sightseeing / eating / transport
-       *      / metro stations render correctly against the raw SDK.
-       *    · Centro Histórico polygon will return as an HV-native layer
-       *      in a later commit once AVUXI is confirmed working.       */}
+      {/* ── GL Layers · Phase 2.A validation rewrite ────────────────────────
+       *  When avuxi=false (Production · flag OFF): manual heatmap + metro +
+       *    historic polygon render as before · zero behavior change.
+       *  When avuxi=true (Preview · flag ON): all manual layers skipped ·
+       *    AVUXI initialisation runs in the parent effects · AVUXI's native
+       *    UI is visible top-right of the map. */}
       {!avuxi && heatmapEnabled && <MapHeatmapLayer  data={TOURIST_HEATMAP_DATA} />}
       {!avuxi && metroEnabled   && <MapMetroLayer    data={METRO_LINE_DATA}     />}
       {!avuxi && historicoEnabled && <MapPolygonLayer data={HISTORIC_CENTER_POLYGON} />}
 
       {isExplore ? (
-        /* ── Explore mode · uniform pins · two-click pattern via onPinClick ──
-         *   1st click → inspect (parent sets inspectedHotelId · pin glows)
-         *   2nd click on same pin → commit (parent navigates to ?ref=<id>) */
         props.exploreHotels.map((hotel) => (
           <HotelMarker
             key={hotel.id}
@@ -248,11 +366,6 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         ))
       ) : (
         <>
-          {/* ── Reference hotel pin ─────────────────────────────────────── *
-           *  Reference pin never gets the inspected halo (it already has
-           *  its own brand-color emphasis). Click still goes through
-           *  onPinClick when provided · parent handles "subject clicked"
-           *  semantics (typically clears competitor inspection).        */}
           <HotelMarker
             hotel={props.referenceHotel}
             type="reference"
@@ -260,8 +373,6 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
             onSelect={setPopupHotelId}
             onPinClick={props.onPinClick}
           />
-
-          {/* ── Active competitor pins ──────────────────────────────────── */}
           {props.competitors.map((hotel) => (
             <HotelMarker
               key={hotel.id}
@@ -273,8 +384,6 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
               onPinClick={props.onPinClick}
             />
           ))}
-
-          {/* ── Suggested pins ──────────────────────────────────────────── */}
           {props.suggested.map((hotel) => (
             <HotelMarker
               key={hotel.id}
@@ -289,13 +398,6 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         </>
       )}
     </Map>
-
-    {/* AVUXI overlay · mounted as SIBLING of <Map> (not child) so it
-     *  doesn't depend on the Map's React-context tree. It receives the
-     *  Mapbox ref and a `mapReady` boolean flipped by the Map's onLoad
-     *  callback above. Mirrors `/experiment-avuxi`'s pattern exactly.
-     *  Rendered only when the feature flag is ON. */}
-    {avuxi && <AvuxiOverlay enabled mapRef={mapRef} mapReady={mapReady} />}
     </>
   );
 }
