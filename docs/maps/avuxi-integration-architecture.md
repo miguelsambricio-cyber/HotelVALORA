@@ -1,8 +1,19 @@
 # Map Workspace Architecture · CoStar + AVUXI + Mapbox + HotelVALORA
 
-> Architectural design doc · 2026-05-21
-> Status: **design only** · no production migration executed · supersedes the migration plan in `docs/maps/avuxi-evaluation.md` §6-7
+> Architectural design doc · 2026-05-21 (v2 · operator-approved 2026-05-21)
+> Status: **approved · Phase 1 scaffolding shipped** · production migrations gated on per-phase green-light
 > Trigger: operator-confirmed AVUXI functional baseline on /experiment-avuxi · refocus from "validate per-city" to "design the final architecture"
+>
+> **Operator approvals 2026-05-21 (v2 revision):**
+> · ✅ 4-layer architecture (Mapbox · AVUXI · CoStar · HotelValora)
+> · ✅ `<HVMap>` shell + `<AvuxiOverlay>` encapsulator
+> · ✅ Future retirement of manual heatmap + manual metro
+> · ✅ Phase 1 ONLY (HVMap scaffolding · zero behavior change) · Phases 2+ deferred
+> · ⏸ **Historic Center polygon · DOWNGRADED** · do NOT extend globally · Madrid-only legacy · postponed indefinitely · operator rationale: "Madrid · Barcelona · Lisboa · París · Londres NO deberían requerir polígonos manuales"
+> · ⏸ Custom AVUXI labels (proxy panel) · postponed
+> · ⏸ AVUXI premium tier · postponed
+> · ⏸ New-city onboarding · postponed (validation-baseline only)
+> · 💡 NEW · **Dynamic Zones Engine** future capability documented in §11
 
 ---
 
@@ -71,7 +82,7 @@ Each system has different dependencies, different cost models, different update 
 |---|---|
 | Role | Every product-specific decision · branding · canonical hotel registry · institutional UX patterns · valuation engine · zone curation |
 | Components | `<HotelMarker>` (two-click inspect/commit · static halo · NO pulsing) · `<AssetSelectionPanel>` / `<CompetitorPanel>` · `MapPolygonLayer` for HV-curated zones · `useCompset` hook · cap-rate engine (`lib/underwriting/cap-rate-engine`) · `runForHotel` adapter · KPI mapper layer |
-| Data | Canonical hotel registry (Supabase `hotel_canonical` + dependents) · `lib/data/madrid-hotels.ts` 18-hotel Tier-2 mock · `RECOMMENDED_MADRID_ANCHOR_IDS` curated set · Almendra Central polygon · future zone polygons per city |
+| Data | Canonical hotel registry (Supabase `hotel_canonical` + dependents) · `lib/data/madrid-hotels.ts` 18-hotel Tier-2 mock · `RECOMMENDED_MADRID_ANCHOR_IDS` curated set · Almendra Central polygon (Madrid · LEGACY · not extended globally per operator decision 2026-05-21 · see §11 Dynamic Zones Engine) |
 | Cost | Internal · engineering capacity |
 | Dependency | All of Mapbox + AVUXI + CoStar feed into this layer; HV is the composition + product surface |
 | Failure mode | Code bug · we own the fix |
@@ -94,8 +105,8 @@ Each system has different dependencies, different cost models, different update 
 | Layer | Why we keep it ourselves |
 |---|---|
 | **`<HotelMarker>` pins** | This IS the institutional asset register · 18-hotel Madrid registry + future cities · proprietary data + the two-click inspect/commit UX pattern (also documented as production-grade in QA #001) |
-| **`HISTORIC_CENTER_POLYGON` (Almendra Central)** | Curated institutional zone · NOT a POI heatmap (which AVUXI provides) · NOT a transit line · zoning polygons require operator/analyst curation per market |
-| **Future zone polygons** | Per-city operator-curated zones (e.g. "Eixample Barcelona Prime" · "Belém Lisboa Heritage" · "Manhattan Midtown East") · institutional value that AVUXI does not surface |
+| **`HISTORIC_CENTER_POLYGON` (Almendra Central)** | **LEGACY · Madrid-only · not extended globally.** Operator decision 2026-05-21 · per-city hand-curated polygons do not scale and conflict with the "no per-city engineering" principle. Stays in source as Madrid-specific historical artefact. Replacement direction is the Dynamic Zones Engine (§11) · auto-derived from AVUXI signals + CoStar submarket definitions |
+| ~~**Future zone polygons**~~ | ~~Per-city operator-curated zones~~ · **REMOVED FROM SCOPE** per operator decision 2026-05-21 · superseded by the Dynamic Zones Engine direction in §11 |
 | **`<AssetSelectionPanel>` / `<CompetitorPanel>`** | The right-edge map workspace UI · institutional density · inspect/commit pattern · scrollIntoView · auto-open behavior |
 | **Cap-rate / IRR / CAPEX overlays** | Underwriting outputs · proprietary engine · presented on the map as marker KPI badges or compset table rows |
 | **CoStar KPI overlays** (ADR · RevPAR · Occ on pins) | CoStar is the DATA · HotelValora is the UI · we render them on our `<HotelMarker>` via the popup or compset table |
@@ -361,4 +372,62 @@ Cost crossover · the Mapbox + AVUXI subscription combined remains cheaper than 
 
 ## 10 · One-paragraph summary
 
-**HotelValora composes a 4-layer institutional map workspace.** Mapbox owns the base cartography (foundation · token-licensed · ubiquitous). AVUXI owns the geo-context intelligence (third-party overlay · worldwide heatmaps + transit + POIs · subscription-licensed · encapsulated inside an `<AvuxiOverlay>` component). CoStar owns the institutional market data (operator-licensed · ingested via XLSX into Supabase · feeds the cap-rate engine and KPI overlays · NOT a map provider). HotelValora owns everything else: the canonical hotel registry, the institutional pin UX (two-click inspect/commit · static halo · no pulsing), the zone polygons, the cap-rate engine, the underwriting flows, and the composition itself. The four systems are independent: any can fail without taking the others down. The migration plan moves the heatmap + transit layers from manual `geo-data.ts` to AVUXI in Phases 2-3, retires the hand-curated overlays, and unlocks zero-engineering onboarding of new cities. Custom AVUXI labels remain deferred until AVUXI's customisation API is confirmed or the per-category DOM identifier is empirically captured.
+**HotelValora composes a 4-layer institutional map workspace.** Mapbox owns the base cartography (foundation · token-licensed · ubiquitous). AVUXI owns the geo-context intelligence (third-party overlay · worldwide heatmaps + transit + POIs · subscription-licensed · encapsulated inside an `<AvuxiOverlay>` component). CoStar owns the institutional market data (operator-licensed · ingested via XLSX into Supabase · feeds the cap-rate engine and KPI overlays · NOT a map provider). HotelValora owns everything else: the canonical hotel registry, the institutional pin UX (two-click inspect/commit · static halo · no pulsing), the cap-rate engine, the underwriting flows, and the composition itself. The four systems are independent: any can fail without taking the others down. The migration plan moves the heatmap + transit layers from manual `geo-data.ts` to AVUXI in Phases 2-3, retires the hand-curated overlays, and unlocks zero-engineering onboarding of new cities. Per-city zone polygons are explicitly out of scope · the Dynamic Zones Engine (§11) is the future direction for institutional zone derivation. Custom AVUXI labels remain deferred until AVUXI's customisation API is confirmed or the per-category DOM identifier is empirically captured.
+
+---
+
+## 11 · Dynamic Zones Engine · future capability
+
+> Operator-introduced concept · 2026-05-21 · reflected in architecture for forward visibility · NOT in current roadmap · NOT a near-term build.
+
+### 11.1 · Why per-city manual polygons fail
+
+The Almendra Central polygon is hand-coded in `lib/maps/geo-data.ts`. To replicate for Barcelona (Eixample), Lisboa (Belém), París (1er arrondissement), London (City + West End), New York (Manhattan-Midtown), Dubái (Downtown), Singapur (Marina Bay), Tokio (Chiyoda) means:
+- Operator/analyst hand-draws 12-20 vertices per city per zone
+- Multiple zones per city (City Center · Prime Tourism · Luxury Cluster · Convention Cluster · Airport Cluster · Business District · Beach Front · ...)
+- Maintenance burden as cities re-zone or as institutional definitions evolve
+- Inconsistent across markets · operator bias drift
+
+This is exactly the kind of "per-city engineering" the operator has explicitly ruled out.
+
+### 11.2 · Dynamic Zones Engine concept
+
+A HotelValora-owned capability that DERIVES institutional zones automatically from upstream signals · NOT hand-drawn · NOT per-city:
+
+| Zone | Derivation signal |
+|---|---|
+| **City Center** | AVUXI heatmap density (Sightseeing + Eating) > threshold · centroid + isoline contour |
+| **Prime Tourism** | AVUXI Sightseeing density above N-th percentile city-wide |
+| **Prime Business** | AVUXI POI density (business category) + CoStar submarket class "Office" |
+| **Luxury Cluster** | Hotel canonical registry · stars ≥ 5 · ADR percentile · 500m radius hot-spot detection |
+| **Convention Cluster** | POI density of "Convention Center" / "Exhibition Hall" + 1km radius |
+| **Airport Cluster** | Distance to airport coordinates < N km (Mapbox geocoder · single static query per city) |
+| **Beach Front** | OSM coastline data + 500m buffer (in coastal cities) |
+
+### 11.3 · Architectural fit
+
+The engine sits inside HotelValora's IP layer · same level as the cap-rate engine. It:
+- Consumes AVUXI overlay data (when AVUXI exposes API access to heatmap underlying scores · paid tier likely)
+- Consumes CoStar market_snapshots from Supabase
+- Consumes our canonical hotel registry from Supabase
+- Produces zone polygons + zone labels at runtime · zero per-city hand-curation
+
+Output format: same GeoJSON `PolygonGeoJSON` shape the existing `MapPolygonLayer` consumes · drop-in compatibility.
+
+### 11.4 · Roadmap positioning
+
+- **Phase 1** (this commit) · scaffolding · zero engine work
+- **Phases 2-4** · AVUXI overlays + retire manual layers · still no engine
+- **Phase 6** (future · post-Phase-4 stabilisation) · Dynamic Zones Engine v1 prototype
+  - Single-city proof (Madrid) using AVUXI score samples + CoStar SUBMERCADO
+  - Generates Almendra equivalent · validates against the legacy hand-coded polygon
+- **Phase 7** (future · post v1 prototype validation) · multi-city rollout · zero per-city code
+- **Phase 8** (future) · operator-configurable zone definitions · institutional clients pick which zone types matter for their underwriting
+
+### 11.5 · Why mention now
+
+So the architecture document carries the strategic direction even though we are NOT building it. Future contributors reading this doc see:
+- ❌ "Don't hand-code more zone polygons per city" (anti-pattern · explicit prohibition)
+- ✅ "If we need zones, build the engine instead" (the right direction · documented · greenlightable)
+
+Premature implementation is its own anti-pattern. The engine is a future build · referenced here so the architecture stays honest about the long-term direction.

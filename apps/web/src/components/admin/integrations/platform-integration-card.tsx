@@ -33,7 +33,7 @@ export function PlatformIntegrationCard({
   const statusLabel = (() => {
     switch (integration.status) {
       case "configured_not_wired": return "configured · not wired";
-      case "testing": return "testing";
+      case "testing": return "validation";
       default: return integration.status;
     }
   })();

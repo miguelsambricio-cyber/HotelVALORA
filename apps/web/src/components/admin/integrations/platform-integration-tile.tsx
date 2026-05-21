@@ -51,7 +51,9 @@ function resolveStatusLabel(
   integration: PlatformIntegrationDescriptor,
   unified: UnifiedStatus,
 ): string {
-  if (integration.status === "testing") return "Testing";
+  // "testing" stays as the internal taxonomy key · institutional vocabulary
+  // surfaces "Validation" in the UI per operator preference (2026-05-21).
+  if (integration.status === "testing") return "Validation";
   return STATUS_LABEL[unified];
 }
 
