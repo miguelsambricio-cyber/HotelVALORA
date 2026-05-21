@@ -18,6 +18,7 @@ import { HotelMarker }      from "./hotel-marker";
 import { MapHeatmapLayer }  from "./map-heatmap-layer";
 import { MapMetroLayer }    from "./map-metro-layer";
 import { MapPolygonLayer }  from "./map-polygon-layer";
+import { AvuxiOverlay }     from "./hv-map/avuxi-overlay";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,12 @@ interface CompsetMapGLBaseProps {
   viewState: MapViewport;
   onViewStateChange: (vs: MapViewport) => void;
   layers: MapLayer[];
+  /** Phase 2 feature flag (operator-controlled · NEXT_PUBLIC_AVUXI_ENABLED).
+   *  When true: skips manual `<MapHeatmapLayer>` + `<MapMetroLayer>` ·
+   *  mounts `<AvuxiOverlay>` child of `<Map>` driven by CAPAS toggles.
+   *  When false (default): manual layers render as today · zero AVUXI footprint.
+   *  Centro Histórico (`<MapPolygonLayer>`) is UNAFFECTED in both states. */
+  avuxi?: boolean;
 }
 
 interface CompsetMapGLAnalysisProps extends CompsetMapGLBaseProps {
@@ -121,8 +128,10 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
   const heatmapEnabled   = layers.find((l) => l.id === "heatmap")?.enabled   ?? false;
+  const eatingEnabled    = layers.find((l) => l.id === "eating")?.enabled    ?? false;
   const metroEnabled     = layers.find((l) => l.id === "metro")?.enabled     ?? false;
   const historicoEnabled = layers.find((l) => l.id === "historico")?.enabled ?? false;
+  const avuxi = props.avuxi ?? false;
 
   function handleMapClick(e: MapMouseEvent) {
     // Deselect popup when clicking on empty map area
@@ -189,10 +198,30 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       attributionControl={false}
       reuseMaps
     >
-      {/* ── GL Layers (order matters: heatmap first, then lines, then polygons) ── */}
-      {heatmapEnabled   && <MapHeatmapLayer  data={TOURIST_HEATMAP_DATA}     />}
-      {metroEnabled     && <MapMetroLayer    data={METRO_LINE_DATA}          />}
-      {historicoEnabled && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON}  />}
+      {/* ── GL Layers (order matters: heatmap/transit first, then polygon) ───
+       *  Phase 2 (2026-05-22):
+       *    · When `avuxi=false` (default · flag OFF) · manual layers render
+       *      from lib/maps/geo-data.ts (Madrid POIs / L1+L6 / Almendra)
+       *    · When `avuxi=true` (flag ON) · manual heatmap + metro skipped ·
+       *      <AvuxiOverlay> drives heatmap + transit via CAPAS toggle state
+       *  Centro Histórico (<MapPolygonLayer>) renders identically in BOTH
+       *  states · HV-native · independent of AVUXI. */}
+      {!avuxi && heatmapEnabled && <MapHeatmapLayer  data={TOURIST_HEATMAP_DATA} />}
+      {!avuxi && metroEnabled   && <MapMetroLayer    data={METRO_LINE_DATA}     />}
+      {historicoEnabled         && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON} />}
+
+      {/* AVUXI overlay child · only mounted when feature flag is ON ·
+       *  uses useMap() hook to access mapbox-gl instance · drives heatmap
+       *  + transit visibility from CAPAS toggle state · hides AVUXI's
+       *  native UI via single CSS rule. */}
+      {avuxi && (
+        <AvuxiOverlay
+          enabled
+          sightseeingOn={heatmapEnabled}
+          eatingOn={eatingEnabled}
+          transitOn={metroEnabled}
+        />
+      )}
 
       {isExplore ? (
         /* ── Explore mode · uniform pins · two-click pattern via onPinClick ──
