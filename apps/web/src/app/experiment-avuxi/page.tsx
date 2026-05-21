@@ -97,6 +97,32 @@ const CITIES: CityEntry[] = [
   { id: "london", label: "Londres · UK", region: "EU-N", lng: -0.1276, lat: 51.5074, zoom: 13 },
 ];
 
+/**
+ * Institutional category curation · QA #002 final UX.
+ *
+ * Operator request: hide Shopping + Nightlife + Parks from the AVUXI
+ * panel · keep only the 3 categories that drive hotel underwriting
+ * value (tourism · gastronomy · connectivity). Replace AVUXI's native
+ * micro-labels with HotelValora institutional labels.
+ *
+ * Single source of truth · to RE-ENABLE a category in the future,
+ * change its label from `null` to a string. The implementation reads
+ * this config at runtime · no other code change needed.
+ *
+ * Keys match AVUXI's category identifiers (data-category attribute /
+ * aria-label / text content · case-insensitive · trimmed).
+ */
+const INSTITUTIONAL_CATEGORIES: Record<string, string | null> = {
+  sightseeing: "Atracción turística",
+  eating: "Gastronomía",
+  transport: "Conectividad",
+  metro: "Conectividad",         // AVUXI may use "metro" or "transport" interchangeably
+  // Hidden for institutional underwriting view · flip to a label string to re-enable
+  shopping: null,
+  nightlife: null,
+  parks: null,
+};
+
 interface ResourceEvent {
   ts: string;
   url: string;
@@ -350,6 +376,109 @@ export default function ExperimentAvuxiPage() {
       } catch { /* style loading */ }
     }, 700);
     return () => window.clearInterval(id);
+  }, []);
+
+  // ─── Institutional category curation ──────────────────────────────────
+  // Hides categories with `null` label in INSTITUTIONAL_CATEGORIES.
+  // Relabels visible ones with HotelValora text. Idempotent · re-runs on
+  // every DOM mutation so AVUXI re-renders don't wipe our changes.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    // Inject scoped stylesheet · hides AVUXI's native button content
+    // when our institutional label is attached.
+    const style = document.createElement("style");
+    style.id = "hv-avuxi-institutional";
+    style.textContent = `
+      .category-btn[data-hv-relabeled="true"] > *:not([data-hv-label="true"]) {
+        display: none !important;
+      }
+      [data-hv-label="true"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #0E4B31;
+        padding: 6px 12px;
+        letter-spacing: 0.04em;
+        text-align: center;
+        white-space: nowrap;
+        text-transform: none;
+        min-width: 110px;
+      }
+      .category-btn[data-hv-hidden="true"] {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    function identifyKey(el: HTMLElement): string {
+      return (
+        el.getAttribute("data-category") ||
+        el.getAttribute("aria-label") ||
+        el.getAttribute("title") ||
+        el.textContent ||
+        ""
+      ).toLowerCase().trim();
+    }
+
+    function applyInstitutional() {
+      const buttons = document.querySelectorAll<HTMLElement>(AVUXI_BTN_SELECTOR);
+      buttons.forEach((btn) => {
+        const key = identifyKey(btn);
+        if (!(key in INSTITUTIONAL_CATEGORIES)) return;
+        const label = INSTITUTIONAL_CATEGORIES[key];
+
+        // Hidden category · mark + bail
+        if (label === null) {
+          btn.setAttribute("data-hv-hidden", "true");
+          return;
+        }
+
+        // Visible category · relabel idempotently
+        btn.setAttribute("aria-label", label);
+        btn.setAttribute("title", label);
+        btn.setAttribute("data-hv-relabeled", "true");
+        btn.removeAttribute("data-hv-hidden");
+
+        let labelEl = btn.querySelector<HTMLElement>('[data-hv-label="true"]');
+        if (!labelEl) {
+          labelEl = document.createElement("span");
+          labelEl.setAttribute("data-hv-label", "true");
+          btn.appendChild(labelEl);
+        }
+        if (labelEl.textContent !== label) {
+          labelEl.textContent = label;
+        }
+      });
+
+      // Hide unwanted categories in the legend (if AVUXI renders one)
+      document.querySelectorAll<HTMLElement>(".category-legend > *").forEach((el) => {
+        const key = identifyKey(el);
+        if (!(key in INSTITUTIONAL_CATEGORIES)) return;
+        const label = INSTITUTIONAL_CATEGORIES[key];
+        if (label === null) {
+          el.style.display = "none";
+        } else if (el.textContent && el.textContent.trim().toLowerCase() === key) {
+          el.textContent = label;
+        }
+      });
+    }
+
+    applyInstitutional();
+    const mo = new MutationObserver(() => {
+      // Debounce-by-batch via microtask · MutationObserver may fire many
+      // times rapidly during AVUXI re-render. One pass per microtask is
+      // enough since each pass is idempotent.
+      queueMicrotask(applyInstitutional);
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      mo.disconnect();
+      style.remove();
+    };
   }, []);
 
   // ─── Inject AVUXI script (only once) ─────────────────────────────────
@@ -633,11 +762,44 @@ export default function ExperimentAvuxiPage() {
           <span className="px-2 py-1 rounded shadow border bg-white border-slate-200 text-slate-700 font-bold">
             type: {SCRIPT_TYPE_LABEL}
           </span>
+          <span className="px-2 py-1 rounded shadow border bg-emerald-50 border-emerald-300 text-emerald-900 font-bold">
+            institutional view · 3 of 6 AVUXI categories visible
+          </span>
         </div>
 
         {/* Panel · v5 */}
         <div className="absolute bottom-4 left-4 z-30 w-[min(500px,calc(100vw-2rem))] bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-xl p-3 space-y-3 text-xs font-mono max-h-[90vh] overflow-y-auto">
           <p className="font-bold text-sm">AVUXI · evidence v5 · accountId + network interception</p>
+
+          {/* Institutional category curation · operator request 2026-05-21 */}
+          <section className="bg-forest-900/[0.04] border border-forest-900/20 rounded p-2 space-y-2">
+            <p className="text-[10px] font-bold tracking-widest text-forest-900 uppercase">
+              Institutional view · category curation
+            </p>
+            <p className="text-[10px] text-slate-700 leading-snug">
+              Solo 3 capas relevantes para underwriting hotelero. AVUXI native icons hidden ·
+              etiquetas HotelValora aplicadas via DOM relabeling.
+            </p>
+            <table className="w-full text-[10px] border border-slate-200">
+              <tbody>
+                {Object.entries(INSTITUTIONAL_CATEGORIES).map(([key, label]) => (
+                  <tr key={key} className={cn(
+                    "border-b border-slate-100",
+                    label === null ? "bg-slate-50 text-slate-400" : "bg-emerald-50/40 text-emerald-900"
+                  )}>
+                    <td className="px-1.5 py-1 font-mono">{key}</td>
+                    <td className="px-1.5 py-1 text-right font-semibold">
+                      {label === null ? "hidden" : `→ ${label}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[9px] text-slate-500 italic leading-snug">
+              To re-enable Shopping/Nightlife/Parks · flip <code>null</code> to a string in
+              <code> INSTITUTIONAL_CATEGORIES</code>. No other code change needed.
+            </p>
+          </section>
 
           {/* ScriptId configuration · v6 · operator official Map Layers for Mapbox */}
           <section className={cn(
