@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { isSupabaseAuthConfigured } from "./auth-mode";
 import type { Database } from "@/lib/supabase/types";
 import type { SignInResult, User, UserRole, UserTier } from "./types";
 
@@ -72,10 +73,20 @@ async function hydrateUser(session: Session | null): Promise<User | null> {
 }
 
 export function useSupabaseAuth(): SupabaseAuthState {
+  // Preview deploys (and any environment missing the Supabase NEXT_PUBLIC_*
+  // vars) must NOT crash when this hook is mounted by AppHeader on every
+  // surface. Detecting the env at hook entry lets us short-circuit the
+  // session-refresh effect + every callback so the page renders normally
+  // in a "signed-out / hydrated" state — same behavior as if no user
+  // had ever signed in.
+  const envOk = isSupabaseAuthConfigured();
+
   const [user, setUser] = useState<User | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(!envOk);
 
   useEffect(() => {
+    if (!envOk) return;
+
     let cancelled = false;
     const supabase = createBrowserSupabaseClient();
 
@@ -100,10 +111,16 @@ export function useSupabaseAuth(): SupabaseAuthState {
       cancelled = true;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [envOk]);
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<SignInResult> => {
+      if (!envOk) {
+        return {
+          ok: false,
+          error: "Authentication not configured for this environment.",
+        };
+      }
       if (!email.trim() || !password.trim()) {
         return { ok: false, error: "Email and password required." };
       }
@@ -125,13 +142,14 @@ export function useSupabaseAuth(): SupabaseAuthState {
       }
       return { ok: true };
     },
-    [],
+    [envOk],
   );
 
   const signOut = useCallback(async () => {
+    if (!envOk) return;
     const supabase = createBrowserSupabaseClient();
     await supabase.auth.signOut();
-  }, []);
+  }, [envOk]);
 
   return {
     user,
