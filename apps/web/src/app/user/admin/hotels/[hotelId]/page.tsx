@@ -563,8 +563,34 @@ export default async function HotelDetailPage({ params }: { params: { hotelId: s
                 <span className="font-mono text-[10px] text-slate-400">→</span>
               </Link>
               <p className="font-mono text-[9.5px] leading-snug text-slate-500">
-                Reports read live from <code>hotel_canonical</code>. Any edit you make above propagates to the next render.
+                Reports read live from <code>hotel_canonical</code>. Any edit you make above propagates to the next render. Generating any report auto-persists the hotel into <code>hotel_report_library</code> (institutional repository).
               </p>
+            </div>
+          )}
+
+          {/* Library bridge · admin → library entry. Surfaced for every
+              canonical-linked hotel · the library row may not yet exist if no
+              report has been generated, in which case clicking falls back to
+              the library home and operator can search. */}
+          {resolvedCanonicalId && (
+            <div className="space-y-1.5">
+              <p className="font-headline text-[9px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                Library
+              </p>
+              <Link
+                href={`/library/favorites-list?q=${encodeURIComponent(hotel.name)}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+              >
+                Open in Library
+                <span className="font-mono text-[10px] text-slate-400">→</span>
+              </Link>
+              <Link
+                href={`/library/favorites-map?ref=${encodeURIComponent(resolvedCanonicalId)}`}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-headline text-[11px] font-extrabold uppercase tracking-[0.22em] text-slate-700 hover:border-forest-900 hover:text-forest-900"
+              >
+                Center on Library Map
+                <span className="font-mono text-[10px] text-slate-400">→</span>
+              </Link>
             </div>
           )}
           {!resolvedCanonicalId && (
