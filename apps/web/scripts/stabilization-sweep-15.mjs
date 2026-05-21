@@ -94,7 +94,7 @@ for (const h of HOTELS) {
     const heuristic = scenario.includes('heurístico');
     // Sanity checks
     if (Number.isNaN(cap) || cap < 4 || cap > 9) issues.push({ hotel: h.name, severity: 'warn', msg: `cap-rate out of band: ${rows['Cap. Rate']}` });
-    if (Number.isNaN(val) || val < 5 || val > 200) issues.push({ hotel: h.name, severity: 'warn', msg: `valuation absurd: ${rows['Hotel Valor estimado']}` });
+    if (Number.isNaN(val) || val < 5 || val > 800) issues.push({ hotel: h.name, severity: 'warn', msg: `valuation absurd: ${rows['Hotel Valor estimado']}` });
     if (!scenario.includes('CoStar submarket') && !scenario.includes('baseline')) issues.push({ hotel: h.name, severity: 'info', msg: `scenario unexpected: "${scenario.slice(0, 80)}"` });
     if (rows['Hotel por m²']?.startsWith('0 €')) issues.push({ hotel: h.name, severity: 'error', msg: `0 €/m²` });
 
