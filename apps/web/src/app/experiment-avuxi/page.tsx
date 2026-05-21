@@ -392,172 +392,72 @@ export default function ExperimentAvuxiPage() {
     return () => window.clearInterval(id);
   }, []);
 
-  // ─── v8 · Institutional curation with REAL selectors from SDK audit ───
-  // AVUXI uses class templating: .category-btn-container-{name}
-  // No data-* attributes. Live counters for found/hidden/relabeled +
-  // DOM inspector of every AVUXI element rendered.
-  const [curationStats, setCurationStats] = useState<{
-    foundContainers: number;
-    foundButtons: number;
-    foundMetro: number;
-    detected: { selector: string; category: string; visible: boolean }[];
-    inspector: { tag: string; classes: string; id: string; ariaLabel: string; text: string }[];
-  }>({
-    foundContainers: 0, foundButtons: 0, foundMetro: 0, detected: [], inspector: [],
-  });
+  // ─── v9 · READ-ONLY DOM inspector · NO mutation, NO hiding, NO overlays ──
+  // Operator request 2026-05-21 · v8 selectors were wrong (matched the
+  // generic ".category-btn-container-avuxi-map" instead of per-category
+  // identifiers) · the overlay broke Conectividad button. Reverting all
+  // mutation. Only diagnostic capture remains so we discover the real DOM.
+  interface InspectorRow {
+    tag: string;
+    id: string;
+    classList: string;
+    ariaLabel: string;
+    title: string;
+    textContent: string;
+    innerHTML: string;
+    childImgAlts: string;
+    parentClass: string;
+  }
+  const [domInspector, setDomInspector] = useState<{
+    totalAvuxiEls: number;
+    rows: InspectorRow[];
+  }>({ totalAvuxiEls: 0, rows: [] });
 
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    const style = document.createElement("style");
-    style.id = "hv-avuxi-institutional";
-    style.textContent = `
-      [data-hv-hidden="true"] {
-        display: none !important;
-        visibility: hidden !important;
-      }
-      [data-hv-relabeled="true"] {
-        position: relative !important;
-      }
-      [data-hv-relabeled="true"] > *:not([data-hv-label]):not(style):not(script) {
-        opacity: 0 !important;
-        pointer-events: none !important;
-      }
-      [data-hv-label] {
-        position: absolute !important;
-        inset: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-size: 9px !important;
-        font-weight: 700 !important;
-        color: #0E4B31 !important;
-        padding: 4px 6px !important;
-        letter-spacing: 0.03em !important;
-        text-align: center !important;
-        line-height: 1.1 !important;
-        background: white !important;
-        border-radius: inherit !important;
-        z-index: 10 !important;
-      }
-    `;
-    document.head.appendChild(style);
+    function snapshotInspector() {
+      // Cast wide net · anything with class or id containing common AVUXI tokens
+      const els = document.querySelectorAll<HTMLElement>(
+        "[class*='category-'], " +
+        "[class*='avuxi'], " +
+        "[id*='category-'], " +
+        "[id*='avuxi'], " +
+        "[class*='vxcaption']"
+      );
 
-    /**
-     * Identify category from an element's class list using the templated
-     * patterns AVUXI generates · returns null if not an AVUXI category container.
-     */
-    function categoryFromClasses(el: HTMLElement): string | null {
-      for (const cls of Array.from(el.classList)) {
-        for (const pattern of AVUXI_CONTAINER_PATTERNS) {
-          const m = cls.match(pattern);
-          if (m) return m[1].toLowerCase();
-        }
-      }
-      return null;
+      const rows: InspectorRow[] = Array.from(els).slice(0, 60).map((el) => {
+        const classes = el.className && typeof el.className === "string"
+          ? el.className
+          : (el.getAttribute("class") || "");
+        // Capture every alt attribute of any img children · category info
+        // often lives in icon alt text
+        const imgAlts = Array.from(el.querySelectorAll("img")).map((img) =>
+          img.getAttribute("alt") || img.getAttribute("src")?.split("/").slice(-1)[0] || ""
+        ).filter(Boolean).join(" | ");
+        return {
+          tag: el.tagName.toLowerCase(),
+          id: el.id || "",
+          classList: classes,
+          ariaLabel: el.getAttribute("aria-label") || "",
+          title: el.getAttribute("title") || "",
+          textContent: (el.textContent || "").trim().slice(0, 100),
+          innerHTML: el.innerHTML.replace(/\s+/g, " ").slice(0, 240),
+          childImgAlts: imgAlts.slice(0, 120),
+          parentClass: (el.parentElement?.className && typeof el.parentElement.className === "string")
+            ? el.parentElement.className.slice(0, 60)
+            : "",
+        };
+      });
+
+      setDomInspector({ totalAvuxiEls: els.length, rows });
     }
 
-    function applyInstitutional() {
-      // 1. Find all category buttons via class-templating (v8 selectors)
-      const allEls = document.querySelectorAll<HTMLElement>(
-        "[class*='category-btn-container-'], [class*='category-btn-t-container-']"
-      );
-      const detected: { selector: string; category: string; visible: boolean }[] = [];
-
-      allEls.forEach((el) => {
-        const category = categoryFromClasses(el);
-        if (!category) return;
-
-        const label = INSTITUTIONAL_CATEGORIES[category];
-        if (label === undefined) {
-          // Unknown category · log but leave alone
-          detected.push({ selector: "category-btn-container-" + category, category, visible: true });
-          return;
-        }
-
-        if (label === null) {
-          // Hide
-          el.setAttribute("data-hv-hidden", "true");
-          detected.push({ selector: "category-btn-container-" + category, category, visible: false });
-          return;
-        }
-
-        // Relabel · idempotent
-        el.setAttribute("data-hv-relabeled", "true");
-        el.removeAttribute("data-hv-hidden");
-        el.setAttribute("aria-label", label);
-        el.setAttribute("title", label);
-
-        let labelEl = el.querySelector<HTMLElement>("[data-hv-label]");
-        if (!labelEl) {
-          labelEl = document.createElement("span");
-          labelEl.setAttribute("data-hv-label", "true");
-          el.appendChild(labelEl);
-        }
-        if (labelEl.textContent !== label) {
-          labelEl.textContent = label;
-        }
-        detected.push({ selector: "category-btn-container-" + category, category, visible: true });
-      });
-
-      // 2. Metro button · separate element identified by id prefix
-      const metroEls = document.querySelectorAll<HTMLElement>(
-        "[id^='" + AVUXI_METRO_ID_PREFIX + "']"
-      );
-      metroEls.forEach((el) => {
-        const label = INSTITUTIONAL_CATEGORIES["metro"];
-        if (label === null) {
-          el.setAttribute("data-hv-hidden", "true");
-          return;
-        }
-        if (label !== undefined) {
-          el.setAttribute("data-hv-relabeled", "true");
-          el.removeAttribute("data-hv-hidden");
-          el.setAttribute("aria-label", label);
-          el.setAttribute("title", label);
-          let labelEl = el.querySelector<HTMLElement>("[data-hv-label]");
-          if (!labelEl) {
-            labelEl = document.createElement("span");
-            labelEl.setAttribute("data-hv-label", "true");
-            el.appendChild(labelEl);
-          }
-          if (labelEl.textContent !== label) {
-            labelEl.textContent = label;
-          }
-        }
-      });
-
-      // 3. Inspector · capture full snapshot of all AVUXI-related elements
-      const inspectorEls = document.querySelectorAll<HTMLElement>(
-        "[class*='category-'], [id*='category-']"
-      );
-      const inspector = Array.from(inspectorEls).slice(0, 30).map((el) => ({
-        tag: el.tagName.toLowerCase(),
-        classes: el.className && typeof el.className === "string"
-          ? el.className.split(/\s+/).filter((c) => c.includes("category")).join(" ")
-          : "",
-        id: el.id || "",
-        ariaLabel: el.getAttribute("aria-label") || "",
-        text: (el.textContent || "").trim().slice(0, 30),
-      }));
-
-      setCurationStats({
-        foundContainers: document.querySelectorAll(".category-btns-container").length,
-        foundButtons: allEls.length,
-        foundMetro: metroEls.length,
-        detected,
-        inspector,
-      });
-    }
-
-    applyInstitutional();
-    const mo = new MutationObserver(() => queueMicrotask(applyInstitutional));
+    snapshotInspector();
+    const mo = new MutationObserver(() => queueMicrotask(snapshotInspector));
     mo.observe(document.body, { childList: true, subtree: true });
 
-    return () => {
-      mo.disconnect();
-      style.remove();
-    };
+    return () => mo.disconnect();
   }, []);
 
   // ─── Inject AVUXI script (only once) ─────────────────────────────────
@@ -841,8 +741,8 @@ export default function ExperimentAvuxiPage() {
           <span className="px-2 py-1 rounded shadow border bg-white border-slate-200 text-slate-700 font-bold">
             type: {SCRIPT_TYPE_LABEL}
           </span>
-          <span className="px-2 py-1 rounded shadow border bg-emerald-50 border-emerald-300 text-emerald-900 font-bold">
-            institutional view · 3 of 6 AVUXI categories visible
+          <span className="px-2 py-1 rounded shadow border bg-sky-50 border-sky-300 text-sky-900 font-bold">
+            v9 · curation reverted · raw AVUXI · inspector active
           </span>
         </div>
 
@@ -850,109 +750,121 @@ export default function ExperimentAvuxiPage() {
         <div className="absolute bottom-4 left-4 z-30 w-[min(500px,calc(100vw-2rem))] bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-xl p-3 space-y-3 text-xs font-mono max-h-[90vh] overflow-y-auto">
           <p className="font-bold text-sm">AVUXI · evidence v5 · accountId + network interception</p>
 
-          {/* Institutional category curation v8 · with live DOM inspection */}
-          <section className="bg-forest-900/[0.04] border border-forest-900/20 rounded p-2 space-y-2">
-            <p className="text-[10px] font-bold tracking-widest text-forest-900 uppercase">
-              Institutional view · live curation
+          {/* v9 · READ-ONLY DOM inspector · curation reverted · zero mutation */}
+          <section className="bg-sky-50/40 border border-sky-200 rounded p-2 space-y-2">
+            <p className="text-[10px] font-bold tracking-widest text-sky-900 uppercase">
+              DOM inspector · read-only (curation reverted)
             </p>
-
-            {/* Counters · what the curation actually found in the DOM */}
-            <div className="grid grid-cols-3 gap-1 text-[10px]">
-              <div className={cn("px-1.5 py-1 border rounded text-center",
-                curationStats.foundContainers > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900")}>
-                <div className="font-bold">{curationStats.foundContainers}</div>
-                <div className="text-[9px]">btns-container</div>
+            <p className="text-[10px] text-slate-700 leading-snug">
+              v8 selectors matched the wrong class · curation reverted to avoid
+              breaking the Conectividad button. AVUXI now runs raw (5-6 categories
+              visible) while this inspector captures the FULL DOM signature of every
+              element it renders. Goal: identify the real per-category identifier
+              before re-enabling any relabel/hide logic.
+            </p>
+            <div className="grid grid-cols-2 gap-1 text-[10px]">
+              <div className={cn("px-2 py-1 border rounded text-center",
+                domInspector.totalAvuxiEls > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900")}>
+                <div className="font-bold text-base">{domInspector.totalAvuxiEls}</div>
+                <div className="text-[9px]">AVUXI-related elements</div>
               </div>
-              <div className={cn("px-1.5 py-1 border rounded text-center",
-                curationStats.foundButtons > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900")}>
-                <div className="font-bold">{curationStats.foundButtons}</div>
-                <div className="text-[9px]">cat buttons</div>
-              </div>
-              <div className={cn("px-1.5 py-1 border rounded text-center",
-                curationStats.foundMetro > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-amber-50 border-amber-200 text-amber-900")}>
-                <div className="font-bold">{curationStats.foundMetro}</div>
-                <div className="text-[9px]">metro buttons</div>
+              <div className={cn("px-2 py-1 border rounded text-center",
+                domInspector.rows.length > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900")}>
+                <div className="font-bold text-base">{domInspector.rows.length}</div>
+                <div className="text-[9px]">snapshot rows (cap 60)</div>
               </div>
             </div>
-
-            {/* Detected categories with status */}
-            {curationStats.detected.length > 0 && (
-              <table className="w-full text-[10px] border border-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-1.5 py-1 text-left">Detected class</th>
-                    <th className="px-1 py-1 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {curationStats.detected.map((d, i) => {
-                    const label = INSTITUTIONAL_CATEGORIES[d.category];
-                    return (
-                      <tr key={i} className={cn(
-                        "border-b border-slate-100",
-                        label === null ? "bg-rose-50/60 text-rose-900" :
-                        label === undefined ? "bg-amber-50 text-amber-900" :
-                        "bg-emerald-50/60 text-emerald-900"
-                      )}>
-                        <td className="px-1.5 py-1 font-mono">.{d.selector}</td>
-                        <td className="px-1.5 py-1 text-right font-semibold">
-                          {label === null ? "✗ hidden" : label === undefined ? "? unknown" : "→ " + label}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-
-            {/* Config reference · sortable table */}
-            <details>
-              <summary className="text-[10px] font-bold tracking-widest text-slate-500 uppercase cursor-pointer">
-                Config (click to expand · {Object.keys(INSTITUTIONAL_CATEGORIES).length} entries)
-              </summary>
-              <table className="w-full text-[10px] border border-slate-200 mt-1">
-                <tbody>
-                  {Object.entries(INSTITUTIONAL_CATEGORIES).map(([key, label]) => (
-                    <tr key={key} className={cn(
-                      "border-b border-slate-100",
-                      label === null ? "bg-slate-50 text-slate-400" : "bg-emerald-50/40 text-emerald-900"
-                    )}>
-                      <td className="px-1.5 py-1 font-mono">{key}</td>
-                      <td className="px-1.5 py-1 text-right font-semibold">
-                        {label === null ? "hidden" : "→ " + label}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </details>
-
-            {/* DOM inspector · raw view of all AVUXI elements rendered */}
-            <details>
-              <summary className="text-[10px] font-bold tracking-widest text-slate-500 uppercase cursor-pointer">
-                DOM inspector ({curationStats.inspector.length} category-* elements)
-              </summary>
-              <div className="bg-slate-900 text-slate-100 rounded p-2 text-[9px] leading-tight max-h-44 overflow-y-auto mt-1 font-mono">
-                {curationStats.inspector.length === 0 ? (
-                  <p className="text-slate-400">No category-* elements found yet · AVUXI may still be mounting.</p>
-                ) : (
-                  curationStats.inspector.map((el, i) => (
-                    <div key={i} className="border-b border-slate-700 py-1">
-                      <div><span className="text-amber-300">{el.tag}</span>{el.id && <span className="text-emerald-300"> #{el.id}</span>}</div>
-                      {el.classes && <div className="text-slate-300 break-all">.{el.classes.replace(/\s+/g, " .")}</div>}
-                      {el.ariaLabel && <div className="text-slate-400">aria-label: &quot;{el.ariaLabel}&quot;</div>}
-                      {el.text && <div className="text-slate-500">text: &quot;{el.text}&quot;</div>}
-                    </div>
-                  ))
-                )}
-              </div>
-            </details>
-
             <p className="text-[9px] text-slate-500 italic leading-snug">
-              Selectors based on SDK source audit · class-templating (<code>category-btn-container-{`{name}`}</code>) ·
-              NOT data-attributes. To re-enable a category flip <code>null</code> to a string.
+              Expanded scan: <code>[class*=&#39;category-&#39;]</code> ·
+              <code>[class*=&#39;avuxi&#39;]</code> · <code>[class*=&#39;vxcaption&#39;]</code> ·
+              <code>[id*=&#39;category-&#39;]</code> · <code>[id*=&#39;avuxi&#39;]</code>.
             </p>
           </section>
+
+          {/* Full inspector table · each row · tag + id + classList + aria-label + title + text + innerHTML + img alt */}
+          <section>
+            <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">
+              Per-element DOM signature ({domInspector.rows.length})
+            </p>
+            <div className="bg-slate-900 text-slate-100 rounded p-2 text-[9px] leading-tight max-h-[400px] overflow-y-auto font-mono space-y-1.5">
+              {domInspector.rows.length === 0 ? (
+                <p className="text-slate-400">No AVUXI elements found yet · waiting for mount…</p>
+              ) : (
+                domInspector.rows.map((el, i) => (
+                  <div key={i} className="border-b border-slate-700 py-1.5">
+                    <div className="flex gap-2 flex-wrap">
+                      <span className="text-amber-300 font-bold">[{i}] {el.tag}</span>
+                      {el.id && <span className="text-emerald-300">#{el.id}</span>}
+                    </div>
+                    {el.classList && (
+                      <div className="text-cyan-300 break-all mt-0.5">
+                        <span className="text-slate-500">class:</span> {el.classList}
+                      </div>
+                    )}
+                    {el.parentClass && (
+                      <div className="text-slate-500 break-all mt-0.5">
+                        <span className="text-slate-600">parent.class:</span> {el.parentClass}
+                      </div>
+                    )}
+                    {el.ariaLabel && (
+                      <div className="text-violet-300 mt-0.5">
+                        <span className="text-slate-500">aria-label:</span> &quot;{el.ariaLabel}&quot;
+                      </div>
+                    )}
+                    {el.title && (
+                      <div className="text-violet-300 mt-0.5">
+                        <span className="text-slate-500">title:</span> &quot;{el.title}&quot;
+                      </div>
+                    )}
+                    {el.textContent && (
+                      <div className="text-slate-300 break-all mt-0.5">
+                        <span className="text-slate-500">text:</span> &quot;{el.textContent}&quot;
+                      </div>
+                    )}
+                    {el.childImgAlts && (
+                      <div className="text-yellow-200 break-all mt-0.5">
+                        <span className="text-slate-500">img alts:</span> {el.childImgAlts}
+                      </div>
+                    )}
+                    {el.innerHTML && (
+                      <div className="text-slate-400 break-all mt-0.5">
+                        <span className="text-slate-500">innerHTML:</span> {el.innerHTML}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            <p className="text-[9px] text-slate-500 italic leading-snug mt-1">
+              For each AVUXI element: tag · id · full classList · aria-label · title · textContent · img child alts · parent class · innerHTML (240 char). Copy any row and paste back so we can identify the real per-category selectors.
+            </p>
+          </section>
+
+          {/* Future-config preview · what we WOULD apply once selectors are identified */}
+          <details>
+            <summary className="text-[10px] font-bold tracking-widest text-slate-500 uppercase cursor-pointer hover:text-slate-700">
+              Pending curation config (not applied)
+            </summary>
+            <table className="w-full text-[10px] border border-slate-200 mt-1">
+              <tbody>
+                {Object.entries(INSTITUTIONAL_CATEGORIES).map(([key, label]) => (
+                  <tr key={key} className={cn(
+                    "border-b border-slate-100",
+                    label === null ? "bg-slate-50 text-slate-400" : "bg-slate-50 text-slate-600"
+                  )}>
+                    <td className="px-1.5 py-1 font-mono">{key}</td>
+                    <td className="px-1.5 py-1 text-right font-semibold">
+                      {label === null ? "would be hidden" : "would relabel → " + label}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[9px] text-slate-500 italic mt-1">
+              Will be applied in v10 once we identify the real per-category DOM
+              identifier from the inspector output above.
+            </p>
+          </details>
 
           {/* ScriptId configuration · v6 · operator official Map Layers for Mapbox */}
           <section className={cn(
