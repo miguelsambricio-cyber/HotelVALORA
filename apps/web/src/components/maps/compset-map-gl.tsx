@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Map from "react-map-gl/mapbox";
 import type { MapRef, MapMouseEvent } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -86,6 +86,37 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   const { viewState, onViewStateChange, layers } = props;
   const mapRef = useRef<MapRef>(null);
   const [popupHotelId, setPopupHotelId] = useState<string | null>(null);
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
+  const [styleLoaded, setStyleLoaded] = useState(false);
+
+  // QA #002 active diagnostic · server-side probe Mapbox endpoints from
+  // the browser to surface 401/403/CORS/network failures visibly. Token
+  // is NEXT_PUBLIC so probing it client-side carries the same auth
+  // posture as mapbox-gl itself · this is the canonical signal.
+  useEffect(() => {
+    if (!MAPBOX_TOKEN) return;
+    let cancelled = false;
+    const probes = [
+      { name: "style.json", url: `https://api.mapbox.com/styles/v1/mapbox/light-v11?access_token=${MAPBOX_TOKEN}` },
+      { name: "tile", url: `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/14/8044/6212?access_token=${MAPBOX_TOKEN}` },
+    ];
+    (async () => {
+      const results: string[] = [];
+      for (const p of probes) {
+        try {
+          const r = await fetch(p.url, { method: "GET", mode: "cors" });
+          results.push(`${p.name}=${r.status}`);
+        } catch (e) {
+          results.push(`${p.name}=ERR:${(e as Error).message?.slice(0, 40) ?? "unknown"}`);
+        }
+      }
+      if (!cancelled) {
+        // eslint-disable-next-line no-console
+        console.log("[mapbox-probe]", results.join(" · "));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
@@ -103,6 +134,21 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   const isExplore = props.mode === "explore";
 
   return (
+    <>
+    {/* QA #002 diagnostic banner · visible to operator without DevTools.
+     *  Shows mapbox-gl errors as they happen + a style-not-loaded warning
+     *  if we get to N seconds without `onStyleData` firing. Self-removes
+     *  on style load. */}
+    {(diagnosticError || !styleLoaded) && (
+      <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-[60] max-w-[90%]">
+        <div className={diagnosticError
+          ? "pointer-events-auto bg-rose-50 border border-rose-300 text-rose-900 text-[11px] font-mono px-3 py-2 rounded-md shadow-lg"
+          : "pointer-events-auto bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-mono px-3 py-1.5 rounded-md shadow-md opacity-80"
+        }>
+          {diagnosticError ? `Mapbox error: ${diagnosticError}` : "Map style loading…"}
+        </div>
+      </div>
+    )}
     <Map
       ref={mapRef}
       mapboxAccessToken={MAPBOX_TOKEN}
@@ -121,15 +167,22 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         })
       }
       onClick={handleMapClick}
-      onError={(e) => {
-        // Surface mapbox-gl errors (style fetch · tile fetch · worker
-        // initialization) so silent failures (uniform-gray canvas with
-        // pins + watermark visible) are loud in production logs and
-        // Sentry/Vercel runtime logs instead of being invisible.
-        // Most common causes: token URL/scope restriction · worker
-        // bundle corrupted by transpilation · CSP blocking workers.
+      onLoad={() => {
         // eslint-disable-next-line no-console
-        console.error("[mapbox-gl]", e?.error?.message ?? e);
+        console.log("[mapbox-gl] map loaded");
+      }}
+      onStyleData={() => {
+        if (!styleLoaded) {
+          setStyleLoaded(true);
+          // eslint-disable-next-line no-console
+          console.log("[mapbox-gl] style data loaded");
+        }
+      }}
+      onError={(e) => {
+        const msg = e?.error?.message ?? "unknown error";
+        // eslint-disable-next-line no-console
+        console.error("[mapbox-gl]", e?.error ?? e);
+        setDiagnosticError(msg);
       }}
       style={{ width: "100%", height: "100%" }}
       mapStyle={MAPBOX_STYLE}
@@ -199,5 +252,6 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         </>
       )}
     </Map>
+    </>
   );
 }
