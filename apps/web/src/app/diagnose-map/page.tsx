@@ -19,8 +19,11 @@
 import { useEffect, useState } from "react";
 import Map from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
+import { MAPBOX_TOKEN, MAPBOX_TOKEN_DIAGNOSTICS } from "@/lib/maps/map-config";
 
-const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+// Use the same normalised token the rest of the app uses · so the
+// diagnostic page reflects the actual code path.
+const TOKEN = MAPBOX_TOKEN;
 const STYLE = "mapbox://styles/mapbox/light-v11";
 
 interface ProbeResult {
@@ -107,6 +110,43 @@ export default function DiagnoseMapPage() {
 
         {/* Diagnostic feed */}
         <div className="space-y-4">
+          <section>
+            <h2 className="font-bold mb-2 text-sm">Token · normalisation report</h2>
+            <table className="w-full text-[10px] border border-slate-300">
+              <tbody>
+                {([
+                  ["raw length", String(MAPBOX_TOKEN_DIAGNOSTICS.rawLength)],
+                  ["normalised length", String(MAPBOX_TOKEN_DIAGNOSTICS.normalisedLength)],
+                  ["stripped invisible chars", String(MAPBOX_TOKEN_DIAGNOSTICS.strippedCount)],
+                  [
+                    "raw first codepoint",
+                    MAPBOX_TOKEN_DIAGNOSTICS.rawFirstCodepoint !== null
+                      ? `0x${MAPBOX_TOKEN_DIAGNOSTICS.rawFirstCodepoint.toString(16).toUpperCase()} (${MAPBOX_TOKEN_DIAGNOSTICS.rawFirstCodepoint})`
+                      : "null",
+                  ],
+                  [
+                    "raw last codepoint",
+                    MAPBOX_TOKEN_DIAGNOSTICS.rawLastCodepoint !== null
+                      ? `0x${MAPBOX_TOKEN_DIAGNOSTICS.rawLastCodepoint.toString(16).toUpperCase()} (${MAPBOX_TOKEN_DIAGNOSTICS.rawLastCodepoint})`
+                      : "null",
+                  ],
+                  ["normalised prefix", MAPBOX_TOKEN_DIAGNOSTICS.normalisedPrefix + "…"],
+                  ["normalised suffix", "…" + MAPBOX_TOKEN_DIAGNOSTICS.normalisedSuffix],
+                ] as const).map(([k, v]) => (
+                  <tr key={k} className={k === "stripped invisible chars" && MAPBOX_TOKEN_DIAGNOSTICS.strippedCount > 0 ? "bg-amber-50" : ""}>
+                    <td className="px-2 py-1 border-b border-slate-100">{k}</td>
+                    <td className="px-2 py-1 border-b border-slate-100 font-bold">{v}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {MAPBOX_TOKEN_DIAGNOSTICS.strippedCount > 0 && (
+              <p className="text-[10px] text-amber-900 mt-1 font-semibold">
+                ⚠ {MAPBOX_TOKEN_DIAGNOSTICS.strippedCount} invisible char(s) stripped from raw token · clean token now in use.
+              </p>
+            )}
+          </section>
+
           <section>
             <h2 className="font-bold mb-2 text-sm">Probes · client-side fetch</h2>
             <table className="w-full text-[10px] border border-slate-300">
