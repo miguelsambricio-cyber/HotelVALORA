@@ -1,7 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ["mapbox-gl"],
+  // NOTE · do NOT add mapbox-gl to `transpilePackages`.
+  // mapbox-gl v3 ships its WebWorker bundle pre-built and tells the runtime
+  // to wire it via Blob URL (see node_modules/mapbox-gl/dist/mapbox-gl.js).
+  // Transpiling the package through Next.js's SWC pipeline corrupts that
+  // worker setup · the symptom is a Mapbox map that mounts (watermark +
+  // <Marker> children visible) but renders no base tiles (uniform gray
+  // canvas · no streets/labels/terrain). Mapbox docs explicitly forbid
+  // transpilation: https://docs.mapbox.com/mapbox-gl-js/guides/install/#transpiling
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   images: {
     // CDN hosts allowed for next/image. Plain <img> tags ignore this list, so

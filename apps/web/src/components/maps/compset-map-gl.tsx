@@ -121,6 +121,16 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         })
       }
       onClick={handleMapClick}
+      onError={(e) => {
+        // Surface mapbox-gl errors (style fetch · tile fetch · worker
+        // initialization) so silent failures (uniform-gray canvas with
+        // pins + watermark visible) are loud in production logs and
+        // Sentry/Vercel runtime logs instead of being invisible.
+        // Most common causes: token URL/scope restriction · worker
+        // bundle corrupted by transpilation · CSP blocking workers.
+        // eslint-disable-next-line no-console
+        console.error("[mapbox-gl]", e?.error?.message ?? e);
+      }}
       style={{ width: "100%", height: "100%" }}
       mapStyle={MAPBOX_STYLE}
       attributionControl={false}
