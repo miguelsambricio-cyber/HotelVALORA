@@ -42,21 +42,18 @@ export function TopReportsListContent({
           <button
             type="button"
             aria-label="Filters"
-            onClick={() => toast.message("Filters panel coming soon")}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-forest-900 shadow-sm transition-colors hover:bg-slate-50"
+            disabled
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-forest-400 shadow-sm cursor-not-allowed opacity-60"
+            title="Filtros — disponible próximamente"
           >
             <SlidersHorizontal size={18} aria-hidden />
           </button>
           <button
             type="button"
             aria-label="List settings"
-            onClick={() =>
-              toast.message("List view settings coming soon", {
-                description:
-                  "Column visibility · Density · Saved searches · Export.",
-              })
-            }
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-forest-900 shadow-sm transition-colors hover:bg-slate-50"
+            disabled
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-forest-400 shadow-sm cursor-not-allowed opacity-60"
+            title="Configuración · disponible próximamente"
           >
             <Settings size={18} aria-hidden />
           </button>

@@ -94,12 +94,13 @@ export function LibrarySidebar({
       <div className="mt-auto flex flex-col gap-2 border-t border-slate-200 pt-4">
         <button
           type="button"
-          onClick={() =>
-            toast.info("New valuation flow coming soon", {
-              description:
-                "Upload Excel · Import CoStar · Underwriting workflow",
-            })
-          }
+          onClick={() => {
+            // Institutional report generation entry point · routes the
+            // operator to the CompSet workspace to pick an asset · then
+            // the canonical-backed Executive Summary auto-persists
+            // through hotel_report_library on first render.
+            window.location.href = "/compset";
+          }}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 py-2.5 font-headline text-[13px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.99]"
         >
           <PlusCircle size={14} aria-hidden />

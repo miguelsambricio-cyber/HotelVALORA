@@ -156,7 +156,16 @@ export function adaptReportLibraryToLibraryReport(
     tierBadge: undefined,
     promotion: { promoted: false },
     tags: row.scenario_label ? [row.scenario_label] : [],
-    status: (row.report_status === "generated" ? "active" : row.report_status) as ReportStatus,
+    // Map report_library status → ReportStatus enum. "generated" / "partial"
+    // map to "published" so the institutional library row reads as live ·
+    // "archived" preserves itself · anything else falls to "draft".
+    status: (
+      row.report_status === "generated" || row.report_status === "partial"
+        ? "published"
+        : row.report_status === "archived"
+        ? "archived"
+        : "draft"
+    ) as ReportStatus,
     updatedAt: isoToDate(row.last_rendered_at),
     amenities,
     location: {
