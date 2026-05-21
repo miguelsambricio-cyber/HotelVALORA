@@ -1,9 +1,27 @@
 # AVUXI Layers · Underwriting Utility Proposal
 
 > Strategic doc · 2026-05-21
-> Status: **proposal** · no production activation · awaiting operator review
+> **Status: DEFERRED 2026-05-22 by operator decision** · this entire proposal (tiering · default-on policy · scoring roadmap · Phase ordering of category-by-category activation) is shelved. The content stays as REFERENCE for a future review · do not act on it. See `docs/maps/avuxi-validation-direction-2026-05-22.md` for the active direction.
 > Trigger: operator requested layer-by-layer utility analysis before any Phase 2 AVUXI activation in production maps
 > Companion to: `docs/maps/avuxi-integration-architecture.md` (architecture · 4-layer composition · `<HVMap>` · `<AvuxiOverlay>`)
+
+---
+
+## ⚠ ACTIVE OPERATOR DIRECTIVE (2026-05-22)
+
+The 5 questions answered in §1-5 below are **explicitly NOT being decided yet.** Operator directive:
+
+- **No tiering** of Tier 1 / 2 / 3 categories
+- **No** default-on / default-off policy
+- **No** scoring integration roadmap
+- **No** category hiding · ALL AVUXI categories remain available during validation
+- **CAPAS panel (existing 3-toggle MapLegend)** is the integration point for AVUXI layer control · not a new HV-owned panel · not the AVUXI native button group as the primary UI
+- **Centro Histórico** stays as an independent HotelValora layer · not delegated to AVUXI · not coupled to the AVUXI category model
+- **Phase 2a** (ReportMap activates AVUXI in production) NOT approved · operator wants to see the CAPAS-panel integration model first
+
+The content below ($1-§8) is preserved verbatim · do not edit or delete · re-evaluate when the operator explicitly reopens the categorisation question.
+
+---
 
 ---
 

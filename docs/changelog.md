@@ -4,6 +4,19 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-22 — AVUXI categorisation decisions deferred · CAPAS panel as integration point
+
+Operator pivot · all category-level decisions postponed. The Tier 1/2/3 framing in `docs/maps/avuxi-underwriting-utility.md` is shelved as reference; the active direction is documented in `docs/maps/avuxi-validation-direction-2026-05-22.md`.
+
+- **Active direction (zero ambiguity)**: existing `<MapLegend>` (3-toggle CAPAS panel · Heatmap · Líneas de Metro · Centro Histórico) is the future AVUXI integration point. When Phase 2 lands, the Heatmap toggle drives AVUXI heatmap · Líneas de Metro drives AVUXI transit · Centro Histórico stays HV-native (`MapPolygonLayer` · Madrid Almendra · not coupled to AVUXI). All 6 AVUXI categories remain reachable during validation · no suppression · no tiering · no default-on policy.
+- **Deferred explicitly**: Tier 1/2/3 ranking, default-on/off policy, category hiding, scoring integration (Tourism Score · Gastronomy Score · Connectivity Score · cap-rate adjustment · Dynamic Zones derivation), Phase 2a (ReportMap activates AVUXI in production), Phase 2b (CompsetMap activates AVUXI).
+- **Preserved**: `<HVMap>` + `<AvuxiOverlay>` Phase 1 scaffolding (`4e3133d`), ReportMap migration to `<HVMap mode="report-embed">` (Phase 1b · `5064fa4` · byte-equal output), `/experiment-avuxi` v9 baseline (frozen · DOM inspector read-only), `/user/admin/integrations` registry (29 integrations · 10 layers · AVUXI under `maps_geo_intelligence` with display label "Validation"). Production `/compset` still runs the manual `lib/maps/geo-data.ts` overlays.
+- **Standing commitment reconfirmed**: every new external integration or provider goes into `lib/admin/integrations/platform-registry.ts` with appropriate layer + status. Precedent: AVUXI added under new `maps_geo_intelligence` layer · CoStar / Wikidata / D-8 added under `external_data` in the same review.
+- **Memory captured**: `project_avuxi_categories_decision_deferred.md` (project state) + `feedback_avuxi_capas_panel_integration.md` (durable rule: extend the existing 3-toggle CAPAS panel · don't build new UI · don't hide categories · don't inject CSS to mute AVUXI native).
+- **Architecture doc updated**: `docs/maps/avuxi-integration-architecture.md` header now carries the 2026-05-22 directive alongside the 2026-05-21 approvals.
+
+---
+
 ## 2026-05-21 — AVUXI Map Layers · functional baseline · curation frozen
 
 Map Layers for Mapbox integrated end-to-end on `/experiment-avuxi` and registered in `/user/admin/integrations`. Curation work paused during international validation phase per operator directive.

@@ -14,6 +14,14 @@
 > · ⏸ AVUXI premium tier · postponed
 > · ⏸ New-city onboarding · postponed (validation-baseline only)
 > · 💡 NEW · **Dynamic Zones Engine** future capability documented in §11
+>
+> **Operator directive 2026-05-22 (further refinement):**
+> · CAPAS panel (existing `<MapLegend>` 3-toggle) is the integration point for AVUXI · NOT a new HV-owned proxy panel · NOT the AVUXI native button group exposed as primary UI
+> · ALL AVUXI categories remain available during validation · zero suppression · zero tiering
+> · Centro Histórico stays as a HV-native independent toggle · not coupled to AVUXI's category model
+> · Scoring / weighting decisions explicitly postponed
+> · Phase 2a (ReportMap activates AVUXI) NOT approved · awaiting CAPAS-panel integration design review
+> · See `docs/maps/avuxi-validation-direction-2026-05-22.md` for current active direction · `docs/maps/avuxi-underwriting-utility.md` Tier 1/2/3 content shelved as reference
 
 ---
 
