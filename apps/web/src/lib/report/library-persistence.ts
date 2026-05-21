@@ -15,6 +15,15 @@ import type { UnderwritingRunResult } from "@/lib/report/underwriting-runner";
  * Uses service-role · RLS allows public SELECT but no anon writes.
  */
 
+export type ReportOrigin =
+  | "engine_render"   // user opened /report/* in a browser (default)
+  | "showcase"        // operator-curated official demo
+  | "community"       // authenticated user shared a public report
+  | "bulk_seed"       // automated population
+  | "manual_seed"     // single SQL INSERT for testing
+  | "imported"        // ingested from external source
+  | "migrated";       // moved from valuations or other legacy table
+
 interface ReportSnapshot {
   /** Cap-rate engine output from `runForHotel(hotel)` · may be null when
    *  the engine could not run (no category or no market). */
@@ -35,6 +44,8 @@ interface ReportSnapshot {
   keys_from_heuristic: boolean;
   /** Public report URL · stable per canonical_id · used by Library row click. */
   report_url: string;
+  /** Origin classifier · default 'engine_render' for human-driven render path. */
+  origin?: ReportOrigin;
 }
 
 export async function upsertHotelReportLibrary(
@@ -71,6 +82,7 @@ export async function upsertHotelReportLibrary(
     const confidenceRaw = snapshot.engineRun?.capRate.confidence.score_0_100 ?? null;
     // Column is integer · engine emits float (e.g. 66.7) · round.
     const confidence = confidenceRaw === null ? null : Math.round(confidenceRaw);
+    const origin: ReportOrigin = snapshot.origin ?? "engine_render";
 
     const payload = {
       canonical_id: hotel.id,
@@ -97,6 +109,11 @@ export async function upsertHotelReportLibrary(
       scenario_label: snapshot.scenario_label ?? null,
       keys_from_heuristic: snapshot.keys_from_heuristic,
       last_rendered_at: new Date().toISOString(),
+      // Origin classifier · default 'engine_render' for user-driven renders.
+      // last_operator_render_at tracks ONLY real engine renders · seeded
+      // / showcase renders update last_rendered_at but not this.
+      report_origin: origin,
+      last_operator_render_at: origin === "engine_render" ? new Date().toISOString() : null,
     };
 
     // Try UPSERT (conflict on canonical_id) · postgres supabase-js
@@ -110,19 +127,31 @@ export async function upsertHotelReportLibrary(
       .maybeSingle();
 
     if (existing) {
+      // On UPDATE · `report_origin` is NEVER touched (once a row is
+      // classified as 'showcase', subsequent renders by visitors must
+      // not silently demote it to 'engine_render'). The operator manages
+      // origin via admin / SQL only.
+      // `last_operator_render_at` is touched ONLY when the new render is
+      // an actual engine_render · so seeded re-runs don't pollute the
+      // 'last analysed by a human' signal.
+      const updPayload: Record<string, unknown> = { ...payload };
+      delete updPayload.report_origin;
+      if (origin !== "engine_render") {
+        delete updPayload.last_operator_render_at;
+      }
       const upd = await sb
         .from("hotel_report_library")
         .update({
-          ...payload,
+          ...updPayload,
           render_count: (existing.render_count ?? 0) + 1,
         })
         .eq("id", existing.id);
-      console.log(`[hotel_report_library] UPDATE existing · ${hotel.id} · err=${JSON.stringify(upd?.error ?? null)}`);
+      console.log(`[hotel_report_library] UPDATE existing · ${hotel.id} · origin=${origin} · err=${JSON.stringify(upd?.error ?? null)}`);
     } else {
       const ins = await sb
         .from("hotel_report_library")
         .insert({ ...payload, render_count: 1 });
-      console.log(`[hotel_report_library] INSERT new · ${hotel.id} · err=${JSON.stringify(ins?.error ?? null)}`);
+      console.log(`[hotel_report_library] INSERT new · ${hotel.id} · origin=${origin} · err=${JSON.stringify(ins?.error ?? null)}`);
     }
   } catch (err) {
     // Library write must NOT block report rendering · log + swallow

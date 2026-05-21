@@ -22,6 +22,12 @@ export interface UseLibraryReportsOptions extends LibraryReportsFilter {
    *  When provided, the SSR'd page shows hotel rows immediately and the
    *  background refetch refines without a loading-state flash. */
   initialData?: LibraryReport[];
+  /** Origin filter · default ['showcase','community','engine_render'] excludes
+   *  the bulk_seed inventory rows from public surfaces. Admin can pass
+   *  null to show ALL rows (including bulk_seed / manual_seed). */
+  originFilter?: string[] | null;
+  /** Limit to top-promoted rows only · used by /library/top-list + top-map. */
+  topPromotedOnly?: boolean;
 }
 
 /**
@@ -34,8 +40,20 @@ export interface UseLibraryReportsOptions extends LibraryReportsFilter {
  * Returns `LibraryReport[]` ready for the existing `HotelMap` /
  * `FavoritesTable` components — no UI changes required.
  */
+// Default · public surfaces show curated content + real user activity ·
+// HIDE bulk_seed/manual_seed by default. Admin views pass `originFilter: null`.
+const DEFAULT_ORIGIN_FILTER = ["showcase", "community", "engine_render"];
+
 export function useLibraryReports(options: UseLibraryReportsOptions = {}) {
-  const { promotedOnly, search, limit = 100, offset = 0, initialData } = options;
+  const {
+    promotedOnly,
+    search,
+    limit = 200,
+    offset = 0,
+    initialData,
+    originFilter = DEFAULT_ORIGIN_FILTER,
+    topPromotedOnly = false,
+  } = options;
   const favorites = useFavoriteValuationIds();
 
   const query = useQuery({
@@ -43,32 +61,35 @@ export function useLibraryReports(options: UseLibraryReportsOptions = {}) {
     queryFn: async (): Promise<HotelReportLibraryRow[]> => {
       // Cast around the auto-generated Database type · hotel_report_library
       // (migration 0026) is not yet in the regenerated types.
+      // Cast around the auto-generated Database type (table not in types yet)
+      // and use a permissive shape that supports our chained filters.
       const supabase = createBrowserSupabaseClient() as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            order: (col: string, opts: { ascending: boolean }) => {
-              range: (a: number, b: number) => Promise<{ data: HotelReportLibraryRow[] | null; error: { message: string } | null }> & {
-                ilike?: (col: string, q: string) => Promise<{ data: HotelReportLibraryRow[] | null; error: { message: string } | null }>;
-              };
-              ilike: (col: string, q: string) => {
-                range: (a: number, b: number) => Promise<{ data: HotelReportLibraryRow[] | null; error: { message: string } | null }>;
-              };
-            };
-          };
-        };
+        from: (t: string) => Record<string, (...args: unknown[]) => unknown>;
       };
 
-      const base = supabase
-        .from("hotel_report_library")
-        .select("*")
-        .order("last_rendered_at", { ascending: false });
+      let q = (supabase.from("hotel_report_library") as { select: (c: string) => unknown })
+        .select("*") as Record<string, (...args: unknown[]) => unknown>;
 
-      const result = search && search.trim().length > 0
-        ? await base.ilike("hotel_name", `%${search.trim()}%`).range(offset, offset + limit - 1)
-        : await base.range(offset, offset + limit - 1);
+      if (originFilter && originFilter.length > 0) {
+        q = q.in("report_origin", originFilter) as typeof q;
+      }
+      if (topPromotedOnly) {
+        q = q.eq("is_top_promote", true) as typeof q;
+      }
+      if (search && search.trim().length > 0) {
+        q = q.ilike("hotel_name", `%${search.trim()}%`) as typeof q;
+      }
 
-      if (result.error) throw new Error(`Library fetch failed: ${result.error.message}`);
-      return result.data ?? [];
+      const result = await ((q.order("showcase_priority", { ascending: false }) as Record<string, (...args: unknown[]) => unknown>)
+        .order("last_rendered_at", { ascending: false }) as Record<string, (...args: unknown[]) => unknown>)
+        .range(offset, offset + limit - 1) as Promise<{
+          data: HotelReportLibraryRow[] | null;
+          error: { message: string } | null;
+        }>;
+
+      const resolved = await result;
+      if (resolved.error) throw new Error(`Library fetch failed: ${resolved.error.message}`);
+      return resolved.data ?? [];
     },
     // Library data is institutional and changes slowly — five-minute
     // staleness is fine and lets the map ↔ list pages share cache.

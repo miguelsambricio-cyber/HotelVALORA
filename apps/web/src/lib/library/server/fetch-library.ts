@@ -20,35 +20,40 @@ import {
  * refines via `useFavoriteValuationIds`.
  */
 export interface PrefetchOptions {
-  promotedOnly?: boolean;
+  /** Default · ['showcase','community','engine_render'] · hides bulk_seed
+   *  inventory rows from public surfaces. Pass null for admin (all rows). */
+  originFilter?: string[] | null;
+  /** Filter to is_top_promote = true · used by /library/top-* surfaces. */
+  topPromotedOnly?: boolean;
   limit?: number;
 }
+
+const DEFAULT_ORIGIN_FILTER = ["showcase", "community", "engine_render"];
 
 export async function fetchLibraryReports(
   options: PrefetchOptions = {},
 ): Promise<LibraryReport[]> {
-  const { promotedOnly = false, limit = 200 } = options;
-  if (promotedOnly) {
-    // `hotel_report_library` does not model marketplace promotions ·
-    // `top_promote_reports` still ties to `valuations`. For the saved
-    // library the promotedOnly toggle is currently a no-op · returns
-    // the same superset.
-  }
+  const {
+    originFilter = DEFAULT_ORIGIN_FILTER,
+    topPromotedOnly = false,
+    limit = 200,
+  } = options;
   try {
     const sb = createAnonServerSupabaseClient() as unknown as {
-      from: (t: string) => {
-        select: (cols: string) => {
-          order: (col: string, opts: { ascending: boolean }) => {
-            range: (a: number, b: number) => Promise<{ data: HotelReportLibraryRow[] | null; error: unknown }>;
-          };
-        };
-      };
+      from: (t: string) => Record<string, (...args: unknown[]) => unknown>;
     };
-    const { data, error } = await sb
-      .from("hotel_report_library")
-      .select("*")
-      .order("last_rendered_at", { ascending: false })
-      .range(0, limit - 1);
+    let q = (sb.from("hotel_report_library") as { select: (c: string) => unknown })
+      .select("*") as Record<string, (...args: unknown[]) => unknown>;
+    if (originFilter && originFilter.length > 0) {
+      q = q.in("report_origin", originFilter) as typeof q;
+    }
+    if (topPromotedOnly) {
+      q = q.eq("is_top_promote", true) as typeof q;
+    }
+    const result = await ((q.order("showcase_priority", { ascending: false }) as Record<string, (...args: unknown[]) => unknown>)
+      .order("last_rendered_at", { ascending: false }) as Record<string, (...args: unknown[]) => unknown>)
+      .range(0, limit - 1) as Promise<{ data: HotelReportLibraryRow[] | null; error: unknown }>;
+    const { data, error } = await result;
     if (error || !data) return [];
     return data.map((row) =>
       adaptReportLibraryToLibraryReport(row, {
