@@ -1,33 +1,31 @@
 "use client";
 
 /**
- * <AvuxiOverlay> · Phase 2.A · pure AVUXI mount · child of <Map>.
+ * <AvuxiOverlay> · Phase 2.A.2 · sibling-of-Map controller.
  *
- * Validation-stage rewrite 2026-05-21 (Option A · operator-approved).
- * Mirrors `/experiment-avuxi` byte-for-byte: AVUXI's native UI is left
- * VISIBLE, no CSS hide, no React→AVUXI sync, no DOM click delegation.
- * Only responsibility: inject script + call mapStart once · everything
- * else is AVUXI's own UI driving its own state.
+ * Validation-stage rewrite 2026-05-21 (post-crash debug). The previous
+ * iteration tried to read the Mapbox instance via `useMap()` from
+ * INSIDE the `<Map>` subtree. That path led to an "Application error"
+ * client-side exception on Preview (root cause unverified · likely
+ * tied to `useMap()` timing inside a dynamic-imported child + `map.once`
+ * call ordering). This version mirrors `/experiment-avuxi` byte-for-byte
+ * which is known to work in production:
  *
- * Earlier (Phase 2 pre-validation) this component also:
- *   · Injected CSS to hide `.category-control-container`
- *   · Mirrored 3 CAPAS toggle states via `findCategoryButton(...).click()`
- *   · Used heuristic regex `/selected|active|on$/` for active state
- * Those layers were brittle (AVUXI exposes no programmatic category
- * API · synthetic clicks on display:none buttons were unreliable) and
- * blocked validation of whether AVUXI itself was rendering correctly.
- * Removed temporarily. Future Phase 2.B may re-introduce a CAPAS proxy
- * AFTER per-category DOM identifiers are confirmed by the v9 inspector
- * in /experiment-avuxi.
+ *   · No `useMap` hook · mapRef + mapReady passed in as props
+ *   · No `mapInstance.once("load", …)` · we rely on the parent passing
+ *     `mapReady=true` once Mapbox `onLoad` fires
+ *   · Pure setTimeout polling for `window.AVUXI` after script injection
+ *   · Component renders nothing · safe as a sibling of `<Map>`, no
+ *     dependency on the Map context tree
  *
- * mapStart options match /experiment-avuxi exactly:
- *   showLegend: true · defaultCategory: "eating" · button colors set ·
- *   buttonLocation: "tr" · showMetro: true · language: "es" · opacity: 60
+ * Operator constraint (2026-05-21):
+ *   "Replicar exactamente el comportamiento funcional de /experiment-avuxi
+ *    dentro de /compset · UI nativa AVUXI visible."
  */
 
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import { useMap } from "react-map-gl/mapbox";
+import type { MapRef } from "react-map-gl/mapbox";
 
 const AVUXI_SCRIPT_URL =
   "https://scripts.avuxi.com/travel/map-layers/latest/map-layers-for-mapbox.js";
@@ -61,14 +59,19 @@ declare global {
 }
 
 export interface AvuxiOverlayProps {
-  /** When false the component renders nothing · zero side effects. */
+  /** Master enable flag · when false the component is a no-op. */
   enabled?: boolean;
+  /** Mapbox map ref from the parent's useRef · used to access the
+   *  underlying mapbox-gl Map via .getMap(). */
+  mapRef: React.RefObject<MapRef | null>;
+  /** Parent should set this to true once Map `onLoad` has fired.
+   *  We will not call AVUXI.mapStart until both this AND the AVUXI
+   *  script are ready. */
+  mapReady?: boolean;
 }
 
 export function AvuxiOverlay(props: AvuxiOverlayProps): React.ReactElement | null {
-  const { enabled = false } = props;
-  const { current: mapRef } = useMap();
-  const mapInstance = mapRef?.getMap();
+  const { enabled = false, mapRef, mapReady = false } = props;
 
   const scriptInjectedRef = useRef(false);
   const mapStartCalledRef = useRef(false);
@@ -98,6 +101,7 @@ export function AvuxiOverlay(props: AvuxiOverlayProps): React.ReactElement | nul
     }
     if (scriptInjectedRef.current) return;
     scriptInjectedRef.current = true;
+
     const script = document.createElement("script");
     script.src = AVUXI_SCRIPT_URL;
     script.async = true;
@@ -122,25 +126,51 @@ export function AvuxiOverlay(props: AvuxiOverlayProps): React.ReactElement | nul
     document.body.appendChild(script);
   }, [enabled]);
 
-  // Call AVUXI.mapStart once both script + map are ready · 4-arg
-  // signature confirmed by SDK source audit 2026-05-21:
-  //   (mapInstance, mapboxgl-namespace, scriptId, options)
+  // Call AVUXI.mapStart once script + map are ready. Pure polling on
+  // mapRef.current?.getMap() so we never call .once on the mapbox
+  // instance. The polling stops as soon as we succeed or after a
+  // bounded number of attempts.
   useEffect(() => {
     if (!enabled) return;
-    if (mapStartCalledRef.current) return;
     if (!scriptReady) return;
-    if (!mapInstance) return;
+    if (!mapReady) return;
+    if (mapStartCalledRef.current) return;
     if (typeof window === "undefined") return;
     if (!window.AVUXI || typeof window.AVUXI.mapStart !== "function") return;
 
-    // Wait for map style to be ready · AVUXI needs the style loaded
-    // before adding its sources/layers
-    const callMapStart = () => {
-      if (mapStartCalledRef.current) return;
+    let cancelled = false;
+    let attempts = 0;
+
+    const tryStart = () => {
+      if (cancelled) return;
+      attempts++;
+
+      const ref = mapRef.current;
+      if (!ref) {
+        if (attempts < 40) window.setTimeout(tryStart, 100);
+        return;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mapInstance = (ref as any).getMap ? (ref as any).getMap() : null;
+      if (!mapInstance) {
+        if (attempts < 40) window.setTimeout(tryStart, 100);
+        return;
+      }
+      if (typeof mapInstance.loaded === "function" && !mapInstance.loaded()) {
+        if (attempts < 40) window.setTimeout(tryStart, 100);
+        return;
+      }
+
       try {
+        const containerId =
+          typeof mapInstance.getContainer === "function"
+            ? mapInstance.getContainer()?.id || "(empty)"
+            : "(no getContainer)";
         // eslint-disable-next-line no-console
-        console.log("[avuxi-overlay] calling AVUXI.mapStart · container id:",
-          mapInstance.getContainer()?.id || "(empty · SDK will no-op)");
+        console.log(
+          "[avuxi-overlay] calling AVUXI.mapStart · container id:",
+          containerId,
+        );
         window.AVUXI!.mapStart(mapInstance, mapboxgl, AVUXI_SCRIPT_ID, {
           buttonOrientation: "vertical",
           buttonLocation: "tr",
@@ -161,12 +191,12 @@ export function AvuxiOverlay(props: AvuxiOverlayProps): React.ReactElement | nul
       }
     };
 
-    if (typeof mapInstance.loaded === "function" && mapInstance.loaded()) {
-      callMapStart();
-    } else {
-      mapInstance.once("load", callMapStart);
-    }
-  }, [enabled, scriptReady, mapInstance]);
+    tryStart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, scriptReady, mapReady, mapRef]);
 
   return null;
 }

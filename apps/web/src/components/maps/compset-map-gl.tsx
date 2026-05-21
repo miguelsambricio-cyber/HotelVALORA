@@ -107,6 +107,7 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   const [popupHotelId, setPopupHotelId] = useState<string | null>(null);
   const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
   const [styleLoaded, setStyleLoaded] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   // QA #002 active diagnostic · server-side probe Mapbox endpoints from
   // the browser to surface 401/403/CORS/network failures visibly. Token
@@ -191,6 +192,7 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       onLoad={() => {
         // eslint-disable-next-line no-console
         console.log("[mapbox-gl] map loaded");
+        setMapReady(true);
       }}
       onStyleData={() => {
         if (!styleLoaded) {
@@ -228,8 +230,6 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       {!avuxi && heatmapEnabled && <MapHeatmapLayer  data={TOURIST_HEATMAP_DATA} />}
       {!avuxi && metroEnabled   && <MapMetroLayer    data={METRO_LINE_DATA}     />}
       {!avuxi && historicoEnabled && <MapPolygonLayer data={HISTORIC_CENTER_POLYGON} />}
-
-      {avuxi && <AvuxiOverlay enabled />}
 
       {isExplore ? (
         /* ── Explore mode · uniform pins · two-click pattern via onPinClick ──
@@ -289,6 +289,13 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         </>
       )}
     </Map>
+
+    {/* AVUXI overlay · mounted as SIBLING of <Map> (not child) so it
+     *  doesn't depend on the Map's React-context tree. It receives the
+     *  Mapbox ref and a `mapReady` boolean flipped by the Map's onLoad
+     *  callback above. Mirrors `/experiment-avuxi`'s pattern exactly.
+     *  Rendered only when the feature flag is ON. */}
+    {avuxi && <AvuxiOverlay enabled mapRef={mapRef} mapReady={mapReady} />}
     </>
   );
 }
