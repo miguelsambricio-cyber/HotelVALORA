@@ -28,26 +28,18 @@
  */
 
 import { cn } from "@/lib/utils";
-import { AvuxiOverlay } from "./avuxi-overlay";
 
 export type HVMapMode = "explore" | "analysis" | "report-embed";
 
 export interface HVMapProps {
-  /** Workspace mode · drives parent-level composition decisions (which
-   *  side panel to render · which viewport behavior to apply). Today
-   *  the shell itself does not branch on mode; the parent surface
-   *  decides what to put inside `children`. */
+  /** Workspace mode · informational · parent surface decides composition. */
   mode: HVMapMode;
-  /** Phase 2+ feature flag · when true, mounts the AVUXI overlay.
-   *  Today the overlay component is a stub that renders nothing
-   *  regardless of the flag. */
-  avuxi?: boolean;
-  /** Inner content · typically the Mapbox <Map> tree + the right-edge
-   *  panel (CompetitorPanel / AssetSelectionPanel / none for report-embed). */
+  /** Inner content · typically the Mapbox <Map> tree + side panels.
+   *  When Phase 2 is enabled, the `<CompsetMapGL>` child mounts
+   *  `<AvuxiOverlay>` itself inside `<Map>` (needs `useMap()` context). */
   children: React.ReactNode;
   /** Optional override · defaults preserve the `compset-map-container`
-   *  + `bg-slate-200` legacy contract used by the CSS height calcs in
-   *  `apps/web/src/app/globals.css`. */
+   *  + `bg-slate-200` legacy contract used by CSS height calcs. */
   className?: string;
   /** Accessible label for the section element. */
   ariaLabel?: string;
@@ -55,13 +47,15 @@ export interface HVMapProps {
 
 /**
  * Phase 1 scaffolding · same JSX shape as the legacy section wrapper.
- * Callers (CompsetMap · ReportMap) can adopt this incrementally without
- * any visual change. The single value-add today is the `<AvuxiOverlay>`
- * mount point that Phase 2 will activate.
+ * Callers (CompsetMap · ReportMap) adopt this without any visual change.
+ *
+ * Phase 2 update (2026-05-22): the AVUXI overlay is no longer mounted
+ * here as a sibling. It must live INSIDE the Mapbox `<Map>` to access
+ * the `useMap()` context, so `<CompsetMapGL>` mounts it directly as a
+ * child of `<Map>`. The HVMap shell stays a pure section wrapper.
  */
 export function HVMap({
   mode: _mode,
-  avuxi = false,
   className,
   ariaLabel,
   children,
@@ -75,8 +69,6 @@ export function HVMap({
       )}
     >
       {children}
-      {/* Phase 2+ swap point · today renders nothing regardless of flag */}
-      <AvuxiOverlay enabled={avuxi} />
     </section>
   );
 }
