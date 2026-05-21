@@ -19,6 +19,22 @@ End-to-end institutional entry flow shipped to production. Landing → search/ex
 
 ---
 
+## 2026-05-21 — 5-layer library architecture · showcase seed · Phase 1 + 2 shipped
+
+5-layer library model goes live in production. The 8 institutional showcase reports operator-requested (Eurostars Madrid Tower · Mandarin Oriental Ritz · Four Seasons · Hotel Indigo Gran Vía · The Madrid EDITION · Petit Palace Plaza Mayor · VP Plaza España Design · Meliá Madrid Barajas) now drive the public library surfaces. The 224 bulk-seed inventory rows preserve in the DB as audit history but stop appearing on public-facing routes by default.
+
+- **Migration 0027 applied** · `hotel_report_library` gains: `report_origin` (engine_render · showcase · community · bulk_seed · manual_seed · imported · migrated) · `tier_badge` (free · pro · premium) · `is_top_promote` boolean · `contact_visible` boolean · `contact_info` jsonb · `showcase_priority` integer · `last_operator_render_at` timestamptz. 3 new indexes (origin · promote · showcase priority). Backfill of 224 current rows: 223 → `bulk_seed` · 1 → `manual_seed` · 0 → `engine_render` (truth).
+- **Persistence helper guards** · `report_origin` is NEVER touched on UPDATE (showcase row stays showcase even when visitor browses it · last_operator_render_at touched only on real engine_render). Accepts optional `origin: ReportOrigin` param.
+- **Canonical patches** · created canonical row for The Madrid EDITION (luxury · 200 rooms · 2022 · Marriott/EDITION · Plaza de Celenque · `709f2211-…`). Enriched VP Plaza España Design (214 rooms · 2018 · upscale · 5*). Enriched Petit Palace Plaza Mayor (34 rooms · 2011 · upscale). Provenance source=`manual_curated_2026_05` confidence 0.75-0.95.
+- **Operator-spec substitutions** · Petit Palace Plaza España → Petit Palace Plaza Mayor (iconic Madrid Centro · contrasts with VP Plaza España geographically). 8th Free upscale → Meliá Madrid Barajas (229rs · 1972 · Barajas submarket · maximum differentiation vs VP).
+- **8 showcase rows in `hotel_report_library`** with operator-spec tier + promote flags · priorities 30-100 · contact_info populated where applicable. Engine valuations consistent with chain_scale tiered €/key (luxury 800k · upper_upscale 500k · upscale 340k).
+- **Adapter wire** · `tier_badge` → `LibraryReport.tierBadge` (PREMIUM/PRO). `is_top_promote` → `promotion.promoted` + `category = 'top-promote'`. `showcase_priority` → `boostScore`. `contact_info` → `LibraryReport.contactInfo`.
+- **Route surfaces** · `/library/top-list` + `/library/top-map` switched to `topPromotedOnly: true` (shows Eurostars · Indigo · VP Design only). `/library/favorites-list` + `/library/favorites-map` default origin filter `['showcase','community','engine_render']` (shows all 8 showcases · excludes 224 bulk_seed). Admin can pass `originFilter: null` to see all rows.
+- **QA verified in production** · 20/20 sections (Executive Summary · Asset Analysis · Competitive Set · Market Overview) rendered correctly for the 5 patched/new showcases · all > 60KB HTML · zero broken pages. Cross-section consistency intact. Showcase classification preserved across 1+ engine_render visits via mapper protection rule.
+- **Hard rule preserved** · zero UI/shell/primitive changes · zero route renames · pure data + adapter wire.
+
+---
+
 ## 2026-05-21 — Institutional library · auto-persistence + 224-hotel bulk seed + admin bridge
 
 New persistence layer for the institutional report library. Every canonical-backed `/report/executive-summary` render now upserts a row into `public.hotel_report_library` · `/library/favorites-list` + `/library/favorites-map` switched off the marketplace `valuations` table onto this live log.
