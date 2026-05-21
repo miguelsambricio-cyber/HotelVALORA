@@ -33,6 +33,7 @@ See `.env.example` for the full list. Public vars (browser-exposed):
 | Variable | Required | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | yes (for `/compset` + `/report/competitive-set`) | Mapbox GL access token. Restrict to your domain in the Mapbox dashboard. |
+| `NEXT_PUBLIC_AVUXI_ENABLED` | no (default `"false"`) | Phase 2 AVUXI feature flag. When `"true"` (string · strict equality), `/compset` and `/report/*` skip manual heatmap+metro layers and mount the AVUXI overlay driven by the CAPAS panel. When anything else (default), manual layers from `lib/maps/geo-data.ts` render as today. Rollback: flip to `"false"` on Vercel and redeploy. Centro Histórico polygon is HV-native and unaffected. |
 | `NEXT_PUBLIC_API_URL` | no | Backend API base URL. The app currently uses mock data and never hits a real API; leave empty until the FastAPI backend ships. |
 
 ---

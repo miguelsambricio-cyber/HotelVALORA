@@ -73,5 +73,10 @@ export function HVMap({
   );
 }
 
-export { AvuxiOverlay } from "./avuxi-overlay";
+// Note · AvuxiOverlay is NOT re-exported from this barrel · keeping it out
+// allows Webpack to tree-shake mapbox-gl (which AvuxiOverlay imports
+// statically) from any chunk that imports HVMap. Consumers that need
+// AvuxiOverlay (CompsetMapGL · /experiment-avuxi) import it directly from
+// `./hv-map/avuxi-overlay` via `dynamic()` so it stays out of First Load
+// when the AVUXI feature flag is OFF.
 export type { AvuxiOverlayProps } from "./avuxi-overlay";

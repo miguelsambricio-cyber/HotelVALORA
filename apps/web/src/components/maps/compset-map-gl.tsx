@@ -14,11 +14,23 @@ import {
 import type { MapViewport } from "@/lib/maps/types";
 import type { CompetitorHotel, MapLayer } from "@/types/compset";
 
+import dynamic from "next/dynamic";
+
 import { HotelMarker }      from "./hotel-marker";
 import { MapHeatmapLayer }  from "./map-heatmap-layer";
 import { MapMetroLayer }    from "./map-metro-layer";
 import { MapPolygonLayer }  from "./map-polygon-layer";
-import { AvuxiOverlay }     from "./hv-map/avuxi-overlay";
+
+import type { AvuxiOverlayProps } from "./hv-map/avuxi-overlay";
+
+// AvuxiOverlay loaded ONLY when the avuxi feature flag is ON · dynamic
+// import prevents mapbox-gl static dep from bleeding into the default
+// /report/competitive-set First Load. When flag OFF · this chunk is
+// never fetched · zero behavior change vs pre-Phase-2 production.
+const AvuxiOverlay = dynamic<AvuxiOverlayProps>(
+  () => import("./hv-map/avuxi-overlay").then((m) => m.AvuxiOverlay),
+  { ssr: false, loading: () => null },
+);
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 

@@ -15,6 +15,15 @@
 > · ⏸ New-city onboarding · postponed (validation-baseline only)
 > · 💡 NEW · **Dynamic Zones Engine** future capability documented in §11
 >
+> **Phase 2 SHIPPED 2026-05-22 · preview-first activation:**
+> · ✅ 4 commits landed on main · `fbb9477` · `981ab37` · `56ebbc2` · (this commit)
+> · ✅ `<AvuxiOverlay>` graduated · script + 4-arg mapStart + CSS hide native UI + click delegation per category
+> · ✅ MapLegend 4-toggle institutional · Demanda Turística · Gastronomía · Conectividad · Centro Histórico · Lucide icons · radio behavior for heatmap
+> · ✅ CompsetMapGL `avuxi` flag · default false · gates manual layers · mounts AVUXI when on
+> · ✅ /compset + /report/* surfaces read `NEXT_PUBLIC_AVUXI_ENABLED` · pass to GL
+> · ✅ Production behaviour identical when flag unset · zero impact until operator flips
+> · ⏳ Pending: operator sets flag to "true" on Vercel Preview env · validates · then production
+>
 > **Operator directive 2026-05-22 (further refinement):**
 > · CAPAS panel (existing `<MapLegend>` 3-toggle) is the integration point for AVUXI · NOT a new HV-owned proxy panel · NOT the AVUXI native button group exposed as primary UI
 > · ALL AVUXI categories remain available during validation · zero suppression · zero tiering
@@ -421,6 +430,25 @@ The engine sits inside HotelValora's IP layer · same level as the cap-rate engi
 - Produces zone polygons + zone labels at runtime · zero per-city hand-curation
 
 Output format: same GeoJSON `PolygonGeoJSON` shape the existing `MapPolygonLayer` consumes · drop-in compatibility.
+
+### 11.3.5 · Future categories reserved · NOT implemented
+
+Operator directive 2026-05-22 · reserve space in the layer model for
+the following future categories. **No implementation required now ·
+the layer model accepts new MapLayerId entries additively, so adding
+any of these later is a 2-line type extension + DEFAULT_LAYERS entry.**
+
+| Reserved category | Likely source | Underwriting signal |
+|---|---|---|
+| **Seguridad** | external crime/safety APIs (e.g. AVUXI safety score if exposed · or city open-data feeds) | Risk-adjusted occupancy + brand-segment fit |
+| **Walkability** | AVUXI POI density derivatives · OR third-party (e.g. Walk Score equivalent) | Leisure-segment demand · luxury amenity |
+| **Demanda Corporativa** | Office density · convention venues · LinkedIn-like business-traffic proxies | Business-segment ADR + occupancy weekday |
+| **Mercado Hotelero** | CoStar / STR per-submarket density · hotel-count overlays | Saturation risk · supply pressure |
+
+When activated in a future phase: each becomes a new toggle in the
+CAPAS panel (same `<MapLegend>` shell · new `MapLayer` entry · new
+toggle row with Lucide icon). Same integration discipline · zero
+per-city engineering.
 
 ### 11.4 · Roadmap positioning
 

@@ -30,6 +30,9 @@ import { MapLegend }      from "@/components/compset/map-legend";
 import { HVMap }          from "@/components/maps/hv-map";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
 
+// Phase 2 feature flag · same env var as /compset · default OFF.
+const AVUXI_ENABLED = process.env.NEXT_PUBLIC_AVUXI_ENABLED === "true";
+
 const CompsetMapGL = dynamic<CompsetMapGLProps>(
   () => import("@/components/maps/compset-map-gl").then((m) => m.CompsetMapGL),
   {
@@ -70,6 +73,7 @@ export function ReportMap({ referenceHotelId, className }: ReportMapProps) {
           competitors={competitors}
           suggested={suggested}
           layers={layers}
+          avuxi={AVUXI_ENABLED}
         />
       </div>
 

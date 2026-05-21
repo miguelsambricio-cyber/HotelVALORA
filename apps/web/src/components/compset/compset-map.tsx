@@ -10,6 +10,11 @@ import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
 import { AssetSelectionPanel }    from "./asset-selection-panel";
 import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
+
+// Phase 2 feature flag · Vercel env var · default OFF (production behavior
+// unchanged). Strict equality on "true" · any other value falls back to false.
+// Rollback: flip to "false" on Vercel env · ~3-min redeploy.
+const AVUXI_ENABLED = process.env.NEXT_PUBLIC_AVUXI_ENABLED === "true";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
 import type { MapLayer, MapLayerId } from "@/types/compset";
 import { useState } from "react";
@@ -130,6 +135,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
           layers={layers}
           onPinClick={handlePinClick}
           inspectedHotelId={inspectedHotelId}
+          avuxi={AVUXI_ENABLED}
         />
       </div>
 
@@ -220,6 +226,7 @@ function ExploreMode() {
           onPinClick={handlePinClick}
           inspectedHotelId={inspectedHotelId}
           layers={layers}
+          avuxi={AVUXI_ENABLED}
         />
       </div>
 
