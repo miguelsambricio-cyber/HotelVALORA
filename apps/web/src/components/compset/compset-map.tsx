@@ -72,6 +72,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
 
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
   const [inspectedHotelId, setInspectedHotelId] = useState<string | null>(null);
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false);
 
   // Re-center the map on the subject hotel when it loads / changes.
   const lastCenteredId = useRef<string | null>(null);
@@ -136,13 +137,21 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
+        layersPanelOpen={layersPanelOpen}
+        onToggleLayersPanel={() => setLayersPanelOpen((o) => !o)}
       />
 
-      <MapLegend
-        layers={layers}
-        onToggleLayer={toggleLayer}
-        className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-30"
-      />
+      {/* Layers panel · on-demand · anchored just below the Layers button.
+       *  Mobile (controls top-left): panel appears top-left below controls.
+       *  Desktop (controls top-right): panel appears top-right below. */}
+      {layersPanelOpen && (
+        <MapLegend
+          layers={layers}
+          onToggleLayer={toggleLayer}
+          onClose={() => setLayersPanelOpen(false)}
+          className="absolute left-4 top-44 md:left-auto md:right-8 md:top-48 z-30"
+        />
+      )}
 
       <CompetitorPanel
         referenceHotel={referenceHotel}
@@ -178,6 +187,7 @@ function ExploreMode() {
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
   const [layers, setLayers] = useState<MapLayer[]>(DEFAULT_LAYERS);
   const [inspectedHotelId, setInspectedHotelId] = useState<string | null>(null);
+  const [layersPanelOpen, setLayersPanelOpen] = useState(false);
 
   function toggleLayer(id: MapLayerId) {
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, enabled: !l.enabled } : l)));
@@ -217,13 +227,18 @@ function ExploreMode() {
         className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
+        layersPanelOpen={layersPanelOpen}
+        onToggleLayersPanel={() => setLayersPanelOpen((o) => !o)}
       />
 
-      <MapLegend
-        layers={layers}
-        onToggleLayer={toggleLayer}
-        className="absolute left-4 bottom-4 md:left-8 md:bottom-8 z-30"
-      />
+      {layersPanelOpen && (
+        <MapLegend
+          layers={layers}
+          onToggleLayer={toggleLayer}
+          onClose={() => setLayersPanelOpen(false)}
+          className="absolute left-4 top-44 md:left-auto md:right-8 md:top-48 z-30"
+        />
+      )}
 
       <AssetSelectionPanel
         recommended={ALL_MADRID_AS_COMPETITORS}
