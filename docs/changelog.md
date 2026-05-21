@@ -19,6 +19,21 @@ End-to-end institutional entry flow shipped to production. Landing → search/ex
 
 ---
 
+## 2026-05-21 — Institutional library · auto-persistence + 224-hotel bulk seed + admin bridge
+
+New persistence layer for the institutional report library. Every canonical-backed `/report/executive-summary` render now upserts a row into `public.hotel_report_library` · `/library/favorites-list` + `/library/favorites-map` switched off the marketplace `valuations` table onto this live log.
+
+- **Migration 0026** · `public.hotel_report_library` · canonical_id UNIQUE FK → hotel_canonical · snapshot columns (hotel_name/city/market/submarket/chain_scale/star_rating/total_rooms/brand_family/lat/lng + valuation block + cap_rate_pct + confidence_score + per_key + per_sqm + gop_margin + report_url + scenario_label + keys_from_heuristic) · render_count + last_rendered_at · public-read RLS · service-role writes only · 5 indexes (canonical / market / chain_scale / last_rendered / geo).
+- **`lib/report/library-persistence.ts`** · `upsertHotelReportLibrary(hotel, snapshot)` server-only helper. Two-step UPSERT (SELECT existing + INSERT or UPDATE with render_count + 1). Errors logged + swallowed · NEVER blocks report UI. Confidence rounded to integer (column is int4).
+- **Executive Summary page wired** · runs `runForHotel(hotel)` after canonical mapping · awaits persistence so production library stays consistent with rendered reports.
+- **Library adapters switched** · new `adaptReportLibraryToLibraryReport` adapter keeps the legacy `LibraryReport` consumer API. `useLibraryReports` + `fetchLibraryReports` now read from `hotel_report_library` ordered by `last_rendered_at DESC`.
+- **LibraryReport type** · adds `canonicalId` + `reportUrl` optional fields · favorites-table row click opens canonical-backed report via `reportUrl` (preferred) → `canonical_id` → legacy mock fallback. No more "coming soon" toast on row click.
+- **Coming-soon toasts retired** · filters / list-settings buttons disabled with hover title "disponible próximamente" · sidebar "New valuation" routes to `/compset` (institutional workflow entry point).
+- **Admin → library bridge** · `/user/admin/hotels/[id]` sidebar gains "Open in Library" + "Center on Library Map" links + methodology note explaining the auto-persistence behavior. Closes admin ↔ canonical ↔ report ↔ library round trip.
+- **Bulk seed run** (`scripts/library-seed-bulk.mjs`, concurrency 3) populated all 224 Madrid canonical hotels in 4:40 · 224/224 HTTP 200 · 0 errors. Cohort distribution post-seed: luxury 7 / avg 150M€ / cap 6.04% / 0 heuristic · upper_upscale 34 / 94M€ / 6.20% / 6 heuristic · upscale 66 / 63M€ / 6.40% / 40 heuristic · upper_midscale 3 / 35M€ / midscale 2 / 22M€ · unknown 112 / 42.8M€ all-heuristic. `favorites-list` + `favorites-map` render 200 with full corpus.
+
+---
+
 ## 2026-05-21 — Stabilization sweep · chain_scale €/key tier · 23-hotel curated backfill · taxonomy alignment
 
 Autonomous execution round 1 post-milestone. No new product · pure stabilization + coverage advancement.
