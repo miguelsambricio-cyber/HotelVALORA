@@ -26,6 +26,10 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Map, { type MapRef } from "react-map-gl/mapbox";
+// Import mapbox-gl explicitly · we MUST pass the namespace to AVUXI.mapStart
+// as the second argument. react-map-gl imports mapbox-gl internally but
+// doesn't attach to window.mapboxgl · so we import + pass directly.
+import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/lib/maps/map-config";
 import { ALL_MADRID_AS_COMPETITORS } from "@/lib/api/compset";
@@ -33,8 +37,13 @@ import { HotelMarker } from "@/components/maps/hotel-marker";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_ACCOUNT_ID = "67d80ff2-d56c-4d93-ab90-87e4f8abd043";
-const ACCOUNT_ID_STORAGE_KEY = "hotelvalora.avuxi.accountId";
+// AVUXI · operator-provisioned scriptId for the HotelVALORA project ·
+// product "Map Layers for Mapbox" (NOT the Google Maps variant) ·
+// confirmed enabled in the AVUXI dashboard 2026-05-21. The previous
+// demo id (67d80ff2-…) from the documentation snippet has been removed.
+const OFFICIAL_SCRIPT_ID = "fad4d930-e615-4c0c-9d15-e5f8fdd2224a";
+const SCRIPT_TYPE_LABEL = "Map Layers for Mapbox";
+const ACCOUNT_ID_STORAGE_KEY = "hotelvalora.avuxi.scriptId.v2"; // v2 · bust v1 demo cache
 const AVUXI_SCRIPT_URL =
   "https://scripts.avuxi.com/travel/map-layers/latest/map-layers-for-mapbox.js";
 
@@ -59,7 +68,14 @@ interface AVUXIOptions {
 declare global {
   interface Window {
     AVUXI?: {
-      mapStart: (mapInstance: unknown, accountId: string, options: AVUXIOptions) => void;
+      // 4-arg signature per the operator's AVUXI dashboard reference:
+      //   (map, mapboxgl-namespace, scriptId, options)
+      mapStart: (
+        mapInstance: unknown,
+        mapboxglNamespace: unknown,
+        scriptId: string,
+        options: AVUXIOptions,
+      ) => void;
     };
   }
 }
@@ -123,9 +139,10 @@ export default function ExperimentAvuxiPage() {
   const [events, setEvents] = useState<string[]>([]);
   const [cityId, setCityId] = useState("madrid");
 
-  // v5 · configurable accountId
-  const [accountId, setAccountId] = useState<string>(DEFAULT_ACCOUNT_ID);
-  const [accountIdDraft, setAccountIdDraft] = useState<string>(DEFAULT_ACCOUNT_ID);
+  // v6 · scriptId default is the operator's official Map Layers for Mapbox.
+  // localStorage from prior demo-id sessions is invalidated via the v2 key.
+  const [accountId, setAccountId] = useState<string>(OFFICIAL_SCRIPT_ID);
+  const [accountIdDraft, setAccountIdDraft] = useState<string>(OFFICIAL_SCRIPT_ID);
 
   // v5 · network interception
   const [interceptions, setInterceptions] = useState<InterceptedRequest[]>([]);
@@ -141,22 +158,38 @@ export default function ExperimentAvuxiPage() {
 
   const city = CITIES.find((c) => c.id === cityId) ?? CITIES[0];
 
+  // Ensure window.mapboxgl is present · the AVUXI SDK and the sandbox
+  // HTML both reference it. react-map-gl bundles mapbox-gl internally
+  // but does NOT attach to window. We mirror the sandbox setup here.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(window as any).mapboxgl) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).mapboxgl = mapboxgl;
+    }
+  }, []);
+
   const log = useCallback((msg: string) => {
     // eslint-disable-next-line no-console
     console.log(`[avuxi-exp] ${msg}`);
     setEvents((p) => [...p, `${new Date().toISOString().slice(11, 23)} · ${msg}`].slice(-60));
   }, []);
 
-  // ─── Hydrate accountId from localStorage on mount ────────────────────
+  // ─── Hydrate scriptId from localStorage on mount (v2 key) ────────────
+  // Bust any stale demo-id from the previous experiment by removing
+  // the v1 key. Only the new v2 key (post-2026-05-21) is honoured.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // Force-clear the deprecated v1 key once · prevents stale demo id resurrection
+    try { localStorage.removeItem("hotelvalora.avuxi.accountId"); } catch { /* noop */ }
     const stored = localStorage.getItem(ACCOUNT_ID_STORAGE_KEY);
-    if (stored && stored.length > 0) {
+    if (stored && stored.length > 0 && stored !== "67d80ff2-d56c-4d93-ab90-87e4f8abd043") {
       setAccountId(stored);
       setAccountIdDraft(stored);
-      log(`accountId hydrated from localStorage: ${stored.slice(0, 8)}…`);
+      log(`scriptId hydrated from localStorage v2: ${stored.slice(0, 8)}…`);
     } else {
-      log(`accountId default: ${DEFAULT_ACCOUNT_ID.slice(0, 8)}… (demo/reference snippet)`);
+      log(`scriptId default: ${OFFICIAL_SCRIPT_ID.slice(0, 8)}…${OFFICIAL_SCRIPT_ID.slice(-4)} (operator official · ${SCRIPT_TYPE_LABEL})`);
     }
   }, [log]);
 
@@ -388,8 +421,13 @@ export default function ExperimentAvuxiPage() {
       return false;
     }
     try {
-      log(`calling AVUXI.mapStart(map, "${accountId.slice(0, 8)}…${accountId.slice(-4)}", options)`);
-      window.AVUXI.mapStart(mapInstance, accountId, {
+      // 4-arg signature per AVUXI dashboard reference (verified 2026-05-21):
+      //   AVUXI.mapStart(mapInstance, mapboxgl-namespace, scriptId, options)
+      // mapboxgl is imported from "mapbox-gl" at module scope · must be
+      // the SAME module instance react-map-gl uses internally (same import).
+      log(`calling AVUXI.mapStart(map, mapboxgl, "${accountId.slice(0, 8)}…${accountId.slice(-4)}", options)`);
+      log(`scriptId in use: ${accountId} · type: ${SCRIPT_TYPE_LABEL}`);
+      window.AVUXI.mapStart(mapInstance, mapboxgl, accountId, {
         buttonOrientation: "vertical",
         buttonLocation: "tr",
         buttonBackgroundColor: "#ffffff",
@@ -525,7 +563,7 @@ export default function ExperimentAvuxiPage() {
     scriptStatus === "loaded" &&
     mapStartStatus === "called" &&
     avuxiDomElements > 0;
-  const isDefaultAccountId = accountId === DEFAULT_ACCOUNT_ID;
+  const isOfficialScriptId = accountId === OFFICIAL_SCRIPT_ID;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800">
@@ -587,10 +625,13 @@ export default function ExperimentAvuxiPage() {
           </span>
           <span className={cn(
             "px-2 py-1 rounded shadow border font-bold",
-            isDefaultAccountId ? "bg-amber-50 border-amber-300 text-amber-900"
-                               : "bg-emerald-50 border-emerald-300 text-emerald-900"
+            isOfficialScriptId ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                                : "bg-amber-50 border-amber-300 text-amber-900"
           )}>
-            accountId: {accountId.slice(0, 8)}…{accountId.slice(-4)} {isDefaultAccountId ? "(demo)" : "(custom)"}
+            scriptId: {accountId}
+          </span>
+          <span className="px-2 py-1 rounded shadow border bg-white border-slate-200 text-slate-700 font-bold">
+            type: {SCRIPT_TYPE_LABEL}
           </span>
         </div>
 
@@ -598,21 +639,27 @@ export default function ExperimentAvuxiPage() {
         <div className="absolute bottom-4 left-4 z-30 w-[min(500px,calc(100vw-2rem))] bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-xl p-3 space-y-3 text-xs font-mono max-h-[90vh] overflow-y-auto">
           <p className="font-bold text-sm">AVUXI · evidence v5 · accountId + network interception</p>
 
-          {/* AccountId · v5 NEW */}
-          <section className="bg-amber-50/40 border border-amber-200 rounded p-2 space-y-2">
+          {/* ScriptId configuration · v6 · operator official Map Layers for Mapbox */}
+          <section className={cn(
+            "border rounded p-2 space-y-2",
+            isOfficialScriptId ? "bg-emerald-50/40 border-emerald-200" : "bg-amber-50/40 border-amber-200"
+          )}>
             <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase">
-              AccountId configuration
+              Script · {SCRIPT_TYPE_LABEL}
+            </p>
+            <p className="text-[10px] text-slate-700 leading-snug font-mono break-all">
+              {accountId}
             </p>
             <p className="text-[10px] text-slate-600 leading-snug">
-              {isDefaultAccountId
-                ? "⚠ Currently using the DEMO accountId from the AVUXI reference snippet. If your dashboard shows a different ID, paste it below + click Apply."
-                : "✓ Using custom accountId. localStorage preserves across reloads."}
+              {isOfficialScriptId
+                ? "✓ Using the operator-provisioned scriptId from the AVUXI dashboard."
+                : "⚠ Custom scriptId in use. Click Reset to return to the official Mapbox scriptId."}
             </p>
             <input
               type="text"
               value={accountIdDraft}
               onChange={(e) => setAccountIdDraft(e.target.value)}
-              placeholder="Paste your AVUXI accountId here"
+              placeholder="Paste a different scriptId to test"
               className="w-full px-2 py-1.5 text-[11px] font-mono border border-slate-300 rounded"
             />
             <div className="grid grid-cols-3 gap-1">
@@ -625,10 +672,10 @@ export default function ExperimentAvuxiPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setAccountIdDraft(DEFAULT_ACCOUNT_ID); }}
+                onClick={() => { setAccountIdDraft(OFFICIAL_SCRIPT_ID); }}
                 className="px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700 hover:bg-slate-300"
               >
-                Reset demo
+                Reset official
               </button>
               <button
                 type="button"
@@ -639,7 +686,8 @@ export default function ExperimentAvuxiPage() {
               </button>
             </div>
             <p className="text-[9px] text-slate-500 leading-snug italic">
-              Probe button tries 3 candidate API endpoints with the current accountId · response captured in the network interception table below.
+              Default scriptId = operator&apos;s &quot;Map Layers for Mapbox&quot; product (Active in dashboard).
+              No Google Maps script is referenced anywhere in this prototype.
             </p>
           </section>
 
