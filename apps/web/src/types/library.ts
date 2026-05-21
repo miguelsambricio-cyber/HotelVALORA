@@ -163,6 +163,13 @@ export interface LibraryReport {
   referenceCode: string;
   /** Visibility-tier label used by the Top Reports surface */
   visibilityTier: VisibilityTier;
+  /** Supabase canonical_id (UUID) of the underlying hotel · present when
+   *  the row came from `hotel_report_library`. Used to open the report
+   *  and to deep-link into admin from the library row. */
+  canonicalId?: string;
+  /** Full institutional report URL · stable per canonical hotel · used
+   *  by the library row click handler instead of routing by slug. */
+  reportUrl?: string;
 }
 
 // ── UI state shapes ─────────────────────────────────────────────────────────

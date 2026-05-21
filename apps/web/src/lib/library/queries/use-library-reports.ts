@@ -5,9 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import type { LibraryReport } from "@/types/library";
 import {
-  adaptValuationToLibraryReport,
-  type ValuationWithJoins,
-} from "@/lib/library/adapters/valuation-to-report";
+  adaptReportLibraryToLibraryReport,
+  type HotelReportLibraryRow,
+} from "@/lib/library/adapters/report-library-to-report";
 import { libraryKeys, type LibraryReportsFilter } from "./keys";
 import { useFavoriteValuationIds } from "./use-favorite-valuation-ids";
 
@@ -40,57 +40,58 @@ export function useLibraryReports(options: UseLibraryReportsOptions = {}) {
 
   const query = useQuery({
     queryKey: libraryKeys.reportsList({ promotedOnly, search }),
-    queryFn: async (): Promise<ValuationWithJoins[]> => {
-      const supabase = createBrowserSupabaseClient();
-      let q = supabase
-        .from("valuations")
-        .select("*, top_promote_reports!left(*)")
-        .in("visibility", ["public", "top-promote"])
-        .order("updated_at", { ascending: false })
-        .range(offset, offset + limit - 1);
+    queryFn: async (): Promise<HotelReportLibraryRow[]> => {
+      // Cast around the auto-generated Database type · hotel_report_library
+      // (migration 0026) is not yet in the regenerated types.
+      const supabase = createBrowserSupabaseClient() as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            order: (col: string, opts: { ascending: boolean }) => {
+              range: (a: number, b: number) => Promise<{ data: HotelReportLibraryRow[] | null; error: { message: string } | null }> & {
+                ilike?: (col: string, q: string) => Promise<{ data: HotelReportLibraryRow[] | null; error: { message: string } | null }>;
+              };
+              ilike: (col: string, q: string) => {
+                range: (a: number, b: number) => Promise<{ data: HotelReportLibraryRow[] | null; error: { message: string } | null }>;
+              };
+            };
+          };
+        };
+      };
 
-      if (search && search.trim().length > 0) {
-        q = q.ilike("hotel_name", `%${search.trim()}%`);
-      }
+      const base = supabase
+        .from("hotel_report_library")
+        .select("*")
+        .order("last_rendered_at", { ascending: false });
 
-      const { data, error } = await q;
-      if (error) throw new Error(`Library fetch failed: ${error.message}`);
+      const result = search && search.trim().length > 0
+        ? await base.ilike("hotel_name", `%${search.trim()}%`).range(offset, offset + limit - 1)
+        : await base.range(offset, offset + limit - 1);
 
-      const rows = (data ?? []) as unknown as ValuationWithJoins[];
-
-      if (promotedOnly) {
-        return rows.filter((r) => {
-          const promo = Array.isArray(r.top_promote_reports)
-            ? r.top_promote_reports[0]
-            : r.top_promote_reports;
-          if (!promo) return false;
-          return new Date(promo.promoted_until).getTime() > Date.now();
-        });
-      }
-
-      return rows;
+      if (result.error) throw new Error(`Library fetch failed: ${result.error.message}`);
+      return result.data ?? [];
     },
     // Library data is institutional and changes slowly — five-minute
     // staleness is fine and lets the map ↔ list pages share cache.
     staleTime: 5 * 60 * 1000,
   });
 
-  // Combine raw rows with the user's favorite_ids set. Memoised so map +
-  // list don't re-derive on every render.
-  //
   // Fallback chain: query.data (live fetch) → initialData (SSR seed) → [].
-  // This keeps the table populated even when the client-side query is
-  // delayed (slow network, stale browser cache, intermittent failure).
   const reports = useMemo<LibraryReport[]>(() => {
     if (!query.data) return initialData ?? [];
     const favoriteIds = new Set(favorites.ids);
-    return query.data.map((row) =>
-      adaptValuationToLibraryReport(row, {
+    let mapped = query.data.map((row) =>
+      adaptReportLibraryToLibraryReport(row, {
         favoriteIds,
         treatAllAsFavorited: favorites.isAnonymous,
       }),
     );
-  }, [query.data, favorites.ids, favorites.isAnonymous, initialData]);
+    if (promotedOnly) {
+      // hotel_report_library does not yet model promotions · return
+      // all rows when filter is set (no-op until promotions land).
+      mapped = mapped;
+    }
+    return mapped;
+  }, [query.data, favorites.ids, favorites.isAnonymous, initialData, promotedOnly]);
 
   return {
     reports,

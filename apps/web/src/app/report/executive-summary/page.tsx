@@ -15,6 +15,8 @@ import {
   resolveCanonicalIdFromSnapshotHotelId,
 } from "@/lib/report/canonical-reader";
 import { mapCanonicalToExecutiveSummary } from "@/lib/report/canonical-mappers/executive-summary";
+import { runForHotel } from "@/lib/report/underwriting-runner";
+import { upsertHotelReportLibrary } from "@/lib/report/library-persistence";
 
 export const metadata = {
   title: "Executive Summary — HotelVALORA",
@@ -50,11 +52,29 @@ async function loadExecutiveSummaryData(
         hotel.submarket_name,
         { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
       );
-      return {
-        data: mapCanonicalToExecutiveSummary(hotel, marketKpi),
-        source: "canonical",
-        canonical_id: canonicalId,
-      };
+      const data = mapCanonicalToExecutiveSummary(hotel, marketKpi);
+      // Persist the report row into hotel_report_library · awaits so
+      // production library stays consistent with rendered reports.
+      // Errors swallowed inside the helper · never block UI.
+      const engineRun = (() => {
+        try { return runForHotel(hotel); } catch { return null; }
+      })();
+      await upsertHotelReportLibrary(hotel, {
+        engineRun,
+        valuation: {
+          estimated_value_eur: data.valuation.estimatedValue,
+          valuation_range_low_eur: data.valuation.valuationRangeLow,
+          valuation_range_high_eur: data.valuation.valuationRangeHigh,
+          cap_rate_pct: data.valuation.capRate,
+          per_key_eur: data.valuation.perRoom,
+          per_sqm_eur: data.valuation.perSqmHotel,
+          gop_margin_pct: data.valuation.gopMargin,
+        },
+        scenario_label: data.valuation.scenario,
+        keys_from_heuristic: data.valuation.scenario?.includes("heurístico") ?? false,
+        report_url: `/report/executive-summary?canonical_id=${canonicalId}`,
+      });
+      return { data, source: "canonical", canonical_id: canonicalId };
     }
   }
   // Fallback · keep demo content visible when no canonical_id resolves

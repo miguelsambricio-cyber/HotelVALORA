@@ -3,6 +3,17 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp"
+    },
+    "RapidAPI Hub - Booking COM": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://mcp.rapidapi.com",
+        "--header",
+        "x-api-host: booking-com15.p.rapidapi.com",
+        "--header",
+        "x-api-key: d2b2244dacmsh8fcbfa6e2af937fp1b96dcjsn416f952dc6dc"
+      ]
     }
   }
 }

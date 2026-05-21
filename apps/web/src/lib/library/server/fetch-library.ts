@@ -2,24 +2,22 @@ import "server-only";
 import { createAnonServerSupabaseClient } from "@/lib/supabase/anon-server";
 import type { LibraryReport } from "@/types/library";
 import {
-  adaptValuationToLibraryReport,
-  type ValuationWithJoins,
-} from "@/lib/library/adapters/valuation-to-report";
+  adaptReportLibraryToLibraryReport,
+  type HotelReportLibraryRow,
+} from "@/lib/library/adapters/report-library-to-report";
 
 /**
- * Server-side prefetch for the library surface. Runs at request / build
- * time so the SSR'd HTML carries the actual hotel rows — the page renders
- * with data even if the client-side React Query never gets a chance to
- * fire (slow network, ad-blocker on supabase.co, stale browser cache, etc.).
+ * Server-side prefetch for the library surface · reads
+ * `public.hotel_report_library` (migration 0026), the persistent log
+ * auto-populated on every canonical-backed `/report/*` render.
  *
- * Mirrors the shape useLibraryReports() returns client-side, so the
- * downstream component code is unchanged. The fetch runs as the
- * anonymous role — the same posture an unsigned visitor would see —
- * which matches the public-read RLS policy on `valuations`.
+ * Replaces the legacy read from `public.valuations` (marketplace seed).
+ * Public-read RLS lets the anonymous role list rows · same posture as
+ * an unsigned visitor.
  *
- * `treatAllAsFavorited: true` is the legacy demo behaviour for the
- * server-rendered initial frame; once the client hydrates and the
- * authenticated session lands, the favourites query refines the set.
+ * `treatAllAsFavorited: true` keeps the demo UX where every saved row
+ * appears favourited in the initial frame · the client hydration then
+ * refines via `useFavoriteValuationIds`.
  */
 export interface PrefetchOptions {
   promotedOnly?: boolean;
@@ -29,37 +27,36 @@ export interface PrefetchOptions {
 export async function fetchLibraryReports(
   options: PrefetchOptions = {},
 ): Promise<LibraryReport[]> {
-  const { promotedOnly = false, limit = 100 } = options;
+  const { promotedOnly = false, limit = 200 } = options;
+  if (promotedOnly) {
+    // `hotel_report_library` does not model marketplace promotions ·
+    // `top_promote_reports` still ties to `valuations`. For the saved
+    // library the promotedOnly toggle is currently a no-op · returns
+    // the same superset.
+  }
   try {
-    const supabase = createAnonServerSupabaseClient();
-    let q = supabase
-      .from("valuations")
-      .select("*, top_promote_reports!left(*)")
-      .in("visibility", ["public", "top-promote"])
-      .order("updated_at", { ascending: false })
+    const sb = createAnonServerSupabaseClient() as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          order: (col: string, opts: { ascending: boolean }) => {
+            range: (a: number, b: number) => Promise<{ data: HotelReportLibraryRow[] | null; error: unknown }>;
+          };
+        };
+      };
+    };
+    const { data, error } = await sb
+      .from("hotel_report_library")
+      .select("*")
+      .order("last_rendered_at", { ascending: false })
       .range(0, limit - 1);
-    const { data, error } = await q;
     if (error || !data) return [];
-    let rows = data as unknown as ValuationWithJoins[];
-    if (promotedOnly) {
-      rows = rows.filter((r) => {
-        const promo = Array.isArray(r.top_promote_reports)
-          ? r.top_promote_reports[0]
-          : r.top_promote_reports;
-        if (!promo) return false;
-        return new Date(promo.promoted_until).getTime() > Date.now();
-      });
-    }
-    return rows.map((row) =>
-      adaptValuationToLibraryReport(row, {
+    return data.map((row) =>
+      adaptReportLibraryToLibraryReport(row, {
         favoriteIds: new Set(),
         treatAllAsFavorited: true,
       }),
     );
   } catch {
-    // SSR must never block the page. On any failure (env missing, network
-    // hiccup, schema drift) return an empty seed and let the client query
-    // populate the table — same UX as today.
     return [];
   }
 }

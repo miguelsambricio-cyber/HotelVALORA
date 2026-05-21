@@ -405,9 +405,17 @@ export function FavoritesTable({
 
   const handleRowSelect = (id: string) => {
     setSelected(id);
-    toast.message("Report detail view coming soon", {
-      description: "Will open the underwriting report for this asset.",
-    });
+    const row = reports.find((r) => r.id === id);
+    if (!row) {
+      toast.error("Report row not found");
+      return;
+    }
+    // Prefer the persisted reportUrl (full canonical UUID anchor) ·
+    // falls back to canonical_id direct · finally to legacy mock route.
+    const target = row.reportUrl
+      ?? (row.canonicalId ? `/report/executive-summary?canonical_id=${row.canonicalId}` : null)
+      ?? `/report/executive-summary?reportId=${row.id}`;
+    window.open(target, "_blank", "noopener");
   };
 
   const handleToggleFavorite = (id: string, favorited: boolean) => {
