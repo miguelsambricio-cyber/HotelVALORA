@@ -529,6 +529,98 @@ const RELATIONSHIP_INTELLIGENCE: PlatformIntegrationDescriptor[] = [
 
 const EXTERNAL_DATA: PlatformIntegrationDescriptor[] = [
   {
+    id: "costar-market-data",
+    name: "CoStar (institutional market data)",
+    provider: "CoStar Group",
+    layer: "external_data",
+    status: "live",
+    purpose:
+      "Institutional source of truth for hotel market performance · ADR · RevPAR · Occupancy · transaction comps · class/segment aggregates · operator-licensed. Feeds the cap-rate engine and KPI overlays across the entire report system.",
+    authMethod: "Operator-managed CoStar account · XLSX exports dropped into services/costar/<level>/INPUT/",
+    envVars: [],
+    tables: ["market_snapshots", "market_timeseries (legacy)", "hotel_canonical (market_name + submarket_name FKs)"],
+    cronDependencies: [],
+    consumedBy: [
+      "lib/report/canonical-reader.ts (resolveBestAvailableMarketKpis)",
+      "lib/underwriting/cap-rate-engine (market_yield + per_room inputs)",
+      "/report/executive-summary (scenario · KPI band)",
+      "/report/market-overview (submarket KPIs)",
+      "/compset (competitor KPIs)",
+    ],
+    operatorManaged: true,
+    signal: "ok",
+    accountProvisioned: true,
+    notes: [
+      "Operator drops XLSX exports per granularity (PAIS · MERCADO · SUBMERCADO · CLASS / Hotel-by-Market) into services/costar/<level>/INPUT/.",
+      "services/costar/scripts/build_masters.py + ingest pipeline normalises to canonical schema and writes Supabase market_snapshots.",
+      "Resolver walks compset → submarket → market → country → MADRID_2024_INSTITUTIONAL_BASELINE fallback · provenance field exposes which level answered.",
+      "Pipeline is owned by the COSTAR & Hotel Reference Agent (per docs/agents/costar-market-data-agent.md · activation deferred · operator-driven for now).",
+      "CoStar is DATA not a map · it appears geospatially as KPI badges on hotel pins · the overlay layer itself is AVUXI / Mapbox.",
+    ],
+    externalLinks: [
+      { label: "CoStar", href: "https://www.costar.com" },
+      { label: "CoStar workspace README", href: "https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/services/costar/README.md" },
+    ],
+  },
+  {
+    id: "wikidata-sparql",
+    name: "Wikidata (SPARQL)",
+    provider: "Wikimedia Foundation",
+    layer: "external_data",
+    status: "partial",
+    purpose:
+      "Hotel reference enrichment via public SPARQL endpoint · year_opened · year_renovated_last · wikidata_qid · structured cross-reference. Batched queries return multiple hotels in one call.",
+    authMethod: "Public · structured User-Agent per Wikidata policy · 1 req/s per IP",
+    envVars: ["WIKIDATA_MODE", "WIKIDATA_SPARQL_URL", "WIKIDATA_USER_AGENT"],
+    tables: ["(Storage) costar-master/manual_enrichment/<hotel_id>.json (wikidata_qid · reference fields)"],
+    cronDependencies: [],
+    consumedBy: [
+      "lib/enrichment/providers/wikidata (orchestrator + client)",
+      "lib/enrichment/orchestrator (fallback-dispatcher · Tier 1 reference enrichment)",
+    ],
+    operatorManaged: false,
+    signal: "ok",
+    accountProvisioned: true,
+    notes: [
+      "Default mode: dry-run · live mode requires explicit operator opt-in.",
+      "Rate limit honoured at 1 req/s · batched SPARQL preferred over per-hotel HTTP.",
+      "Provenance: enrichment_sources=['wikidata'] · priority below manual_operator + rapidapi_booking.",
+    ],
+    externalLinks: [
+      { label: "Wikidata Query Service", href: "https://query.wikidata.org/" },
+    ],
+  },
+  {
+    id: "hotel-website-d8",
+    name: "Hotel website fallback (D-8 · paused)",
+    provider: "n/a · per-hotel chain websites",
+    layer: "external_data",
+    status: "planned",
+    purpose:
+      "Chain-website HEAD-only fetcher for hotels CoStar and Booking don't cover · robots.txt + per-domain rate limiting + circuit breaker. CURRENTLY PAUSED per operator's NO-aggressive-scraping rule after Hilton / Marriott enterprise bot defense returned timeouts + 403s.",
+    authMethod: "Public HEAD · HOTELVALORA_USER_AGENT (identifies contact email) · robots.txt honoured",
+    envVars: ["HOTEL_WEBSITE_MODE"],
+    tables: ["(Storage) manual_enrichment/<hotel_id>.json (operator-validated fields only)"],
+    cronDependencies: [],
+    consumedBy: [
+      "lib/enrichment/providers/hotel-website (client + robots compliance)",
+      "(paused · not consumed in production)",
+    ],
+    operatorManaged: true,
+    signal: "neutral",
+    accountProvisioned: false,
+    nextMilestone:
+      "Path forward documented in docs/hotel-intelligence/d8-bot-defense-finding-2026-05-20.md · prefer Wikidata SPARQL re-sweep + targeted manual operator backfill for the luxury / upper_upscale subset over automated scraping.",
+    notes: [
+      "Hilton timeouts (Akamai-style edge) · Marriott 403 to honest UA · enterprise WAF requires JS challenge + browser-fingerprint TLS · incompatible with the operator's NO-aggressive-scraping rule.",
+      "D-8 design + provider scaffold kept in repo · candidate for small-chains use ONLY when explicit per-domain operator authorisation exists.",
+      "Live mode requires explicit operator opt-in per domain · NO blanket scraping.",
+    ],
+    externalLinks: [
+      { label: "D-8 bot-defense finding doc", href: "https://github.com/miguelsambricio-cyber/HotelVALORA/blob/main/docs/hotel-intelligence/d8-bot-defense-finding-2026-05-20.md" },
+    ],
+  },
+  {
     id: "rapidapi-booking-com15",
     name: "RapidAPI · Booking.com (booking-com15)",
     provider: "DataCrawler via RapidAPI",
