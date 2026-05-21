@@ -100,28 +100,42 @@ const CITIES: CityEntry[] = [
 /**
  * Institutional category curation · QA #002 final UX.
  *
- * Operator request: hide Shopping + Nightlife + Parks from the AVUXI
- * panel · keep only the 3 categories that drive hotel underwriting
- * value (tourism · gastronomy · connectivity). Replace AVUXI's native
- * micro-labels with HotelValora institutional labels.
+ * v8 selectors · confirmed via SDK source audit (grep on the minified
+ * bundle of map-layers-for-mapbox.js):
+ *
+ *   AVUXI category buttons use CLASS TEMPLATING (no data-* attributes):
+ *     .category-btn-container-{name}     · heatmap variant
+ *     .category-btn-t-container-{name}   · transport variant
+ *
+ *   Metro is a separate element keyed by id:
+ *     id="category-control-container-metro-button{n}"
+ *
+ *   Internal category keys: eating · food · nightlife · shopping ·
+ *   sightseeing · transport (NO "parks", NO "metro" as a heatmap key).
  *
  * Single source of truth · to RE-ENABLE a category in the future,
  * change its label from `null` to a string. The implementation reads
  * this config at runtime · no other code change needed.
- *
- * Keys match AVUXI's category identifiers (data-category attribute /
- * aria-label / text content · case-insensitive · trimmed).
  */
 const INSTITUTIONAL_CATEGORIES: Record<string, string | null> = {
   sightseeing: "Atracción turística",
   eating: "Gastronomía",
+  food: "Gastronomía",          // AVUXI alias · same Spanish label
   transport: "Conectividad",
-  metro: "Conectividad",         // AVUXI may use "metro" or "transport" interchangeably
+  metro: "Conectividad",        // SDK has separate metro button · same label
   // Hidden for institutional underwriting view · flip to a label string to re-enable
   shopping: null,
   nightlife: null,
-  parks: null,
+  parks: null,                  // not in current SDK keys but reserved for future
 };
+
+/** Selectors that match AVUXI category container elements. */
+const AVUXI_CONTAINER_PATTERNS = [
+  /^category-btn-container-(.+)$/,
+  /^category-btn-t-container-(.+)$/,
+];
+
+const AVUXI_METRO_ID_PREFIX = "category-control-container-metro-button";
 
 interface ResourceEvent {
   ts: string;
@@ -378,101 +392,166 @@ export default function ExperimentAvuxiPage() {
     return () => window.clearInterval(id);
   }, []);
 
-  // ─── Institutional category curation ──────────────────────────────────
-  // Hides categories with `null` label in INSTITUTIONAL_CATEGORIES.
-  // Relabels visible ones with HotelValora text. Idempotent · re-runs on
-  // every DOM mutation so AVUXI re-renders don't wipe our changes.
+  // ─── v8 · Institutional curation with REAL selectors from SDK audit ───
+  // AVUXI uses class templating: .category-btn-container-{name}
+  // No data-* attributes. Live counters for found/hidden/relabeled +
+  // DOM inspector of every AVUXI element rendered.
+  const [curationStats, setCurationStats] = useState<{
+    foundContainers: number;
+    foundButtons: number;
+    foundMetro: number;
+    detected: { selector: string; category: string; visible: boolean }[];
+    inspector: { tag: string; classes: string; id: string; ariaLabel: string; text: string }[];
+  }>({
+    foundContainers: 0, foundButtons: 0, foundMetro: 0, detected: [], inspector: [],
+  });
+
   useEffect(() => {
     if (typeof document === "undefined") return;
 
-    // Inject scoped stylesheet · hides AVUXI's native button content
-    // when our institutional label is attached.
     const style = document.createElement("style");
     style.id = "hv-avuxi-institutional";
     style.textContent = `
-      .category-btn[data-hv-relabeled="true"] > *:not([data-hv-label="true"]) {
+      [data-hv-hidden="true"] {
         display: none !important;
+        visibility: hidden !important;
       }
-      [data-hv-label="true"] {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 700;
-        color: #0E4B31;
-        padding: 6px 12px;
-        letter-spacing: 0.04em;
-        text-align: center;
-        white-space: nowrap;
-        text-transform: none;
-        min-width: 110px;
+      [data-hv-relabeled="true"] {
+        position: relative !important;
       }
-      .category-btn[data-hv-hidden="true"] {
-        display: none !important;
+      [data-hv-relabeled="true"] > *:not([data-hv-label]):not(style):not(script) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      [data-hv-label] {
+        position: absolute !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 9px !important;
+        font-weight: 700 !important;
+        color: #0E4B31 !important;
+        padding: 4px 6px !important;
+        letter-spacing: 0.03em !important;
+        text-align: center !important;
+        line-height: 1.1 !important;
+        background: white !important;
+        border-radius: inherit !important;
+        z-index: 10 !important;
       }
     `;
     document.head.appendChild(style);
 
-    function identifyKey(el: HTMLElement): string {
-      return (
-        el.getAttribute("data-category") ||
-        el.getAttribute("aria-label") ||
-        el.getAttribute("title") ||
-        el.textContent ||
-        ""
-      ).toLowerCase().trim();
+    /**
+     * Identify category from an element's class list using the templated
+     * patterns AVUXI generates · returns null if not an AVUXI category container.
+     */
+    function categoryFromClasses(el: HTMLElement): string | null {
+      for (const cls of Array.from(el.classList)) {
+        for (const pattern of AVUXI_CONTAINER_PATTERNS) {
+          const m = cls.match(pattern);
+          if (m) return m[1].toLowerCase();
+        }
+      }
+      return null;
     }
 
     function applyInstitutional() {
-      const buttons = document.querySelectorAll<HTMLElement>(AVUXI_BTN_SELECTOR);
-      buttons.forEach((btn) => {
-        const key = identifyKey(btn);
-        if (!(key in INSTITUTIONAL_CATEGORIES)) return;
-        const label = INSTITUTIONAL_CATEGORIES[key];
+      // 1. Find all category buttons via class-templating (v8 selectors)
+      const allEls = document.querySelectorAll<HTMLElement>(
+        "[class*='category-btn-container-'], [class*='category-btn-t-container-']"
+      );
+      const detected: { selector: string; category: string; visible: boolean }[] = [];
 
-        // Hidden category · mark + bail
-        if (label === null) {
-          btn.setAttribute("data-hv-hidden", "true");
+      allEls.forEach((el) => {
+        const category = categoryFromClasses(el);
+        if (!category) return;
+
+        const label = INSTITUTIONAL_CATEGORIES[category];
+        if (label === undefined) {
+          // Unknown category · log but leave alone
+          detected.push({ selector: "category-btn-container-" + category, category, visible: true });
           return;
         }
 
-        // Visible category · relabel idempotently
-        btn.setAttribute("aria-label", label);
-        btn.setAttribute("title", label);
-        btn.setAttribute("data-hv-relabeled", "true");
-        btn.removeAttribute("data-hv-hidden");
+        if (label === null) {
+          // Hide
+          el.setAttribute("data-hv-hidden", "true");
+          detected.push({ selector: "category-btn-container-" + category, category, visible: false });
+          return;
+        }
 
-        let labelEl = btn.querySelector<HTMLElement>('[data-hv-label="true"]');
+        // Relabel · idempotent
+        el.setAttribute("data-hv-relabeled", "true");
+        el.removeAttribute("data-hv-hidden");
+        el.setAttribute("aria-label", label);
+        el.setAttribute("title", label);
+
+        let labelEl = el.querySelector<HTMLElement>("[data-hv-label]");
         if (!labelEl) {
           labelEl = document.createElement("span");
           labelEl.setAttribute("data-hv-label", "true");
-          btn.appendChild(labelEl);
+          el.appendChild(labelEl);
         }
         if (labelEl.textContent !== label) {
           labelEl.textContent = label;
         }
+        detected.push({ selector: "category-btn-container-" + category, category, visible: true });
       });
 
-      // Hide unwanted categories in the legend (if AVUXI renders one)
-      document.querySelectorAll<HTMLElement>(".category-legend > *").forEach((el) => {
-        const key = identifyKey(el);
-        if (!(key in INSTITUTIONAL_CATEGORIES)) return;
-        const label = INSTITUTIONAL_CATEGORIES[key];
+      // 2. Metro button · separate element identified by id prefix
+      const metroEls = document.querySelectorAll<HTMLElement>(
+        "[id^='" + AVUXI_METRO_ID_PREFIX + "']"
+      );
+      metroEls.forEach((el) => {
+        const label = INSTITUTIONAL_CATEGORIES["metro"];
         if (label === null) {
-          el.style.display = "none";
-        } else if (el.textContent && el.textContent.trim().toLowerCase() === key) {
-          el.textContent = label;
+          el.setAttribute("data-hv-hidden", "true");
+          return;
         }
+        if (label !== undefined) {
+          el.setAttribute("data-hv-relabeled", "true");
+          el.removeAttribute("data-hv-hidden");
+          el.setAttribute("aria-label", label);
+          el.setAttribute("title", label);
+          let labelEl = el.querySelector<HTMLElement>("[data-hv-label]");
+          if (!labelEl) {
+            labelEl = document.createElement("span");
+            labelEl.setAttribute("data-hv-label", "true");
+            el.appendChild(labelEl);
+          }
+          if (labelEl.textContent !== label) {
+            labelEl.textContent = label;
+          }
+        }
+      });
+
+      // 3. Inspector · capture full snapshot of all AVUXI-related elements
+      const inspectorEls = document.querySelectorAll<HTMLElement>(
+        "[class*='category-'], [id*='category-']"
+      );
+      const inspector = Array.from(inspectorEls).slice(0, 30).map((el) => ({
+        tag: el.tagName.toLowerCase(),
+        classes: el.className && typeof el.className === "string"
+          ? el.className.split(/\s+/).filter((c) => c.includes("category")).join(" ")
+          : "",
+        id: el.id || "",
+        ariaLabel: el.getAttribute("aria-label") || "",
+        text: (el.textContent || "").trim().slice(0, 30),
+      }));
+
+      setCurationStats({
+        foundContainers: document.querySelectorAll(".category-btns-container").length,
+        foundButtons: allEls.length,
+        foundMetro: metroEls.length,
+        detected,
+        inspector,
       });
     }
 
     applyInstitutional();
-    const mo = new MutationObserver(() => {
-      // Debounce-by-batch via microtask · MutationObserver may fire many
-      // times rapidly during AVUXI re-render. One pass per microtask is
-      // enough since each pass is idempotent.
-      queueMicrotask(applyInstitutional);
-    });
+    const mo = new MutationObserver(() => queueMicrotask(applyInstitutional));
     mo.observe(document.body, { childList: true, subtree: true });
 
     return () => {
@@ -771,33 +850,107 @@ export default function ExperimentAvuxiPage() {
         <div className="absolute bottom-4 left-4 z-30 w-[min(500px,calc(100vw-2rem))] bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-xl p-3 space-y-3 text-xs font-mono max-h-[90vh] overflow-y-auto">
           <p className="font-bold text-sm">AVUXI · evidence v5 · accountId + network interception</p>
 
-          {/* Institutional category curation · operator request 2026-05-21 */}
+          {/* Institutional category curation v8 · with live DOM inspection */}
           <section className="bg-forest-900/[0.04] border border-forest-900/20 rounded p-2 space-y-2">
             <p className="text-[10px] font-bold tracking-widest text-forest-900 uppercase">
-              Institutional view · category curation
+              Institutional view · live curation
             </p>
-            <p className="text-[10px] text-slate-700 leading-snug">
-              Solo 3 capas relevantes para underwriting hotelero. AVUXI native icons hidden ·
-              etiquetas HotelValora aplicadas via DOM relabeling.
-            </p>
-            <table className="w-full text-[10px] border border-slate-200">
-              <tbody>
-                {Object.entries(INSTITUTIONAL_CATEGORIES).map(([key, label]) => (
-                  <tr key={key} className={cn(
-                    "border-b border-slate-100",
-                    label === null ? "bg-slate-50 text-slate-400" : "bg-emerald-50/40 text-emerald-900"
-                  )}>
-                    <td className="px-1.5 py-1 font-mono">{key}</td>
-                    <td className="px-1.5 py-1 text-right font-semibold">
-                      {label === null ? "hidden" : `→ ${label}`}
-                    </td>
+
+            {/* Counters · what the curation actually found in the DOM */}
+            <div className="grid grid-cols-3 gap-1 text-[10px]">
+              <div className={cn("px-1.5 py-1 border rounded text-center",
+                curationStats.foundContainers > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900")}>
+                <div className="font-bold">{curationStats.foundContainers}</div>
+                <div className="text-[9px]">btns-container</div>
+              </div>
+              <div className={cn("px-1.5 py-1 border rounded text-center",
+                curationStats.foundButtons > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-rose-50 border-rose-200 text-rose-900")}>
+                <div className="font-bold">{curationStats.foundButtons}</div>
+                <div className="text-[9px]">cat buttons</div>
+              </div>
+              <div className={cn("px-1.5 py-1 border rounded text-center",
+                curationStats.foundMetro > 0 ? "bg-emerald-50 border-emerald-200 text-emerald-900" : "bg-amber-50 border-amber-200 text-amber-900")}>
+                <div className="font-bold">{curationStats.foundMetro}</div>
+                <div className="text-[9px]">metro buttons</div>
+              </div>
+            </div>
+
+            {/* Detected categories with status */}
+            {curationStats.detected.length > 0 && (
+              <table className="w-full text-[10px] border border-slate-200">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-1.5 py-1 text-left">Detected class</th>
+                    <th className="px-1 py-1 text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {curationStats.detected.map((d, i) => {
+                    const label = INSTITUTIONAL_CATEGORIES[d.category];
+                    return (
+                      <tr key={i} className={cn(
+                        "border-b border-slate-100",
+                        label === null ? "bg-rose-50/60 text-rose-900" :
+                        label === undefined ? "bg-amber-50 text-amber-900" :
+                        "bg-emerald-50/60 text-emerald-900"
+                      )}>
+                        <td className="px-1.5 py-1 font-mono">.{d.selector}</td>
+                        <td className="px-1.5 py-1 text-right font-semibold">
+                          {label === null ? "✗ hidden" : label === undefined ? "? unknown" : "→ " + label}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+
+            {/* Config reference · sortable table */}
+            <details>
+              <summary className="text-[10px] font-bold tracking-widest text-slate-500 uppercase cursor-pointer">
+                Config (click to expand · {Object.keys(INSTITUTIONAL_CATEGORIES).length} entries)
+              </summary>
+              <table className="w-full text-[10px] border border-slate-200 mt-1">
+                <tbody>
+                  {Object.entries(INSTITUTIONAL_CATEGORIES).map(([key, label]) => (
+                    <tr key={key} className={cn(
+                      "border-b border-slate-100",
+                      label === null ? "bg-slate-50 text-slate-400" : "bg-emerald-50/40 text-emerald-900"
+                    )}>
+                      <td className="px-1.5 py-1 font-mono">{key}</td>
+                      <td className="px-1.5 py-1 text-right font-semibold">
+                        {label === null ? "hidden" : "→ " + label}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
+
+            {/* DOM inspector · raw view of all AVUXI elements rendered */}
+            <details>
+              <summary className="text-[10px] font-bold tracking-widest text-slate-500 uppercase cursor-pointer">
+                DOM inspector ({curationStats.inspector.length} category-* elements)
+              </summary>
+              <div className="bg-slate-900 text-slate-100 rounded p-2 text-[9px] leading-tight max-h-44 overflow-y-auto mt-1 font-mono">
+                {curationStats.inspector.length === 0 ? (
+                  <p className="text-slate-400">No category-* elements found yet · AVUXI may still be mounting.</p>
+                ) : (
+                  curationStats.inspector.map((el, i) => (
+                    <div key={i} className="border-b border-slate-700 py-1">
+                      <div><span className="text-amber-300">{el.tag}</span>{el.id && <span className="text-emerald-300"> #{el.id}</span>}</div>
+                      {el.classes && <div className="text-slate-300 break-all">.{el.classes.replace(/\s+/g, " .")}</div>}
+                      {el.ariaLabel && <div className="text-slate-400">aria-label: &quot;{el.ariaLabel}&quot;</div>}
+                      {el.text && <div className="text-slate-500">text: &quot;{el.text}&quot;</div>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </details>
+
             <p className="text-[9px] text-slate-500 italic leading-snug">
-              To re-enable Shopping/Nightlife/Parks · flip <code>null</code> to a string in
-              <code> INSTITUTIONAL_CATEGORIES</code>. No other code change needed.
+              Selectors based on SDK source audit · class-templating (<code>category-btn-container-{`{name}`}</code>) ·
+              NOT data-attributes. To re-enable a category flip <code>null</code> to a string.
             </p>
           </section>
 
