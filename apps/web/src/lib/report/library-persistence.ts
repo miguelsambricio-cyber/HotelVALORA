@@ -68,7 +68,9 @@ export async function upsertHotelReportLibrary(
     };
 
     const reportStatus: string = snapshot.engineRun ? "generated" : "partial";
-    const confidence = snapshot.engineRun?.capRate.confidence.score_0_100 ?? null;
+    const confidenceRaw = snapshot.engineRun?.capRate.confidence.score_0_100 ?? null;
+    // Column is integer · engine emits float (e.g. 66.7) · round.
+    const confidence = confidenceRaw === null ? null : Math.round(confidenceRaw);
 
     const payload = {
       canonical_id: hotel.id,
