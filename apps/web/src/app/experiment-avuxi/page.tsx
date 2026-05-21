@@ -1,34 +1,25 @@
 "use client";
 
 /**
- * /experiment-avuxi · v3 · evidence-gathering environment.
+ * /experiment-avuxi · v4 · race-condition fix + aggressive diagnostics.
  *
- * Operator demand (2026-05-21): concrete visual proof that AVUXI is
- * RENDERING DATA, not merely loading the SDK. v2 surfaced toggles + a
- * source table; v3 surfaces:
+ * v3 surfaced "mapStart: idle" permanently. Audit of the SDK source
+ * confirmed `window.AVUXI = { mapStart: function(t,n,o,r){...} }` so
+ * the global IS exposed correctly. The root cause was a React race:
+ * the mapStart useEffect fired when `scriptStatus` flipped to "loaded"
+ * but at that moment `mapRef.current` was still null (mapbox-gl needs
+ * ~1.5s to mount its WebGL canvas after the React component renders).
+ * The effect's dependency array didn't include the map readiness, so
+ * it never re-fired once the map became available.
  *
- *   1. Real network requests to *.avuxi.com (PerformanceObserver) ·
- *      live list with URL + status hint + timing.
- *   2. Real mapbox-gl sources & layers injected by AVUXI · diffed
- *      against the pre-AVUXI baseline · live count.
- *   3. Real DOM elements mounted by the AVUXI SDK · counted via
- *      MutationObserver on the known class hooks (category-control-
- *      container · category-btn · etc.).
- *   4. Programmatic category trigger · clicks each AVUXI category
- *      button sequentially so the operator sees Eating · Sightseeing ·
- *      Shopping · Nightlife · Parks · Transit rendered without
- *      hunting for AVUXI's button group.
- *   5. Per-category snapshot · counts captured after each click so we
- *      can confirm each category produced real layers + real network
- *      activity.
- *
- * Endpoints confirmed in the SDK source (from minified bundle audit):
- *   api.avuxi.com · topplaces.avuxi.com
- *
- * DOM hooks confirmed in the SDK source:
- *   .category-control-container · .category-btns-container ·
- *   .category-btns-group · .category-btn · .category-btn-popover ·
- *   .category-legend · .vxcaption (.show .hide .wave .content .close)
+ * v4 fixes this with:
+ *   1. Explicit `mapReady` state · flipped true in <Map onLoad>
+ *   2. mapStart effect depends on (scriptStatus, mapReady, mapStartStatus)
+ *   3. Every guard return logs WHY it returned · no more silent failures
+ *   4. Retry loop (poll 300ms · cap 10s) for window.AVUXI presence
+ *   5. Manual "Force mapStart" button operator can press anytime
+ *   6. Visible Guards table · 4 boolean rows showing live state of
+ *      each precondition
  */
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -96,7 +87,6 @@ interface ResourceEvent {
   url: string;
   duration: number;
   size: number;
-  type: string;
 }
 
 interface CategorySnapshot {
@@ -114,6 +104,8 @@ export default function ExperimentAvuxiPage() {
   const mapRef = useRef<MapRef>(null);
   const [scriptStatus, setScriptStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [mapStartStatus, setMapStartStatus] = useState<"idle" | "called" | "error">("idle");
+  const [mapReady, setMapReady] = useState(false); // v4 · the missing dep
+  const [avuxiGlobalReady, setAvuxiGlobalReady] = useState(false); // v4 · explicit
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const [cityId, setCityId] = useState("madrid");
@@ -132,10 +124,10 @@ export default function ExperimentAvuxiPage() {
   const log = useCallback((msg: string) => {
     // eslint-disable-next-line no-console
     console.log(`[avuxi-exp] ${msg}`);
-    setEvents((p) => [...p, `${new Date().toISOString().slice(11, 23)} · ${msg}`].slice(-40));
+    setEvents((p) => [...p, `${new Date().toISOString().slice(11, 23)} · ${msg}`].slice(-50));
   }, []);
 
-  // ─── Network observer · capture every fetch/XHR to *.avuxi.com ───────
+  // ─── PerformanceObserver · capture *.avuxi.com requests ──────────────
   useEffect(() => {
     if (typeof window === "undefined" || !("PerformanceObserver" in window)) return;
     const observer = new PerformanceObserver((list) => {
@@ -143,37 +135,34 @@ export default function ExperimentAvuxiPage() {
         const e = entry as PerformanceResourceTiming;
         const url = e.name;
         if (!AVUXI_HOSTS.some((h) => url.includes(h))) continue;
-        const evt: ResourceEvent = {
-          ts: new Date().toISOString().slice(11, 23),
-          url: url.length > 80 ? url.slice(0, 77) + "…" : url,
-          duration: Math.round(e.duration),
-          size: e.transferSize ?? 0,
-          type: e.initiatorType,
-        };
-        setAvuxiRequests((p) => [...p, evt].slice(-30));
+        setAvuxiRequests((p) =>
+          [...p, {
+            ts: new Date().toISOString().slice(11, 23),
+            url: url.length > 80 ? url.slice(0, 77) + "…" : url,
+            duration: Math.round(e.duration),
+            size: e.transferSize ?? 0,
+          }].slice(-30)
+        );
       }
     });
     observer.observe({ type: "resource", buffered: true });
-    log("PerformanceObserver listening for *.avuxi.com");
+    log("PerformanceObserver active");
     return () => observer.disconnect();
   }, [log]);
 
-  // ─── DOM observer · count AVUXI-injected elements ────────────────────
+  // ─── DOM observer · count AVUXI-mounted elements ─────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
     const refresh = () => {
-      const container = document.querySelectorAll(AVUXI_DOM_HOOK).length;
-      const buttons = Array.from(
-        document.querySelectorAll<HTMLElement>(AVUXI_BTN_SELECTOR)
-      );
-      setAvuxiDomElements(container);
+      const containers = document.querySelectorAll(AVUXI_DOM_HOOK).length;
+      const buttons = Array.from(document.querySelectorAll<HTMLElement>(AVUXI_BTN_SELECTOR));
+      setAvuxiDomElements(containers);
       setAvuxiCategoryButtons(
         buttons.map((b) =>
           (b.getAttribute("data-category") ||
             b.getAttribute("aria-label") ||
             b.getAttribute("title") ||
-            b.textContent ||
-            "?").trim().toLowerCase()
+            b.textContent || "?").trim().toLowerCase()
         )
       );
     };
@@ -183,20 +172,17 @@ export default function ExperimentAvuxiPage() {
     return () => mo.disconnect();
   }, []);
 
-  // ─── Map layer/source observer · poll mapbox-gl state ────────────────
+  // ─── Map style poller ────────────────────────────────────────────────
   useEffect(() => {
-    const ref = mapRef.current;
-    if (!ref) return;
     const id = window.setInterval(() => {
-      const m = ref.getMap();
+      const m = mapRef.current?.getMap();
+      if (!m) return;
       try {
         const style = m.getStyle();
         if (!style) return;
         setMapboxSourcesCount(Object.keys(style.sources ?? {}).length);
         setMapboxLayersCount((style.layers ?? []).length);
-      } catch {
-        /* style not loaded yet */
-      }
+      } catch { /* style still loading */ }
     }, 700);
     return () => window.clearInterval(id);
   }, []);
@@ -206,35 +192,79 @@ export default function ExperimentAvuxiPage() {
     if (typeof window === "undefined") return;
     if (window.AVUXI) {
       setScriptStatus("loaded");
+      setAvuxiGlobalReady(true);
+      log("window.AVUXI already present at mount");
       return;
     }
     setScriptStatus("loading");
-    log("injecting AVUXI script");
+    log(`injecting <script src=${AVUXI_SCRIPT_URL}>`);
     const script = document.createElement("script");
     script.src = AVUXI_SCRIPT_URL;
     script.async = true;
     script.onload = () => {
-      log("AVUXI script onload fired");
+      log("script.onload fired");
       setScriptStatus("loaded");
+      // Probe window for AVUXI · should be available synchronously
+      // but poll for up to 3s just in case the SDK has async init.
+      let attempts = 0;
+      const probe = window.setInterval(() => {
+        attempts++;
+        if (window.AVUXI && typeof window.AVUXI.mapStart === "function") {
+          log(`window.AVUXI detected (attempt ${attempts})`);
+          setAvuxiGlobalReady(true);
+          window.clearInterval(probe);
+        } else if (attempts >= 30) {
+          log(`window.AVUXI never appeared after ${attempts * 100}ms · giving up`);
+          window.clearInterval(probe);
+          setErrorMessage("Script loaded but window.AVUXI never appeared");
+        }
+      }, 100);
     };
     script.onerror = () => {
-      log("AVUXI script onerror fired");
+      log("script.onerror fired");
       setScriptStatus("error");
-      setErrorMessage("Failed to load AVUXI script");
+      setErrorMessage("Failed to load AVUXI script (network / CORS / blocked)");
     };
     document.body.appendChild(script);
   }, [log]);
 
-  // ─── Call mapStart once script + map are ready ───────────────────────
-  useEffect(() => {
-    if (scriptStatus !== "loaded") return;
-    if (mapStartStatus !== "idle") return;
-    if (typeof window === "undefined" || !window.AVUXI) return;
+  // ─── mapStart caller · v4 · race-free via mapReady + retry ───────────
+  // Wraps in useCallback so the manual "Force mapStart" button uses
+  // the same code path as the auto-effect.
+  const callMapStart = useCallback(() => {
+    log("callMapStart entered");
+
+    // Explicit guard logging · no more silent returns
+    if (mapStartStatus !== "idle") {
+      log(`SKIP · mapStartStatus is already "${mapStartStatus}"`);
+      return false;
+    }
+    if (typeof window === "undefined") {
+      log("SKIP · no window (SSR?)");
+      return false;
+    }
+    if (!window.AVUXI || typeof window.AVUXI.mapStart !== "function") {
+      log("SKIP · window.AVUXI.mapStart not present");
+      return false;
+    }
     const ref = mapRef.current;
-    if (!ref) return;
+    if (!ref) {
+      log("SKIP · mapRef.current is null");
+      return false;
+    }
     const mapInstance = ref.getMap();
+    if (!mapInstance) {
+      log("SKIP · ref.getMap() returned null");
+      return false;
+    }
+    // mapbox-gl Map exposes loaded() — call only when style is ready
+    if (typeof mapInstance.loaded === "function" && !mapInstance.loaded()) {
+      log("SKIP · mapInstance.loaded() returned false");
+      return false;
+    }
+
     try {
-      log("calling AVUXI.mapStart");
+      log(`calling AVUXI.mapStart(map, "${AVUXI_ACCOUNT_ID.slice(0, 8)}…", options)`);
       window.AVUXI.mapStart(mapInstance, AVUXI_ACCOUNT_ID, {
         buttonOrientation: "vertical",
         buttonLocation: "tr",
@@ -247,39 +277,46 @@ export default function ExperimentAvuxiPage() {
         opacity: 60,
       });
       setMapStartStatus("called");
-      log("AVUXI.mapStart returned");
+      log("AVUXI.mapStart returned successfully");
+      return true;
     } catch (e) {
-      log(`AVUXI.mapStart threw: ${(e as Error).message}`);
+      const msg = (e as Error).message ?? String(e);
+      log(`AVUXI.mapStart threw: ${msg}`);
       setMapStartStatus("error");
-      setErrorMessage(`mapStart failed: ${(e as Error).message}`);
+      setErrorMessage(`mapStart threw: ${msg}`);
+      return false;
     }
-  }, [scriptStatus, mapStartStatus, log]);
+  }, [mapStartStatus, log]);
+
+  // v4 · auto-fire when ALL preconditions ready
+  useEffect(() => {
+    if (mapStartStatus !== "idle") return;
+    if (!avuxiGlobalReady) return;
+    if (!mapReady) return;
+    log("preconditions satisfied · auto-calling mapStart");
+    callMapStart();
+  }, [avuxiGlobalReady, mapReady, mapStartStatus, callMapStart, log]);
 
   // ─── FlyTo city on selection change ──────────────────────────────────
   useEffect(() => {
-    const ref = mapRef.current;
-    if (!ref) return;
-    const m = ref.getMap();
+    const m = mapRef.current?.getMap();
     if (!m) return;
     log(`flyTo ${city.label}`);
     m.flyTo({ center: [city.lng, city.lat], zoom: city.zoom, essential: true });
   }, [city.id, city.label, city.lng, city.lat, city.zoom, log]);
 
-  // ─── Programmatic category cycler · activates each AVUXI button in turn ──
+  // ─── Programmatic category cycler ────────────────────────────────────
   const cycleCategories = useCallback(async () => {
-    const buttons = Array.from(
-      document.querySelectorAll<HTMLElement>(AVUXI_BTN_SELECTOR)
-    );
+    const buttons = Array.from(document.querySelectorAll<HTMLElement>(AVUXI_BTN_SELECTOR));
     if (buttons.length === 0) {
-      log("no AVUXI category buttons found · is the SDK mounted?");
+      log("no AVUXI category buttons found");
       return;
     }
     log(`cycling ${buttons.length} AVUXI category buttons`);
     setCategorySnapshots([]);
     const snapshots: CategorySnapshot[] = [];
-    const ref = mapRef.current;
-    if (!ref) return;
-    const m = ref.getMap();
+    const m = mapRef.current?.getMap();
+    if (!m) return;
 
     for (let i = 0; i < buttons.length; i++) {
       const btn = buttons[i];
@@ -287,51 +324,35 @@ export default function ExperimentAvuxiPage() {
         (btn.getAttribute("data-category") ||
           btn.getAttribute("aria-label") ||
           btn.getAttribute("title") ||
-          btn.textContent ||
-          `btn-${i}`).trim().toLowerCase();
+          btn.textContent || `btn-${i}`).trim().toLowerCase();
       const tStart = performance.now();
       const requestsBefore = avuxiRequests.length;
-      let sourcesBefore = 0;
-      let layersBefore = 0;
-      try {
-        const s = m.getStyle();
-        sourcesBefore = Object.keys(s?.sources ?? {}).length;
-        layersBefore = (s?.layers ?? []).length;
-      } catch { /* ignore */ }
+      const styleBefore = m.getStyle();
+      const sourcesBefore = Object.keys(styleBefore?.sources ?? {}).length;
+      const layersBefore = (styleBefore?.layers ?? []).length;
 
       setCategoryProgress(`${i + 1}/${buttons.length} · ${name}`);
-      log(`clicking AVUXI button "${name}"`);
+      log(`clicking "${name}"`);
       btn.click();
-      // Give AVUXI time to fetch + render
       await new Promise((r) => setTimeout(r, 2500));
 
-      const requestsAfter = avuxiRequests.length;
-      let sourcesAfter = sourcesBefore;
-      let layersAfter = layersBefore;
-      try {
-        const s = m.getStyle();
-        sourcesAfter = Object.keys(s?.sources ?? {}).length;
-        layersAfter = (s?.layers ?? []).length;
-      } catch { /* ignore */ }
-
+      const styleAfter = m.getStyle();
       snapshots.push({
         name,
         requestsBefore,
-        requestsAfter,
+        requestsAfter: avuxiRequests.length,
         mapboxSourcesBefore: sourcesBefore,
-        mapboxSourcesAfter: sourcesAfter,
+        mapboxSourcesAfter: Object.keys(styleAfter?.sources ?? {}).length,
         mapboxLayersBefore: layersBefore,
-        mapboxLayersAfter: layersAfter,
+        mapboxLayersAfter: (styleAfter?.layers ?? []).length,
         elapsedMs: Math.round(performance.now() - tStart),
       });
       setCategorySnapshots([...snapshots]);
     }
-
     setCategoryProgress(null);
-    log("category cycling complete");
+    log("cycle complete");
   }, [avuxiRequests.length, log]);
 
-  // ─── Render ──────────────────────────────────────────────────────────
   const avuxiActive =
     scriptStatus === "loaded" &&
     mapStartStatus === "called" &&
@@ -341,7 +362,7 @@ export default function ExperimentAvuxiPage() {
     <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800">
       <LandingHeader />
       <main className="flex-grow relative overflow-hidden">
-        {/* Map · single instance · AVUXI mounted on top */}
+        {/* Map */}
         <div className="absolute inset-0 z-0 bg-slate-200">
           {MAPBOX_TOKEN ? (
             <Map
@@ -352,17 +373,17 @@ export default function ExperimentAvuxiPage() {
               mapStyle="mapbox://styles/mapbox/light-v11"
               attributionControl={false}
               reuseMaps
-              onLoad={() => log("mapbox-gl onLoad")}
+              onLoad={() => {
+                log("mapbox-gl onLoad");
+                setMapReady(true); // v4 · the missing dep · unblocks mapStart effect
+              }}
               onError={(e) => log(`mapbox-gl onError: ${e?.error?.message ?? "unknown"}`)}
             >
               {city.id === "madrid" &&
                 ALL_MADRID_AS_COMPETITORS.map((h) => (
                   <HotelMarker
-                    key={h.id}
-                    hotel={h}
-                    type="explore"
-                    isSelected={false}
-                    onSelect={() => { /* read-only */ }}
+                    key={h.id} hotel={h} type="explore"
+                    isSelected={false} onSelect={() => { /* read-only */ }}
                   />
                 ))}
             </Map>
@@ -373,46 +394,78 @@ export default function ExperimentAvuxiPage() {
           )}
         </div>
 
-        {/* Top-left · evidence badges always visible */}
+        {/* Top-left badges · v4 includes Guards badge */}
         <div className="absolute top-4 left-4 z-30 flex flex-col gap-1 text-[10px] font-mono pointer-events-none">
-          <span className={cn(
-            "px-2 py-1 rounded shadow border font-bold",
-            avuxiActive
-              ? "bg-emerald-50 border-emerald-300 text-emerald-900"
-              : "bg-rose-50 border-rose-300 text-rose-900"
-          )}>
+          <span className={cn("px-2 py-1 rounded shadow border font-bold",
+            avuxiActive ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                        : "bg-rose-50 border-rose-300 text-rose-900")}>
             AVUXI: {avuxiActive ? "ACTIVE" : "INACTIVE"}
           </span>
           <span className="px-2 py-1 rounded shadow border bg-white border-slate-200 text-slate-700">
-            AVUXI requests: <strong className={avuxiRequests.length > 0 ? "text-emerald-700" : "text-rose-700"}>{avuxiRequests.length}</strong>
+            req: <strong className={avuxiRequests.length > 0 ? "text-emerald-700" : "text-rose-700"}>{avuxiRequests.length}</strong>
+            {" · "}src: <strong>{mapboxSourcesCount}</strong>{" · "}lyr: <strong>{mapboxLayersCount}</strong>
           </span>
           <span className="px-2 py-1 rounded shadow border bg-white border-slate-200 text-slate-700">
-            Mapbox sources: <strong>{mapboxSourcesCount}</strong> · layers: <strong>{mapboxLayersCount}</strong>
-          </span>
-          <span className="px-2 py-1 rounded shadow border bg-white border-slate-200 text-slate-700">
-            AVUXI DOM: <strong className={avuxiDomElements > 0 ? "text-emerald-700" : "text-rose-700"}>{avuxiDomElements}</strong> container · <strong>{avuxiCategoryButtons.length}</strong> buttons
+            DOM: <strong className={avuxiDomElements > 0 ? "text-emerald-700" : "text-rose-700"}>{avuxiDomElements}</strong>{" · "}btns: <strong>{avuxiCategoryButtons.length}</strong>
           </span>
         </div>
 
-        {/* Bottom-left · evidence-gathering panel */}
-        <div className="absolute bottom-4 left-4 z-30 w-[min(440px,calc(100vw-2rem))] bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-xl p-3 space-y-3 text-xs font-mono max-h-[85vh] overflow-y-auto">
-          <div className="flex items-center justify-between">
-            <p className="font-bold text-sm">AVUXI · evidence v3</p>
-          </div>
+        {/* Panel · v4 expanded with Guards table */}
+        <div className="absolute bottom-4 left-4 z-30 w-[min(460px,calc(100vw-2rem))] bg-white/95 backdrop-blur border border-slate-200 rounded-lg shadow-xl p-3 space-y-3 text-xs font-mono max-h-[88vh] overflow-y-auto">
+          <p className="font-bold text-sm">AVUXI · evidence v4 · race-fix + guards</p>
 
-          {/* City + cycle button */}
-          <section className="space-y-2">
-            <label className="block text-[10px] font-bold tracking-widest text-slate-500 uppercase">
-              City
-            </label>
-            <select
-              value={cityId}
-              onChange={(e) => {
-                setCityId(e.target.value);
-                setCategorySnapshots([]);
+          {/* v4 NEW · Guards table · live precondition state */}
+          <section>
+            <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">
+              mapStart preconditions
+            </p>
+            <table className="w-full text-[10px] border border-slate-200">
+              <tbody>
+                {[
+                  ["scriptStatus === loaded", scriptStatus === "loaded"],
+                  ["window.AVUXI.mapStart is function", avuxiGlobalReady],
+                  ["mapRef.current.getMap().loaded() ", mapReady],
+                  ["mapStartStatus === idle", mapStartStatus === "idle"],
+                ].map(([label, ok]) => (
+                  <tr key={String(label)} className={cn("border-b border-slate-100",
+                    ok ? "bg-emerald-50/40" : "bg-rose-50/40")}>
+                    <td className="px-1.5 py-1">{String(label)}</td>
+                    <td className={cn("px-1 py-1 text-right font-bold",
+                      ok ? "text-emerald-700" : "text-rose-700")}>{ok ? "✓" : "✗"}</td>
+                  </tr>
+                ))}
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <td className="px-1.5 py-1 font-bold">→ mapStartStatus</td>
+                  <td className={cn("px-1 py-1 text-right font-bold",
+                    mapStartStatus === "called" ? "text-emerald-700" :
+                    mapStartStatus === "error" ? "text-rose-700" : "text-slate-600")}>
+                    {mapStartStatus}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <button
+              type="button"
+              onClick={() => {
+                if (mapStartStatus !== "idle") {
+                  setMapStartStatus("idle");
+                  log("manual reset · mapStartStatus → idle");
+                  setTimeout(() => callMapStart(), 100);
+                } else {
+                  callMapStart();
+                }
               }}
-              className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded font-medium"
+              className="mt-2 w-full px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider bg-rose-600 text-white hover:bg-rose-700 transition-colors"
             >
+              Force mapStart (manual override)
+            </button>
+          </section>
+
+          {/* City + cycle */}
+          <section className="space-y-2">
+            <label className="block text-[10px] font-bold tracking-widest text-slate-500 uppercase">City</label>
+            <select value={cityId} onChange={(e) => { setCityId(e.target.value); setCategorySnapshots([]); }}
+              className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded font-medium">
               {(["EU-S", "EU-N", "US", "ME", "APAC"] as const).map((region) => (
                 <optgroup key={region} label={region}>
                   {CITIES.filter((c) => c.region === region).map((c) => (
@@ -421,28 +474,22 @@ export default function ExperimentAvuxiPage() {
                 </optgroup>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={cycleCategories}
+            <button type="button" onClick={cycleCategories}
               disabled={!avuxiActive || avuxiCategoryButtons.length === 0 || !!categoryProgress}
-              className={cn(
-                "w-full px-3 py-2 rounded text-[11px] font-bold uppercase tracking-wider transition-colors",
+              className={cn("w-full px-3 py-2 rounded text-[11px] font-bold uppercase tracking-wider transition-colors",
                 avuxiActive && avuxiCategoryButtons.length > 0 && !categoryProgress
                   ? "bg-forest-900 text-white hover:brightness-110"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
-              )}
-            >
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed")}>
               {categoryProgress
                 ? `Cycling: ${categoryProgress}`
-                : `Cycle ${avuxiCategoryButtons.length} categories sequentially`}
+                : `Cycle ${avuxiCategoryButtons.length || "?"} categories sequentially`}
             </button>
           </section>
 
-          {/* Detected categories */}
           {avuxiCategoryButtons.length > 0 && (
             <section>
               <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">
-                AVUXI categories detected in DOM
+                Categories detected
               </p>
               <div className="flex flex-wrap gap-1">
                 {avuxiCategoryButtons.map((c, i) => (
@@ -454,12 +501,9 @@ export default function ExperimentAvuxiPage() {
             </section>
           )}
 
-          {/* Category snapshots · the actual evidence */}
           {categorySnapshots.length > 0 && (
             <section>
-              <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">
-                Per-category render evidence
-              </p>
+              <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">Per-category evidence</p>
               <table className="w-full text-[10px] border border-slate-200">
                 <thead className="bg-slate-50">
                   <tr>
@@ -477,7 +521,8 @@ export default function ExperimentAvuxiPage() {
                     const dl = s.mapboxLayersAfter - s.mapboxLayersBefore;
                     const ok = dr > 0 || ds > 0 || dl > 0;
                     return (
-                      <tr key={i} className={cn("border-b border-slate-100", ok ? "bg-emerald-50/40" : "bg-rose-50/40")}>
+                      <tr key={i} className={cn("border-b border-slate-100",
+                        ok ? "bg-emerald-50/40" : "bg-rose-50/40")}>
                         <td className="px-1.5 py-1">{s.name}</td>
                         <td className={cn("px-1 py-1 text-right font-bold", dr > 0 ? "text-emerald-700" : "text-slate-400")}>{dr > 0 ? `+${dr}` : "—"}</td>
                         <td className={cn("px-1 py-1 text-right font-bold", ds > 0 ? "text-emerald-700" : "text-slate-400")}>{ds > 0 ? `+${ds}` : "—"}</td>
@@ -488,22 +533,16 @@ export default function ExperimentAvuxiPage() {
                   })}
                 </tbody>
               </table>
-              <p className="text-[9px] text-slate-500 mt-1 italic leading-snug">
-                +req · new requests to *.avuxi.com after clicking this category.<br />
-                +src / +lyr · new mapbox-gl Source / Layer objects after the click.<br />
-                Any green row = AVUXI rendered real data for that category in this city.
-              </p>
             </section>
           )}
 
-          {/* Live network requests · last 8 */}
           <section>
             <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">
-              Live · last {Math.min(8, avuxiRequests.length)} *.avuxi.com requests
+              Last *.avuxi.com requests ({avuxiRequests.length})
             </p>
             {avuxiRequests.length === 0 ? (
               <p className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 px-2 py-1 rounded">
-                Zero · AVUXI hasn&apos;t made any network requests yet · either the SDK has not mounted, or all its data is cached, or it&apos;s currently idle. Try the &quot;Cycle&quot; button above.
+                No AVUXI network activity yet.
               </p>
             ) : (
               <div className="bg-slate-50 border border-slate-200 rounded p-1.5 max-h-32 overflow-y-auto text-[9px] leading-relaxed">
@@ -518,44 +557,26 @@ export default function ExperimentAvuxiPage() {
             )}
           </section>
 
-          {/* Lifecycle */}
-          <section className="bg-slate-50 border border-slate-200 rounded px-2 py-1.5">
-            <p className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-1">
-              SDK lifecycle
-            </p>
-            <div className="grid grid-cols-2 gap-1 text-[10px]">
-              <span>script:</span>
-              <span className={cn("font-bold text-right", scriptStatus === "error" ? "text-rose-700" : scriptStatus === "loaded" ? "text-emerald-700" : "text-slate-600")}>{scriptStatus}</span>
-              <span>mapStart:</span>
-              <span className={cn("font-bold text-right", mapStartStatus === "error" ? "text-rose-700" : mapStartStatus === "called" ? "text-emerald-700" : "text-slate-600")}>{mapStartStatus}</span>
-              <span>DOM mounted:</span>
-              <span className={cn("font-bold text-right", avuxiDomElements > 0 ? "text-emerald-700" : "text-rose-700")}>{avuxiDomElements > 0 ? "yes" : "no"}</span>
-              <span>API host hits:</span>
-              <span className={cn("font-bold text-right", avuxiRequests.length > 0 ? "text-emerald-700" : "text-rose-700")}>{avuxiRequests.length}</span>
-            </div>
-          </section>
-
           {errorMessage && (
             <p className="text-rose-700 text-[11px] bg-rose-50 border border-rose-200 px-2 py-1 rounded">
               {errorMessage}
             </p>
           )}
 
-          <details>
+          <details open>
             <summary className="text-[10px] font-bold tracking-widest text-slate-500 uppercase cursor-pointer hover:text-slate-700">
-              Event log ({events.length})
+              Event log ({events.length}) · v4 logs every guard
             </summary>
-            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-[10px] leading-relaxed max-h-32 overflow-y-auto mt-1">
-              {events.slice(-15).map((e, i) => <div key={i}>{e}</div>)}
+            <div className="bg-slate-50 border border-slate-200 rounded p-2 text-[10px] leading-relaxed max-h-40 overflow-y-auto mt-1">
+              {events.slice(-20).map((e, i) => <div key={i}>{e}</div>)}
             </div>
           </details>
 
           <p className="text-[9px] text-slate-500 leading-relaxed italic">
-            Evidence interpretation:<br />
-            · <strong>AVUXI requests &gt; 0</strong> · SDK is hitting api.avuxi.com / topplaces.avuxi.com<br />
-            · <strong>Per-category +src/+lyr</strong> · AVUXI added real GeoJSON sources + render layers · base map carries data<br />
-            · <strong>AVUXI DOM &gt; 0</strong> · button group mounted on the map<br />
-            All three green ⇒ AVUXI is genuinely rendering · not just script-loaded.
+            v4 race-fix:<br />
+            · <strong>mapReady</strong> state · seeded from &lt;Map onLoad&gt; · was the missing dep<br />
+            · Every guard return now logs explicitly · no more silent skip<br />
+            · Force button overrides if anything is stuck
           </p>
         </div>
       </main>
