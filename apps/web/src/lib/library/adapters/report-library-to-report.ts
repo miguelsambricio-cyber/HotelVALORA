@@ -47,6 +47,19 @@ export interface HotelReportLibraryRow {
   report_status: string;
   scenario_label: string | null;
   keys_from_heuristic: boolean;
+  // 5-layer classification (migration 0027)
+  report_origin?: string;
+  tier_badge?: "free" | "pro" | "premium";
+  is_top_promote?: boolean;
+  contact_visible?: boolean;
+  contact_info?: {
+    email?: string;
+    phone?: string;
+    accountManager?: string;
+    accountManagerId?: string;
+  } | null;
+  showcase_priority?: number;
+  last_operator_render_at?: string | null;
   created_at: string;
   updated_at: string;
   last_rendered_at: string;
@@ -129,11 +142,27 @@ export function adaptReportLibraryToLibraryReport(
     parking: false,
   };
 
+  const isPromoted = row.is_top_promote === true;
   const indicators: ReportIndicators = {
-    topPromote: false,
+    topPromote: isPromoted,
     userModified: false,
     private: false,
   };
+
+  // Tier badge mapping · library tier_badge column → LibraryReport.tierBadge
+  // Free / Pro / Premium map to PRO / PREMIUM uppercase enum tokens used
+  // by the floating card · 'free' is left undefined (default for community
+  // and engine_render rows).
+  const tierBadgeLabel: LibraryReport["tierBadge"] =
+    row.tier_badge === "premium" ? "PREMIUM"
+    : row.tier_badge === "pro"   ? "PRO"
+    : undefined;
+
+  // Category · 'top-promote' when the row carries the promotion flag ·
+  // 'saved' when the visitor has favourited it · else 'community'.
+  const category: LibraryReport["category"] = isPromoted
+    ? "top-promote"
+    : favorited ? "saved" : "community";
 
   return {
     id: row.id,
@@ -145,7 +174,7 @@ export function adaptReportLibraryToLibraryReport(
       lng: row.lng ?? 0,
     },
     mockPosition: { topPct: 50, leftPct: 50 },
-    category: favorited ? "saved" : "community",
+    category,
     visibility: "public" as ReportVisibility,
     estValueEur: pickEstValueEur(row),
     capRate: pickCapRatePct(row),
@@ -153,8 +182,17 @@ export function adaptReportLibraryToLibraryReport(
     starRating: row.star_rating ?? 0,
     classification: chainScaleToClassification(row.chain_scale),
     owner: row.brand_family ?? "",
-    tierBadge: undefined,
-    promotion: { promoted: false },
+    tierBadge: tierBadgeLabel,
+    promotion: isPromoted
+      ? {
+          promoted: true,
+          promotedUntil: undefined,
+          boostScore: row.showcase_priority ?? undefined,
+          featuredRegion: row.market ?? undefined,
+          impressions: 0,
+          clicks: 0,
+        }
+      : { promoted: false },
     tags: row.scenario_label ? [row.scenario_label] : [],
     // Map report_library status → ReportStatus enum. "generated" / "partial"
     // map to "published" so the institutional library row reads as live ·

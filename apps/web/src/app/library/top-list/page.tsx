@@ -20,7 +20,10 @@ export const revalidate = 60;
  * pipeline; no per-route divergence.)
  */
 export default async function TopReportsListPage() {
-  const initialReports = await fetchLibraryReports();
+  // Top-list shows ONLY top-promoted entries · ordered by showcase_priority
+  // descending. Origin filter remains default (showcase + community +
+  // engine_render · excludes bulk_seed inventory).
+  const initialReports = await fetchLibraryReports({ topPromotedOnly: true });
   return (
     <>
       <LibrarySidebar

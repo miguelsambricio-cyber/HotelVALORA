@@ -16,7 +16,8 @@ export const revalidate = 60;
  * library corpus so map pins render server-side.
  */
 export default async function TopReportsMapPage() {
-  const initialReports = await fetchLibraryReports();
+  // Top-map mirrors top-list · only is_top_promote = true.
+  const initialReports = await fetchLibraryReports({ topPromotedOnly: true });
   return (
     <>
       <LibrarySidebar
