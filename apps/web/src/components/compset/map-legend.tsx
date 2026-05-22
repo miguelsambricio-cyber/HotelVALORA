@@ -1,35 +1,45 @@
 "use client";
 
-import { X, Mountain, Utensils, TrainFront, Landmark, type LucideIcon } from "lucide-react";
+import {
+  X,
+  Mountain,
+  Utensils,
+  ShoppingBag,
+  Wine,
+  TrainFront,
+  Landmark,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { MapLayer, MapLayerId } from "@/types/compset";
+import type {
+  HeatmapCategory,
+  MapLayer,
+  MapLayerId,
+} from "@/types/compset";
 
 /**
- * CAPAS panel · institutional 4-toggle layer control surface · Phase 2
- * (2026-05-22 · operator-approved with adjustments).
+ * CAPAS panel · Phase 2.C (2026-05-22 · operator-approved Option A).
+ *
+ * Single HotelVALORA control surface · AVUXI native UI is CSS-hidden in
+ * CompsetMapGL · this panel is the only end-user driver.
  *
  * Structure:
- *   Static legend (no toggles):
- *     · Hotel Ref
- *     · CompSet
  *
- *   DEMANDA TURÍSTICA (radio · only one heatmap at a time):
- *     · Demanda Turística (heatmap id → AVUXI Sightseeing)
- *     · Gastronomía       (eating  id → AVUXI Eating)
+ *   HEATMAP DE ATRACCIÓN
+ *     · Master toggle "Heatmap de Atracción"
+ *     · When ON, radio of 5 AVUXI categories:
+ *         Demanda Turística · Gastronomía · Shopping · Nightlife ·
+ *         Transporte público
  *
- *   MOVILIDAD:
- *     · Conectividad      (metro id → AVUXI transport + metro)
+ *   MOVILIDAD
+ *     · Metro (separate toggle · drives AVUXI metro layer)
  *
- *   ZONIFICACIÓN:
- *     · Centro Histórico  (historico id → HV-native MapPolygonLayer · UNCHANGED)
+ *   ZONIFICACIÓN
+ *     · Centro Histórico (HV-native MapPolygonLayer · independent of AVUXI)
  *
- * AVUXI native UI hidden via CSS in <AvuxiOverlay>. CAPAS is the only
- * end-user control surface. Centro Histórico is fully independent of
- * AVUXI · same rendering path as today · unaffected by feature flag.
- *
- * Radio behavior: when the user toggles Demanda Turística ON, Gastronomía
- * is automatically toggled OFF (and vice versa). Honest about AVUXI's
- * free-tier single-category-at-a-time reality.
+ * AVUXI free-tier exposes a single heatmap category at a time. The
+ * radio honours that constraint instead of pretending 5 toggles can
+ * coexist.
  */
 
 interface LayerToggleProps {
@@ -58,44 +68,46 @@ function LayerToggle({ enabled }: LayerToggleProps) {
 interface MapLegendProps {
   layers: MapLayer[];
   onToggleLayer: (id: MapLayerId) => void;
+  onSetHeatmapCategory: (category: HeatmapCategory) => void;
   /** When provided, renders a close (×) button in the header. */
   onClose?: () => void;
   className?: string;
 }
 
-const ICON_FOR_LAYER: Record<MapLayerId, LucideIcon> = {
-  heatmap:   Mountain,    // Demanda Turística (Sightseeing)
-  eating:    Utensils,    // Gastronomía (Eating)
-  metro:     TrainFront,  // Conectividad (Transport)
-  historico: Landmark,    // Centro Histórico (HV-native)
-};
+interface HeatmapCategoryDef {
+  id: HeatmapCategory;
+  label: string;
+  Icon: LucideIcon;
+}
 
-export function MapLegend({ layers, onToggleLayer, onClose, className }: MapLegendProps) {
-  const findLayer = (id: MapLayerId) => layers.find((l) => l.id === id);
+const HEATMAP_CATEGORIES: HeatmapCategoryDef[] = [
+  { id: "sightseeing", label: "Demanda Turística",  Icon: Mountain },
+  { id: "eating",      label: "Gastronomía",        Icon: Utensils },
+  { id: "shopping",    label: "Shopping",           Icon: ShoppingBag },
+  { id: "nightlife",   label: "Nightlife",          Icon: Wine },
+  { id: "transport",   label: "Transporte público", Icon: TrainFront },
+];
 
-  // Radio behavior for heatmap toggles · activating one deactivates the other.
-  function handleHeatmapRadio(targetId: "heatmap" | "eating") {
-    const target = findLayer(targetId);
-    const other = findLayer(targetId === "heatmap" ? "eating" : "heatmap");
-    if (!target) return;
-    // If turning ON and the other is currently ON, turn the other OFF first
-    if (!target.enabled && other?.enabled) {
-      onToggleLayer(other.id);
-    }
-    onToggleLayer(targetId);
-  }
+export function MapLegend({
+  layers,
+  onToggleLayer,
+  onSetHeatmapCategory,
+  onClose,
+  className,
+}: MapLegendProps) {
+  const heatmap = layers.find((l) => l.id === "heatmap");
+  const metro = layers.find((l) => l.id === "metro");
+  const historico = layers.find((l) => l.id === "historico");
 
-  const heatmap = findLayer("heatmap");
-  const eating = findLayer("eating");
-  const metro = findLayer("metro");
-  const historico = findLayer("historico");
+  const heatmapCategory: HeatmapCategory =
+    heatmap && heatmap.id === "heatmap" ? heatmap.category : "sightseeing";
 
   return (
     <div
       role="dialog"
       aria-label="Capas y leyenda del mapa"
       className={cn(
-        "glass-overlay rounded-lg shadow-lg border border-white/50 min-w-[240px] overflow-hidden",
+        "glass-overlay rounded-lg shadow-lg border border-white/50 min-w-[260px] overflow-hidden",
         className,
       )}
     >
@@ -130,42 +142,103 @@ export function MapLegend({ layers, onToggleLayer, onClose, className }: MapLege
           </div>
         </div>
 
-        {/* DEMANDA TURÍSTICA · radio group */}
-        {(heatmap || eating) && (
+        {/* HEATMAP DE ATRACCIÓN · master toggle + radio when ON */}
+        {heatmap && (
           <section>
             <p className="text-[9px] font-bold tracking-[0.22em] text-slate-500 uppercase mb-1.5">
-              Demanda Turística
+              Heatmap de Atracción
             </p>
-            <div className="space-y-1">
-              {heatmap && (
-                <ToggleRow
-                  layer={heatmap}
-                  Icon={ICON_FOR_LAYER.heatmap}
-                  onClick={() => handleHeatmapRadio("heatmap")}
+            <button
+              type="button"
+              onClick={() => onToggleLayer("heatmap")}
+              aria-pressed={heatmap.enabled}
+              className="flex items-center justify-between gap-3 w-full cursor-pointer group py-0.5"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Mountain
+                  size={13}
+                  className={cn(
+                    "flex-shrink-0",
+                    heatmap.enabled ? "text-forest-900" : "text-slate-400",
+                  )}
                 />
-              )}
-              {eating && (
-                <ToggleRow
-                  layer={eating}
-                  Icon={ICON_FOR_LAYER.eating}
-                  onClick={() => handleHeatmapRadio("eating")}
-                />
-              )}
-            </div>
+                <span className="text-xs font-semibold text-forest-900 truncate">
+                  {heatmap.label}
+                </span>
+              </div>
+              <LayerToggle enabled={heatmap.enabled} />
+            </button>
+
+            {/* Radio · only when master toggle is ON */}
+            {heatmap.enabled && (
+              <div className="mt-2 pl-1 space-y-0.5 border-l border-forest-900/10 ml-2">
+                {HEATMAP_CATEGORIES.map(({ id, label, Icon }) => {
+                  const isActive = heatmapCategory === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => onSetHeatmapCategory(id)}
+                      aria-pressed={isActive}
+                      className={cn(
+                        "flex items-center gap-2 w-full px-2 py-1 rounded-sm transition-colors text-left",
+                        isActive
+                          ? "bg-forest-900/8 text-forest-900"
+                          : "text-slate-500 hover:bg-forest-900/4 hover:text-forest-900",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "w-2 h-2 rounded-full flex-shrink-0 border-[1.5px]",
+                          isActive
+                            ? "bg-forest-900 border-forest-900"
+                            : "bg-transparent border-slate-400",
+                        )}
+                      />
+                      <Icon
+                        size={12}
+                        className={cn(
+                          "flex-shrink-0",
+                          isActive ? "text-forest-900" : "text-slate-400",
+                        )}
+                      />
+                      <span className="text-[11px] font-semibold truncate">
+                        {label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
 
-        {/* MOVILIDAD */}
+        {/* MOVILIDAD · Metro */}
         {metro && (
           <section>
             <p className="text-[9px] font-bold tracking-[0.22em] text-slate-500 uppercase mb-1.5">
               Movilidad
             </p>
-            <ToggleRow
-              layer={metro}
-              Icon={ICON_FOR_LAYER.metro}
+            <button
+              type="button"
               onClick={() => onToggleLayer("metro")}
-            />
+              aria-pressed={metro.enabled}
+              className="flex items-center justify-between gap-3 w-full cursor-pointer group py-0.5"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <TrainFront
+                  size={13}
+                  className={cn(
+                    "flex-shrink-0",
+                    metro.enabled ? "text-forest-900" : "text-slate-400",
+                  )}
+                />
+                <span className="text-xs font-semibold text-forest-900 truncate">
+                  {metro.label}
+                </span>
+              </div>
+              <LayerToggle enabled={metro.enabled} />
+            </button>
           </section>
         )}
 
@@ -175,42 +248,29 @@ export function MapLegend({ layers, onToggleLayer, onClose, className }: MapLege
             <p className="text-[9px] font-bold tracking-[0.22em] text-slate-500 uppercase mb-1.5">
               Zonificación
             </p>
-            <ToggleRow
-              layer={historico}
-              Icon={ICON_FOR_LAYER.historico}
+            <button
+              type="button"
               onClick={() => onToggleLayer("historico")}
-            />
+              aria-pressed={historico.enabled}
+              className="flex items-center justify-between gap-3 w-full cursor-pointer group py-0.5"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Landmark
+                  size={13}
+                  className={cn(
+                    "flex-shrink-0",
+                    historico.enabled ? "text-forest-900" : "text-slate-400",
+                  )}
+                />
+                <span className="text-xs font-semibold text-forest-900 truncate">
+                  {historico.label}
+                </span>
+              </div>
+              <LayerToggle enabled={historico.enabled} />
+            </button>
           </section>
         )}
       </div>
     </div>
-  );
-}
-
-interface ToggleRowProps {
-  layer: MapLayer;
-  Icon: LucideIcon;
-  onClick: () => void;
-}
-
-function ToggleRow({ layer, Icon, onClick }: ToggleRowProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={layer.enabled}
-      className="flex items-center justify-between gap-3 w-full cursor-pointer group py-0.5"
-    >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <Icon size={13} className={cn(
-          "flex-shrink-0",
-          layer.enabled ? "text-forest-900" : "text-slate-400",
-        )} />
-        <span className="text-xs font-semibold text-forest-900 truncate">
-          {layer.label}
-        </span>
-      </div>
-      <LayerToggle enabled={layer.enabled} />
-    </button>
   );
 }

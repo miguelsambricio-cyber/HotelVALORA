@@ -56,6 +56,7 @@ export function ReportMap({ referenceHotelId, className }: ReportMapProps) {
     layers,
     error,
     toggleLayer,
+    setHeatmapCategory,
   } = useCompset(referenceHotelId);
 
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
@@ -89,6 +90,7 @@ export function ReportMap({ referenceHotelId, className }: ReportMapProps) {
       <MapLegend
         layers={layers}
         onToggleLayer={toggleLayer}
+        onSetHeatmapCategory={setHeatmapCategory}
         className="absolute left-4 bottom-4 z-30"
       />
 

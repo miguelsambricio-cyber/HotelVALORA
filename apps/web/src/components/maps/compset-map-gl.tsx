@@ -265,9 +265,110 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     callAvuxiMapStart();
   }, [avuxi, avuxiScriptReady, mapReady, avuxiMapStartStatus, callAvuxiMapStart]);
 
+  // AVUXI · hide native UI · CAPAS panel is the only end-user control surface.
+  // The native button container class is `.category-control-container` ·
+  // confirmed via experiment-avuxi v9 inspector. Hiding it does NOT break
+  // programmatic .click() on its descendants (the click delegation effects
+  // below still fire correctly on display:none buttons).
+  useEffect(() => {
+    if (!avuxi) return;
+    if (typeof document === "undefined") return;
+    const STYLE_ID = "hv-avuxi-hide-native";
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      .category-control-container {
+        display: none !important;
+        visibility: hidden !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }, [avuxi]);
+
+  // AVUXI · CAPAS heatmap drives AVUXI category selection.
+  // Source of truth: React state (heatmap.enabled + heatmap.category).
+  // We programmatically click the matching AVUXI category button and
+  // do NOT try to detect AVUXI's internal active state · the click is
+  // idempotent (AVUXI ignores re-activations on the same category).
+  useEffect(() => {
+    if (!avuxi) return;
+    if (avuxiMapStartStatus !== "called") return;
+    if (typeof document === "undefined") return;
+    const heatmapLayer = layers.find((l) => l.id === "heatmap");
+    if (!heatmapLayer || heatmapLayer.id !== "heatmap") return;
+    if (!heatmapLayer.enabled) {
+      // Heatmap OFF · try to deactivate by clicking the currently-active
+      // AVUXI button. AVUXI usually marks active with a class containing
+      // "selected" / "active" / "on" · best-effort detection.
+      const allButtons = document.querySelectorAll<HTMLElement>(
+        "[class*='category-btn-container-'], [class*='category-btn-t-container-']",
+      );
+      for (const btn of Array.from(allButtons)) {
+        const isActive = Array.from(btn.classList).some((c) =>
+          /selected|active|on$|--on/i.test(c),
+        );
+        if (isActive) {
+          btn.click();
+          break;
+        }
+      }
+      return;
+    }
+    // Heatmap ON · click the button matching the chosen category. AVUXI
+    // exposes both heatmap-style buttons (`category-btn-container-{name}`)
+    // and a transport-variant pattern (`category-btn-t-container-{name}`) ·
+    // querySelector picks whichever matches the chosen category id.
+    const target = document.querySelector<HTMLElement>(
+      `[class*='category-btn-container-${heatmapLayer.category}'], ` +
+        `[class*='category-btn-t-container-${heatmapLayer.category}']`,
+    );
+    if (!target) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[avuxi] no AVUXI button matched category",
+        heatmapLayer.category,
+      );
+      return;
+    }
+    target.click();
+  }, [avuxi, avuxiMapStartStatus, layers]);
+
+  // AVUXI · CAPAS Metro toggle drives the AVUXI metro button.
+  // The metro button uses an id prefix · confirmed via experiment-avuxi v9
+  // inspector: `category-control-container-metro-button{N}`.
+  useEffect(() => {
+    if (!avuxi) return;
+    if (avuxiMapStartStatus !== "called") return;
+    if (typeof document === "undefined") return;
+    const metroLayer = layers.find((l) => l.id === "metro");
+    if (!metroLayer) return;
+    const btn = document.querySelector<HTMLElement>(
+      "[id^='category-control-container-metro-button']",
+    );
+    if (!btn) {
+      // eslint-disable-next-line no-console
+      console.warn("[avuxi] no AVUXI metro button found");
+      return;
+    }
+    const isActive = Array.from(btn.classList).some((c) =>
+      /selected|active|on$|--on/i.test(c),
+    );
+    if (metroLayer.enabled && !isActive) {
+      btn.click();
+    } else if (!metroLayer.enabled && isActive) {
+      btn.click();
+    }
+  }, [avuxi, avuxiMapStartStatus, layers]);
+
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
-  const heatmapEnabled   = layers.find((l) => l.id === "heatmap")?.enabled   ?? false;
+  const heatmapLayer     = layers.find((l) => l.id === "heatmap");
+  const heatmapEnabled   = heatmapLayer?.enabled ?? false;
+  const heatmapCategory  =
+    heatmapLayer && heatmapLayer.id === "heatmap"
+      ? heatmapLayer.category
+      : "sightseeing";
   const metroEnabled     = layers.find((l) => l.id === "metro")?.enabled     ?? false;
   const historicoEnabled = layers.find((l) => l.id === "historico")?.enabled ?? false;
 
@@ -341,7 +442,14 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
        *  When avuxi=true (Preview · Production once operator flips flag):
        *    AVUXI replaces the manual heatmap + metro layers · the historic
        *    polygon STILL renders · HV-native · independent of AVUXI. */}
-      {!avuxi && heatmapEnabled && <MapHeatmapLayer  data={TOURIST_HEATMAP_DATA} />}
+      {/* Manual fallback heatmap only renders when AVUXI is OFF and the
+       *  CAPAS heatmap is set to "sightseeing" · we have no manual data
+       *  for eating / shopping / nightlife / transport · those four
+       *  categories render nothing in flag-OFF mode (rollback only · the
+       *  Production flag is ON since Phase 2.B). */}
+      {!avuxi && heatmapEnabled && heatmapCategory === "sightseeing" && (
+        <MapHeatmapLayer data={TOURIST_HEATMAP_DATA} />
+      )}
       {!avuxi && metroEnabled   && <MapMetroLayer    data={METRO_LINE_DATA}     />}
       {historicoEnabled         && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON} />}
 

@@ -21,27 +21,51 @@ export interface CompetitorHotel {
 export type HotelPinType = "reference" | "competitor" | "suggested" | "explore";
 
 /**
- * MapLayerId · the four institutional CAPAS toggles (Phase 2 · 2026-05-22).
+ * CAPAS panel data model · Phase 2.C (2026-05-22).
  *
- * Internal IDs preserved across Phase 2:
- *   · "heatmap"   · drives the Demanda Turística toggle (AVUXI Sightseeing
- *                   when flag on · manual MapHeatmapLayer when flag off)
- *   · "eating"    · NEW · drives the Gastronomía toggle (AVUXI Eating when
- *                   flag on · no manual fallback when flag off · renders nothing)
- *   · "metro"     · drives the Conectividad toggle (AVUXI transit when flag
- *                   on · manual MapMetroLayer when flag off)
- *   · "historico" · drives the Centro Histórico toggle · HV-native
- *                   MapPolygonLayer · independent of AVUXI · unchanged
+ * Single CAPAS surface, no native AVUXI UI. Three independent layer
+ * groups in the panel:
  *
- * Future categories reserved (NOT implemented · Phase 6+):
- *   Seguridad · Walkability · Demanda Corporativa · Mercado Hotelero
+ *   HEATMAP DE ATRACCIÓN
+ *     · `heatmap.enabled`  · master ON/OFF
+ *     · `heatmap.category` · radio of 5 AVUXI categories · the chosen
+ *       one drives both the AVUXI button-click delegation and the
+ *       manual fallback (manual only has data for "sightseeing"; other
+ *       categories render nothing when AVUXI is OFF)
+ *
+ *   MOVILIDAD
+ *     · `metro.enabled` · drives the AVUXI metro layer (button)
+ *
+ *   ZONIFICACIÓN
+ *     · `historico.enabled` · HV-native MapPolygonLayer · independent
+ *       of AVUXI · same as today
+ *
+ * AVUXI free-tier exposes one heatmap category at a time, so the
+ * radio model is honest about the underlying constraint. The previous
+ * 4-toggle shape ("heatmap"/"eating"/"metro"/"historico") with
+ * mutually-exclusive heatmap pair is retired here.
  */
-export interface MapLayer {
-  id: "heatmap" | "eating" | "metro" | "historico";
+export type HeatmapCategory =
+  | "sightseeing"
+  | "eating"
+  | "shopping"
+  | "nightlife"
+  | "transport";
+
+interface HeatmapLayer {
+  id: "heatmap";
+  label: string;
+  enabled: boolean;
+  category: HeatmapCategory;
+}
+
+interface SimpleLayer {
+  id: "metro" | "historico";
   label: string;
   enabled: boolean;
 }
 
+export type MapLayer = HeatmapLayer | SimpleLayer;
 export type MapLayerId = MapLayer["id"];
 
 export interface UseCompsetReturn {
@@ -56,4 +80,5 @@ export interface UseCompsetReturn {
   addCompetitor: (hotel: CompetitorHotel) => void;
   removeCompetitor: (id: string) => void;
   toggleLayer: (id: MapLayerId) => void;
+  setHeatmapCategory: (category: HeatmapCategory) => void;
 }

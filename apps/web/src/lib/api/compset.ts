@@ -62,22 +62,21 @@ export const MOCK_SUGGESTED_COMPETITORS: CompetitorHotel[] =
   DEFAULT_COMPSET.suggested.map(toCompetitorHotel);
 
 /**
- * CAPAS panel default state · Phase 2 (2026-05-22).
+ * CAPAS panel default state · Phase 2.C (2026-05-22).
  *
- * 4 institutional toggles in 3 groups:
- *   · DEMANDA TURÍSTICA · heatmap (Demanda Turística · default ON) +
- *                         eating (Gastronomía · default OFF · radio)
- *   · MOVILIDAD         · metro (Conectividad · default ON)
- *   · ZONIFICACIÓN      · historico (Centro Histórico · default ON · HV-native)
+ * 3 institutional groups, single unified surface:
+ *   HEATMAP DE ATRACCIÓN · heatmap (master toggle ON · category=sightseeing)
+ *   MOVILIDAD             · metro (Metro · default ON)
+ *   ZONIFICACIÓN          · historico (Centro Histórico · default ON · HV-native)
  *
- * Label text is the institutional vocabulary surfaced to end users.
- * Internal IDs stay stable to avoid breaking downstream consumers.
+ * The 5 heatmap categories (sightseeing · eating · shopping · nightlife ·
+ * transport) live as a radio under the master toggle · NOT as separate
+ * MapLayer rows. The previous 4-toggle Phase 2 shape is retired.
  */
 export const DEFAULT_LAYERS: MapLayer[] = [
-  { id: "heatmap",   label: "Demanda Turística", enabled: true  },
-  { id: "eating",    label: "Gastronomía",       enabled: false },
-  { id: "metro",     label: "Conectividad",      enabled: true  },
-  { id: "historico", label: "Centro Histórico",  enabled: true  },
+  { id: "heatmap",   label: "Heatmap de Atracción", enabled: true, category: "sightseeing" },
+  { id: "metro",     label: "Metro",                enabled: true },
+  { id: "historico", label: "Centro Histórico",     enabled: true },
 ];
 
 /**
