@@ -62,21 +62,14 @@ export const MOCK_SUGGESTED_COMPETITORS: CompetitorHotel[] =
   DEFAULT_COMPSET.suggested.map(toCompetitorHotel);
 
 /**
- * CAPAS panel default state · Phase 2.C (2026-05-22).
+ * CAPAS panel default state · Phase 2.C.2 (2026-05-22).
  *
- * 3 institutional groups, single unified surface:
- *   HEATMAP DE ATRACCIÓN · heatmap (master toggle ON · category=sightseeing)
- *   MOVILIDAD             · metro (Metro · default ON)
- *   ZONIFICACIÓN          · historico (Centro Histórico · default ON · HV-native)
- *
- * The 5 heatmap categories (sightseeing · eating · shopping · nightlife ·
- * transport) live as a radio under the master toggle · NOT as separate
- * MapLayer rows. The previous 4-toggle Phase 2 shape is retired.
+ * AVUXI categories (heatmap + metro) are now managed exclusively by
+ * AVUXI's native UI · CAPAS panel only owns the HV-native polygon.
+ * See `types/compset.ts` for the rationale.
  */
 export const DEFAULT_LAYERS: MapLayer[] = [
-  { id: "heatmap",   label: "Heatmap de Atracción", enabled: true, category: "sightseeing" },
-  { id: "metro",     label: "Metro",                enabled: true },
-  { id: "historico", label: "Centro Histórico",     enabled: true },
+  { id: "historico", label: "Centro Histórico", enabled: true },
 ];
 
 /**

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import type {
   CompetitorHotel,
-  HeatmapCategory,
   MapLayer,
   MapLayerId,
   UseCompsetReturn,
@@ -69,12 +68,6 @@ export function useCompset(referenceHotelId = "ref-001"): UseCompsetReturn {
     );
   }
 
-  function setHeatmapCategory(category: HeatmapCategory) {
-    setLayers((prev) =>
-      prev.map((l) => (l.id === "heatmap" ? { ...l, category } : l)),
-    );
-  }
-
   return {
     referenceHotel,
     competitors,
@@ -87,6 +80,5 @@ export function useCompset(referenceHotelId = "ref-001"): UseCompsetReturn {
     addCompetitor,
     removeCompetitor,
     toggleLayer,
-    setHeatmapCategory,
   };
 }

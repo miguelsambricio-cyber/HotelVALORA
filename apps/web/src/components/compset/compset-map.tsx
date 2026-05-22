@@ -16,7 +16,7 @@ import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
 // Rollback: flip to "false" on Vercel env · ~3-min redeploy.
 const AVUXI_ENABLED = process.env.NEXT_PUBLIC_AVUXI_ENABLED === "true";
 import type { CompsetMapGLProps } from "@/components/maps/compset-map-gl";
-import type { HeatmapCategory, MapLayer, MapLayerId } from "@/types/compset";
+import type { MapLayer, MapLayerId } from "@/types/compset";
 import { useState } from "react";
 
 // Dynamically import the Mapbox GL component — SSR disabled to avoid
@@ -78,7 +78,6 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
     addCompetitor,
     removeCompetitor,
     toggleLayer,
-    setHeatmapCategory,
   } = useCompset(referenceHotelId);
 
   const { viewState, setViewState, zoomIn, zoomOut } = useMapViewport();
@@ -160,7 +159,6 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
-          onSetHeatmapCategory={setHeatmapCategory}
           onClose={() => setLayersPanelOpen(false)}
           className="absolute left-4 top-44 md:left-auto md:right-8 md:top-48 z-30"
         />
@@ -206,12 +204,6 @@ function ExploreMode() {
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, enabled: !l.enabled } : l)));
   }
 
-  function setHeatmapCategory(category: HeatmapCategory) {
-    setLayers((prev) =>
-      prev.map((l) => (l.id === "heatmap" ? { ...l, category } : l)),
-    );
-  }
-
   function commitSelection(hotelId: string) {
     router.push(`/compset?ref=${encodeURIComponent(hotelId)}`);
   }
@@ -255,7 +247,6 @@ function ExploreMode() {
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
-          onSetHeatmapCategory={setHeatmapCategory}
           onClose={() => setLayersPanelOpen(false)}
           className="absolute left-4 top-44 md:left-auto md:right-8 md:top-48 z-30"
         />

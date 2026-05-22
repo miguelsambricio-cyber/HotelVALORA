@@ -1,46 +1,36 @@
 "use client";
 
 /**
- * CompsetMapGL · institutional Mapbox surface for /compset (Production
- * + Preview) and /report/*.
+ * CompsetMapGL · institutional Mapbox surface for /compset and /report/*.
  *
- * Phase 2.B (2026-05-22) · AVUXI is now wired DIRECTLY into the main
- * /compset render path · operator directive "pasa a incluir los
- * cambios en los mapas de hotelvalora/compset". The bare validation
- * surface (CompsetAvuxiPure) was retired · all of /compset's HV UI
- * (CompetitorPanel · AssetSelectionPanel · pins · MapLegend · zoom
- * controls) stays in place · AVUXI mounts as an additional layer
- * stack ON TOP of the same <Map>.
+ * Phase 2.C.2 (2026-05-22 · operator-approved simplification):
  *
- * Flag contract (NEXT_PUBLIC_AVUXI_ENABLED, parent passes via `avuxi`):
+ *   · AVUXI is injected when the feature flag is ON and is fully
+ *     self-managed via its OWN native UI (vertical button strip
+ *     top-right · sightseeing / eating / shopping / nightlife /
+ *     transport · metro). React does NOT try to drive AVUXI's
+ *     categories any more.
+ *   · The HotelVALORA CAPAS panel owns only the HV-native polygon
+ *     (Centro Histórico) plus the static pin legend (Hotel Ref +
+ *     CompSet · visual reference only).
+ *   · No CSS hides AVUXI's UI · no click delegation · no DOM
+ *     selectors · no tracked-intent refs · no MutationObserver.
+ *     The 3 previous iterations of sync code (commits dcfc769,
+ *     19f6cf7, 641f6d5) are all retired.
  *
- *   avuxi=false  (Production today · default)
- *     · Manual heatmap (MapHeatmapLayer · TOURIST_HEATMAP_DATA)
- *     · Manual metro    (MapMetroLayer · METRO_LINE_DATA)
- *     · Centro Histórico polygon (MapPolygonLayer · HV-native)
- *     · No AVUXI script · no AVUXI fetches · zero footprint
+ * Flag contract (NEXT_PUBLIC_AVUXI_ENABLED · parent passes via `avuxi`):
  *
- *   avuxi=true   (Preview today · Production once operator flips it)
- *     · AVUXI script injected · mapStart called with the 4-arg signature
- *       (mapInstance, mapboxgl, scriptId, options) identical to the
- *       /experiment-avuxi reference implementation
- *     · AVUXI heatmap + transit + stations replace the manual layers
- *     · Centro Histórico polygon STILL renders · HV-native · unaffected
- *     · AVUXI native UI (vertical button strip top-right) is left visible
- *       for now · Phase 2.C will replace it with the HV CAPAS panel
+ *   avuxi=true (Production today · Preview)
+ *     · AVUXI script injected · mapStart with 4-arg signature ·
+ *       AVUXI renders its categories + UI top-right
+ *     · Centro Histórico polygon STILL renders · HV-native · independent
  *
- * Reliability notes (post-crashes 2026-05-21):
- *   · The Map element gets an explicit `id="hv-compset-mapbox-map"` so
- *     the AVUXI SDK's first call `map.getContainer().id` returns a
- *     populated string · without this AVUXI no-ops silently.
- *   · mapboxgl is exposed on `window.mapboxgl` because the AVUXI SDK
- *     references it internally.
- *   · The AVUXI script is injected once per session (idempotent · reuses
- *     in-flight script tag) and we poll for `window.AVUXI` before
- *     declaring ready · matches the experiment-avuxi pattern.
- *   · `mapStart` is called via setTimeout polling instead of
- *     `map.once("load", …)` to avoid the listener-ordering issues that
- *     crashed earlier iterations.
+ *   avuxi=false (rollback only · current Production has flag ON)
+ *     · No AVUXI · just the Mapbox base + HV markers + Centro Histórico
+ *     · Manual heatmap and manual metro are no longer rendered in
+ *       either state · the corresponding `geo-data.ts` exports stay
+ *       in the repo as dormant references in case we ever need them
+ *       back, but they are NOT wired here.
  */
 
 import { useRef, useState, useEffect, useCallback } from "react";
@@ -48,21 +38,14 @@ import Map from "react-map-gl/mapbox";
 import type { MapRef, MapMouseEvent } from "react-map-gl/mapbox";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import type { HeatmapCategory } from "@/types/compset";
 
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/maps/map-config";
-import {
-  TOURIST_HEATMAP_DATA,
-  METRO_LINE_DATA,
-  HISTORIC_CENTER_POLYGON,
-} from "@/lib/maps/geo-data";
+import { HISTORIC_CENTER_POLYGON } from "@/lib/maps/geo-data";
 import { AVUXI_SCRIPT_ID, AVUXI_SCRIPT_URL } from "@/lib/maps/avuxi";
 import type { MapViewport } from "@/lib/maps/types";
 import type { CompetitorHotel, MapLayer } from "@/types/compset";
 
 import { HotelMarker }      from "./hotel-marker";
-import { MapHeatmapLayer }  from "./map-heatmap-layer";
-import { MapMetroLayer }    from "./map-metro-layer";
 import { MapPolygonLayer }  from "./map-polygon-layer";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -71,10 +54,8 @@ interface CompsetMapGLBaseProps {
   viewState: MapViewport;
   onViewStateChange: (vs: MapViewport) => void;
   layers: MapLayer[];
-  /** Phase 2.B feature flag · NEXT_PUBLIC_AVUXI_ENABLED (parent reads env).
-   *  When true · AVUXI is injected onto this map · manual heatmap + metro
-   *  layers are skipped. Centro Histórico polygon stays HV-native in both
-   *  states. Defaults to false (Production behavior unchanged). */
+  /** Feature flag · NEXT_PUBLIC_AVUXI_ENABLED (parent reads env).
+   *  When true · AVUXI mounts. AVUXI's own UI then manages its categories. */
   avuxi?: boolean;
 }
 
@@ -132,7 +113,7 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
   const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
   const [styleLoaded, setStyleLoaded] = useState(false);
 
-  // AVUXI lifecycle state · same naming as /experiment-avuxi
+  // AVUXI lifecycle state
   const [avuxiScriptReady, setAvuxiScriptReady] = useState(false);
   const [avuxiMapStartStatus, setAvuxiMapStartStatus] =
     useState<"idle" | "called" | "error">("idle");
@@ -242,15 +223,12 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         showLegend: true,
         language: "es",
         showMetro: true,
-        // sightseeing must match the CAPAS heatmap.category default so
-        // React's tracked-intent refs start aligned with AVUXI's actual
-        // initial state. Mismatching here triggers a spurious first click.
         defaultCategory: "sightseeing",
         opacity: 60,
       });
       setAvuxiMapStartStatus("called");
       // eslint-disable-next-line no-console
-      console.log("[avuxi] AVUXI.mapStart returned · awaiting fetches");
+      console.log("[avuxi] AVUXI.mapStart returned · AVUXI now manages its own UI");
       return true;
     } catch (e) {
       // eslint-disable-next-line no-console
@@ -269,232 +247,11 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     callAvuxiMapStart();
   }, [avuxi, avuxiScriptReady, mapReady, avuxiMapStartStatus, callAvuxiMapStart]);
 
-  // AVUXI · hide native UI · CAPAS panel is the only end-user control surface.
-  // The native button container class is `.category-control-container` ·
-  // confirmed via experiment-avuxi v9 inspector. Hiding it does NOT break
-  // programmatic .click() on its descendants (the click delegation effects
-  // below still fire correctly on display:none buttons).
-  useEffect(() => {
-    if (!avuxi) return;
-    if (typeof document === "undefined") return;
-    const STYLE_ID = "hv-avuxi-hide-native";
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
-      .category-control-container {
-        display: none !important;
-        visibility: hidden !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }, [avuxi]);
-
-  // ─── AVUXI sync · tracked-intent refs ────────────────────────────────
-  // We do NOT trust an "active-class" regex against AVUXI's DOM · the
-  // exact class name has never been confirmed and earlier guesses were
-  // wrong (caused the symptoms reported 2026-05-22: CAPAS OFF but
-  // heatmap still visible · CAPAS Metro ON but no lines rendered).
-  //
-  // Instead we treat AVUXI as an opaque state machine, track what WE
-  // believe its current state is (refs below), and click only when the
-  // intent differs. AVUXI's free-tier single-category model implies:
-  //   · click category Y while X is active  → AVUXI swaps to Y
-  //   · click currently-active category     → AVUXI deactivates it
-  //   · click metro                          → AVUXI toggles its metro layer
-  //
-  // Initial-state alignment relies on `defaultCategory: "sightseeing"`
-  // in mapStart (matches CAPAS heatmap default) and the assumption that
-  // AVUXI's metro layer defaults to OFF (verified by operator report
-  // 2026-05-22: metro not rendered until activated).
-  const avuxiHeatmapRef = useRef<{ enabled: boolean; category: HeatmapCategory }>({
-    enabled: true,
-    category: "sightseeing",
-  });
-  const avuxiMetroRef = useRef<boolean>(false);
-
-  // After mapStart returns, AVUXI injects its buttons asynchronously
-  // into the DOM. Wait for them via MutationObserver before declaring
-  // ready. On first appearance we also dump the full DOM signature of
-  // every category-related element so the operator can verify our
-  // selectors and active-class assumptions in DevTools.
-  const [avuxiDomReady, setAvuxiDomReady] = useState(false);
-  useEffect(() => {
-    if (!avuxi) return;
-    if (avuxiMapStartStatus !== "called") return;
-    if (typeof document === "undefined") return;
-
-    const dumpDomSignature = () => {
-      const all = document.querySelectorAll<HTMLElement>(
-        "[class*='category-btn-container-'], " +
-          "[class*='category-btn-t-container-'], " +
-          "[id^='category-control-container-metro-button'], " +
-          "[id^='category-control-container']",
-      );
-      // eslint-disable-next-line no-console
-      console.log(
-        `[avuxi-dom] ready · ${all.length} AVUXI-related elements:`,
-      );
-      Array.from(all).forEach((el, i) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[avuxi-dom][${i}] tag=${el.tagName.toLowerCase()} ` +
-            `id="${el.id}" class="${el.className}"`,
-        );
-      });
-    };
-
-    const found = () => {
-      const probe = document.querySelector(
-        "[class*='category-btn-container-'], [class*='category-btn-t-container-']",
-      );
-      return Boolean(probe);
-    };
-
-    if (found()) {
-      dumpDomSignature();
-      setAvuxiDomReady(true);
-      return;
-    }
-
-    const observer = new MutationObserver(() => {
-      if (found()) {
-        dumpDomSignature();
-        setAvuxiDomReady(true);
-        observer.disconnect();
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [avuxi, avuxiMapStartStatus]);
-
-  // Find an AVUXI category button for a given category name. Tries both
-  // selector variants we know AVUXI uses (heatmap + transport).
-  const findCategoryButton = useCallback(
-    (category: HeatmapCategory): HTMLElement | null => {
-      return document.querySelector<HTMLElement>(
-        `[class*='category-btn-container-${category}'], ` +
-          `[class*='category-btn-t-container-${category}']`,
-      );
-    },
-    [],
-  );
-
-  // Sync helper · logs the click intent + the affected button's classList
-  // before AND after the click (with a 300 ms delay) so we can see what
-  // AVUXI does in response. This is the canonical diagnostic when the
-  // user reports sync misbehaviour.
-  const clickAndLog = useCallback(
-    (label: string, btn: HTMLElement | null) => {
-      if (!btn) {
-        // eslint-disable-next-line no-console
-        console.warn(`[avuxi-sync] ${label} · button NOT found in DOM`);
-        return;
-      }
-      const before = btn.className;
-      // eslint-disable-next-line no-console
-      console.log(
-        `[avuxi-sync] ${label} · clicking · before classList:`,
-        before,
-      );
-      btn.click();
-      window.setTimeout(() => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[avuxi-sync] ${label} · 300ms after click · after classList:`,
-          btn.className,
-        );
-      }, 300);
-    },
-    [],
-  );
-
-  // AVUXI · CAPAS heatmap → AVUXI category (tracked-intent)
-  useEffect(() => {
-    if (!avuxi) return;
-    if (!avuxiDomReady) return;
-    const heatmapLayer = layers.find((l) => l.id === "heatmap");
-    if (!heatmapLayer || heatmapLayer.id !== "heatmap") return;
-
-    const current = avuxiHeatmapRef.current;
-    const desired = {
-      enabled: heatmapLayer.enabled,
-      category: heatmapLayer.category,
-    };
-
-    // Case 0 · already in sync
-    if (
-      current.enabled === desired.enabled &&
-      current.category === desired.category
-    ) {
-      return;
-    }
-
-    // Case A · turning OFF (was enabled, want disabled) → click currently-active
-    if (current.enabled && !desired.enabled) {
-      clickAndLog(
-        `heatmap OFF (deactivate ${current.category})`,
-        findCategoryButton(current.category),
-      );
-      avuxiHeatmapRef.current = { enabled: false, category: current.category };
-      return;
-    }
-
-    // Case B · turning ON from OFF → click desired category
-    if (!current.enabled && desired.enabled) {
-      clickAndLog(
-        `heatmap ON (activate ${desired.category})`,
-        findCategoryButton(desired.category),
-      );
-      avuxiHeatmapRef.current = { enabled: true, category: desired.category };
-      return;
-    }
-
-    // Case C · switching categories (both ON, different category) → click new
-    if (current.enabled && desired.enabled && current.category !== desired.category) {
-      clickAndLog(
-        `heatmap SWITCH ${current.category} → ${desired.category}`,
-        findCategoryButton(desired.category),
-      );
-      avuxiHeatmapRef.current = { enabled: true, category: desired.category };
-      return;
-    }
-  }, [avuxi, avuxiDomReady, layers, findCategoryButton, clickAndLog]);
-
-  // AVUXI · CAPAS Metro → AVUXI metro layer (tracked-intent)
-  useEffect(() => {
-    if (!avuxi) return;
-    if (!avuxiDomReady) return;
-    const metroLayer = layers.find((l) => l.id === "metro");
-    if (!metroLayer) return;
-
-    if (avuxiMetroRef.current === metroLayer.enabled) return;
-
-    const btn = document.querySelector<HTMLElement>(
-      "[id^='category-control-container-metro-button']",
-    );
-    clickAndLog(
-      `metro ${avuxiMetroRef.current ? "ON" : "OFF"} → ${
-        metroLayer.enabled ? "ON" : "OFF"
-      }`,
-      btn,
-    );
-    avuxiMetroRef.current = metroLayer.enabled;
-  }, [avuxi, avuxiDomReady, layers, clickAndLog]);
-
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
-  const heatmapLayer     = layers.find((l) => l.id === "heatmap");
-  const heatmapEnabled   = heatmapLayer?.enabled ?? false;
-  const heatmapCategory  =
-    heatmapLayer && heatmapLayer.id === "heatmap"
-      ? heatmapLayer.category
-      : "sightseeing";
-  const metroEnabled     = layers.find((l) => l.id === "metro")?.enabled     ?? false;
   const historicoEnabled = layers.find((l) => l.id === "historico")?.enabled ?? false;
 
   function handleMapClick(e: MapMouseEvent) {
-    // Deselect popup when clicking on empty map area
     if (!(e.originalEvent.target as HTMLElement).closest(".hotel-popup")) {
       setPopupHotelId(null);
     }
@@ -557,25 +314,10 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
       attributionControl={false}
       reuseMaps
     >
-      {/* ── GL Layers · Phase 2.B (2026-05-22) ─────────────────────────────
-       *  When avuxi=false (Production today): manual heatmap + metro +
-       *    historic polygon render as before · zero behavior change.
-       *  When avuxi=true (Preview · Production once operator flips flag):
-       *    AVUXI replaces the manual heatmap + metro layers · the historic
-       *    polygon STILL renders · HV-native · independent of AVUXI. */}
-      {/* Manual fallback heatmap only renders when AVUXI is OFF and the
-       *  CAPAS heatmap is set to "sightseeing" · we have no manual data
-       *  for eating / shopping / nightlife / transport · those four
-       *  categories render nothing in flag-OFF mode (rollback only · the
-       *  Production flag is ON since Phase 2.B). */}
-      {!avuxi && heatmapEnabled && heatmapCategory === "sightseeing" && (
-        <MapHeatmapLayer data={TOURIST_HEATMAP_DATA} />
-      )}
-      {!avuxi && metroEnabled   && <MapMetroLayer    data={METRO_LINE_DATA}     />}
-      {historicoEnabled         && <MapPolygonLayer  data={HISTORIC_CENTER_POLYGON} />}
+      {/* HV-native · Centro Histórico polygon · independent of AVUXI */}
+      {historicoEnabled && <MapPolygonLayer data={HISTORIC_CENTER_POLYGON} />}
 
       {isExplore ? (
-        /* ── Explore mode · uniform pins · two-click pattern via onPinClick ── */
         props.exploreHotels.map((hotel) => (
           <HotelMarker
             key={hotel.id}
