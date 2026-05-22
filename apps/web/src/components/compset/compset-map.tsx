@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCompset }      from "@/lib/hooks/use-compset";
 import { useMapViewport }  from "@/hooks/maps/use-map-viewport";
 import { MapControls }     from "./map-controls";
+import { CapasButton }     from "./capas-button";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
 import { AssetSelectionPanel }    from "./asset-selection-panel";
@@ -144,23 +145,30 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         />
       </div>
 
+      {/* Mapbox zoom · permanent top-left · never collides with AVUXI strip */}
       <MapControls
-        className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
+        className="absolute left-4 top-4 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
-        layersPanelOpen={layersPanelOpen}
-        onToggleLayersPanel={() => setLayersPanelOpen((o) => !o)}
       />
 
-      {/* Layers panel · on-demand · anchored just below the Layers button.
-       *  Mobile (controls top-left): panel appears top-left below controls.
-       *  Desktop (controls top-right): panel appears top-right below. */}
+      {/* CAPAS standalone button · positioned just below the AVUXI horizontal
+       *  bar (top-right) · the AVUXI strip is ~48 px tall · top-16 (64 px)
+       *  clears it with a small visual gap. CompetitorPanel sits on the
+       *  right edge from top-4 down · the CAPAS button at right-4 sits
+       *  above where the panel begins, so it remains accessible. */}
+      <CapasButton
+        open={layersPanelOpen}
+        onToggle={() => setLayersPanelOpen((o) => !o)}
+        className="absolute right-4 top-16 z-30"
+      />
+
       {layersPanelOpen && (
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
           onClose={() => setLayersPanelOpen(false)}
-          className="absolute left-4 top-44 md:left-auto md:right-8 md:top-48 z-30"
+          className="absolute right-4 top-28 z-30"
         />
       )}
 
@@ -236,11 +244,15 @@ function ExploreMode() {
       </div>
 
       <MapControls
-        className="absolute left-4 top-4 md:left-auto md:right-8 md:top-8 z-30"
+        className="absolute left-4 top-4 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
-        layersPanelOpen={layersPanelOpen}
-        onToggleLayersPanel={() => setLayersPanelOpen((o) => !o)}
+      />
+
+      <CapasButton
+        open={layersPanelOpen}
+        onToggle={() => setLayersPanelOpen((o) => !o)}
+        className="absolute right-4 top-16 z-30"
       />
 
       {layersPanelOpen && (
@@ -248,7 +260,7 @@ function ExploreMode() {
           layers={layers}
           onToggleLayer={toggleLayer}
           onClose={() => setLayersPanelOpen(false)}
-          className="absolute left-4 top-44 md:left-auto md:right-8 md:top-48 z-30"
+          className="absolute right-4 top-28 z-30"
         />
       )}
 

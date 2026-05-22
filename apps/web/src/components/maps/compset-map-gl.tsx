@@ -159,6 +159,37 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     }
   }, [avuxi]);
 
+  // Hide AVUXI's built-in zoom (+/-) controls · HV zoom (top-left) is the
+  // only zoom surface. AVUXI category + metro buttons stay visible.
+  // Defensive multi-selector rule: targets common Mapbox NavigationControl
+  // classes (in case AVUXI piggybacks on them) AND any element with "zoom"
+  // in its class/id that lives inside AVUXI's known parent container.
+  useEffect(() => {
+    if (!avuxi) return;
+    if (typeof document === "undefined") return;
+    const STYLE_ID = "hv-avuxi-hide-zoom";
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+      /* Mapbox NavigationControl variants (AVUXI may piggyback) */
+      .mapboxgl-ctrl-zoom-in,
+      .mapboxgl-ctrl-zoom-out,
+      .mapboxgl-ctrl-group:has(.mapboxgl-ctrl-zoom-in) {
+        display: none !important;
+      }
+      /* AVUXI-scoped zoom controls · scoped to AVUXI's container so we
+       *  don't accidentally hit unrelated HV buttons. */
+      .category-control-container [class*='zoom'],
+      .category-control-container [id*='zoom'],
+      .category-control-container [aria-label*='oom'],
+      .category-control-container button[title*='oom'] {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }, [avuxi]);
+
   // AVUXI · inject script once per session · poll for window.AVUXI on onload
   useEffect(() => {
     if (!avuxi) return;
