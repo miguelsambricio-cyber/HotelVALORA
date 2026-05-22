@@ -48,6 +48,7 @@ import Map from "react-map-gl/mapbox";
 import type { MapRef, MapMouseEvent } from "react-map-gl/mapbox";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import type { HeatmapCategory } from "@/types/compset";
 
 import { MAPBOX_TOKEN, MAPBOX_STYLE } from "@/lib/maps/map-config";
 import {
@@ -241,7 +242,10 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         showLegend: true,
         language: "es",
         showMetro: true,
-        defaultCategory: "eating",
+        // sightseeing must match the CAPAS heatmap.category default so
+        // React's tracked-intent refs start aligned with AVUXI's actual
+        // initial state. Mismatching here triggers a spurious first click.
+        defaultCategory: "sightseeing",
         opacity: 60,
       });
       setAvuxiMapStartStatus("called");
@@ -286,80 +290,197 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     document.head.appendChild(style);
   }, [avuxi]);
 
-  // AVUXI · CAPAS heatmap drives AVUXI category selection.
-  // Source of truth: React state (heatmap.enabled + heatmap.category).
-  // We programmatically click the matching AVUXI category button and
-  // do NOT try to detect AVUXI's internal active state · the click is
-  // idempotent (AVUXI ignores re-activations on the same category).
+  // ─── AVUXI sync · tracked-intent refs ────────────────────────────────
+  // We do NOT trust an "active-class" regex against AVUXI's DOM · the
+  // exact class name has never been confirmed and earlier guesses were
+  // wrong (caused the symptoms reported 2026-05-22: CAPAS OFF but
+  // heatmap still visible · CAPAS Metro ON but no lines rendered).
+  //
+  // Instead we treat AVUXI as an opaque state machine, track what WE
+  // believe its current state is (refs below), and click only when the
+  // intent differs. AVUXI's free-tier single-category model implies:
+  //   · click category Y while X is active  → AVUXI swaps to Y
+  //   · click currently-active category     → AVUXI deactivates it
+  //   · click metro                          → AVUXI toggles its metro layer
+  //
+  // Initial-state alignment relies on `defaultCategory: "sightseeing"`
+  // in mapStart (matches CAPAS heatmap default) and the assumption that
+  // AVUXI's metro layer defaults to OFF (verified by operator report
+  // 2026-05-22: metro not rendered until activated).
+  const avuxiHeatmapRef = useRef<{ enabled: boolean; category: HeatmapCategory }>({
+    enabled: true,
+    category: "sightseeing",
+  });
+  const avuxiMetroRef = useRef<boolean>(false);
+
+  // After mapStart returns, AVUXI injects its buttons asynchronously
+  // into the DOM. Wait for them via MutationObserver before declaring
+  // ready. On first appearance we also dump the full DOM signature of
+  // every category-related element so the operator can verify our
+  // selectors and active-class assumptions in DevTools.
+  const [avuxiDomReady, setAvuxiDomReady] = useState(false);
   useEffect(() => {
     if (!avuxi) return;
     if (avuxiMapStartStatus !== "called") return;
     if (typeof document === "undefined") return;
-    const heatmapLayer = layers.find((l) => l.id === "heatmap");
-    if (!heatmapLayer || heatmapLayer.id !== "heatmap") return;
-    if (!heatmapLayer.enabled) {
-      // Heatmap OFF · try to deactivate by clicking the currently-active
-      // AVUXI button. AVUXI usually marks active with a class containing
-      // "selected" / "active" / "on" · best-effort detection.
-      const allButtons = document.querySelectorAll<HTMLElement>(
+
+    const dumpDomSignature = () => {
+      const all = document.querySelectorAll<HTMLElement>(
+        "[class*='category-btn-container-'], " +
+          "[class*='category-btn-t-container-'], " +
+          "[id^='category-control-container-metro-button'], " +
+          "[id^='category-control-container']",
+      );
+      // eslint-disable-next-line no-console
+      console.log(
+        `[avuxi-dom] ready · ${all.length} AVUXI-related elements:`,
+      );
+      Array.from(all).forEach((el, i) => {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[avuxi-dom][${i}] tag=${el.tagName.toLowerCase()} ` +
+            `id="${el.id}" class="${el.className}"`,
+        );
+      });
+    };
+
+    const found = () => {
+      const probe = document.querySelector(
         "[class*='category-btn-container-'], [class*='category-btn-t-container-']",
       );
-      for (const btn of Array.from(allButtons)) {
-        const isActive = Array.from(btn.classList).some((c) =>
-          /selected|active|on$|--on/i.test(c),
-        );
-        if (isActive) {
-          btn.click();
-          break;
-        }
-      }
-      return;
-    }
-    // Heatmap ON · click the button matching the chosen category. AVUXI
-    // exposes both heatmap-style buttons (`category-btn-container-{name}`)
-    // and a transport-variant pattern (`category-btn-t-container-{name}`) ·
-    // querySelector picks whichever matches the chosen category id.
-    const target = document.querySelector<HTMLElement>(
-      `[class*='category-btn-container-${heatmapLayer.category}'], ` +
-        `[class*='category-btn-t-container-${heatmapLayer.category}']`,
-    );
-    if (!target) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "[avuxi] no AVUXI button matched category",
-        heatmapLayer.category,
-      );
-      return;
-    }
-    target.click();
-  }, [avuxi, avuxiMapStartStatus, layers]);
+      return Boolean(probe);
+    };
 
-  // AVUXI · CAPAS Metro toggle drives the AVUXI metro button.
-  // The metro button uses an id prefix · confirmed via experiment-avuxi v9
-  // inspector: `category-control-container-metro-button{N}`.
+    if (found()) {
+      dumpDomSignature();
+      setAvuxiDomReady(true);
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      if (found()) {
+        dumpDomSignature();
+        setAvuxiDomReady(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [avuxi, avuxiMapStartStatus]);
+
+  // Find an AVUXI category button for a given category name. Tries both
+  // selector variants we know AVUXI uses (heatmap + transport).
+  const findCategoryButton = useCallback(
+    (category: HeatmapCategory): HTMLElement | null => {
+      return document.querySelector<HTMLElement>(
+        `[class*='category-btn-container-${category}'], ` +
+          `[class*='category-btn-t-container-${category}']`,
+      );
+    },
+    [],
+  );
+
+  // Sync helper · logs the click intent + the affected button's classList
+  // before AND after the click (with a 300 ms delay) so we can see what
+  // AVUXI does in response. This is the canonical diagnostic when the
+  // user reports sync misbehaviour.
+  const clickAndLog = useCallback(
+    (label: string, btn: HTMLElement | null) => {
+      if (!btn) {
+        // eslint-disable-next-line no-console
+        console.warn(`[avuxi-sync] ${label} · button NOT found in DOM`);
+        return;
+      }
+      const before = btn.className;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[avuxi-sync] ${label} · clicking · before classList:`,
+        before,
+      );
+      btn.click();
+      window.setTimeout(() => {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[avuxi-sync] ${label} · 300ms after click · after classList:`,
+          btn.className,
+        );
+      }, 300);
+    },
+    [],
+  );
+
+  // AVUXI · CAPAS heatmap → AVUXI category (tracked-intent)
   useEffect(() => {
     if (!avuxi) return;
-    if (avuxiMapStartStatus !== "called") return;
-    if (typeof document === "undefined") return;
+    if (!avuxiDomReady) return;
+    const heatmapLayer = layers.find((l) => l.id === "heatmap");
+    if (!heatmapLayer || heatmapLayer.id !== "heatmap") return;
+
+    const current = avuxiHeatmapRef.current;
+    const desired = {
+      enabled: heatmapLayer.enabled,
+      category: heatmapLayer.category,
+    };
+
+    // Case 0 · already in sync
+    if (
+      current.enabled === desired.enabled &&
+      current.category === desired.category
+    ) {
+      return;
+    }
+
+    // Case A · turning OFF (was enabled, want disabled) → click currently-active
+    if (current.enabled && !desired.enabled) {
+      clickAndLog(
+        `heatmap OFF (deactivate ${current.category})`,
+        findCategoryButton(current.category),
+      );
+      avuxiHeatmapRef.current = { enabled: false, category: current.category };
+      return;
+    }
+
+    // Case B · turning ON from OFF → click desired category
+    if (!current.enabled && desired.enabled) {
+      clickAndLog(
+        `heatmap ON (activate ${desired.category})`,
+        findCategoryButton(desired.category),
+      );
+      avuxiHeatmapRef.current = { enabled: true, category: desired.category };
+      return;
+    }
+
+    // Case C · switching categories (both ON, different category) → click new
+    if (current.enabled && desired.enabled && current.category !== desired.category) {
+      clickAndLog(
+        `heatmap SWITCH ${current.category} → ${desired.category}`,
+        findCategoryButton(desired.category),
+      );
+      avuxiHeatmapRef.current = { enabled: true, category: desired.category };
+      return;
+    }
+  }, [avuxi, avuxiDomReady, layers, findCategoryButton, clickAndLog]);
+
+  // AVUXI · CAPAS Metro → AVUXI metro layer (tracked-intent)
+  useEffect(() => {
+    if (!avuxi) return;
+    if (!avuxiDomReady) return;
     const metroLayer = layers.find((l) => l.id === "metro");
     if (!metroLayer) return;
+
+    if (avuxiMetroRef.current === metroLayer.enabled) return;
+
     const btn = document.querySelector<HTMLElement>(
       "[id^='category-control-container-metro-button']",
     );
-    if (!btn) {
-      // eslint-disable-next-line no-console
-      console.warn("[avuxi] no AVUXI metro button found");
-      return;
-    }
-    const isActive = Array.from(btn.classList).some((c) =>
-      /selected|active|on$|--on/i.test(c),
+    clickAndLog(
+      `metro ${avuxiMetroRef.current ? "ON" : "OFF"} → ${
+        metroLayer.enabled ? "ON" : "OFF"
+      }`,
+      btn,
     );
-    if (metroLayer.enabled && !isActive) {
-      btn.click();
-    } else if (!metroLayer.enabled && isActive) {
-      btn.click();
-    }
-  }, [avuxi, avuxiMapStartStatus, layers]);
+    avuxiMetroRef.current = metroLayer.enabled;
+  }, [avuxi, avuxiDomReady, layers, clickAndLog]);
 
   if (!MAPBOX_TOKEN) return <TokenMissing />;
 
