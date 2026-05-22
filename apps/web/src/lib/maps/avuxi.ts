@@ -25,6 +25,10 @@ export interface AvuxiOptions {
   initialZoom?: number;
   initialLocation?: { lat: number; lng: number };
   opacity?: number;
+  /** Boolean · default `true` in the SDK · controls whether AVUXI renders
+   *  its own zoom (+/-) container. We set this to `false` so HV's Mapbox
+   *  zoom controls (top-left) are the only zoom surface. */
+  showZoomControl?: boolean;
 }
 
 declare global {

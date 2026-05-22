@@ -159,11 +159,10 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     }
   }, [avuxi]);
 
-  // Hide AVUXI's built-in zoom (+/-) controls · HV zoom (top-left) is the
-  // only zoom surface. AVUXI category + metro buttons stay visible.
-  // Defensive multi-selector rule: targets common Mapbox NavigationControl
-  // classes (in case AVUXI piggybacks on them) AND any element with "zoom"
-  // in its class/id that lives inside AVUXI's known parent container.
+  // Belt-and-suspenders CSS fallback. If AVUXI's `showZoomControl: false`
+  // option above fails to suppress the zoom container in some SDK version,
+  // this hides it by id (`#zoom-control-container`) which the SDK source
+  // assigns when the container is created.
   useEffect(() => {
     if (!avuxi) return;
     if (typeof document === "undefined") return;
@@ -172,18 +171,8 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-      /* Mapbox NavigationControl variants (AVUXI may piggyback) */
-      .mapboxgl-ctrl-zoom-in,
-      .mapboxgl-ctrl-zoom-out,
-      .mapboxgl-ctrl-group:has(.mapboxgl-ctrl-zoom-in) {
-        display: none !important;
-      }
-      /* AVUXI-scoped zoom controls · scoped to AVUXI's container so we
-       *  don't accidentally hit unrelated HV buttons. */
-      .category-control-container [class*='zoom'],
-      .category-control-container [id*='zoom'],
-      .category-control-container [aria-label*='oom'],
-      .category-control-container button[title*='oom'] {
+      #zoom-control-container,
+      [id^='zoom-control-container'] {
         display: none !important;
       }
     `;
@@ -247,9 +236,8 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         mapInstance.getContainer()?.id || "(empty)",
       );
       window.AVUXI.mapStart(mapInstance, mapboxgl, AVUXI_SCRIPT_ID, {
-        // 2026-05-22 · operator-requested layout: horizontal strip top-right.
-        // Vertical orientation collided with the HV CompetitorPanel that
-        // anchors top-right · horizontal strip avoids that overlap.
+        // Horizontal strip top-right · vertical column collided with the
+        // HV CompetitorPanel (also right-anchored).
         buttonOrientation: "horizontal",
         buttonLocation: "tr",
         buttonBackgroundColor: "#ffffff",
@@ -259,6 +247,11 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         showMetro: true,
         defaultCategory: "sightseeing",
         opacity: 60,
+        // AVUXI's own zoom (+/-) container is hidden · HV Mapbox zoom in
+        // the top-left is the single zoom surface. Verified against the
+        // AVUXI SDK source: the option exists, accepts boolean, default
+        // is true (zoom shown). Set to false here.
+        showZoomControl: false,
       });
       setAvuxiMapStartStatus("called");
       // eslint-disable-next-line no-console
