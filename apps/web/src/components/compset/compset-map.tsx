@@ -7,6 +7,7 @@ import { useCompset }      from "@/lib/hooks/use-compset";
 import { useMapViewport }  from "@/hooks/maps/use-map-viewport";
 import { MapControls }     from "./map-controls";
 import { CapasButton }     from "./capas-button";
+import { HVMapToolbar }    from "./hv-map-toolbar";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
 import { AssetSelectionPanel }    from "./asset-selection-panel";
@@ -145,33 +146,39 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         />
       </div>
 
-      {/* Mapbox zoom · permanent top-left · never collides with AVUXI strip */}
+      {/* Mapbox · top-left · zoom (future: compass, pitch, geolocate) */}
       <MapControls
         className="absolute left-4 top-4 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
       />
 
-      {/* CAPAS standalone button · positioned just below the AVUXI horizontal
-       *  bar (top-right) · the AVUXI strip is ~48 px tall · top-16 (64 px)
-       *  clears it with a small visual gap. CompetitorPanel sits on the
-       *  right edge from top-4 down · the CAPAS button at right-4 sits
-       *  above where the panel begins, so it remains accessible. */}
-      <CapasButton
-        open={layersPanelOpen}
-        onToggle={() => setLayersPanelOpen((o) => !o)}
-        className="absolute right-4 top-16 z-30"
-      />
+      {/* HotelVALORA toolbar · bottom-left · scales upward as we add tools */}
+      <HVMapToolbar>
+        <CapasButton
+          open={layersPanelOpen}
+          onToggle={() => setLayersPanelOpen((o) => !o)}
+        />
+        {/* Future HV tools plug in here · they stack ABOVE the CAPAS
+         *  anchor automatically (flex-col-reverse) */}
+      </HVMapToolbar>
 
+      {/* CAPAS popover · opens to the RIGHT of the HV toolbar button ·
+       *  bottom-aligned with the button · grows UPWARD if content is tall.
+       *  Sits in free space between the HV toolbar (BL) and the right
+       *  panel (R edge) · never overlaps AVUXI or any panel. */}
       {layersPanelOpen && (
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
           onClose={() => setLayersPanelOpen(false)}
-          className="absolute right-4 top-28 z-30"
+          className="absolute left-16 bottom-4 z-30"
         />
       )}
 
+      {/* Right panel · output / data zone · clamped vertically so it
+       *  never covers the AVUXI strip above (top-16 = 64 px clearance)
+       *  nor the HV toolbar below (bottom-16 = 64 px clearance). */}
       <CompetitorPanel
         referenceHotel={referenceHotel}
         competitors={competitors}
@@ -182,7 +189,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         onAdd={addCompetitor}
         onRemove={removeCompetitor}
         inspectedHotelId={inspectedHotelId}
-        className="absolute top-4 right-4 bottom-4 z-30"
+        className="absolute top-16 right-4 bottom-16 z-30"
       />
 
       {error && (
@@ -243,33 +250,38 @@ function ExploreMode() {
         />
       </div>
 
+      {/* Mapbox · top-left */}
       <MapControls
         className="absolute left-4 top-4 z-30"
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
       />
 
-      <CapasButton
-        open={layersPanelOpen}
-        onToggle={() => setLayersPanelOpen((o) => !o)}
-        className="absolute right-4 top-16 z-30"
-      />
+      {/* HotelVALORA toolbar · bottom-left */}
+      <HVMapToolbar>
+        <CapasButton
+          open={layersPanelOpen}
+          onToggle={() => setLayersPanelOpen((o) => !o)}
+        />
+      </HVMapToolbar>
 
+      {/* CAPAS popover · right of HV toolbar button */}
       {layersPanelOpen && (
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
           onClose={() => setLayersPanelOpen(false)}
-          className="absolute right-4 top-28 z-30"
+          className="absolute left-16 bottom-4 z-30"
         />
       )}
 
+      {/* Right panel · clamped to clear AVUXI (top) + HV toolbar (bottom) */}
       <AssetSelectionPanel
         recommended={ALL_MADRID_AS_COMPETITORS}
         inspectedHotelId={inspectedHotelId}
         onInspect={setInspectedHotelId}
         onCommit={commitSelection}
-        className="absolute top-4 right-4 bottom-4 z-30"
+        className="absolute top-16 right-4 bottom-16 z-30"
       />
     </section>
   );
