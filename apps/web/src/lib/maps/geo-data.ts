@@ -155,19 +155,21 @@ export const HISTORIC_CENTER_POLYGON: PolygonGeoJSON = {
     type: "Polygon",
     coordinates: [
       [
-        [-3.7158, 40.4240], // NW · Plaza de España
+        [-3.7158, 40.4243], // NW · Plaza de España
         [-3.7068, 40.4291], // N · Glorieta de San Bernardo
-        [-3.7000, 40.4290], // N · Glorieta de Bilbao
-        [-3.6920, 40.4282], // NE · Plaza Alonso Martínez
+        [-3.7020, 40.4290], // N · Glorieta de Bilbao
+        [-3.6940, 40.4282], // NE · Plaza Alonso Martínez
         [-3.6892, 40.4244], // E-NE · Plaza de Colón
-        [-3.6920, 40.4197], // E · Plaza de Cibeles
-        [-3.6905, 40.4128], // E · Plaza Cánovas (Neptuno)
-        [-3.6905, 40.4067], // SE · Glorieta Emperador Carlos V (Atocha)
-        [-3.7037, 40.4067], // S · Glorieta de Embajadores
-        [-3.7099, 40.4084], // SW · Puerta de Toledo
-        [-3.7158, 40.4150], // W · Cuesta de la Vega (south of Royal Palace)
-        [-3.7158, 40.4220], // W-NW · west of Royal Palace / Plaza Oriente
-        [-3.7158, 40.4240], // close · Plaza de España
+        [-3.6924, 40.4197], // E · Plaza de Cibeles
+        [-3.6907, 40.4145], // E · Plaza Cánovas (Neptuno)
+        [-3.6906, 40.4068], // SE · Glorieta Emperador Carlos V (Atocha)
+        [-3.6970, 40.4040], // S-SE · Ronda de Atocha mid (covers south Lavapiés)
+        [-3.7038, 40.4042], // S · Glorieta de Embajadores (real lat · was 40.4067)
+        [-3.7100, 40.4079], // SW · Puerta de Toledo
+        [-3.7160, 40.4150], // W-SW · Cuesta de la Vega (south of Royal Palace)
+        [-3.7185, 40.4180], // W · Campo del Moro / Paseo Virgen del Puerto
+        [-3.7180, 40.4225], // W-NW · Cuesta de San Vicente
+        [-3.7158, 40.4243], // close · Plaza de España
       ],
     ],
   },
