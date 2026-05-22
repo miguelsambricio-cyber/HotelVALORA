@@ -9,19 +9,6 @@ import { MapControls }     from "./map-controls";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
 import { AssetSelectionPanel }    from "./asset-selection-panel";
-
-// Dynamic · CompsetAvuxiPure pulls mapbox-gl + react-map-gl statically.
-// Loading it via dynamic() with ssr:false keeps the manual /compset
-// First Load JS unchanged when the AVUXI flag is OFF (Production).
-const CompsetAvuxiPure = dynamic(
-  () => import("./compset-avuxi-pure").then((m) => m.CompsetAvuxiPure),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full bg-slate-200 animate-pulse" aria-hidden />
-    ),
-  },
-);
 import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
 
 // Phase 2 feature flag · Vercel env var · default OFF (production behavior
@@ -52,20 +39,11 @@ interface CompsetMapProps {
 }
 
 export function CompsetMap({ referenceHotelId, mode = "analysis" }: CompsetMapProps) {
-  // Phase 2.A.4 (2026-05-22 · operator directive). When the AVUXI feature
-  // flag is ON, render the pure AVUXI surface · identical to /experiment-avuxi
-  // · skipping ALL legacy HV-UI (CompetitorPanel, AssetSelectionPanel, pins,
-  // MapLegend). Production (flag OFF) keeps the full HV workspace as today.
-  if (AVUXI_ENABLED) {
-    return (
-      <section
-        aria-label="Mapa AVUXI · validación"
-        className="relative w-full overflow-hidden compset-map-container bg-slate-200"
-      >
-        <CompsetAvuxiPure />
-      </section>
-    );
-  }
+  // Phase 2.B (2026-05-22) · the AVUXI flag now toggles the layer engine
+  // INSIDE CompsetMapGL · the full HV workspace (CompetitorPanel + pins +
+  // MapLegend + zoom controls) renders identically in both states. The
+  // bare-AVUXI validation surface (CompsetAvuxiPure) was retired now that
+  // /compset has been confirmed to load AVUXI tiles correctly on Preview.
   if (mode === "explore") {
     return <ExploreMode />;
   }
@@ -162,6 +140,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
           layers={layers}
           onPinClick={handlePinClick}
           inspectedHotelId={inspectedHotelId}
+          avuxi={AVUXI_ENABLED}
         />
       </div>
 
@@ -252,6 +231,7 @@ function ExploreMode() {
           onPinClick={handlePinClick}
           inspectedHotelId={inspectedHotelId}
           layers={layers}
+          avuxi={AVUXI_ENABLED}
         />
       </div>
 
