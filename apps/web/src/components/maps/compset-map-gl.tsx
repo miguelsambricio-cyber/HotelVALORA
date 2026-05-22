@@ -216,7 +216,10 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         mapInstance.getContainer()?.id || "(empty)",
       );
       window.AVUXI.mapStart(mapInstance, mapboxgl, AVUXI_SCRIPT_ID, {
-        buttonOrientation: "vertical",
+        // 2026-05-22 · operator-requested layout: horizontal strip top-right.
+        // Vertical orientation collided with the HV CompetitorPanel that
+        // anchors top-right · horizontal strip avoids that overlap.
+        buttonOrientation: "horizontal",
         buttonLocation: "tr",
         buttonBackgroundColor: "#ffffff",
         buttonForegroundColor: "#0E4B31",
