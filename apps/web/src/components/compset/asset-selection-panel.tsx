@@ -45,6 +45,14 @@ interface AssetSelectionPanelProps {
   onInspect: (hotelId: string | null) => void;
   /** Commit callback · navigates to /compset?ref=<id>. */
   onCommit: (hotelId: string) => void;
+  /** Controlled open state · when both `panelOpen` and `onToggle` are
+   *  provided, the parent owns the toggle. Falls back to internal
+   *  state when undefined (backward-compat). */
+  panelOpen?: boolean;
+  onToggle?: () => void;
+  /** When true, the panel's built-in pull-tab is hidden · used when the
+   *  parent supplies an external trigger (HotelsButton). */
+  hideToggle?: boolean;
   className?: string;
 }
 
@@ -53,9 +61,21 @@ export function AssetSelectionPanel({
   inspectedHotelId,
   onInspect,
   onCommit,
+  panelOpen: panelOpenProp,
+  onToggle: onToggleProp,
+  hideToggle = false,
   className,
 }: AssetSelectionPanelProps) {
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [internalPanelOpen, setInternalPanelOpen] = useState(true);
+  const isControlled = panelOpenProp !== undefined && onToggleProp !== undefined;
+  const panelOpen = isControlled ? panelOpenProp : internalPanelOpen;
+  const setPanelOpen = (next: boolean) => {
+    if (isControlled) {
+      if (next !== panelOpenProp) onToggleProp();
+    } else {
+      setInternalPanelOpen(next);
+    }
+  };
   const bodyRef = useRef<HTMLDivElement>(null);
 
   // Sort anchors first (5 curated names) · then the remaining 13 hotels.
@@ -161,7 +181,8 @@ export function AssetSelectionPanel({
         </div>
       </div>
 
-      {/* Toggle tab · identical geometry to CompetitorPanel */}
+      {/* Toggle tab · hidden when parent supplies external trigger */}
+      {!hideToggle && (
       <button
         type="button"
         onClick={() => setPanelOpen(!panelOpen)}
@@ -170,6 +191,7 @@ export function AssetSelectionPanel({
       >
         {panelOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
+      )}
     </div>
   );
 }

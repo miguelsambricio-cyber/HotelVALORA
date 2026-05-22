@@ -7,6 +7,7 @@ import { useCompset }      from "@/lib/hooks/use-compset";
 import { useMapViewport }  from "@/hooks/maps/use-map-viewport";
 import { MapControls }     from "./map-controls";
 import { CapasButton }     from "./capas-button";
+import { HotelsButton }    from "./hotels-button";
 import { HVMapToolbar }    from "./hv-map-toolbar";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
@@ -146,39 +147,41 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         />
       </div>
 
-      {/* Mapbox · top-left · zoom (future: compass, pitch, geolocate) */}
-      <MapControls
-        className="absolute left-4 top-4 z-30"
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
+      {/* HotelVALORA · top-right · single trigger for the hotels panel */}
+      <HotelsButton
+        open={panelOpen}
+        onToggle={() => setPanelOpen(!panelOpen)}
+        className="absolute right-4 top-4 z-30"
       />
 
-      {/* HotelVALORA toolbar · bottom-left · scales upward as we add tools */}
+      {/* HotelVALORA · bottom-right · zoom + CAPAS + future tools */}
       <HVMapToolbar>
+        <MapControls onZoomIn={zoomIn} onZoomOut={zoomOut} />
         <CapasButton
           open={layersPanelOpen}
           onToggle={() => setLayersPanelOpen((o) => !o)}
         />
-        {/* Future HV tools plug in here · they stack ABOVE the CAPAS
-         *  anchor automatically (flex-col-reverse) */}
       </HVMapToolbar>
 
-      {/* CAPAS popover · opens to the RIGHT of the HV toolbar button ·
-       *  bottom-aligned with the button · grows UPWARD if content is tall.
-       *  Sits in free space between the HV toolbar (BL) and the right
-       *  panel (R edge) · never overlaps AVUXI or any panel. */}
+      {/* CAPAS popover · anchored to the LEFT of the bottom-right toolbar ·
+       *  bottom-aligned with the CAPAS button · grows upward if tall.
+       *  Sits in the open bottom-center area · never touches the AVUXI
+       *  strip (top-left) or the right panel (clamped). */}
       {layersPanelOpen && (
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
           onClose={() => setLayersPanelOpen(false)}
-          className="absolute left-16 bottom-4 z-30"
+          className="absolute right-20 bottom-4 z-30"
         />
       )}
 
-      {/* Right panel · output / data zone · clamped vertically so it
-       *  never covers the AVUXI strip above (top-16 = 64 px clearance)
-       *  nor the HV toolbar below (bottom-16 = 64 px clearance). */}
+      {/* Right panel · clamped:
+       *  - top-16  · clears HotelsButton (top-4 + 40 px button + gap)
+       *  - bottom-44 · clears the bottom-right toolbar (3 buttons × 40 px
+       *               + 2 × 8 gap = 136 px · plus 16 padding ≈ 176 px)
+       *  Width 288 px slides in from the right when open · invisible
+       *  when closed (built-in pull-tab hidden via hideToggle). */}
       <CompetitorPanel
         referenceHotel={referenceHotel}
         competitors={competitors}
@@ -189,7 +192,8 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         onAdd={addCompetitor}
         onRemove={removeCompetitor}
         inspectedHotelId={inspectedHotelId}
-        className="absolute top-16 right-4 bottom-16 z-30"
+        hideToggle
+        className="absolute top-16 right-4 bottom-44 z-30"
       />
 
       {error && (
@@ -214,6 +218,14 @@ function ExploreMode() {
   const [layers, setLayers] = useState<MapLayer[]>(DEFAULT_LAYERS);
   const [inspectedHotelId, setInspectedHotelId] = useState<string | null>(null);
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
+  const [hotelsPanelOpen, setHotelsPanelOpen] = useState(true);
+
+  // Auto-open hotels panel when a pin is inspected · matches the pre-Phase-2.E
+  // internal behaviour of AssetSelectionPanel.
+  useEffect(() => {
+    if (inspectedHotelId && !hotelsPanelOpen) setHotelsPanelOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inspectedHotelId]);
 
   function toggleLayer(id: MapLayerId) {
     setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, enabled: !l.enabled } : l)));
@@ -250,38 +262,42 @@ function ExploreMode() {
         />
       </div>
 
-      {/* Mapbox · top-left */}
-      <MapControls
-        className="absolute left-4 top-4 z-30"
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
+      {/* HotelVALORA · top-right · hotels selection trigger */}
+      <HotelsButton
+        open={hotelsPanelOpen}
+        onToggle={() => setHotelsPanelOpen((o) => !o)}
+        className="absolute right-4 top-4 z-30"
       />
 
-      {/* HotelVALORA toolbar · bottom-left */}
+      {/* HotelVALORA · bottom-right · zoom + CAPAS */}
       <HVMapToolbar>
+        <MapControls onZoomIn={zoomIn} onZoomOut={zoomOut} />
         <CapasButton
           open={layersPanelOpen}
           onToggle={() => setLayersPanelOpen((o) => !o)}
         />
       </HVMapToolbar>
 
-      {/* CAPAS popover · right of HV toolbar button */}
+      {/* CAPAS popover · left of the bottom-right toolbar */}
       {layersPanelOpen && (
         <MapLegend
           layers={layers}
           onToggleLayer={toggleLayer}
           onClose={() => setLayersPanelOpen(false)}
-          className="absolute left-16 bottom-4 z-30"
+          className="absolute right-20 bottom-4 z-30"
         />
       )}
 
-      {/* Right panel · clamped to clear AVUXI (top) + HV toolbar (bottom) */}
+      {/* Right panel · clamped to clear top button + bottom toolbar */}
       <AssetSelectionPanel
         recommended={ALL_MADRID_AS_COMPETITORS}
         inspectedHotelId={inspectedHotelId}
         onInspect={setInspectedHotelId}
         onCommit={commitSelection}
-        className="absolute top-16 right-4 bottom-16 z-30"
+        panelOpen={hotelsPanelOpen}
+        onToggle={() => setHotelsPanelOpen((o) => !o)}
+        hideToggle
+        className="absolute top-16 right-4 bottom-44 z-30"
       />
     </section>
   );

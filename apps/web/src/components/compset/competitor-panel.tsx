@@ -19,6 +19,10 @@ interface CompetitorPanelProps {
   /** Map↔Panel sync · matching card gets highlight + scrollIntoView.
    *  Source of truth lives in <AnalysisMode /> (compset-map.tsx). */
   inspectedHotelId?: string | null;
+  /** When true, the panel's built-in pull-tab toggle is hidden. Use when
+   *  the parent surface supplies an external trigger (e.g. a top-right
+   *  HotelsButton) so the user has a single, unambiguous entry point. */
+  hideToggle?: boolean;
   className?: string;
 }
 
@@ -32,6 +36,7 @@ export function CompetitorPanel({
   onAdd,
   onRemove,
   inspectedHotelId = null,
+  hideToggle = false,
   className,
 }: CompetitorPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -153,15 +158,18 @@ export function CompetitorPanel({
         </div>
       </div>
 
-      {/* Toggle tab — sits to the left of the panel body */}
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={panelOpen ? "Cerrar panel" : "Abrir panel de competidores"}
-        className="flex-shrink-0 mt-4 w-8 h-12 glass-overlay rounded-l-xl flex items-center justify-center text-forest-900 shadow-md border-y border-l border-white/50"
-      >
-        {panelOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-      </button>
+      {/* Toggle tab — sits to the left of the panel body. Hidden when
+       *  the parent provides an external trigger (HotelsButton). */}
+      {!hideToggle && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={panelOpen ? "Cerrar panel" : "Abrir panel de competidores"}
+          className="flex-shrink-0 mt-4 w-8 h-12 glass-overlay rounded-l-xl flex items-center justify-center text-forest-900 shadow-md border-y border-l border-white/50"
+        >
+          {panelOpen ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+      )}
     </div>
   );
 }

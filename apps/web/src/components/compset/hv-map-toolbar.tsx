@@ -8,31 +8,30 @@ interface HVMapToolbarProps {
 }
 
 /**
- * HVMapToolbar · bottom-left dock for HotelVALORA-owned map controls.
+ * HVMapToolbar · bottom-right dock for HotelVALORA-owned map controls.
  *
- * Map layout architecture (2026-05-22 · operator-approved):
- *   · Mapbox owns top-left          · zoom + future compass/pitch/geolocate
- *   · AVUXI owns top-right          · native horizontal strip + heatmap legend
- *   · Right edge mid-vertical hosts data panels (CompetitorPanel /
- *     AssetSelectionPanel) · clamped top-16 ↔ bottom-16 so it never
- *     covers the AVUXI strip above or the HV toolbar below
- *   · HV owns bottom-left           · this component · the toolbar
+ * Phase 2.E layout (2026-05-22 · operator-approved):
+ *   · Top-LEFT     · AVUXI categories + heatmap legend
+ *   · Top-RIGHT    · HV HotelsButton (toggles the right panel)
+ *   · Right edge   · CompetitorPanel / AssetSelectionPanel (data panel)
+ *                    · clamped vertically to clear top + bottom controls
+ *   · Bottom-RIGHT · this toolbar · stacks zoom + CAPAS + future tools
  *
- * Children stack with `flex-col-reverse` so the FIRST JSX child sits at
- * the BOTTOM of the visual stack · later children stack UPWARD. This
- * keeps the anchor (e.g. CapasButton) at a stable bottom position as
- * new tools are added · adding a new tool only inserts above existing
- * ones · zero layout churn for existing buttons.
+ * Children render in JSX order from TOP to BOTTOM (normal `flex-col`):
+ *   <HVMapToolbar>
+ *     <MapControls />   ← zoom +/- (rendered first · sits at the top)
+ *     <CapasButton />   ← CAPAS (rendered last · sits at the bottom)
+ *     <FutureTool />    ← any new tool plugged below CAPAS
+ *   </HVMapToolbar>
  *
- * Future tools (measure · search · filter · export · etc.) plug in as
- * additional children without touching this component or the rest of
- * the map layout.
+ * If we ever need new tools to push CAPAS upward instead, swap to
+ * `flex-col-reverse` and the visual order flips automatically.
  */
 export function HVMapToolbar({ className, children }: HVMapToolbarProps) {
   return (
     <div
       className={cn(
-        "absolute left-4 bottom-4 z-30 flex flex-col-reverse gap-2",
+        "absolute right-4 bottom-4 z-30 flex flex-col gap-2",
         className,
       )}
     >

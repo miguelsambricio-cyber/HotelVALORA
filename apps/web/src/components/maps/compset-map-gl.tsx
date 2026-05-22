@@ -236,10 +236,12 @@ export function CompsetMapGL(props: CompsetMapGLProps) {
         mapInstance.getContainer()?.id || "(empty)",
       );
       window.AVUXI.mapStart(mapInstance, mapboxgl, AVUXI_SCRIPT_ID, {
-        // Horizontal strip top-right · vertical column collided with the
-        // HV CompetitorPanel (also right-anchored).
+        // Phase 2.E layout (2026-05-22) · AVUXI moves to top-LEFT so the
+        // right edge is fully reserved for the HV hotel selection panel.
+        // HV zoom (previously top-left) relocates to a bottom-right
+        // stack alongside CAPAS · no two providers share the same corner.
         buttonOrientation: "horizontal",
-        buttonLocation: "tr",
+        buttonLocation: "tl",
         buttonBackgroundColor: "#ffffff",
         buttonForegroundColor: "#0E4B31",
         showLegend: true,
