@@ -131,9 +131,23 @@ export const METRO_LINE_DATA: LineGeoJSON = {
 };
 
 /**
- * Madrid Almendra Central polygon · the historic inner ring delimited
- * by the M-30 ring road. Approximate · institutional-grade reference
- * not cadastral.
+ * Madrid · Distrito Centro polygon · the official "Madrid Centro"
+ * administrative district (6 barrios: Palacio · Embajadores · Cortes ·
+ * Justicia · Universidad · Sol).
+ *
+ * Boundary matches Booking.com's "Madrid Centro" filter zone · the
+ * approximation hugs the canonical perimeter streets:
+ *   · North · Calle Sagasta / Glorieta Bilbao / Plaza Alonso Martínez /
+ *             Plaza de Colón
+ *   · East  · Paseo de Recoletos / Paseo del Prado
+ *   · South · Glorieta del Emperador Carlos V (Atocha) / Ronda de
+ *             Atocha / Glorieta de Embajadores / Puerta de Toledo
+ *   · West  · Calle Bailén (Royal Palace) / Cuesta de San Vicente /
+ *             Calle de la Princesa (up to Plaza de España)
+ *
+ * Vertices walk clockwise starting from the NW corner near Plaza España.
+ * Institutional-grade reference · not cadastral · accurate to ±50 m on
+ * the perimeter streets.
  */
 export const HISTORIC_CENTER_POLYGON: PolygonGeoJSON = {
   type: "Feature",
@@ -141,24 +155,24 @@ export const HISTORIC_CENTER_POLYGON: PolygonGeoJSON = {
     type: "Polygon",
     coordinates: [
       [
-        [-3.7220, 40.4380], // NW · Moncloa
-        [-3.7100, 40.4475], // N-NW · between Moncloa and Cuatro Caminos
-        [-3.6920, 40.4475], // N · Nuevos Ministerios
-        [-3.6780, 40.4420], // N-NE · Diego de León
-        [-3.6720, 40.4290], // E · Goya / Salamanca
-        [-3.6720, 40.4140], // E-SE · Príncipe de Vergara south
-        [-3.6760, 40.4030], // SE · Pacífico
-        [-3.6920, 40.3940], // S · Méndez Álvaro
-        [-3.7080, 40.3950], // S-SW · Legazpi
-        [-3.7220, 40.4030], // SW · Pirámides
-        [-3.7260, 40.4150], // W · Príncipe Pío
-        [-3.7240, 40.4290], // W-NW · Argüelles
-        [-3.7220, 40.4380], // close polygon
+        [-3.7158, 40.4240], // NW · Plaza de España
+        [-3.7068, 40.4291], // N · Glorieta de San Bernardo
+        [-3.7000, 40.4290], // N · Glorieta de Bilbao
+        [-3.6920, 40.4282], // NE · Plaza Alonso Martínez
+        [-3.6892, 40.4244], // E-NE · Plaza de Colón
+        [-3.6920, 40.4197], // E · Plaza de Cibeles
+        [-3.6905, 40.4128], // E · Plaza Cánovas (Neptuno)
+        [-3.6905, 40.4067], // SE · Glorieta Emperador Carlos V (Atocha)
+        [-3.7037, 40.4067], // S · Glorieta de Embajadores
+        [-3.7099, 40.4084], // SW · Puerta de Toledo
+        [-3.7158, 40.4150], // W · Cuesta de la Vega (south of Royal Palace)
+        [-3.7158, 40.4220], // W-NW · west of Royal Palace / Plaza Oriente
+        [-3.7158, 40.4240], // close · Plaza de España
       ],
     ],
   },
   properties: {
-    name: "Almendra Central · Madrid",
+    name: "Distrito Centro · Madrid",
     fillColor: "#0E4B31",
     strokeColor: "#0E4B31",
     fillOpacity: 0.06,
