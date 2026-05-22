@@ -147,12 +147,16 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         />
       </div>
 
-      {/* HotelVALORA · top-right · single trigger for the hotels panel */}
-      <HotelsButton
-        open={panelOpen}
-        onToggle={() => setPanelOpen(!panelOpen)}
-        className="absolute right-4 top-4 z-30"
-      />
+      {/* HotelVALORA · top-right · single trigger for the hotels panel.
+       *  Hidden while the panel is open (the panel header now hosts an
+       *  inline close X) so the corner stays clean. */}
+      {!panelOpen && (
+        <HotelsButton
+          open={panelOpen}
+          onToggle={() => setPanelOpen(!panelOpen)}
+          className="absolute right-4 top-4 z-40"
+        />
+      )}
 
       {/* HotelVALORA · bottom-right · zoom + CAPAS + future tools */}
       <HVMapToolbar>
@@ -176,12 +180,11 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         />
       )}
 
-      {/* Right panel · clamped:
-       *  - top-16  · clears HotelsButton (top-4 + 40 px button + gap)
-       *  - bottom-44 · clears the bottom-right toolbar (3 buttons × 40 px
-       *               + 2 × 8 gap = 136 px · plus 16 padding ≈ 176 px)
+      {/* Right panel · flush to top-right corner (top-0 right-0) ·
+       *  clamped at the bottom by `bottom-44` to clear the bottom-right
+       *  toolbar (3 buttons × 40 px + 2 × 8 gap + 16 padding ≈ 152 px).
        *  Width 288 px slides in from the right when open · invisible
-       *  when closed (built-in pull-tab hidden via hideToggle). */}
+       *  when closed (pull-tab hidden · external HotelsButton trigger). */}
       <CompetitorPanel
         referenceHotel={referenceHotel}
         competitors={competitors}
@@ -193,7 +196,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
         onRemove={removeCompetitor}
         inspectedHotelId={inspectedHotelId}
         hideToggle
-        className="absolute top-16 right-4 bottom-44 z-30"
+        className="absolute top-0 right-0 bottom-44 z-30"
       />
 
       {error && (
@@ -262,12 +265,15 @@ function ExploreMode() {
         />
       </div>
 
-      {/* HotelVALORA · top-right · hotels selection trigger */}
-      <HotelsButton
-        open={hotelsPanelOpen}
-        onToggle={() => setHotelsPanelOpen((o) => !o)}
-        className="absolute right-4 top-4 z-30"
-      />
+      {/* HotelVALORA · top-right · hotels selection trigger · hidden
+       *  while panel is open (close X lives inside the panel header). */}
+      {!hotelsPanelOpen && (
+        <HotelsButton
+          open={hotelsPanelOpen}
+          onToggle={() => setHotelsPanelOpen((o) => !o)}
+          className="absolute right-4 top-4 z-40"
+        />
+      )}
 
       {/* HotelVALORA · bottom-right · zoom + CAPAS */}
       <HVMapToolbar>
@@ -288,7 +294,8 @@ function ExploreMode() {
         />
       )}
 
-      {/* Right panel · clamped to clear top button + bottom toolbar */}
+      {/* Right panel · corner-flush (top-0 right-0) · clamp bottom-44
+       *  to clear the BR toolbar · close X lives in the panel header */}
       <AssetSelectionPanel
         recommended={ALL_MADRID_AS_COMPETITORS}
         inspectedHotelId={inspectedHotelId}
@@ -297,7 +304,7 @@ function ExploreMode() {
         panelOpen={hotelsPanelOpen}
         onToggle={() => setHotelsPanelOpen((o) => !o)}
         hideToggle
-        className="absolute top-16 right-4 bottom-44 z-30"
+        className="absolute top-0 right-0 bottom-44 z-30"
       />
     </section>
   );

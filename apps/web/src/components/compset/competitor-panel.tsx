@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Building2, X } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { CompetitorHotel } from "@/types/compset";
@@ -75,17 +75,31 @@ export function CompetitorPanel({
         )}
       >
         <div className="w-[min(288px,calc(100vw-72px))] md:w-72 h-full glass-overlay border border-white/50 rounded-xl shadow-xl flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-slate-200/60 flex-shrink-0">
-            <p className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
-              CompSet Activo
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <Building2 size={14} className="text-forest-900 flex-shrink-0" />
-              <p className="text-xs font-bold text-forest-900 truncate">
-                {referenceHotel.name}
+          {/* Header · adds inline close X when the parent supplies an
+           *  external trigger (HotelsButton). Lets the panel sit corner-
+           *  flush without losing a way to close it. */}
+          <div className="px-4 py-3 border-b border-slate-200/60 flex-shrink-0 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
+                CompSet Activo
               </p>
+              <div className="flex items-center gap-2 mt-1">
+                <Building2 size={14} className="text-forest-900 flex-shrink-0" />
+                <p className="text-xs font-bold text-forest-900 truncate">
+                  {referenceHotel.name}
+                </p>
+              </div>
             </div>
+            {hideToggle && (
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-label="Cerrar panel"
+                className="flex-shrink-0 -mr-1 -mt-0.5 w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-forest-900 hover:bg-slate-100 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {/* Scrollable list */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, MapPinned } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPinned, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CompetitorHotel } from "@/types/compset";
 import type { HotelSearchHit } from "@/types/hotel-search";
@@ -132,13 +132,26 @@ export function AssetSelectionPanel({
         )}
       >
         <div className="w-[min(288px,calc(100vw-72px))] md:w-72 h-full glass-overlay border border-white/50 rounded-xl shadow-xl flex flex-col overflow-hidden">
-          {/* Header · eyebrow + integrated search */}
+          {/* Header · eyebrow + integrated search · inline close X when the
+           *  parent supplies an external trigger (HotelsButton). */}
           <div className="px-4 py-3 border-b border-slate-200/60 flex-shrink-0 space-y-2.5">
-            <div className="flex items-center gap-2">
-              <MapPinned size={12} className="text-forest-900 flex-shrink-0" />
-              <p className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">
-                Selección de activo
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPinned size={12} className="text-forest-900 flex-shrink-0" />
+                <p className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase truncate">
+                  Selección de activo
+                </p>
+              </div>
+              {hideToggle && (
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(false)}
+                  aria-label="Cerrar panel"
+                  className="flex-shrink-0 -mr-1 w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-forest-900 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
             <PanelSearchBar onSelectHotel={handleSearchSelect} />
           </div>
