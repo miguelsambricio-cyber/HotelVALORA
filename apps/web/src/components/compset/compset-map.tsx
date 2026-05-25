@@ -186,6 +186,7 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
        *  Width 288 px slides in from the right when open · invisible
        *  when closed (pull-tab hidden · external HotelsButton trigger). */}
       <CompetitorPanel
+        referenceHotelId={referenceHotelId ?? referenceHotel.id}
         referenceHotel={referenceHotel}
         competitors={competitors}
         suggested={suggested}

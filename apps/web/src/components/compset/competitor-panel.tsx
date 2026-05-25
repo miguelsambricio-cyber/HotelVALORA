@@ -8,6 +8,12 @@ import type { CompetitorHotel } from "@/types/compset";
 import { CompetitorCard } from "./competitor-card";
 
 interface CompetitorPanelProps {
+  /** Resolved subject-hotel slug. Comes from the SERVER component
+   *  (compset/page.tsx) via compset-map.tsx — bypasses the hydration race
+   *  where useCompset()'s initial state defaults to a hardcoded hotel.
+   *  Used directly in the "Confirmar CompSet" href so the URL emitted in
+   *  SSR is correct even before client hydration completes. */
+  referenceHotelId: string;
   referenceHotel: CompetitorHotel;
   competitors: CompetitorHotel[];
   suggested: CompetitorHotel[];
@@ -27,6 +33,7 @@ interface CompetitorPanelProps {
 }
 
 export function CompetitorPanel({
+  referenceHotelId,
   referenceHotel,
   competitors,
   suggested,
@@ -160,14 +167,16 @@ export function CompetitorPanel({
             )}
           </div>
 
-          {/* CTA footer · href carries `?ref=<referenceHotel.id>` so the
-           *  legacy bridge bootstraps a hotel_report row and redirects to
-           *  /report/<reportId>/executive-summary. Without the ref the user
-           *  falls to the mock fallback — that's the BLESS bug from 2026-05-26.
-           *  Same pattern as compset-pricing.tsx "Continuar". */}
+          {/* CTA footer · href uses `referenceHotelId` (server-resolved
+           *  slug) NOT `referenceHotel.id` (hook state). useCompset
+           *  initializes referenceHotel from a hardcoded default
+           *  (REFERENCE_HOTEL = BLESS) so during SSR `referenceHotel.id`
+           *  is wrong for any non-BLESS subject hotel · the href would
+           *  emit `?ref=bless-hotel-madrid` until client hydration
+           *  completes. Using the server-resolved id closes that race. */}
           <div className="px-3 py-3 border-t border-slate-200/60 flex-shrink-0">
             <Link
-              href={`/report/executive-summary?ref=${encodeURIComponent(referenceHotel.id)}`}
+              href={`/report/executive-summary?ref=${encodeURIComponent(referenceHotelId)}`}
               className="block w-full py-2.5 bg-forest-900 text-white text-xs font-bold rounded-lg tracking-widest uppercase hover:brightness-110 transition-all shadow-lg shadow-forest-900/20 text-center"
             >
               Confirmar CompSet →
