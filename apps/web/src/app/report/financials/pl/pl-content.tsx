@@ -23,17 +23,27 @@ import {
 } from "@/lib/report/use-tier";
 
 /**
+ * Optional initial assumptions · injected by server component when the
+ * P&L page receives a `canonical_id` searchParam (Phase C · 2026-05-25).
+ * The hotel-derived assumptions (rooms · ADR · occupancy · GOP) override
+ * the engine defaults · operator can still edit them when tier permits.
+ */
+export interface PLContentProps {
+  initialAssumptions?: PLAssumptions;
+}
+
+/**
  * P&L body — owns the per-hotel assumption store and recomputes
  * `PLComputed` on every change. Three scenario rates live inside the
  * assumption store; the live P&L uses the `base` (Mercado) rate.
  */
-export function PLContent() {
+export function PLContent({ initialAssumptions }: PLContentProps = {}) {
   const tier = useTier();
   const editable = canEditAssumptions(tier);
   const canView = canViewFinancials(tier);
 
-  const [assumptions, setAssumptions] = useState<PLAssumptions>(() =>
-    getDefaultAssumptions(),
+  const [assumptions, setAssumptions] = useState<PLAssumptions>(
+    () => initialAssumptions ?? getDefaultAssumptions(),
   );
   const computed = useMemo(() => computePL(assumptions), [assumptions]);
 
