@@ -5,6 +5,13 @@ import { ActionBar } from "@/components/report/executive-summary/action-bar";
 import { HotelToggle } from "../../asset-analysis/hotel-toggle";
 import { UnderwritingShell } from "@/components/underwriting/underwriting-shell";
 import { SCENARIO_BASE } from "@/lib/underwriting/defaults";
+import {
+  getCanonicalHotelById,
+  resolveBestAvailableMarketKpis,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
+import { runForHotel } from "@/lib/report/underwriting-runner";
+import { buildUnderwritingBundleFromCanonical } from "@/lib/report/report-object";
 
 export const metadata: Metadata = {
   title: "Underwriting · Financials · HotelVALORA",
@@ -12,22 +19,61 @@ export const metadata: Metadata = {
     "Institutional underwriting operating system · P&L · Balance Sheet · Cash Flow · DTA · Investment & CAPEX · Financing · Exit Strategy with Project & Equity IRR.",
 };
 
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: {
+    canonical_id?: string;
+    hotel_id?: string;
+    /** Premium-tier override · matches the existing `useTier` URL knob. */
+    tier?: string;
+  };
+}
+
 /**
- * /report/financials/underwriting
+ * /report/financials/underwriting · canonical-coupled (Phase B · 2026-05-25)
  *
- * Corporate-grade light theme · the next page after 5-Year P&L Forecast.
- * Renders inside the canonical ReportPaper shell so the look-and-feel
- * (header band, paper background, padding, ActionBar footer) is identical
- * to /report/financials/pl. The UnderwritingShell owns the live engine
- * inputs (scenario picker + per-driver overrides).
+ * When `canonical_id` (or `hotel_id`) is supplied · the page resolves the
+ * canonical hotel · runs the cap-rate engine · derives the full
+ * UnderwritingInputs from canonical + admin defaults · calls runEngine ·
+ * and passes the resulting bundle to UnderwritingShell.
+ *
+ * When no canonical_id is supplied · falls back to `SCENARIO_BASE`
+ * (same behaviour as pre-Phase B · keeps demo + storybook routes working).
  *
  * Print canvas stays landscape — year grids need horizontal real estate.
  */
-export default function UnderwritingPage() {
+async function loadBundle(searchParams: PageProps["searchParams"]) {
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (!canonicalId) return { bundle: SCENARIO_BASE, source: "mock" as const };
+
+  const hotel = await getCanonicalHotelById(canonicalId);
+  if (!hotel) return { bundle: SCENARIO_BASE, source: "mock" as const };
+
+  const marketKpi = await resolveBestAvailableMarketKpis(
+    hotel.market_name,
+    hotel.submarket_name,
+    { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
+  );
+  const engineRun = (() => {
+    try { return runForHotel(hotel); } catch { return null; }
+  })();
+
+  const bundle = buildUnderwritingBundleFromCanonical(hotel, marketKpi, engineRun);
+  return { bundle, source: "canonical" as const, hotel };
+}
+
+export default async function UnderwritingPage({ searchParams = {} }: PageProps) {
+  const { bundle, source, hotel } = await loadBundle(searchParams);
+  const hotelLabel = source === "canonical" && hotel ? hotel.canonical_name ?? "Hotel" : "Hotel";
+
   const headerActions = (
     <div className="flex flex-wrap items-center gap-3 print:gap-3">
       <span className="text-xl font-bold text-slate-700 font-headline print:text-base">
-        Prime
+        {hotelLabel}
       </span>
       <HotelToggle />
     </div>
@@ -45,7 +91,7 @@ export default function UnderwritingPage() {
           actions={headerActions}
         >
           <div className="px-4 py-6 sm:px-6 lg:px-8 print:px-3 print:py-2">
-            <UnderwritingShell bundle={SCENARIO_BASE} />
+            <UnderwritingShell bundle={bundle} />
           </div>
         </ReportPaper>
 

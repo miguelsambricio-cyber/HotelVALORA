@@ -28,5 +28,5 @@ export type {
   BuildReportOptions,
 } from "./types";
 export { buildFinancialsSlice } from "./sections/financials";
-export { buildUnderwritingSlice } from "./sections/underwriting";
+export { buildUnderwritingSlice, buildUnderwritingBundleFromCanonical } from "./sections/underwriting";
 export { buildCapexSlice, resolveCapexCoords } from "./sections/capex";

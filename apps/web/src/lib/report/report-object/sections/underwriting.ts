@@ -1,7 +1,13 @@
 import type { CanonicalHotelRow, MarketKpiBundle } from "@/lib/report/canonical-reader";
 import type { UnderwritingRunResult } from "@/lib/report/underwriting-runner";
 import { SCENARIO_BASE } from "@/lib/underwriting/defaults";
-import type { UnderwritingInputs } from "@/lib/underwriting/types";
+import { runEngine } from "@/lib/underwriting/engine";
+import { currentVersionTag } from "@/lib/underwriting/versioning";
+import type {
+  UnderwritingInputs,
+  UnderwritingBundle,
+  ScenarioMeta,
+} from "@/lib/underwriting/types";
 import type { UnderwritingSlice, SectionProvenance } from "../types";
 
 /**
@@ -132,4 +138,36 @@ export function buildUnderwritingSlice(
   };
 
   return { inputs, summary, provenance };
+}
+
+/**
+ * Build a complete UnderwritingBundle (inputs + computed + meta + version)
+ * from a canonical hotel · ready for `<UnderwritingShell bundle={…} />`.
+ *
+ * This is the bridge between the canonical layer and the existing
+ * underwriting engine. It calls `runEngine(inputs)` to compute the full
+ * schedule (P&L · BS · CF · DTA · investment · exit · IRR · MOIC) using
+ * the canonical-derived inputs.
+ *
+ * Used by `/report/financials/underwriting/page.tsx` server component.
+ */
+export function buildUnderwritingBundleFromCanonical(
+  hotel: CanonicalHotelRow,
+  marketKpi: MarketKpiBundle | null,
+  engineRun: UnderwritingRunResult | null,
+): UnderwritingBundle {
+  const slice = buildUnderwritingSlice(hotel, marketKpi, engineRun);
+  const inputs = slice.inputs as UnderwritingInputs;
+  const meta: ScenarioMeta = {
+    ...((SCENARIO_BASE.meta as ScenarioMeta) ?? {}),
+    label: `Underwriting · ${hotel.canonical_name ?? "Hotel"}`,
+    description: `Canonical-driven scenario for ${hotel.canonical_name ?? "this hotel"} · ${hotel.market_name ?? "—"} / ${hotel.submarket_name ?? "—"}`,
+  };
+  const computed = runEngine(inputs);
+  return {
+    ...currentVersionTag(),
+    meta,
+    inputs,
+    computed,
+  };
 }
