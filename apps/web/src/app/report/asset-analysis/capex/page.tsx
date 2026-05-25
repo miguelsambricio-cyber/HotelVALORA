@@ -14,7 +14,7 @@ import {
 import { getMockCapexRenders } from "@/lib/report/capex-renders-data";
 import {
   getCanonicalHotelById,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 import { buildCapexSlice, adaptCapexSliceToBreakdown } from "@/lib/report/report-object";
 
@@ -25,16 +25,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: { canonical_id?: string; hotel_id?: string };
+  searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
 async function loadCapexData(searchParams: PageProps["searchParams"]) {
   const mock = getMockCapexRenders();
 
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
   if (!canonicalId) return mock;
 
   const hotel = await getCanonicalHotelById(canonicalId);

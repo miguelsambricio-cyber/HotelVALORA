@@ -12,7 +12,7 @@ import {
 import {
   getCanonicalHotelById,
   resolveBestAvailableMarketKpis,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 import { mapCanonicalToExecutiveSummary } from "@/lib/report/canonical-mappers/executive-summary";
 import { runForHotel } from "@/lib/report/underwriting-runner";
@@ -30,6 +30,8 @@ interface PageProps {
     canonical_id?: string;
     /** Synthetic snapshot hotel_id (`h_<hex>`) · resolved via multi-path matcher. */
     hotel_id?: string;
+    /** Madrid registry slug from /compset (e.g. `bless-hotel-madrid`) · resolved via SLUG_TO_CANONICAL_ID. */
+    ref?: string;
     /** Operator-friendly fallback (e.g. ?reportId=demo-report-001) · keeps mock visible. */
     reportId?: string;
   };
@@ -38,11 +40,10 @@ interface PageProps {
 async function loadExecutiveSummaryData(
   searchParams: PageProps["searchParams"],
 ): Promise<{ data: ExecutiveSummaryData; source: "canonical" | "mock"; canonical_id?: string }> {
-  // Phase 4 · resolve to a canonical hotel id when either param is present
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  // Universal resolver · accepts UUID · h_<hex> · slug. Fixes the
+  // CompSet→Report bug where ?ref=<slug> fell through to mock (2026-05-25).
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
 
   if (canonicalId) {
     const hotel = await getCanonicalHotelById(canonicalId);

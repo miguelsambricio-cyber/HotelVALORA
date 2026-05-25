@@ -209,6 +209,78 @@ export async function resolveCanonicalIdFromSnapshotHotelId(snapshot_hotel_id: s
 }
 
 /**
+ * Madrid hotel registry slug → canonical_id mapping.
+ *
+ *  Source: `apps/web/src/lib/data/madrid-hotels.ts` MADRID_HOTELS · the
+ *  18-hotel CompSet registry uses string slugs as IDs. The /compset
+ *  page emits navigation to `/report/executive-summary?ref=<slug>`
+ *  when an operator picks a hotel · this map closes the slug↔canonical
+ *  gap so every /report surface can resolve the correct hotel.
+ *
+ *  4 slugs intentionally absent (`ac-cuzco` · `hard-rock-madrid` ·
+ *  `riu-plaza-espana` · `westin-palace`) · these hotels do not yet exist
+ *  in `hotel_canonical` · their navigation will fall through to the
+ *  legacy mock fallback until the canonical row lands.
+ *
+ *  Operator-reported bug 2026-05-25: BLESS Hotel Madrid selection in
+ *  CompSet rendered the wrong hotel in the report. Root cause was the
+ *  Phase A→D pages accepting only `canonical_id` (UUID) + `hotel_id`
+ *  (h_<hex>) but never `ref=<slug>` · so every CompSet navigation fell
+ *  through to mock. This map closes that gap.
+ */
+const SLUG_TO_CANONICAL_ID: Readonly<Record<string, string>> = Object.freeze({
+  "barcelo-torre-madrid":             "291e4210-d4b8-4427-b0c5-8aecc2a4cbfa",
+  "bless-hotel-madrid":               "eabde8b9-41b1-4eec-b528-916768ce8f31",
+  "edition-madrid":                   "709f2211-42bc-48ec-b173-97c9b912fbd9",
+  "eurostars-madrid-tower":           "8f2edc75-4e8a-4056-a823-06c013c0e5f7",
+  "four-seasons-madrid":              "fa20d9a6-94fa-4227-95f8-74f528e955e3",
+  "hotel-unico-madrid":               "42b8804f-495b-4bb6-8ef1-c5373c8acf21",
+  "hyatt-regency-hesperia-madrid":    "d3868189-c30d-4515-a51f-7e7a881b17e5",
+  "mandarin-oriental-ritz":           "dafc4073-ab60-43ec-91a0-ac1d7311232e",
+  "marriott-auditorium":              "eafb935d-a6eb-44d3-b2b8-11feff59a23e",
+  "melia-castilla":                   "6a8cb14d-43b0-42f0-b183-b0e4399d3052",
+  "nh-collection-eurobuilding":       "7e5d4cb7-9d21-4a9b-89b4-bdb7e045b32c",
+  "only-you-atocha":                  "0cf74e8d-56ee-4969-b45c-d02f5ad8f8e8",
+  "rosewood-villa-magna":             "820c73b0-362e-49b3-be85-6c6cdcadcd82",
+  "vp-plaza-espana-design":           "730f91ca-e1a7-4c77-8c4d-f62a2e4a0785",
+});
+
+/**
+ * Universal canonical_id resolver · accepts any of:
+ *   - A canonical UUID (returned as-is)
+ *   - A snapshot synthetic id `h_<hex>` (resolved via multi-path matcher)
+ *   - A Madrid registry slug (e.g. `bless-hotel-madrid`)
+ *
+ *  Returns null when no resolution succeeds · caller falls back to mock.
+ *  Used by every report page.tsx to converge all three entry-point
+ *  formats onto a single canonical_id.
+ */
+export async function resolveCanonicalIdAny(input: string | null | undefined): Promise<string | null> {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // 1. UUID format · 8-4-4-4-12 hex
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // 2. Snapshot synthetic id `h_<hex>`
+  if (trimmed.startsWith("h_")) {
+    return resolveCanonicalIdFromSnapshotHotelId(trimmed);
+  }
+
+  // 3. Madrid registry slug
+  const slugLc = trimmed.toLowerCase();
+  if (slugLc in SLUG_TO_CANONICAL_ID) {
+    return SLUG_TO_CANONICAL_ID[slugLc] ?? null;
+  }
+
+  // No match · fall through to mock
+  return null;
+}
+
+/**
  * Market KPI bundle returned by `resolveBestAvailableMarketKpis`.
  *
  * Carries a `source` field naming which level of the fallback ladder

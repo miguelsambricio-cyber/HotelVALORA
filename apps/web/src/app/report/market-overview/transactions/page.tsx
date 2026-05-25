@@ -11,7 +11,7 @@ import {
 import { getMockTransactions } from "@/lib/report/transactions-data";
 import {
   getCanonicalHotelById,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: { canonical_id?: string; hotel_id?: string };
+  searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
 /**
@@ -32,10 +32,8 @@ interface PageProps {
  */
 async function loadTransactionsData(searchParams: PageProps["searchParams"]) {
   const mock = getMockTransactions();
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
   if (!canonicalId) return mock;
   const hotel = await getCanonicalHotelById(canonicalId);
   if (!hotel) return mock;

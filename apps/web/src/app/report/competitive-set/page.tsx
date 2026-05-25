@@ -11,7 +11,7 @@ import {
 } from "@/lib/report/competitive-set-data";
 import {
   getCanonicalHotelById,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 import { mapCanonicalToCompetitiveSet } from "@/lib/report/canonical-mappers/competitive-set";
 
@@ -22,16 +22,14 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: { canonical_id?: string; hotel_id?: string };
+  searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
 async function loadCompetitiveSetData(
   searchParams: PageProps["searchParams"],
 ): Promise<{ data: CompetitiveSetData; source: "canonical" | "mock" }> {
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
   if (canonicalId) {
     const hotel = await getCanonicalHotelById(canonicalId);
     if (hotel) {

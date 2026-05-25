@@ -7,7 +7,7 @@ import { DynamicsChartCard } from "@/components/report/market-overview/dynamics"
 import { CHART_PRESETS } from "@/lib/report/market-dynamics-data";
 import {
   getCanonicalHotelById,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: { canonical_id?: string; hotel_id?: string };
+  searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
 /**
@@ -30,10 +30,8 @@ interface PageProps {
  * publishes per-market time-series.
  */
 async function loadHotelLabel(searchParams: PageProps["searchParams"]) {
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
   if (!canonicalId) return "Prime";
   const hotel = await getCanonicalHotelById(canonicalId);
   return hotel?.canonical_name ?? "Prime";

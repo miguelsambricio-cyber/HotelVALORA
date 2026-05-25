@@ -8,7 +8,7 @@ import { SCENARIO_BASE } from "@/lib/underwriting/defaults";
 import {
   getCanonicalHotelById,
   resolveBestAvailableMarketKpis,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 import { runForHotel } from "@/lib/report/underwriting-runner";
 import { buildUnderwritingBundleFromCanonical } from "@/lib/report/report-object";
@@ -25,6 +25,7 @@ interface PageProps {
   searchParams?: {
     canonical_id?: string;
     hotel_id?: string;
+    ref?: string;
     /** Premium-tier override · matches the existing `useTier` URL knob. */
     tier?: string;
   };
@@ -44,10 +45,8 @@ interface PageProps {
  * Print canvas stays landscape — year grids need horizontal real estate.
  */
 async function loadBundle(searchParams: PageProps["searchParams"]) {
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
   if (!canonicalId) return { bundle: SCENARIO_BASE, source: "mock" as const };
 
   const hotel = await getCanonicalHotelById(canonicalId);

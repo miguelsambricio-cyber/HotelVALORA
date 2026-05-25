@@ -8,7 +8,7 @@ import { PLContent } from "./pl-content";
 import {
   getCanonicalHotelById,
   resolveBestAvailableMarketKpis,
-  resolveCanonicalIdFromSnapshotHotelId,
+  resolveCanonicalIdAny,
 } from "@/lib/report/canonical-reader";
 import { buildFinancialsSlice } from "@/lib/report/report-object";
 
@@ -22,6 +22,7 @@ interface PageProps {
   searchParams?: {
     canonical_id?: string;
     hotel_id?: string;
+    ref?: string;
     tier?: string;
   };
 }
@@ -40,10 +41,8 @@ interface PageProps {
  * Header now shows the hotel's canonical name when canonical-coupled.
  */
 async function loadAssumptions(searchParams: PageProps["searchParams"]) {
-  let canonicalId = searchParams?.canonical_id?.trim() || null;
-  if (!canonicalId && searchParams?.hotel_id) {
-    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
-  }
+  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
+  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
   if (!canonicalId) return { initialAssumptions: undefined, hotelLabel: "Prime" };
 
   const hotel = await getCanonicalHotelById(canonicalId);
