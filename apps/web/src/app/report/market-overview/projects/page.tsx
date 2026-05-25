@@ -1,22 +1,10 @@
-import type { Metadata } from "next";
-import { ReportShell } from "@/components/report/shell/report-shell";
-import { ReportPaper } from "@/components/report/shell/report-paper";
-import { ActionBar } from "@/components/report/executive-summary/action-bar";
-import { HotelToggle } from "../../asset-analysis/hotel-toggle";
-import {
-  TransactionHotelCard,
-  TransactionsKpiCard,
-} from "@/components/report/market-overview/transactions";
-import { ProjectsTable } from "@/components/report/market-overview/projects";
-import { getMockProjects } from "@/lib/report/projects-data";
-import {
-  getCanonicalHotelById,
-  resolveCanonicalIdAny,
-} from "@/lib/report/canonical-reader";
+import { redirect } from "next/navigation";
+import { createOrGetReport } from "@/lib/report/report-session";
 
-export const metadata: Metadata = {
-  title: "Projects — HotelVALORA",
-};
+/**
+ * LEGACY BRIDGE · /report/market-overview/projects.
+ * See /report/executive-summary/page.tsx for the pattern.
+ */
 
 export const dynamic = "force-dynamic";
 
@@ -24,82 +12,14 @@ interface PageProps {
   searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
-/**
- * Projects · MARKET-LEVEL scope per operator directive (2026-05-25 §3).
- * Pipeline projects are inherently market-wide · the hotel context only
- * drives the header label and provides traceability. Future: filter by
- * hotel.market_id when projects-data carries per-market segmentation.
- */
-async function loadProjectsData(searchParams: PageProps["searchParams"]) {
-  const mock = getMockProjects();
-  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
-  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
-  if (!canonicalId) return mock;
-  const hotel = await getCanonicalHotelById(canonicalId);
-  if (!hotel) return mock;
-  return { ...mock, hotelLabel: hotel.canonical_name ?? mock.hotelLabel };
-}
-
-export default async function ProjectsPage({ searchParams = {} }: PageProps) {
-  const data = await loadProjectsData(searchParams);
-
-  const headerActions = (
-    <div className="flex items-center gap-4">
-      <span className="text-xl font-bold text-slate-700 font-headline">
-        {data.hotelLabel}
-      </span>
-      <HotelToggle />
-    </div>
-  );
-
-  return (
-    <ReportShell>
-      <div className="space-y-6 print:space-y-3">
-        <ReportPaper
-          sectionLabel="hotel valuation"
-          title="Hotel Projects"
-          titleSize="4xl"
-          headerLayout="stacked"
-          closed
-          actions={headerActions}
-        >
-          <div className="px-8 py-6 print:px-3 print:py-2 space-y-8 print:space-y-4">
-            {/* TOP KPI ROW
-                Reuses TransactionsKpiCard — the dual-metric shape is shared
-                so the same component renders projects pipeline KPIs without
-                an extension. */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 print:gap-4">
-              {data.kpiCards.map((card) => (
-                <TransactionsKpiCard key={card.scope} data={card} />
-              ))}
-            </div>
-
-            {/* PROJECTS COMP-SET TABLE
-                19 columns; horizontal scroll on narrow widths. Status column
-                renders a coloured pill (emerald = Complete, blue = Under
-                Construction). Print compaction is the next pass. */}
-            <ProjectsTable title={data.tableTitle} rows={data.rows} />
-
-            {/* INTERACTIVE GALLERY
-                Reuses TransactionHotelCard — same dark-gradient + caption +
-                glass arrow pattern. */}
-            <section>
-              <div className="flex justify-between items-center mb-6 print:mb-3">
-                <h3 className="text-lg font-extrabold text-forest-900 font-headline uppercase tracking-tight">
-                  Interactive Gallery
-                </h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {data.gallery.map((item) => (
-                  <TransactionHotelCard key={item.id} item={item} />
-                ))}
-              </div>
-            </section>
-          </div>
-        </ReportPaper>
-
-        <ActionBar currentPage={1} totalPages={1} />
-      </div>
-    </ReportShell>
-  );
+export default async function LegacyProjectsPage({ searchParams = {} }: PageProps) {
+  const legacyInput = searchParams?.canonical_id ?? searchParams?.hotel_id ?? searchParams?.ref;
+  if (legacyInput) {
+    const session = await createOrGetReport({
+      input: legacyInput,
+      inputParams: { legacy_input: legacyInput, section: "market-overview/projects" },
+    });
+    if (session) redirect(`/report/${session.report_id}/market-overview/projects`);
+  }
+  redirect("/report/legacy-mock/market-overview/projects");
 }

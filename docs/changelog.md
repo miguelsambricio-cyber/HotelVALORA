@@ -4,6 +4,78 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-25 — feat(report): persistence layer · `hotel_report` table · country guard · resolver universal
+
+The CompSet→Report wiring stops being URL-pass-through. A `hotel_report` row is now the single source of truth for "which hotel this report is about", carrying `report_date` and survives the navigation between the 10 pages. Six country-contamination vectors closed in the same commit. SLUG_TO_CANONICAL_ID dictionary deprecated · `hotel_canonical.slug` (unique, indexed) is the geographically-agnostic substrate.
+
+### Schema (Supabase migrations · applied via MCP)
+
+- **0028 · `hotel_canonical_costar_uq`** — partial unique index on `costar_property_id where not null`. Pre-verification query returned 0 duplicates · safe to apply. Blinds against duplicate CoStar rows when worldwide enrichment starts.
+- **0029 · `hotel_canonical.slug`** — new column, text NOT NULL UNIQUE. 225 rows backfilled: 14 operator-curated slugs preserved (`bless-hotel-madrid` · `edition-madrid` · `four-seasons-madrid` · …) · 211 auto-generated from `canonical_name` with Spanish diacritic strip + collision suffix.
+- **0030 · `hotel_report`** — UUID PK · canonical_id FK · `report_date date default current_date` · `tier_snapshot` · `input_params jsonb` · `owner_user_id` (nullable for anonymous showcase mode) · `created_at` / `last_viewed_at`. **A2 dedup** unique index on `(canonical_id, COALESCE(owner, sentinel-uuid), report_date)`. RLS: public read · public insert · public update (showcase). Tightens to `owner_user_id = auth.uid()` when auth flips on.
+
+### Country guard · 6 contamination vectors closed
+
+Principle codified: **"no tengo el dato" ≠ "me invento el dato"**. Non-ES hotels never see Madrid numbers labelled as theirs.
+
+- **Vector 1-4 (resolveBestAvailableMarketKpis)** — `MarketKpiSource` extended with `"no_data"`. Removed hardcoded "Madrid" early-return when `market_name` is null. Removed `?? "Spain"` default in `countryMap` (a missing country_code is not implicit permission to assume Spain). Layer 5 baseline now gated by `country_code === 'ES'` · non-ES + no coverage returns `{ source: "no_data", source_label: "Datos de mercado no disponibles · cobertura institucional pendiente", … }` with all numeric fields null.
+- **Vector 5 (executive-summary mapper)** — `apps/web/src/lib/report/canonical-mappers/executive-summary.ts:200` `?? 6.5` removed. `capRate: number | null` propagates · `perRoom` gated by `marketKpi.source === "no_data"` (the Madrid-anchored `perKeyByScale` table would itself be contamination). `estimatedValue`, `valuationRangeLow/High`, `ebitdaAfterReplacement`, `perSqmHotel` all collapse to null when capRate is null. `ValuationData` type made nullable for the contaminable fields · formatters in `executive-summary-data.ts` accept `number | null` and render `"—"`.
+- **Vector 6 (cap-rate engine)** — `runForHotel(hotel)` gated by `ENGINE_SUPPORTED_COUNTRIES = new Set(["ES"])`. The engine's `base_market_yield_pct: 6.50` policy is Madrid-anchored · running it for a non-ES hotel would produce a Paris/Tokyo cap-rate that's mathematically a Madrid number with ±pp adjustments. Engine returns null for non-ES until the policy supports per-country baselines.
+
+Tech debt: `MADRID_2024_INSTITUTIONAL_BASELINE` stays exported as the ES anchor · marked with explicit JSDoc note. Migrate to `market_baseline (country_code, year, base_yield_pct, …)` table when the first non-ES hotel lands (currently 225 hotels all ES).
+
+### Resolver universal · SLUG_TO_CANONICAL_ID deprecated
+
+`resolveCanonicalIdAny()` no longer ships a 14-slug hardcoded dictionary. Three accepted inputs unchanged from the caller's perspective:
+1. UUID 8-4-4-4-12 hex → return as-is
+2. `h_<hex>` → existing snapshot multi-path matcher
+3. **Anything else → DB lookup on `hotel_canonical.slug` (universal, geographically agnostic).** Works for Madrid today, Paris/Tokyo/Riyadh once their rows land.
+
+### Routing · 10 canonical routes + 10 legacy bridges
+
+- **New canonical**: `/report/[reportId]/<section>` for all 10 surfaces (executive-summary · asset-analysis · asset-analysis/capex · competitive-set · market-overview + /dynamics + /projects + /transactions · financials/pl · financials/underwriting). Each reads `params.reportId` → `getReportById()` → `canonical_id` → existing canonical-mapper pipeline. Type-safe `params` segment.
+- **Legacy bridges**: the 10 flat `/report/<section>` pages now contain only bootstrap-or-redirect logic. With input (`?canonical_id` / `?hotel_id` / `?ref`) → `createOrGetReport()` → 308 redirect to `/report/<id>/<section>`. Without input → redirects to `/report/legacy-mock/<section>` which the canonical `[reportId]` page renders as mock fallback (operator decision: preserve mock for one more sprint).
+- **Sidebar reportId-aware**: `extractReportIdFromPath(pathname)` parses the active `reportId` from the URL · `getSectionHref(id, reportId)` and `withReportId()` rewrite sub-item hrefs in `report-sidebar.tsx`. Inside `/report/<id>/…` all nav stays inside the same `reportId`.
+
+### Server action: `createOrGetReport`
+
+New module `apps/web/src/lib/report/report-session.ts`:
+- `createOrGetReport({ input, ownerUserId?, inputParams?, tierSnapshot? })` → `{ report_id, canonical_id, reused }` · resolves input via universal resolver → A2 dedup SELECT → INSERT-or-reuse · concurrent race handled (23505 unique violation → re-SELECT).
+- `getReportById(reportId)` → `HotelReportRow | null` · UUID regex guard (rejects `legacy-mock` sentinel cleanly) · touches `last_viewed_at` fire-and-forget.
+
+### Files touched
+
+**Migrations applied**: `0028_hotel_canonical_costar_unique_index` · `0029_hotel_canonical_slug` · `0030_hotel_report`.
+
+**TypeScript**:
+- `apps/web/src/lib/report/canonical-reader.ts` — `MarketKpiSource += "no_data"` · `toBundle` gates baseline-fill by source · `resolveBestAvailableMarketKpis` country gate (3 branches) · `SLUG_TO_CANONICAL_ID` removed · `resolveCanonicalIdFromSlug` (DB lookup) · `MADRID_2024_INSTITUTIONAL_BASELINE` JSDoc tech-debt note.
+- `apps/web/src/lib/report/canonical-mappers/executive-summary.ts` — `capRate ?? null` (vector 5) · perRoom gated by source=no_data · all valuation derived fields propagate null.
+- `apps/web/src/lib/report/underwriting-runner.ts` — `ENGINE_SUPPORTED_COUNTRIES` gate (vector 6).
+- `apps/web/src/lib/report/executive-summary-data.ts` — `ValuationData` nullable fields · `fmt*` formatters accept `number | null`, return `"—"`.
+- `apps/web/src/lib/report/library-persistence.ts` — `valuation` typed as nullable (matches mapper output).
+- `apps/web/src/components/report/executive-summary/valuation-section.tsx` — `rangeValue` collapses to `"—"` when both bounds null.
+- `apps/web/src/lib/report/report-session.ts` — **NEW** · server-only · `createOrGetReport` + `getReportById`.
+- `apps/web/src/lib/report/sections.ts` — `getSectionHref(id, reportId?)` · `extractReportIdFromPath()`.
+- `apps/web/src/components/report/shell/report-sidebar.tsx` — reportId-aware via `usePathname()`.
+- `apps/web/src/app/report/[reportId]/<section>/page.tsx` — **10 NEW canonical pages**.
+- `apps/web/src/app/report/<section>/page.tsx` — **10 REWRITTEN as legacy bridges** (executive-summary · asset-analysis · asset-analysis/capex · competitive-set · market-overview · market-overview/dynamics · market-overview/projects · market-overview/transactions · financials/pl · financials/underwriting).
+
+**Docs**: this entry · `docs/database.md` (Supabase section + 0028/0029/0030 documented) · `docs/routing.md` (10 canonical routes + bridge row).
+
+### Validation
+
+- Costar uniqueness pre-check: 0 duplicates → index applied safely.
+- Slug backfill: 225/225 rows have non-null unique slug · 1 numeric-suffix collision auto-resolved.
+- BLESS Hotel Madrid bug from morning's commit (e5679bc) remains closed via the new resolver path (slug → DB lookup instead of dictionary). 4 slugs still without canonical rows (`ac-cuzco` · `hard-rock-madrid` · `riu-plaza-espana` · `westin-palace`) continue to fall to mock — backfill is a separate operator action.
+
+### Hard constraints preserved
+
+- Fallback to mock is intact (operator-requested · next sprint addresses it).
+- Zero touches to UI/shells/primitives/PDF/design-tokens — only the data layer + routing.
+- Madrid showcases (8 validated this morning) continue to render with real canonical data (country_code='ES' · baseline + engine both active).
+
+---
+
 ## 2026-05-25 — fix(report): CompSet → Report slug `?ref=` resolver · BLESS bug closed
 
 Operator reproducible bug (2026-05-25): seleccionar BLESS Hotel Madrid en CompSet → informe renderiza hotel incorrecto. La validación 80/80 PASS de la mañana usaba URLs `?canonical_id=<uuid>` que SI funcionaban, pero el flujo real de CompSet emite `?ref=<slug>` (e.g. `ref=bless-hotel-madrid`) que ninguna página `/report/*` aceptaba · fall-through a `getMockExecutiveSummary()` / `SCENARIO_BASE` · informe muestra hotel demo.

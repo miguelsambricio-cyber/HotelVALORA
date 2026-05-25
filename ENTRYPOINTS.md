@@ -340,7 +340,13 @@ Maps tasks to exact files. Start here before scanning.
 |---|---|
 | **Report system synchronization audit (v1 · institutional · no implementation)** | `docs/report/synchronization-audit-v1.md` |
 | **Phase 1 · Token harmonization plan (gated · approval pending)** | `docs/report/phase-1-token-harmonization.md` |
-| Section registry (canonical, 6 sections + sub-anchors + printPageBreak) | `apps/web/src/lib/report/sections.ts` |
+| **Report session persistence (`hotel_report` table · A2 dedup · `getReportById` · `createOrGetReport` bootstrap server action)** | `apps/web/src/lib/report/report-session.ts` · migration `docs/database/migrations/0030_hotel_report.sql` (applied via MCP) |
+| **`hotel_canonical.slug` column** (universal, geo-agnostic resolver substrate · replaces SLUG_TO_CANONICAL_ID dictionary) | migration `0029_hotel_canonical_slug.sql` (applied via MCP) · resolver in `canonical-reader.ts` `resolveCanonicalIdFromSlug` |
+| **`costar_property_id` unique partial index** | migration `0028_hotel_canonical_costar_unique_index.sql` (applied via MCP) |
+| **Country guard · resolver + mapper + engine (6 vectors)** | `canonical-reader.ts` (`MarketKpiSource += "no_data"`) · `canonical-mappers/executive-summary.ts` (capRate nullable) · `underwriting-runner.ts` (`ENGINE_SUPPORTED_COUNTRIES = ["ES"]`) |
+| **Canonical /report/[reportId]/&lt;section&gt; routes (10 files)** | `apps/web/src/app/report/[reportId]/{executive-summary,asset-analysis,asset-analysis/capex,competitive-set,market-overview,market-overview/dynamics,market-overview/projects,market-overview/transactions,financials/pl,financials/underwriting}/page.tsx` |
+| **Legacy flat /report/&lt;section&gt; bridges (10 files · bootstrap-or-redirect-to-mock)** | `apps/web/src/app/report/{executive-summary,asset-analysis,asset-analysis/capex,competitive-set,market-overview,market-overview/dynamics,market-overview/projects,market-overview/transactions,financials/pl,financials/underwriting}/page.tsx` |
+| Section registry (canonical, 6 sections + sub-anchors + printPageBreak) | `apps/web/src/lib/report/sections.ts` (now reportId-aware via `getSectionHref(id, reportId?)` + `extractReportIdFromPath`) |
 | Section taxonomy types | `apps/web/src/types/report/index.ts` |
 | Report shell (top-nav, sidebar, footer, main canvas) — `printOrientation: "portrait" \| "landscape"` | `apps/web/src/components/report/shell/report-shell.tsx` |
 | Report paper card (`closed`, `headerLayout`, `actions`) | `apps/web/src/components/report/shell/report-paper.tsx` |

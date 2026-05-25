@@ -107,8 +107,51 @@ export const SECTION_GROUPS: ReportSectionGroupConfig[] = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function getSectionHref(sectionId: ReportSectionId): string {
-  return `${REPORT_ROUTE_PREFIX}/${sectionId}`;
+/**
+ * Build the URL for a section.
+ *
+ * Two layouts coexist during the URL-pass-through → persistence migration:
+ *   - Canonical: `/report/<reportId>/<sectionId>` (used by sidebar nav
+ *     and any link inside the report shell once a hotel_report row is
+ *     bootstrapped).
+ *   - Legacy: `/report/<sectionId>` (only the legacy bridge files at
+ *     `app/report/<section>/page.tsx`, which 308-redirect into the
+ *     canonical route when input is present).
+ *
+ * Pass `reportId` to get the canonical URL · omit it for the legacy form.
+ */
+export function getSectionHref(sectionId: ReportSectionId, reportId?: string | null): string {
+  return reportId
+    ? `${REPORT_ROUTE_PREFIX}/${reportId}/${sectionId}`
+    : `${REPORT_ROUTE_PREFIX}/${sectionId}`;
+}
+
+/**
+ * Extract the active reportId from a pathname. Returns null when the
+ * pathname is a flat legacy `/report/<section>` URL or anything outside
+ * the report tree.
+ *
+ * Implementation note: we can't UUID-regex the segment because we also
+ * want to accept the `legacy-mock` sentinel that the legacy bridges
+ * redirect to when no input resolves. Any second segment that isn't a
+ * known section name is treated as a reportId.
+ */
+const SECTION_SLUGS: ReadonlySet<string> = new Set([
+  "executive-summary",
+  "asset-analysis",
+  "competitive-set",
+  "market-overview",
+  "financials",
+  "methodology",
+]);
+
+export function extractReportIdFromPath(pathname: string | null | undefined): string | null {
+  if (!pathname) return null;
+  const match = pathname.match(/^\/report\/([^/]+)(\/|$)/);
+  if (!match) return null;
+  const candidate = match[1];
+  if (SECTION_SLUGS.has(candidate)) return null;
+  return candidate;
 }
 
 export function getSectionById(id: string): ReportSection | undefined {

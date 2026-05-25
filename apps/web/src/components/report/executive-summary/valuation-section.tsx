@@ -22,6 +22,12 @@ interface ValuationRow {
 function ValuationTable({ data }: { data: ValuationData }) {
   const low  = fmtMillionsEUR(data.valuationRangeLow);
   const high = fmtMillionsEUR(data.valuationRangeHigh);
+  // When both bounds are null (non-ES hotel, no market coverage), render a
+  // single "—" instead of "— — —". Honest absence beats fabricated range.
+  const rangeValue =
+    data.valuationRangeLow === null && data.valuationRangeHigh === null
+      ? "—"
+      : `${low} — ${high}`;
 
   const rows: ValuationRow[] = [
     { label: "Gross Operating Profit (G.O.P)",  value: fmtPercent(data.gopMargin)                   },
@@ -29,7 +35,7 @@ function ValuationTable({ data }: { data: ValuationData }) {
     { label: "Cap. Rate",                        value: fmtPercent(data.capRate, 2)                  },
     { label: "Exit Year",                        value: data.exitYear                                },
     { label: "Escenario",                        value: data.scenario,                                separator: "strong" },
-    { label: "Hotel Market Valuation",           value: `${low} — ${high}`,                          highlight: true     },
+    { label: "Hotel Market Valuation",           value: rangeValue,                                  highlight: true     },
     { label: "Hotel Valor estimado",             value: fmtMillionsEUR(data.estimatedValue)          },
     { label: "Hotel por habitación",             value: fmtThousandsEUR(data.perRoom)                },
     { label: "Hotel por m²",                     value: fmtEURPerSqm(data.perSqmHotel),              separator: "strong" },

@@ -179,3 +179,55 @@ Detailed underwriting model linked to a valuation.
 - All tables carry `created_at` / `updated_at` (timezone-aware, server default `now()`).
 - Flexible fields stored as JSONB (`meta`, `assumptions`, `cash_flows`, `sensitivity`, `detail`).
 - Indexes on all FK columns, cities, submarkets, and external IDs.
+
+---
+
+## Supabase (Next.js side)
+
+The frontend reads/writes to a separate Postgres hosted by Supabase
+(`twebgqutuqgonabvhzjk` · eu-central · PG 17). Migrations live in
+`docs/database/migrations/` (0001–0030). The FastAPI/Alembic database
+above is independent and not used by the report module.
+
+### `hotel_canonical` (migration 0024 · evolved in 0029)
+Single source of truth per physical hotel. Identity, classification, geo,
+amenities, provenance.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | gen_random_uuid() · this is the `canonical_id` |
+| **slug** | text UNIQUE NOT NULL | URL-safe identity · added in 0029 · backfilled from `canonical_name` with operator-curated overrides for 14 Madrid hotels |
+| canonical_name | text NOT NULL | |
+| market_id / submarket_id | UUID FK | → `public.market` · `public.submarket` (Madrid: 1 market · 20 submarkets) |
+| operator_id | UUID FK | → `public.operators` |
+| chain_scale / segment | enum `hotel_segment` | luxury · upper_upscale · … |
+| country_code | char(2) NOT NULL | ISO-3166-1 |
+| **costar_property_id** | text | UNIQUE partial index `where not null` (migration 0028) |
+| booking_hotel_id · google_place_id · tripadvisor_id · wikidata_qid | text | All partial UNIQUE |
+
+### `hotel_report` (migration 0030 — NEW)
+Live report sessions · the URL identity for `/report/[reportId]/<section>`.
+Separate from `hotel_report_library` (catalog · 1:1 per hotel).
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | `gen_random_uuid()` · this is the `report_id` |
+| canonical_id | UUID FK | → `hotel_canonical(id)` cascade |
+| report_date | date NOT NULL | Default `current_date` · operator can override |
+| tier_snapshot | text | tier at creation (free/pro/premium) |
+| input_params | jsonb | Trace: e.g. `{ legacy_input: "bless-hotel-madrid", section: "executive-summary" }` |
+| owner_user_id | UUID FK | → `auth.users(id)` · null in showcase mode |
+| created_at / last_viewed_at | timestamptz | Audit · last_viewed_at touched on each render |
+
+**A2 dedup**: unique index on `(canonical_id, COALESCE(owner_user_id, '0000…'::uuid), report_date)` —
+one row per hotel+owner+day. Reopening reuses the row.
+
+**RLS**: public read · public insert · public update (showcase mode). Tightens
+to `owner_user_id = auth.uid()` when auth flips on.
+
+### Other Supabase tables (already documented inline in their migrations)
+`hotel_report_library` · `hotel_source_record` · `hotel_field_provenance` ·
+`hotel_enrichment_run` · `hotel_duplicate_candidate` · `hotel_enrichment_job` ·
+`hotel_enrichment_dlq` · `rate_limit_state` · `market` · `submarket` ·
+`operators` · `valuations` · `top_promote_reports` · `favorite_reports` ·
+`subscription_products` · `campaigns` · `contact_invitations` · …

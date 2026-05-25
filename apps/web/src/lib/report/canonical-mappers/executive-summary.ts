@@ -197,11 +197,27 @@ export function mapCanonicalToExecutiveSummary(
     revpar: Number(revparSpot.toFixed(0)),
   };
 
-  const capRate = engineRun?.capRate.used_pct ?? marketKpi?.market_yield ?? 6.5;
+  // Cap-rate resolution.
+  //   engineRun.capRate.used_pct  → 5-layer dynamic engine (gated to ES only)
+  //   marketKpi.market_yield      → real submarket/market/country reading
+  //                                  OR Madrid baseline when source === 'baseline'
+  //   null                        → no_data path: non-ES + no real coverage.
+  //
+  // The previous code anchored on a hardcoded `?? 6.5` here. That was
+  // vector #5 of the country-contamination audit: even when the resolver
+  // returned no_data, the mapper would silently fabricate a 6.5% (Madrid)
+  // cap-rate. Removed. When capRate is null, the whole valuation block
+  // collapses to nulls and the UI renders "—" — honest absence beats
+  // fabricated numbers.
+  const capRate: number | null =
+    engineRun?.capRate.used_pct ?? marketKpi?.market_yield ?? null;
+
   // €/key by chain_scale · Madrid 2024 institutional medians (CBRE/JLL/Cushman
-  // transaction benchmarks 2023-2024). Replaces the flat 285k baseline that
-  // produced the institutionally-inverted "luxury < upscale" valuation result
-  // (luxury hotels are smaller in keys but command much higher €/key).
+  // transaction benchmarks 2023-2024). When the market resolver returns
+  // `no_data` (non-ES hotel, no coverage) these €/key numbers — anchored to
+  // Madrid transactions — would themselves be contamination. We gate by
+  // marketKpi.source: if no_data, perRoom is null and downstream valuation
+  // collapses to "—".
   const perKeyByScale = (s: string | null): number => {
     if (s === "luxury") return 800_000;        // Mandarin/Four Seasons/Rosewood band
     if (s === "upper_upscale") return 500_000; // Hyatt/Marriott Auditorium/NH Collection
@@ -211,24 +227,27 @@ export function mapCanonicalToExecutiveSummary(
     if (s === "economy") return 155_000;
     return 285_000;                            // unknown · prudent Madrid average
   };
-  // Market override · when CoStar publishes a per-room transaction figure for
-  // the submarket level (NOT the institutional baseline fill), that supersedes
-  // the chain_scale table. Today CoStar never populates this column · so the
-  // tier is the operational source. We explicitly exclude `source === "baseline"`
-  // because the baseline's 285k is a market-wide median · the chain_scale tier
-  // produces a much more accurate per-asset anchor.
   const marketPerRoomOverride =
-    marketKpi && marketKpi.source !== "baseline" && marketKpi.market_sale_price_per_room
+    marketKpi && marketKpi.source !== "baseline" && marketKpi.source !== "no_data"
+      && marketKpi.market_sale_price_per_room
       ? marketKpi.market_sale_price_per_room
       : null;
-  const perRoom = marketPerRoomOverride ?? perKeyByScale(hotel.chain_scale);
+  const perRoom: number | null =
+    marketKpi?.source === "no_data"
+      ? null
+      : (marketPerRoomOverride ?? perKeyByScale(hotel.chain_scale));
+
   const sqmPerKey = engineRun?.assetBasics.total_sqm && engineRun.assetBasics.rooms
     ? engineRun.assetBasics.total_sqm / engineRun.assetBasics.rooms
     : 38;
   const totalSqm = engineRun?.assetBasics.total_sqm ?? keys * 38;
-  const estimatedValue = keys > 0 ? Math.round(perRoom * keys) : 0;
-  // GOP margin · institutional benchmark by chain_scale (Madrid 2024 medians).
-  // Replaces the hardcoded mock value with a defensible per-scale default.
+  const estimatedValue: number | null =
+    perRoom !== null && keys > 0 ? Math.round(perRoom * keys) : null;
+
+  // GOP margin · global hospitality benchmarks by chain_scale. Kept as a
+  // number because the per-scale GOP percentages (luxury 35% → economy 44%)
+  // are reasonably stable across markets · tech debt to confirm when
+  // multi-country data lands.
   const gopByScale = (s: string | null): number => {
     if (s === "luxury") return 35;
     if (s === "upper_upscale") return 38;
@@ -239,34 +258,45 @@ export function mapCanonicalToExecutiveSummary(
     return 39;
   };
   const gopMargin = gopByScale(hotel.chain_scale);
-  // EBITDA-after-replacement · roughly capRate × value (engine output as anchor).
-  const ebitdaAfterReplacement = estimatedValue > 0
-    ? Math.round((estimatedValue * capRate) / 100)
-    : 0;
-  // Engine confidence band drives the valuation range (institutional p25/p75 spread)
-  const bandLow = engineRun?.capRate.band.low_pct ?? capRate * 0.95;
-  const bandHigh = engineRun?.capRate.band.high_pct ?? capRate * 1.05;
-  // Higher cap rate => lower price · invert for value range
-  const valuationRangeLow = estimatedValue > 0
-    ? Math.round(estimatedValue * (capRate / bandHigh))
-    : 0;
-  const valuationRangeHigh = estimatedValue > 0
-    ? Math.round(estimatedValue * (capRate / bandLow))
-    : 0;
-  const perSqmHotel = totalSqm > 0 ? Math.round(estimatedValue / totalSqm) : 0;
+
+  const ebitdaAfterReplacement: number | null =
+    estimatedValue !== null && capRate !== null
+      ? Math.round((estimatedValue * capRate) / 100)
+      : null;
+
+  // Engine confidence band drives the valuation range (institutional p25/p75 spread).
+  // When capRate is null, the band has no anchor and the range collapses to null.
+  const bandLow = engineRun?.capRate.band.low_pct ?? (capRate !== null ? capRate * 0.95 : null);
+  const bandHigh = engineRun?.capRate.band.high_pct ?? (capRate !== null ? capRate * 1.05 : null);
+  const valuationRangeLow: number | null =
+    estimatedValue !== null && capRate !== null && bandHigh !== null && bandHigh > 0
+      ? Math.round(estimatedValue * (capRate / bandHigh))
+      : null;
+  const valuationRangeHigh: number | null =
+    estimatedValue !== null && capRate !== null && bandLow !== null && bandLow > 0
+      ? Math.round(estimatedValue * (capRate / bandLow))
+      : null;
+  const perSqmHotel: number | null =
+    estimatedValue !== null && totalSqm > 0
+      ? Math.round(estimatedValue / totalSqm)
+      : null;
+
+  const scenario = capRate === null
+    ? (marketKpi?.source_label ?? "Pendiente de cobertura de mercado")
+    : (engineRun
+        ? `Engine · base · ${marketKpi?.source_label ?? "no market source"}${keysFromHeuristic ? " · keys heurístico" : ""}`
+        : (marketKpi?.source_label ?? "Mercado"));
 
   const valuation = {
     gopMargin,
     ebitdaAfterReplacement,
-    capRate: Number(capRate.toFixed(2)),
+    capRate: capRate === null ? null : Number(capRate.toFixed(2)),
     exitYear: "TTM",
-    scenario: engineRun
-      ? `Engine · base · ${marketKpi?.source_label ?? "no market source"}${keysFromHeuristic ? " · keys heurístico" : ""}`
-      : (marketKpi?.source_label ?? "Mercado"),
+    scenario,
     valuationRangeLow,
     valuationRangeHigh,
     estimatedValue,
-    perRoom: Math.round(perRoom),
+    perRoom: perRoom === null ? null : Math.round(perRoom),
     perSqmHotel,
     // Residential / office comparison ratios kept as institutional Madrid
     // averages · these aren't hotel-specific outputs.

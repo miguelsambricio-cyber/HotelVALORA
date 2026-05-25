@@ -11,11 +11,17 @@
 |---|---|---|---|
 | `/` | `app/page.tsx` | None (full-page) | Landing page — public |
 | `/compset` | `app/compset/page.tsx` | `LandingHeader` + `LandingFooter` | Step 2 of valuation workflow |
-| `/report/executive-summary` | `app/report/executive-summary/page.tsx` | `ReportShell` | Step 3 — standalone report, no dashboard |
-| `/report/competitive-set` | `app/report/competitive-set/page.tsx` | `ReportShell` | CompSet comparison table + photo gallery |
-| `/report/[reportId]` | `app/report/[reportId]/page.tsx` | — | Dynamic report root |
-| `/report/[reportId]/[section]` | `app/report/[reportId]/[section]/page.tsx` | — | Dynamic report section |
-| `/report/[reportId]/executive-summary` | `app/report/[reportId]/executive-summary/page.tsx` | — | Report section (parametric) |
+| `/report/[reportId]/executive-summary` | `app/report/[reportId]/executive-summary/page.tsx` | `ReportShell` | **Canonical** · reads `params.reportId` → `hotel_report` row → `canonical_id` |
+| `/report/[reportId]/asset-analysis` | `app/report/[reportId]/asset-analysis/page.tsx` | `ReportShell` | Hotel personalizado |
+| `/report/[reportId]/asset-analysis/capex` | `app/report/[reportId]/asset-analysis/capex/page.tsx` | `ReportShell` | CAPEX & Renders |
+| `/report/[reportId]/competitive-set` | `app/report/[reportId]/competitive-set/page.tsx` | `ReportShell` | CompSet comparison table + gallery |
+| `/report/[reportId]/market-overview` | `app/report/[reportId]/market-overview/page.tsx` | `ReportShell` | Country/Market/Submarket/Class insights |
+| `/report/[reportId]/market-overview/dynamics` | `app/report/[reportId]/market-overview/dynamics/page.tsx` | `ReportShell` | Market dynamics charts |
+| `/report/[reportId]/market-overview/projects` | `app/report/[reportId]/market-overview/projects/page.tsx` | `ReportShell` | Pipeline projects |
+| `/report/[reportId]/market-overview/transactions` | `app/report/[reportId]/market-overview/transactions/page.tsx` | `ReportShell` | Past transactions |
+| `/report/[reportId]/financials/pl` | `app/report/[reportId]/financials/pl/page.tsx` | `ReportShell` | 5-Year P&L Forecast |
+| `/report/[reportId]/financials/underwriting` | `app/report/[reportId]/financials/underwriting/page.tsx` | `ReportShell` (landscape) | Underwriting · IRR · MOIC |
+| `/report/<section>` (10 routes) | `app/report/<section>/page.tsx` | — | **Legacy bridges** · bootstrap `?canonical_id`/`?hotel_id`/`?ref` via `createOrGetReport()` then 308-redirect to canonical `/report/[reportId]/<section>`. No-input case redirects to `/report/legacy-mock/<section>` which renders the demo mock. |
 | `/(dashboard)` | `app/(dashboard)/page.tsx` | `Sidebar` + `Header` | Dashboard overview |
 | `/(dashboard)/assets/hotels` | `app/(dashboard)/assets/hotels/page.tsx` | Dashboard shell | Hotel asset management |
 | `/(dashboard)/valuations` | `app/(dashboard)/valuations/page.tsx` | Dashboard shell | DCF results |

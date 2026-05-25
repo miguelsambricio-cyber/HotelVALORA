@@ -209,51 +209,43 @@ export async function resolveCanonicalIdFromSnapshotHotelId(snapshot_hotel_id: s
 }
 
 /**
- * Madrid hotel registry slug → canonical_id mapping.
- *
- *  Source: `apps/web/src/lib/data/madrid-hotels.ts` MADRID_HOTELS · the
- *  18-hotel CompSet registry uses string slugs as IDs. The /compset
- *  page emits navigation to `/report/executive-summary?ref=<slug>`
- *  when an operator picks a hotel · this map closes the slug↔canonical
- *  gap so every /report surface can resolve the correct hotel.
- *
- *  4 slugs intentionally absent (`ac-cuzco` · `hard-rock-madrid` ·
- *  `riu-plaza-espana` · `westin-palace`) · these hotels do not yet exist
- *  in `hotel_canonical` · their navigation will fall through to the
- *  legacy mock fallback until the canonical row lands.
- *
- *  Operator-reported bug 2026-05-25: BLESS Hotel Madrid selection in
- *  CompSet rendered the wrong hotel in the report. Root cause was the
- *  Phase A→D pages accepting only `canonical_id` (UUID) + `hotel_id`
- *  (h_<hex>) but never `ref=<slug>` · so every CompSet navigation fell
- *  through to mock. This map closes that gap.
+ * Resolve a slug (e.g. `bless-hotel-madrid`, `four-seasons-paris`) to a
+ * canonical UUID via the `hotel_canonical.slug` unique column (migration
+ * 0029). Replaces the deprecated SLUG_TO_CANONICAL_ID dictionary which
+ * only knew 14 Madrid hotels · the DB lookup scales to any hotel
+ * anywhere with no code change.
  */
-const SLUG_TO_CANONICAL_ID: Readonly<Record<string, string>> = Object.freeze({
-  "barcelo-torre-madrid":             "291e4210-d4b8-4427-b0c5-8aecc2a4cbfa",
-  "bless-hotel-madrid":               "eabde8b9-41b1-4eec-b528-916768ce8f31",
-  "edition-madrid":                   "709f2211-42bc-48ec-b173-97c9b912fbd9",
-  "eurostars-madrid-tower":           "8f2edc75-4e8a-4056-a823-06c013c0e5f7",
-  "four-seasons-madrid":              "fa20d9a6-94fa-4227-95f8-74f528e955e3",
-  "hotel-unico-madrid":               "42b8804f-495b-4bb6-8ef1-c5373c8acf21",
-  "hyatt-regency-hesperia-madrid":    "d3868189-c30d-4515-a51f-7e7a881b17e5",
-  "mandarin-oriental-ritz":           "dafc4073-ab60-43ec-91a0-ac1d7311232e",
-  "marriott-auditorium":              "eafb935d-a6eb-44d3-b2b8-11feff59a23e",
-  "melia-castilla":                   "6a8cb14d-43b0-42f0-b183-b0e4399d3052",
-  "nh-collection-eurobuilding":       "7e5d4cb7-9d21-4a9b-89b4-bdb7e045b32c",
-  "only-you-atocha":                  "0cf74e8d-56ee-4969-b45c-d02f5ad8f8e8",
-  "rosewood-villa-magna":             "820c73b0-362e-49b3-be85-6c6cdcadcd82",
-  "vp-plaza-espana-design":           "730f91ca-e1a7-4c77-8c4d-f62a2e4a0785",
-});
+async function resolveCanonicalIdFromSlug(slug: string): Promise<string | null> {
+  const sb = createAnonServerSupabaseClient() as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
+        };
+      };
+    };
+  };
+  const res = await sb
+    .from("hotel_canonical")
+    .select("id")
+    .eq("slug", slug)
+    .limit(1);
+  if (res.error || !res.data || res.data.length === 0) return null;
+  const id = (res.data[0] as { id?: string }).id;
+  return id ?? null;
+}
 
 /**
  * Universal canonical_id resolver · accepts any of:
  *   - A canonical UUID (returned as-is)
  *   - A snapshot synthetic id `h_<hex>` (resolved via multi-path matcher)
- *   - A Madrid registry slug (e.g. `bless-hotel-madrid`)
+ *   - A slug from any hotel anywhere (resolved via DB lookup on
+ *     `hotel_canonical.slug`).
  *
- *  Returns null when no resolution succeeds · caller falls back to mock.
- *  Used by every report page.tsx to converge all three entry-point
- *  formats onto a single canonical_id.
+ *  Returns null when no resolution succeeds. Geographically agnostic ·
+ *  works for Madrid today, Paris/Tokyo/Riyadh once their canonical rows
+ *  land. The previous Madrid-only SLUG_TO_CANONICAL_ID dictionary is
+ *  deprecated.
  */
 export async function resolveCanonicalIdAny(input: string | null | undefined): Promise<string | null> {
   if (!input) return null;
@@ -270,14 +262,9 @@ export async function resolveCanonicalIdAny(input: string | null | undefined): P
     return resolveCanonicalIdFromSnapshotHotelId(trimmed);
   }
 
-  // 3. Madrid registry slug
+  // 3. Slug lookup on hotel_canonical.slug (universal, geo-agnostic)
   const slugLc = trimmed.toLowerCase();
-  if (slugLc in SLUG_TO_CANONICAL_ID) {
-    return SLUG_TO_CANONICAL_ID[slugLc] ?? null;
-  }
-
-  // No match · fall through to mock
-  return null;
+  return resolveCanonicalIdFromSlug(slugLc);
 }
 
 /**
@@ -288,12 +275,25 @@ export async function resolveCanonicalIdAny(input: string | null | undefined): P
  * the methodology note + the valuation `scenario` label so investors
  * always see KPI provenance.
  */
+/**
+ * Market KPI provenance.
+ *
+ *   compset · submarket · market · country · baseline  → numeric coverage
+ *   no_data                                            → coverage absent
+ *
+ * `baseline` is gated to country_code === 'ES' because
+ * MADRID_2024_INSTITUTIONAL_BASELINE is operator-anchored to Madrid.
+ * For non-ES hotels with no real submarket/market/country row, the
+ * resolver returns `no_data` instead of disguising Madrid numbers as
+ * the hotel's market — see docs/changelog.md country-guard entry.
+ */
 export type MarketKpiSource =
   | "compset"
   | "submarket"
   | "market"
   | "country"
-  | "baseline";
+  | "baseline"
+  | "no_data";
 
 export interface MarketKpiBundle {
   source: MarketKpiSource;
@@ -315,7 +315,7 @@ export interface MarketKpiBundle {
  * Institutional baseline · Madrid 2024.
  *
  * Operator-approved fallback used when no compset / submarket / market /
- * country row covers the requested key. Numbers anchored on:
+ * country row covers the requested key for an ES hotel. Numbers anchored on:
  *   - ADR / Occupancy / RevPAR · CoStar Madrid market 12m aggregate
  *     (2024 Q4 close · STR-equivalent)
  *   - market_yield · institutional Madrid hotel cap-rate band centre
@@ -323,8 +323,12 @@ export interface MarketKpiBundle {
  *   - market_sale_price_per_room · Madrid luxury+upper-upscale transaction
  *     median 2023-2024 (CBRE + JLL deals)
  *
- * CoStar does NOT provide yield + per-room in this snapshot · these two
- * fields will always reach the baseline unless the operator overrides.
+ * TECH DEBT — migrate to a `market_baseline` table keyed by
+ * (country_code, year) so non-ES hotels get their own institutional
+ * anchor instead of `no_data`. Today the country guard in
+ * `resolveBestAvailableMarketKpis` prevents contamination by gating
+ * this constant to country_code === 'ES'. See docs/changelog.md
+ * country-guard entry.
  */
 export const MADRID_2024_INSTITUTIONAL_BASELINE = {
   adr_12m: 218.0,
@@ -364,10 +368,12 @@ function toBundle(
     market_sale_price_per_room: row ? num(row.market_sale_price_per_room) : null,
     period: row ? ((row.period as string | null) ?? null) : null,
   };
-  // market_yield · NEVER populated by CoStar Madrid snapshot · baseline-fill
-  // so the valuation block has a defensible anchor regardless of which level
-  // resolved ADR/Occ/RevPAR.
-  if (baselineFill && bundle.market_yield === null) {
+  // market_yield baseline-fill ONLY when source === "baseline" — i.e. an
+  // ES hotel that fell through to the Madrid institutional anchor.
+  // Critically NOT when source === "no_data" (non-ES, no coverage):
+  // injecting Madrid's 6.5 there would disguise it as the hotel's own
+  // market yield — exactly the contamination the country guard closes.
+  if (baselineFill && source === "baseline" && bundle.market_yield === null) {
     bundle.market_yield = baseline.market_yield;
   }
   // market_sale_price_per_room · intentionally NOT baseline-filled. The
@@ -411,13 +417,26 @@ export async function resolveBestAvailableMarketKpis(
   // hotel context for future compset/class resolution levels
   _ctx?: { country_code?: string | null; chain_scale?: string | null },
 ): Promise<MarketKpiBundle> {
-  const fallbackLabel = "Madrid institutional baseline · 2024";
+  const isSpain = (_ctx?.country_code ?? "").toUpperCase() === "ES";
+  const baselineLabel = "Madrid institutional baseline · 2024";
+  const noDataLabel = "Datos de mercado no disponibles · cobertura institucional pendiente";
+
+  // Defensive: missing market_name. For ES, fall to the Madrid anchor (no
+  // hotel without a market is expected, but the baseline is the safe net).
+  // For non-ES, return no_data immediately — never label a non-Madrid
+  // hotel's market as "Madrid".
   if (!market_name) {
-    return toBundle("baseline", fallbackLabel, "Madrid", null, null);
+    if (isSpain) {
+      return toBundle("baseline", baselineLabel, "Madrid", null, null);
+    }
+    return toBundle("no_data", noDataLabel, "—", null, null, /* baselineFill */ false);
   }
   const snap = await loadHotelsSnapshot();
   if (!snap) {
-    return toBundle("baseline", fallbackLabel, market_name, submarket_name, null);
+    if (isSpain) {
+      return toBundle("baseline", baselineLabel, market_name, submarket_name, null);
+    }
+    return toBundle("no_data", noDataLabel, market_name, submarket_name, null, false);
   }
   const ms = (snap as unknown as { market_snapshots?: Array<Record<string, unknown>> }).market_snapshots ?? [];
 
@@ -462,7 +481,10 @@ export async function resolveBestAvailableMarketKpis(
     );
   }
 
-  // Layer 4 · country (country_code → Spain · etc.)
+  // Layer 4 · country.
+  // No "Spain" default. If country_code is missing or not in the map, skip
+  // Layer 4 entirely — a missing country_code is not implicit permission to
+  // assume Spain.
   const countryMap: Record<string, string> = {
     ES: "Spain",
     FR: "France",
@@ -471,24 +493,34 @@ export async function resolveBestAvailableMarketKpis(
     DE: "Germany",
     GB: "United Kingdom",
   };
-  const countryName = countryMap[_ctx?.country_code ?? ""] ?? "Spain";
-  const countryRow = ms.find((r) => {
-    if (r.granularity !== "country_listing") return false;
-    const mn = (r.market_name as string | null) ?? "";
-    return mn.toLowerCase() === countryName.toLowerCase();
-  });
-  if (countryRow && num(countryRow.adr_12m) !== null) {
-    return toBundle(
-      "country",
-      `CoStar country · ${countryName}`,
-      market_name,
-      submarket_name,
-      countryRow,
-    );
+  const countryName = countryMap[(_ctx?.country_code ?? "").toUpperCase()] ?? null;
+  if (countryName) {
+    const countryRow = ms.find((r) => {
+      if (r.granularity !== "country_listing") return false;
+      const mn = (r.market_name as string | null) ?? "";
+      return mn.toLowerCase() === countryName.toLowerCase();
+    });
+    if (countryRow && num(countryRow.adr_12m) !== null) {
+      return toBundle(
+        "country",
+        `CoStar country · ${countryName}`,
+        market_name,
+        submarket_name,
+        countryRow,
+      );
+    }
   }
 
-  // Layer 5 · institutional baseline (final · always defined)
-  return toBundle("baseline", fallbackLabel, market_name, submarket_name, null);
+  // Layer 5 · institutional baseline · GATED BY country_code === 'ES'.
+  // MADRID_2024_INSTITUTIONAL_BASELINE is operator-anchored to Madrid;
+  // applying it to non-ES hotels would inject Madrid's 6.5% yield into a
+  // Paris or Tokyo report. Non-ES + no real coverage → no_data, and the
+  // UI renders "—" / "Pendiente de cobertura de mercado" instead of a
+  // fabricated number labelled as the hotel's market yield.
+  if (isSpain) {
+    return toBundle("baseline", baselineLabel, market_name, submarket_name, null);
+  }
+  return toBundle("no_data", noDataLabel, market_name, submarket_name, null, false);
 }
 
 /**

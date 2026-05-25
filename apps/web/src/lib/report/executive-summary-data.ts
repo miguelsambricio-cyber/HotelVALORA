@@ -21,15 +21,21 @@ export interface MarketMetricsData {
 
 export interface ValuationData {
   gopMargin: number;
-  ebitdaAfterReplacement: number;
-  capRate: number;
+  /**
+   * Fields that depend on market coverage are nullable. When the country
+   * gate fires (non-ES hotel + no market_baseline coverage yet), these
+   * become null and the UI renders "—" instead of a fabricated number.
+   * See docs/changelog.md 2026-05-25 country-guard entry.
+   */
+  ebitdaAfterReplacement: number | null;
+  capRate: number | null;
   exitYear: string;
   scenario: string;
-  valuationRangeLow: number;
-  valuationRangeHigh: number;
-  estimatedValue: number;
-  perRoom: number;
-  perSqmHotel: number;
+  valuationRangeLow: number | null;
+  valuationRangeHigh: number | null;
+  estimatedValue: number | null;
+  perRoom: number | null;
+  perSqmHotel: number | null;
   perSqmResidential: number;
   perSqmOffice: number;
 }
@@ -105,7 +111,16 @@ export function getMockExecutiveSummary(reportId: string): ExecutiveSummaryData 
 
 // ── Display formatters (European locale) ─────────────────────────────────────
 
-export function fmtOccupancy(v: number): string {
+/**
+ * All formatters accept `number | null`. Null means "dato no disponible"
+ * (e.g. non-ES hotel without market coverage) and renders as "—". A
+ * legitimate zero stays as "0,0%" / "0M€" because zero is still a
+ * computed numeric answer, not the absence of one.
+ */
+const EMPTY = "—";
+
+export function fmtOccupancy(v: number | null): string {
+  if (v === null) return EMPTY;
   return `${v.toFixed(1).replace(".", ",")}%`;
 }
 
@@ -117,19 +132,23 @@ export function fmtRevPAR(v: number): string {
   return `${v.toFixed(0)} €`;
 }
 
-export function fmtMillionsEUR(v: number): string {
+export function fmtMillionsEUR(v: number | null): string {
+  if (v === null) return EMPTY;
   const m = v / 1_000_000;
   return `${m.toFixed(1).replace(".", ",")}M€`;
 }
 
-export function fmtThousandsEUR(v: number): string {
+export function fmtThousandsEUR(v: number | null): string {
+  if (v === null) return EMPTY;
   return `${Math.round(v / 1_000)}k€`;
 }
 
-export function fmtEURPerSqm(v: number): string {
+export function fmtEURPerSqm(v: number | null): string {
+  if (v === null) return EMPTY;
   return `${new Intl.NumberFormat("es-ES").format(v)} €`;
 }
 
-export function fmtPercent(v: number, decimals = 0): string {
+export function fmtPercent(v: number | null, decimals = 0): string {
+  if (v === null) return EMPTY;
   return `${v.toFixed(decimals).replace(".", ",")}%`;
 }

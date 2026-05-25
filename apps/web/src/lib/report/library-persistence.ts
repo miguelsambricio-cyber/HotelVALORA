@@ -28,15 +28,20 @@ interface ReportSnapshot {
   /** Cap-rate engine output from `runForHotel(hotel)` · may be null when
    *  the engine could not run (no category or no market). */
   engineRun: UnderwritingRunResult | null;
-  /** Final valuation block snapshot the mapper produced. */
+  /**
+   * Final valuation block snapshot the mapper produced. Fields are
+   * nullable because the country guard (non-ES hotel without market
+   * coverage) collapses the valuation block to nulls · `finite()` below
+   * also coerces NaN/Infinity to null defensively.
+   */
   valuation: {
-    estimated_value_eur: number;
-    valuation_range_low_eur: number;
-    valuation_range_high_eur: number;
-    cap_rate_pct: number;
-    per_key_eur: number;
-    per_sqm_eur: number;
-    gop_margin_pct: number;
+    estimated_value_eur: number | null;
+    valuation_range_low_eur: number | null;
+    valuation_range_high_eur: number | null;
+    cap_rate_pct: number | null;
+    per_key_eur: number | null;
+    per_sqm_eur: number | null;
+    gop_margin_pct: number | null;
   };
   /** Optional KPI provenance / scenario string e.g. "Engine · base · CoStar submarket · Retiro · keys heurístico". */
   scenario_label?: string | null;

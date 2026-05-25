@@ -1,124 +1,27 @@
-import type { Metadata } from "next";
-import { ReportShell } from "@/components/report/shell/report-shell";
-import { ReportPaper } from "@/components/report/shell/report-paper";
-import { ActionBar } from "@/components/report/executive-summary/action-bar";
-import {
-  AssetMetricsTable,
-  FacilitiesCard,
-  RoomMixCard,
-  GuestInsightsCard,
-  PropertyImageCard,
-  PropertyGallery,
-  MethodologyNote,
-} from "@/components/report/asset-analysis";
-import {
-  getMockAssetAnalysis,
-  type AssetAnalysisData,
-} from "@/lib/report/asset-analysis-data";
-import {
-  getCanonicalHotelById,
-  resolveCanonicalIdAny,
-} from "@/lib/report/canonical-reader";
-import { mapCanonicalToAssetAnalysis } from "@/lib/report/canonical-mappers/asset-analysis";
-import { HotelToggle } from "./hotel-toggle";
+import { redirect } from "next/navigation";
+import { createOrGetReport } from "@/lib/report/report-session";
 
-export const metadata: Metadata = {
-  title: "Asset Analysis — HotelVALORA",
-};
+/**
+ * LEGACY BRIDGE · /report/asset-analysis.
+ * Bootstraps + redirects to /report/[reportId]/asset-analysis when input
+ * is present, falls to sentinel mock route otherwise. See sibling
+ * executive-summary bridge for the pattern.
+ */
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: {
-    canonical_id?: string;
-    hotel_id?: string;
-    ref?: string;
-  };
+  searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
-async function loadAssetAnalysisData(
-  searchParams: PageProps["searchParams"],
-): Promise<{ data: AssetAnalysisData; source: "canonical" | "mock" }> {
-  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
-  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
-  if (canonicalId) {
-    const hotel = await getCanonicalHotelById(canonicalId);
-    if (hotel) {
-      return { data: mapCanonicalToAssetAnalysis(hotel), source: "canonical" };
-    }
+export default async function LegacyAssetAnalysisPage({ searchParams = {} }: PageProps) {
+  const legacyInput = searchParams?.canonical_id ?? searchParams?.hotel_id ?? searchParams?.ref;
+  if (legacyInput) {
+    const session = await createOrGetReport({
+      input: legacyInput,
+      inputParams: { legacy_input: legacyInput, section: "asset-analysis" },
+    });
+    if (session) redirect(`/report/${session.report_id}/asset-analysis`);
   }
-  return { data: getMockAssetAnalysis(), source: "mock" };
-}
-
-export default async function AssetAnalysisPage({ searchParams = {} }: PageProps) {
-  const { data } = await loadAssetAnalysisData(searchParams);
-
-  const headerActions = (
-    <div className="flex items-center gap-4">
-      <span className="text-xl font-bold text-slate-700 font-headline">
-        {data.hotelLabel}
-      </span>
-      <HotelToggle />
-    </div>
-  );
-
-  return (
-    <ReportShell>
-      <div className="space-y-6 print:space-y-0">
-        <ReportPaper
-          sectionLabel="hotel valuation"
-          title="Asset Analysis"
-          titleSize="4xl"
-          headerLayout="stacked"
-          closed
-          actions={headerActions}
-        >
-          <div className="px-8 py-6 print:px-4 print:py-3">
-            <div className="grid grid-cols-1 md:grid-cols-10 print:grid-cols-10 gap-8 print:gap-4 items-start">
-              {/* Left column — 60% */}
-              <div className="md:col-span-6 print:col-span-6 flex flex-col">
-                <AssetMetricsTable rows={data.metrics} />
-
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 print:gap-3 items-stretch">
-                  <FacilitiesCard items={data.facilities} />
-                  <RoomMixCard rows={data.roomMix} />
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 gap-6 print:gap-3 items-stretch">
-                  <GuestInsightsCard
-                    tone="positive"
-                    title="Lo que más gusta a los huéspedes"
-                    body={data.guestInsights.positive}
-                  />
-                  <GuestInsightsCard
-                    tone="negative"
-                    title="Lo que menos gusta a los huéspedes"
-                    body={data.guestInsights.negative}
-                  />
-                </div>
-
-                <MethodologyNote />
-              </div>
-
-              {/* Right column — 40% */}
-              <div className="md:col-span-4 print:col-span-4 flex flex-col gap-4">
-                <PropertyImageCard
-                  src={data.media.heroImage}
-                  tabs={data.media.heroTabs}
-                />
-
-                <PropertyGallery
-                  label={data.media.galleryLabel}
-                  images={data.media.galleryImages}
-                  className="mt-8 print:mt-4"
-                />
-              </div>
-            </div>
-          </div>
-        </ReportPaper>
-
-        <ActionBar currentPage={1} totalPages={1} />
-      </div>
-    </ReportShell>
-  );
+  redirect("/report/legacy-mock/asset-analysis");
 }

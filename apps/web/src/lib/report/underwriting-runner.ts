@@ -125,10 +125,30 @@ export interface UnderwritingRunResult {
 }
 
 /**
- * Run the cap-rate engine for a canonical hotel. Returns null when
- * the canonical row lacks enough signal (no category or no market).
+ * Country guard · the dynamic cap-rate engine policy
+ * (`lib/admin/financials/dynamic-cap-rate-policy.ts`) is anchored on
+ * `base_market_yield_pct: 6.50` — operator-set Madrid 2024 institutional
+ * cap-rate band centre. Running the engine for a non-ES hotel would
+ * produce a Paris/Tokyo cap-rate that is mathematically a Madrid number
+ * with ±pp adjustments, NOT a real reading of the local market. Honest
+ * absence beats fabricated valuation: the engine is gated until the
+ * policy supports per-country baselines.
+ *
+ * Tech debt: see docs/changelog.md country-guard entry. Future
+ * `market_baseline (country_code, year, base_yield_pct, …)` table
+ * will lift this gate.
+ */
+const ENGINE_SUPPORTED_COUNTRIES: ReadonlySet<string> = new Set(["ES"]);
+
+/**
+ * Run the cap-rate engine for a canonical hotel. Returns null when:
+ *   - The canonical row lacks enough signal (no category or no market), OR
+ *   - The hotel is outside the engine's country coverage (non-ES today).
  */
 export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | null {
+  const countryCode = (hotel.country_code ?? "").toUpperCase();
+  if (!ENGINE_SUPPORTED_COUNTRIES.has(countryCode)) return null;
+
   const asset = buildAssetBasics(hotel);
   if (!asset) return null;
 

@@ -1,129 +1,34 @@
-import { ReportShell } from "@/components/report/shell/report-shell";
-import { ReportPaper } from "@/components/report/shell/report-paper";
-import { AssetSection } from "@/components/report/executive-summary/asset-section";
-import { MarketSection } from "@/components/report/executive-summary/market-section";
-import { ValuationSection } from "@/components/report/executive-summary/valuation-section";
-import { ActionBar } from "@/components/report/executive-summary/action-bar";
-import { MethodologicalNote } from "@/components/report/ui/methodological-note";
-import {
-  getMockExecutiveSummary,
-  type ExecutiveSummaryData,
-} from "@/lib/report/executive-summary-data";
-import {
-  getCanonicalHotelById,
-  resolveBestAvailableMarketKpis,
-  resolveCanonicalIdAny,
-} from "@/lib/report/canonical-reader";
-import { mapCanonicalToExecutiveSummary } from "@/lib/report/canonical-mappers/executive-summary";
-import { runForHotel } from "@/lib/report/underwriting-runner";
-import { upsertHotelReportLibrary } from "@/lib/report/library-persistence";
+import { redirect } from "next/navigation";
+import { createOrGetReport } from "@/lib/report/report-session";
 
-export const metadata = {
-  title: "Executive Summary — HotelVALORA",
-};
+/**
+ * LEGACY BRIDGE · /report/executive-summary
+ *
+ * Canonical route is /report/[reportId]/executive-summary. This bridge:
+ *   - Bootstraps a hotel_report row when legacy input is present
+ *     (?canonical_id / ?hotel_id / ?ref) and 308-redirects to the
+ *     canonical URL.
+ *   - Falls to a sentinel reportId ("legacy-mock") that the [reportId]
+ *     page detects as non-UUID and renders the mock canvas. Operator
+ *     decision: preserve mock fallback for one more sprint.
+ *
+ * Remove this file once analytics confirms zero legacy traffic.
+ */
 
 export const dynamic = "force-dynamic";
 
 interface PageProps {
-  searchParams?: {
-    /** Supabase canonical UUID · primary route. */
-    canonical_id?: string;
-    /** Synthetic snapshot hotel_id (`h_<hex>`) · resolved via multi-path matcher. */
-    hotel_id?: string;
-    /** Madrid registry slug from /compset (e.g. `bless-hotel-madrid`) · resolved via SLUG_TO_CANONICAL_ID. */
-    ref?: string;
-    /** Operator-friendly fallback (e.g. ?reportId=demo-report-001) · keeps mock visible. */
-    reportId?: string;
-  };
+  searchParams?: { canonical_id?: string; hotel_id?: string; ref?: string };
 }
 
-async function loadExecutiveSummaryData(
-  searchParams: PageProps["searchParams"],
-): Promise<{ data: ExecutiveSummaryData; source: "canonical" | "mock"; canonical_id?: string }> {
-  // Universal resolver · accepts UUID · h_<hex> · slug. Fixes the
-  // CompSet→Report bug where ?ref=<slug> fell through to mock (2026-05-25).
-  const candidate = searchParams?.canonical_id || searchParams?.hotel_id || searchParams?.ref;
-  const canonicalId = candidate ? await resolveCanonicalIdAny(candidate) : null;
-
-  if (canonicalId) {
-    const hotel = await getCanonicalHotelById(canonicalId);
-    if (hotel) {
-      const marketKpi = await resolveBestAvailableMarketKpis(
-        hotel.market_name,
-        hotel.submarket_name,
-        { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
-      );
-      const data = mapCanonicalToExecutiveSummary(hotel, marketKpi);
-      // Persist the report row into hotel_report_library · awaits so
-      // production library stays consistent with rendered reports.
-      // Errors swallowed inside the helper · never block UI.
-      const engineRun = (() => {
-        try { return runForHotel(hotel); } catch { return null; }
-      })();
-      await upsertHotelReportLibrary(hotel, {
-        engineRun,
-        valuation: {
-          estimated_value_eur: data.valuation.estimatedValue,
-          valuation_range_low_eur: data.valuation.valuationRangeLow,
-          valuation_range_high_eur: data.valuation.valuationRangeHigh,
-          cap_rate_pct: data.valuation.capRate,
-          per_key_eur: data.valuation.perRoom,
-          per_sqm_eur: data.valuation.perSqmHotel,
-          gop_margin_pct: data.valuation.gopMargin,
-        },
-        scenario_label: data.valuation.scenario,
-        keys_from_heuristic: data.valuation.scenario?.includes("heurístico") ?? false,
-        report_url: `/report/executive-summary?canonical_id=${canonicalId}`,
-      });
-      return { data, source: "canonical", canonical_id: canonicalId };
-    }
+export default async function LegacyExecutiveSummaryPage({ searchParams = {} }: PageProps) {
+  const legacyInput = searchParams?.canonical_id ?? searchParams?.hotel_id ?? searchParams?.ref;
+  if (legacyInput) {
+    const session = await createOrGetReport({
+      input: legacyInput,
+      inputParams: { legacy_input: legacyInput, section: "executive-summary" },
+    });
+    if (session) redirect(`/report/${session.report_id}/executive-summary`);
   }
-  // Fallback · keep demo content visible when no canonical_id resolves
-  return {
-    data: getMockExecutiveSummary(searchParams?.reportId ?? "demo-report-001"),
-    source: "mock",
-  };
-}
-
-export default async function ExecutiveSummaryPage({ searchParams = {} }: PageProps) {
-  const { data } = await loadExecutiveSummaryData(searchParams);
-
-  return (
-    <ReportShell>
-      <div className="space-y-6 print:space-y-0">
-        {/* Paper card · canonical institutional header treatment ·
-            lowercase eyebrow · stacked headerLayout · closed card ·
-            4xl title · matches the 8 sibling /report/* surfaces and
-            the Madrid Centro full-report chained version. */}
-        <ReportPaper
-          sectionLabel="hotel valuation"
-          title="Executive Summary"
-          titleSize="4xl"
-          headerLayout="stacked"
-          closed
-        >
-          {/* Section 1 — Hotel Asset */}
-          <div className="px-8 pt-8 pb-6 border-b border-slate-100 print:px-4 print:pt-3 print:pb-2">
-            <AssetSection asset={data.asset} meta={data.meta} />
-          </div>
-
-          {/* Section 2 — Market Overview */}
-          <div className="px-8 py-6 border-b border-slate-100 print:px-4 print:py-2">
-            <MarketSection data={data.marketMetrics} />
-          </div>
-
-          {/* Section 3 — Hotel Valuation */}
-          <div className="px-8 py-6 border-b border-slate-100 print:px-4 print:py-2">
-            <ValuationSection valuation={data.valuation} charts={data.charts} />
-          </div>
-
-          {/* Methodological note */}
-          <MethodologicalNote />
-        </ReportPaper>
-
-        {/* Action bar — below the paper, matching Stitch layout */}
-        <ActionBar currentPage={1} totalPages={1} />
-      </div>
-    </ReportShell>
-  );
+  redirect("/report/legacy-mock/executive-summary");
 }

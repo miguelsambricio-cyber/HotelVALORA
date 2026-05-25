@@ -2,13 +2,36 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { REPORT_SECTIONS, getSectionHref } from "@/lib/report/sections";
+import {
+  REPORT_SECTIONS,
+  getSectionHref,
+  extractReportIdFromPath,
+} from "@/lib/report/sections";
 import type { ReportSubItem } from "@/types/report";
 import { cn } from "@/lib/utils";
 
 // Sidebar driven by the canonical sections.ts registry. The Stitch visual
 // (sticky panel, glass card, numbered top-level + indented sub-anchors) is
 // preserved exactly. Adding a new top-level link is a one-line registry edit.
+
+/**
+ * Rewrite a hardcoded flat /report/<section> href into the
+ * /report/<reportId>/<section> canonical form when a reportId is present.
+ * Pass-through for external URLs and bare hashes (those are resolved by
+ * resolveSubHref against the parent first).
+ */
+function withReportId(href: string, reportId: string | null): string {
+  if (!reportId) return href;
+  if (href.startsWith("http")) return href;
+  if (href.startsWith("#")) return href; // hash-only handled upstream
+  // Match flat /report/<section>[/<sub>][#hash] and inject /<reportId>
+  const m = href.match(/^\/report(\/[^?]*)?(\?[^#]*)?(#.*)?$/);
+  if (!m) return href;
+  const path = m[1] ?? "";
+  const search = m[2] ?? "";
+  const hash = m[3] ?? "";
+  return `/report/${reportId}${path}${search}${hash}`;
+}
 
 function resolveSubHref(parentHref: string, sub: ReportSubItem): string {
   // Absolute paths and full URLs pass through; bare hashes are resolved
@@ -51,6 +74,7 @@ function getActiveSubIdx(
 
 export function ReportSidebar() {
   const pathname = usePathname();
+  const reportId = extractReportIdFromPath(pathname);
 
   return (
     <aside className="w-64 hidden lg:block shrink-0 sticky top-28 self-start max-h-[calc(100vh-8rem)] overflow-y-auto print:hidden bg-slate-100/80 rounded-2xl p-5 border border-slate-200 shadow-sm">
@@ -60,14 +84,14 @@ export function ReportSidebar() {
 
       <nav className="space-y-2">
         {REPORT_SECTIONS.map((section) => {
-          const sectionHref = getSectionHref(section.id);
+          const sectionHref = getSectionHref(section.id, reportId);
           // Top-level highlight when the path matches the section route
           // exactly OR when any sub-route under the section is active.
           const isExact = pathname === sectionHref;
           const isUnder =
             pathname.startsWith(`${sectionHref}/`) ||
             (section.subItems?.some((s) =>
-              pathname === resolveSubHref(sectionHref, s).split("#")[0],
+              pathname === withReportId(resolveSubHref(sectionHref, s), reportId).split("#")[0],
             ) ??
               false);
           const isActive = isExact || isUnder;
@@ -77,7 +101,10 @@ export function ReportSidebar() {
             const activeSubIdx = getActiveSubIdx(
               pathname,
               sectionHref,
-              section.subItems,
+              section.subItems.map((s) => ({
+                ...s,
+                href: withReportId(s.href, reportId),
+              })),
             );
 
             return (
@@ -95,7 +122,10 @@ export function ReportSidebar() {
                 </Link>
                 <div className="flex flex-col gap-1.5 pl-4 ml-3 border-l-2 border-slate-200">
                   {section.subItems.map((sub, idx) => {
-                    const resolved = resolveSubHref(sectionHref, sub);
+                    const resolved = withReportId(
+                      resolveSubHref(sectionHref, sub),
+                      reportId,
+                    );
                     const subActive = idx === activeSubIdx;
                     return (
                       <Link
