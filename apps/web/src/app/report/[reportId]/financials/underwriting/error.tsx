@@ -6,7 +6,7 @@ import { ReportShell } from "@/components/report/shell/report-shell";
 import { ReportPaper } from "@/components/report/shell/report-paper";
 
 /**
- * /report/financials/underwriting/error.tsx
+ * /report/[reportId]/financials/underwriting/error.tsx
  *
  * Institutional error boundary for the underwriting route. Catches any
  * RSC or client-component throw inside the route segment — including
@@ -14,13 +14,9 @@ import { ReportPaper } from "@/components/report/shell/report-paper";
  * graceful memorandum-style fallback instead of the Next.js default
  * 500 chrome.
  *
- * Three goals:
- *   · institutional voice (no stack trace, no apology theatre)
- *   · operator can recover in-place via `reset()`
- *   · operator can navigate out without reload
- *
- * The page chrome (ReportShell + ReportPaper) is reused so the failure
- * state still feels like the underwriting surface, not a system error.
+ * Moved here from `app/report/financials/underwriting/` on 2026-05-25
+ * when the route migrated to `[reportId]/...`. Sibling of the canonical
+ * page · NOT of the legacy bridge.
  */
 
 interface ErrorProps {
@@ -30,7 +26,6 @@ interface ErrorProps {
 
 export default function UnderwritingErrorBoundary({ error, reset }: ErrorProps) {
   useEffect(() => {
-    // Log to console for now. Sentry / future telemetry plug-in here.
     // eslint-disable-next-line no-console
     console.error("[underwriting] route-level error:", error);
   }, [error]);

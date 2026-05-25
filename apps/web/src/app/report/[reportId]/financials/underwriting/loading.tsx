@@ -2,14 +2,19 @@ import { ReportShell } from "@/components/report/shell/report-shell";
 import { ReportPaper } from "@/components/report/shell/report-paper";
 
 /**
- * /report/financials/underwriting/loading.tsx
+ * /report/[reportId]/financials/underwriting/loading.tsx
  *
  * Institutional fallback while the underwriting route streams in.
  * Reuses the page chrome (ReportShell + ReportPaper · landscape) so the
  * transition is invisible during fast loads and tasteful during slow
  * ones. No spinner · no marketing copy.
+ *
+ * Moved here from `app/report/financials/underwriting/` on 2026-05-25
+ * when the route migrated to `[reportId]/...`. Sibling of the canonical
+ * page · NOT of the legacy bridge (which redirects · loading.tsx as a
+ * sibling of a redirecting page commits the HTML stream before the
+ * redirect fires · cancels the redirect).
  */
-
 export default function UnderwritingLoading() {
   return (
     <ReportShell printOrientation="landscape">
