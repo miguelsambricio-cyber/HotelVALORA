@@ -4,6 +4,34 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-25 — fix(report): CompSet → Report slug `?ref=` resolver · BLESS bug closed
+
+Operator reproducible bug (2026-05-25): seleccionar BLESS Hotel Madrid en CompSet → informe renderiza hotel incorrecto. La validación 80/80 PASS de la mañana usaba URLs `?canonical_id=<uuid>` que SI funcionaban, pero el flujo real de CompSet emite `?ref=<slug>` (e.g. `ref=bless-hotel-madrid`) que ninguna página `/report/*` aceptaba · fall-through a `getMockExecutiveSummary()` / `SCENARIO_BASE` · informe muestra hotel demo.
+
+Root cause: `madrid-hotels.ts` (CompSet registry) usa slug-strings como `id` mientras que `hotel_canonical` usa UUIDs. Las 10 pages aceptaban solo UUID + `h_<hex>`. Gap nunca cerrado.
+
+Fix (`e5679bc`):
+- `apps/web/src/lib/report/canonical-reader.ts` · `SLUG_TO_CANONICAL_ID` (14 slugs Madrid → UUID) + `resolveCanonicalIdAny()` resolver universal (acepta UUID · `h_<hex>` · slug).
+- Las 10 `/report/*/page.tsx` migran a `resolveCanonicalIdAny` y aceptan param `ref` en searchParams: executive-summary · asset-analysis · asset-analysis/capex · competitive-set · market-overview · market-overview/dynamics · market-overview/projects · market-overview/transactions · financials/pl · financials/underwriting.
+
+Validación post-deploy (commit `e5679bc` deployment `dpl_D5Mi4H1xiyUNWHXkBAWZHG1hFf3f`):
+| slug | hotel renderizado |
+|---|---|
+| mandarin-oriental-ritz | Mandarin Oriental ✓ |
+| four-seasons-madrid | Four Seasons ✓ |
+| edition-madrid | EDITION ✓ |
+| **bless-hotel-madrid** | **BLESS Hotel Madrid – The Leading Hotels of the World ✓** |
+| eurostars-madrid-tower | Eurostars ✓ |
+| marriott-auditorium | Marriott Auditorium ✓ |
+| nh-collection-eurobuilding | NH Collection ✓ |
+| only-you-atocha | Only YOU ✓ |
+
+8 slugs · 8 hoteles correctos · cero fall-through a mock. CompSet → Report sincronización restaurada.
+
+4 slugs aún sin canonical row (ac-cuzco · hard-rock-madrid · riu-plaza-espana · westin-palace) seguirán cayendo al mock hasta que se inserten las filas correspondientes en `hotel_canonical`.
+
+---
+
 ## 2026-05-25 — Report Integrity milestone · Unified Report Object Phase A→E · 80/80 PASS
 
 Problema original (audit `docs/hotel-intelligence/report-integrity-audit-2026-05-25.md`): 7 de 11 rutas `/report/*` consumían datos hardcoded (`SCENARIO_BASE` · `getDefaultAssumptions()` · `getMockCapexRenders()` · `CHART_PRESETS` · `getMockProjects()` · `getMockTransactions()`) sin propagar `canonical_id`. Matriz 8×8 reportaba 16 FAIL · cada showcase mostraba números IDENTICOS en Financials/Underwriting independientemente del hotel.
