@@ -225,6 +225,51 @@ one row per hotel+owner+day. Reopening reuses the row.
 **RLS**: public read · public insert · public update (showcase mode). Tightens
 to `owner_user_id = auth.uid()` when auth flips on.
 
+### `hotel_name_alias` (migration 0032 — NEW · rebrand policy Layer B)
+Historical / alternative names + URL slugs that resolve to the canonical
+building. Consulted by `resolveCanonicalIdAny()` as a fallback after the
+primary `hotel_canonical.slug` lookup misses.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | gen_random_uuid() |
+| canonical_id | UUID FK | → `hotel_canonical(id)` cascade |
+| alias_name | text NOT NULL | Historical commercial name (e.g. "AC Hotel Cuzco by Marriott") |
+| alias_slug | text | URL-safe legacy slug (e.g. "ac-cuzco") · null when name-only |
+| valid_from / valid_to | date | Period the alias was the active commercial identity · valid_to NULL means alias is currently accepted (no rebrand yet) |
+| source | text NOT NULL | `manual_curated` · `costar_historical` · `wikidata` · `registry_legacy` · `detected` |
+| notes | text | Operator audit note |
+
+**Unique**: `(canonical_id, alias_name)`. **Indexes**: `alias_slug` (partial), `lower(alias_name)`, `canonical_id`. **RLS**: public read · service-role writes only.
+
+### `hotel_canonical_history` (migration 0032 — NEW · rebrand policy Layer C)
+Append-only timeline of building identities. The row with `valid_to IS NULL` is the current identity (kept in sync with `hotel_canonical` by operator workflow). Lets us audit "what was this building called in 2015?" without destroying current state.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | gen_random_uuid() |
+| canonical_id | UUID FK | → `hotel_canonical(id)` cascade |
+| canonical_name · brand · brand_family · chain_scale | snapshot fields | Identity at that point in time |
+| valid_from | date NOT NULL | When this identity activated |
+| valid_to | date | When it ended · NULL = current |
+| rebrand_reason | text | e.g. `marriott_brand_swap_2018` · `marriott_luxury_collection_swap_2020` |
+| source_record_id | UUID FK | Optional · ties to `hotel_source_record` if a CoStar payload provoked the change |
+
+**Indexes**: `(canonical_id, valid_from)`, partial `(canonical_id) WHERE valid_to IS NULL`. **RLS**: public read.
+
+### `dup_tier_enum` (extended in 0032)
+Added value `same_building_rebrand` · used by `hotel_duplicate_candidate.tier` when the Capa A same-building detector surfaces a geo-based rebrand candidate (parallel to the existing name-based `auto_merge` / `needs_review` / `likely_duplicate`).
+
+### Rebrand policy · how the 3 layers work together
+
+| Layer | Component | When it runs |
+|---|---|---|
+| **A** | `apps/web/src/lib/enrichment/dedup/same-building-detector.ts` | At enrichment time when CoStar mundial brings a new candidate · pure TS function `detectSameBuilding(candidate, neighbors)` returns geo-first matches (haversine ≤30m + postal + rooms ±20%) |
+| **B** | `hotel_name_alias` | Always · `resolveCanonicalIdAny()` consults `alias_slug` after the primary slug lookup misses |
+| **C** | `hotel_canonical_history` | When an operator confirms a rebrand · write old + new identity rows |
+
+Seeded rebrands (migration 0033): `ac-cuzco` → The Westin Madrid Cuzco · The Westin Palace Madrid → The Palace, a Luxury Collection Hotel, Madrid (slug `westin-palace`).
+
 ### Other Supabase tables (already documented inline in their migrations)
 `hotel_report_library` · `hotel_source_record` · `hotel_field_provenance` ·
 `hotel_enrichment_run` · `hotel_duplicate_candidate` · `hotel_enrichment_job` ·

@@ -236,16 +236,49 @@ async function resolveCanonicalIdFromSlug(slug: string): Promise<string | null> 
 }
 
 /**
+ * Rebrand fallback · resolve a historical / alternative slug via
+ * `hotel_name_alias.alias_slug` (migration 0032). Used when the primary
+ * `hotel_canonical.slug` lookup misses · e.g. `ac-cuzco` aliases to the
+ * current `The Westin Madrid Cuzco` canonical_id.
+ *
+ * Returns the CURRENT canonical_id of the building (the alias only stores
+ * its own historical name; the building's identity-of-record lives on
+ * hotel_canonical).
+ */
+async function resolveCanonicalIdFromAliasSlug(slug: string): Promise<string | null> {
+  const sb = createAnonServerSupabaseClient() as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
+        };
+      };
+    };
+  };
+  const res = await sb
+    .from("hotel_name_alias")
+    .select("canonical_id")
+    .eq("alias_slug", slug)
+    .limit(1);
+  if (res.error || !res.data || res.data.length === 0) return null;
+  const id = (res.data[0] as { canonical_id?: string }).canonical_id;
+  return id ?? null;
+}
+
+/**
  * Universal canonical_id resolver · accepts any of:
  *   - A canonical UUID (returned as-is)
  *   - A snapshot synthetic id `h_<hex>` (resolved via multi-path matcher)
  *   - A slug from any hotel anywhere (resolved via DB lookup on
- *     `hotel_canonical.slug`).
+ *     `hotel_canonical.slug`)
+ *   - A historical / alternative slug (resolved via `hotel_name_alias`
+ *     migration 0032 · e.g. ac-cuzco → Westin Madrid Cuzco)
  *
  *  Returns null when no resolution succeeds. Geographically agnostic ·
  *  works for Madrid today, Paris/Tokyo/Riyadh once their canonical rows
  *  land. The previous Madrid-only SLUG_TO_CANONICAL_ID dictionary is
- *  deprecated.
+ *  deprecated. Building rebrands stay continuous: AC Cuzco and Westin
+ *  Madrid Cuzco resolve to the same canonical_id.
  */
 export async function resolveCanonicalIdAny(input: string | null | undefined): Promise<string | null> {
   if (!input) return null;
@@ -262,9 +295,13 @@ export async function resolveCanonicalIdAny(input: string | null | undefined): P
     return resolveCanonicalIdFromSnapshotHotelId(trimmed);
   }
 
-  // 3. Slug lookup on hotel_canonical.slug (universal, geo-agnostic)
+  // 3. Primary slug lookup on hotel_canonical.slug (current identity)
   const slugLc = trimmed.toLowerCase();
-  return resolveCanonicalIdFromSlug(slugLc);
+  const direct = await resolveCanonicalIdFromSlug(slugLc);
+  if (direct) return direct;
+
+  // 4. Alias fallback · resolve historical / rebrand slugs
+  return resolveCanonicalIdFromAliasSlug(slugLc);
 }
 
 /**

@@ -340,6 +340,10 @@ Maps tasks to exact files. Start here before scanning.
 |---|---|
 | **Report system synchronization audit (v1 · institutional · no implementation)** | `docs/report/synchronization-audit-v1.md` |
 | **Phase 1 · Token harmonization plan (gated · approval pending)** | `docs/report/phase-1-token-harmonization.md` |
+| **Rebrand policy · Layer A · same-building detector (geo-first · haversine ≤30m + postal + rooms ±20%)** | `apps/web/src/lib/enrichment/dedup/same-building-detector.ts` (`detectSameBuilding`, `classifyCandidate`) |
+| **Rebrand policy · Layer B · `hotel_name_alias` table** | migration `docs/database/migrations/0032_rebrand_policy_aliases_history.sql` (applied via MCP) · resolver lookup in `apps/web/src/lib/report/canonical-reader.ts` `resolveCanonicalIdFromAliasSlug` |
+| **Rebrand policy · Layer C · `hotel_canonical_history` table** | same migration 0032 |
+| **Seed of 2 known Madrid rebrands (AC Cuzco · Westin Palace)** | migration `docs/database/migrations/0033_seed_known_rebrands.sql` (applied via MCP) |
 | **Report session persistence (`hotel_report` table · A2 dedup · `getReportById` · `createOrGetReport` bootstrap server action)** | `apps/web/src/lib/report/report-session.ts` · migration `docs/database/migrations/0030_hotel_report.sql` (applied via MCP) |
 | **`hotel_canonical.slug` column** (universal, geo-agnostic resolver substrate · replaces SLUG_TO_CANONICAL_ID dictionary) | migration `0029_hotel_canonical_slug.sql` (applied via MCP) · resolver in `canonical-reader.ts` `resolveCanonicalIdFromSlug` |
 | **`costar_property_id` unique partial index** | migration `0028_hotel_canonical_costar_unique_index.sql` (applied via MCP) |

@@ -4,6 +4,61 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-26 — feat(rebrand-policy): 3-layer building-identity infrastructure
+
+The 4-slug audit on 2026-05-25 surfaced a structural gap: the existing dedup engine (name-weighted 35/30/20/10/5) misses rebrands of the same building under drastically different names (e.g. AC Hotel Cuzco → The Westin Madrid Cuzco). With CoStar mundial about to land thousands of cross-border hotels, this becomes a duplicate-row factory. Three layers ship together to close the gap.
+
+### Schema (migrations 0032 + 0033 · applied via MCP)
+
+- **`hotel_name_alias`** — historical / alternative names + URL slugs that resolve to the canonical building. Indexes on `alias_slug` (partial), `lower(alias_name)`, `canonical_id`. RLS public read. Consulted by `resolveCanonicalIdAny` as fallback after primary slug lookup.
+- **`hotel_canonical_history`** — append-only timeline of identities. `valid_to IS NULL` = current. Lets operators audit "what was this building called in 2015?" without losing current state.
+- **`dup_tier_enum`** extended with `same_building_rebrand` — Capa A detector surfaces results via the existing `hotel_duplicate_candidate` table.
+- **Seed** · 2 known Madrid rebrands: AC Hotel Cuzco by Marriott (2008-2018) → The Westin Madrid Cuzco · The Westin Palace Madrid (1989-2020) → The Palace, a Luxury Collection Hotel, Madrid.
+
+### Capa A · same-building detector (TS, geo-first)
+
+New module `apps/web/src/lib/enrichment/dedup/same-building-detector.ts`. Pure function `detectSameBuilding(candidate, neighbors, thresholds?)` returns `SameBuildingMatch[]` sorted by confidence:
+
+| Criteria met | Reason | Confidence |
+|---|---|---|
+| haversine ≤30m | `geo_within_30m` | 0.50 (operator review) |
+| haversine ≤30m + postal_code | `geo_within_30m_postal_match` | 0.75 |
+| haversine ≤30m + postal_code + rooms ±20% | `geo_within_30m_postal_match_rooms_within_20pct` | 1.00 (institutional gold) |
+
+Plus `classifyCandidate(matches)` → `"no_match" | "rebrand_candidate" | "ambiguous"` for the operator workflow router. Reuses `haversineMeters` from `scoring.ts` (existing dedup primitives). NOT wired into a pipeline yet · the CoStar mundial enrichment runner will call it.
+
+### Capa B · resolver extension
+
+`resolveCanonicalIdAny()` gains step 4 · `hotel_name_alias.alias_slug` lookup when `hotel_canonical.slug` misses. AC Cuzco and Westin Madrid Cuzco now resolve to the SAME canonical_id (`45695396-…`). The Westin Palace and The Palace (Luxury Collection) resolve to the same id (`e2e80e9d-…`). One building → one canonical_id → one valuation → one compset entry.
+
+### Capa C · history persistence
+
+4 history rows seeded (2 per rebrand: old + current). Future operator UI can read this to render "asset timeline" surfaces. Today the table is dormant but provenance-ready.
+
+### Files touched
+
+**Migrations applied**: `0032_rebrand_policy_aliases_history` · `0033_seed_known_rebrands`.
+
+**TypeScript**:
+- `apps/web/src/lib/enrichment/dedup/same-building-detector.ts` — **NEW** · 4 exports (`detectSameBuilding`, `classifyCandidate`, `DEFAULT_SAME_BUILDING_THRESHOLDS`, types).
+- `apps/web/src/lib/report/canonical-reader.ts` — `resolveCanonicalIdFromAliasSlug` added · `resolveCanonicalIdAny` now consults aliases after primary slug.
+
+**Docs**: this entry · `docs/database.md` (3 sections + rebrand policy table) · `ENTRYPOINTS.md` (4 entries).
+
+### Validation
+
+- DB-level: `select canonical_name from hotel_name_alias join hotel_canonical on id=canonical_id where alias_slug='ac-cuzco'` → `The Westin Madrid Cuzco` ✓
+- Typecheck: PASS exit 0.
+- End-to-end smoke (`?ref=ac-cuzco` → 308 → /report/<reportId>/executive-summary) verified post-deploy.
+
+### Pending items (NOT bloqueantes, registrados)
+
+- `no_data` country guard not yet exercised in production (no non-ES hotels in DB · expected when CoStar mundial enters).
+- BLESS Hotel Madrid not directly tested in the 3-hotel smoke (Mandarin/NH/Four Seasons used) · same code path · operator manual confirm pending.
+- `ac-cuzco` slug retired from `apps/web/src/lib/data/madrid-hotels.ts` registry is **NOT** done in this commit (the registry can keep the entry · the resolver now handles it correctly via aliases).
+
+---
+
 ## 2026-05-25 — feat(report): persistence layer · `hotel_report` table · country guard · resolver universal
 
 The CompSet→Report wiring stops being URL-pass-through. A `hotel_report` row is now the single source of truth for "which hotel this report is about", carrying `report_date` and survives the navigation between the 10 pages. Six country-contamination vectors closed in the same commit. SLUG_TO_CANONICAL_ID dictionary deprecated · `hotel_canonical.slug` (unique, indexed) is the geographically-agnostic substrate.
