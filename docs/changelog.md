@@ -4,6 +4,24 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-25 — Report Integrity milestone · Unified Report Object Phase A→E · 80/80 PASS
+
+Problema original (audit `docs/hotel-intelligence/report-integrity-audit-2026-05-25.md`): 7 de 11 rutas `/report/*` consumían datos hardcoded (`SCENARIO_BASE` · `getDefaultAssumptions()` · `getMockCapexRenders()` · `CHART_PRESETS` · `getMockProjects()` · `getMockTransactions()`) sin propagar `canonical_id`. Matriz 8×8 reportaba 16 FAIL · cada showcase mostraba números IDENTICOS en Financials/Underwriting independientemente del hotel.
+
+Solución · 5 fases secuenciales · todas en main mismo día:
+
+- **Phase A** (`7782835`) · `apps/web/src/lib/report/report-object/` · ReportObject type · `buildReportObject(canonical_id, { tier })` orchestrator · section builders (financials · underwriting · capex) · `tierMatrixFor(tier)` helper. Foundation pure data-layer · admin financials defaults (CAPEX matrix · financial structure · P&L benchmarks · PNL_ROOM_STATS) son master · canonical hotel provee auxiliary inputs.
+- **Phase B** (`a7248aa`) · `/report/financials/underwriting` acepta `canonical_id` · `buildUnderwritingBundleFromCanonical(hotel, marketKpi, engineRun)` deriva UnderwritingInputs (rooms · category 5star/4star/3star · state new/renovated · €/key por chain_scale) · `runEngine` se ejecuta sobre inputs derivados produciendo P&L · BS · CF · DTA · investment · exit · IRR · MOIC únicos por hotel. Underwriting response · 70 KB → 247 KB.
+- **Phase C** (`f6492f0`) · `/report/financials/pl` acepta `canonical_id` · `buildFinancialsSlice(hotel, marketKpi)` deriva PLAssumptions (rooms canonical · ADR/Occ del submarket KPI · ratios admin defaults para F&B + cost lines). `<PLContent initialAssumptions>` prop opcional.
+- **Phase D** (`15b5a82`) · `/report/asset-analysis/capex` acepta `canonical_id` · `buildCapexSlice(hotel)` indexa admin CAPEX_DEFAULTS por room_tier × star_category · `adaptCapexSliceToBreakdown` mapea al shape UI legacy. Market sub-pages (dynamics · projects · transactions) aceptan canonical_id · scope MARKET-LEVEL per spec · hotel canonical_name en header. `use-tier.ts` + 9 section-level helpers (canSeeAssetAnalysis · canSeeCompetitiveSet · canSeeMarketOverview · canSeeFinancialsPL · canSeeUnderwriting · canSeeCapexDetail · canSeeFinancialStructure · canSeeExitScenarios · canSeeRenders · isFreeTier) codificando FREE/PRO/PREMIUM tier matrix.
+- **Phase E** (`358be42`) · QA harness `apps/web/scripts/showcase-phase-de-qa.mjs` · 8 showcases × 10 surfaces · resultado **80 PASS · 0 WARN · 0 FAIL**. Evidencia: Underwriting payload triplica (engine re-ejecuta con inputs únicos) · CAPEX schedule unique-to-hotel · P&L year-1 ADR/Occ por submarket (Retiro 250,5€/75% vs Madrid Centre 233,2€/79%) · institutional ordering luxury > upper_upscale > upscale preservado.
+
+Verdict final · `docs/hotel-intelligence/report-integrity-phase-e-verdict-2026-05-25.md`. Un informe HotelVALORA habla del mismo hotel de principio a fin en las 10 surfaces auditadas.
+
+Hard rule preserved · zero UI/shells/primitives/PDF/design-token touches.
+
+---
+
 ## 2026-05-22 — Phase 2 · AVUXI activated via feature flag · CAPAS-driven · 4 commits shipped
 
 Operator approved Phase 2 with adjustments. Four-commit sequence landed on main (`fbb9477` · `981ab37` · `56ebbc2` · this commit). Feature-flagged behind `NEXT_PUBLIC_AVUXI_ENABLED` (default OFF · production behaviour unchanged until operator flips). AVUXI native UI hidden · CAPAS panel is the only end-user control surface.
