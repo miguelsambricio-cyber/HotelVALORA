@@ -410,11 +410,19 @@ export function FavoritesTable({
       toast.error("Report row not found");
       return;
     }
-    // Prefer the persisted reportUrl (full canonical UUID anchor) ·
-    // falls back to canonical_id direct · finally to legacy mock route.
+    // Resolve target URL in priority order:
+    //   1. row.reportUrl · persisted canonical anchor (post-commit-C: full
+    //      /report/<reportId>/executive-summary form; pre-commit-C rows
+    //      may carry `?canonical_id=...` which the legacy bridge accepts).
+    //   2. /report/executive-summary?canonical_id=<id> · bridge bootstraps
+    //      a hotel_report row and redirects to /report/<reportId>/...
+    //   3. /compset · last resort when neither anchor is present (rare;
+    //      every library row has a canonical FK by table contract). Avoids
+    //      the previous `?reportId=<library_row_id>` which the bridge does
+    //      not accept · would fall to legacy-mock.
     const target = row.reportUrl
       ?? (row.canonicalId ? `/report/executive-summary?canonical_id=${row.canonicalId}` : null)
-      ?? `/report/executive-summary?reportId=${row.id}`;
+      ?? "/compset";
     window.open(target, "_blank", "noopener");
   };
 

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ReportShell } from "@/components/report/shell/report-shell";
 import { ReportPaper } from "@/components/report/shell/report-paper";
 
@@ -25,6 +26,13 @@ interface ErrorProps {
 }
 
 export default function UnderwritingErrorBoundary({ error, reset }: ErrorProps) {
+  // Preserve report context on "Back to financials" · without this the
+  // link would go to /report/financials (static) and lose the reportId.
+  const params = useParams<{ reportId?: string }>();
+  const financialsHref = params?.reportId
+    ? `/report/${params.reportId}/financials`
+    : "/report/financials";
+
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.error("[underwriting] route-level error:", error);
@@ -68,7 +76,7 @@ export default function UnderwritingErrorBoundary({ error, reset }: ErrorProps) 
                 Recompute scenario
               </button>
               <Link
-                href="/report/financials"
+                href={financialsHref}
                 className="font-headline text-[11px] font-bold uppercase tracking-[0.18em] text-slate-700 underline-offset-4 hover:underline"
               >
                 Back to financials
