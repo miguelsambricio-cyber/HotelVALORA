@@ -30,3 +30,4 @@ export type {
 export { buildFinancialsSlice } from "./sections/financials";
 export { buildUnderwritingSlice, buildUnderwritingBundleFromCanonical } from "./sections/underwriting";
 export { buildCapexSlice, resolveCapexCoords } from "./sections/capex";
+export { adaptCapexSliceToBreakdown } from "./adapters/capex-to-breakdown";

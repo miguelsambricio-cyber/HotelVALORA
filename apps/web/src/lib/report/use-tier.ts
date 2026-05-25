@@ -45,3 +45,36 @@ export function canEditAssumptions(tier: Tier): boolean {
 export function canViewFinancials(tier: Tier): boolean {
   return tier !== "free";
 }
+
+// ─── Section-level tier matrix (operator directive 2026-05-25) ──────────────
+//
+//   FREE     · Executive Summary only · everything else hidden
+//   PRO      · all main sections visible READ-ONLY · CAPEX/financial structure/
+//              exit scenarios/renders HIDDEN
+//   PREMIUM  · everything visible · editable
+
+export function canSeeAssetAnalysis(tier: Tier): boolean { return tier !== "free"; }
+export function canSeeCompetitiveSet(tier: Tier): boolean { return tier !== "free"; }
+export function canSeeMarketOverview(tier: Tier): boolean { return tier !== "free"; }
+export function canSeeFinancialsPL(tier: Tier): boolean { return tier !== "free"; }
+export function canSeeUnderwriting(tier: Tier): boolean { return tier !== "free"; }
+
+/** CAPEX detail · Premium-only. */
+export function canSeeCapexDetail(tier: Tier): boolean {
+  return tier === "premium" || tier === "team" || tier === "enterprise";
+}
+/** Financial Structure / Debt modelling detail · Premium-only. */
+export function canSeeFinancialStructure(tier: Tier): boolean {
+  return tier === "premium" || tier === "team" || tier === "enterprise";
+}
+/** Exit Scenarios detail · Premium-only. */
+export function canSeeExitScenarios(tier: Tier): boolean {
+  return tier === "premium" || tier === "team" || tier === "enterprise";
+}
+/** Premium 3D renders / marketing assets · Premium-only. */
+export function canSeeRenders(tier: Tier): boolean {
+  return tier === "premium" || tier === "team" || tier === "enterprise";
+}
+
+/** True iff the FREE tier · trigger upgrade CTAs in shared shells. */
+export function isFreeTier(tier: Tier): boolean { return tier === "free"; }

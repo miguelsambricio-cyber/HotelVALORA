@@ -12,13 +12,49 @@ import {
   ToggleSelector,
 } from "@/components/report/asset-analysis/capex";
 import { getMockCapexRenders } from "@/lib/report/capex-renders-data";
+import {
+  getCanonicalHotelById,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
+import { buildCapexSlice, adaptCapexSliceToBreakdown } from "@/lib/report/report-object";
 
 export const metadata: Metadata = {
   title: "CAPEX & Renders — HotelVALORA",
 };
 
-export default function CapexRendersPage() {
-  const data = getMockCapexRenders();
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: { canonical_id?: string; hotel_id?: string };
+}
+
+async function loadCapexData(searchParams: PageProps["searchParams"]) {
+  const mock = getMockCapexRenders();
+
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (!canonicalId) return mock;
+
+  const hotel = await getCanonicalHotelById(canonicalId);
+  if (!hotel) return mock;
+
+  const slice = buildCapexSlice(hotel);
+  const rooms = hotel.total_keys ?? hotel.total_rooms ?? 150;
+  const canonicalBreakdown = adaptCapexSliceToBreakdown(slice, rooms);
+
+  // Mix · canonical-derived CAPEX breakdown + schedule, gallery + renders
+  // remain mock until per-hotel curation lands (Phase E+).
+  return {
+    ...mock,
+    hotelLabel: hotel.canonical_name ?? mock.hotelLabel,
+    capex: canonicalBreakdown,
+  };
+}
+
+export default async function CapexRendersPage({ searchParams = {} }: PageProps) {
+  const data = await loadCapexData(searchParams);
 
   const headerActions = (
     <div className="flex items-center gap-4">
@@ -49,11 +85,7 @@ export default function CapexRendersPage() {
             className="mb-5"
           />
 
-          {/* CAPEX BREAKDOWN + PROPERTY GALLERY
-             Left column carries TOTAL CAPEX → Hard / Soft / Project Costs →
-             CAPEX Schedule (as a 5th card). Right column is the fixed-width
-             Property Gallery. items-start so neither column stretches the
-             other vertically. */}
+          {/* CAPEX BREAKDOWN + PROPERTY GALLERY */}
           <div className="grid items-start gap-5 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_250px] print:grid-cols-[minmax(0,1fr)_250px]">
             <div className="min-w-0 space-y-4">
               <CapexTable breakdown={data.capex} />

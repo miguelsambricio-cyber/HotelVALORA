@@ -9,13 +9,41 @@ import {
 } from "@/components/report/market-overview/transactions";
 import { ProjectsTable } from "@/components/report/market-overview/projects";
 import { getMockProjects } from "@/lib/report/projects-data";
+import {
+  getCanonicalHotelById,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
 
 export const metadata: Metadata = {
   title: "Projects — HotelVALORA",
 };
 
-export default function ProjectsPage() {
-  const data = getMockProjects();
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: { canonical_id?: string; hotel_id?: string };
+}
+
+/**
+ * Projects · MARKET-LEVEL scope per operator directive (2026-05-25 §3).
+ * Pipeline projects are inherently market-wide · the hotel context only
+ * drives the header label and provides traceability. Future: filter by
+ * hotel.market_id when projects-data carries per-market segmentation.
+ */
+async function loadProjectsData(searchParams: PageProps["searchParams"]) {
+  const mock = getMockProjects();
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (!canonicalId) return mock;
+  const hotel = await getCanonicalHotelById(canonicalId);
+  if (!hotel) return mock;
+  return { ...mock, hotelLabel: hotel.canonical_name ?? mock.hotelLabel };
+}
+
+export default async function ProjectsPage({ searchParams = {} }: PageProps) {
+  const data = await loadProjectsData(searchParams);
 
   const headerActions = (
     <div className="flex items-center gap-4">

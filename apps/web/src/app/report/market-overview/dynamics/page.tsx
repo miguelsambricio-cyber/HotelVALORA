@@ -5,29 +5,47 @@ import { ActionBar } from "@/components/report/executive-summary/action-bar";
 import { HotelToggle } from "../../asset-analysis/hotel-toggle";
 import { DynamicsChartCard } from "@/components/report/market-overview/dynamics";
 import { CHART_PRESETS } from "@/lib/report/market-dynamics-data";
+import {
+  getCanonicalHotelById,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
 
 export const metadata: Metadata = {
   title: "Market Dynamics — HotelVALORA",
 };
 
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: { canonical_id?: string; hotel_id?: string };
+}
+
 /**
- * Market Dynamics — 8 institutional charts in a 2×4 grid (web + print).
- * Each card owns its own filter state initialised from CHART_PRESETS.
+ * Market Dynamics — MARKET-LEVEL data per operator directive (2026-05-25 §3).
  *
- * Stitch parity:
- *   Row 1 — Mercado · Ocupacion           (5Y / 3Y)
- *   Row 2 — Compset · ADR                  (5Y / 3Y)
- *   Row 3 — Compset · RevPAR               (5Y / 3Y)
- *   Row 4 — Mercado · Oferta RN / Demanda RN (5Y / 5Y)
- *
- * Page is a server component — only the chart cards are client (they hold
- * the per-card filter state). HotelToggle stays client.
+ * Page accepts `canonical_id` (or `hotel_id`) · resolves the hotel only
+ * to populate the header label · the underlying chart presets remain
+ * market-level (Madrid-wide) since all Madrid hotels share the same
+ * market dynamics. Future: filter by `hotel.market_id` when CoStar
+ * publishes per-market time-series.
  */
-export default function MarketDynamicsPage() {
+async function loadHotelLabel(searchParams: PageProps["searchParams"]) {
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (!canonicalId) return "Prime";
+  const hotel = await getCanonicalHotelById(canonicalId);
+  return hotel?.canonical_name ?? "Prime";
+}
+
+export default async function MarketDynamicsPage({ searchParams = {} }: PageProps) {
+  const hotelLabel = await loadHotelLabel(searchParams);
+
   const headerActions = (
     <div className="flex items-center gap-4">
       <span className="text-xl font-bold text-slate-700 font-headline">
-        Prime
+        {hotelLabel}
       </span>
       <HotelToggle />
     </div>

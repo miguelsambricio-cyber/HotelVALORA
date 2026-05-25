@@ -9,13 +9,41 @@ import {
   TransactionsTable,
 } from "@/components/report/market-overview/transactions";
 import { getMockTransactions } from "@/lib/report/transactions-data";
+import {
+  getCanonicalHotelById,
+  resolveCanonicalIdFromSnapshotHotelId,
+} from "@/lib/report/canonical-reader";
 
 export const metadata: Metadata = {
   title: "Transactions — HotelVALORA",
 };
 
-export default function TransactionsPage() {
-  const data = getMockTransactions();
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  searchParams?: { canonical_id?: string; hotel_id?: string };
+}
+
+/**
+ * Transactions · MARKET-LEVEL scope per operator directive (2026-05-25 §3).
+ * Past transactions are inherently market-wide · the hotel context only
+ * drives the header label. Future: filter by hotel.market_id when
+ * transactions-data carries market segmentation.
+ */
+async function loadTransactionsData(searchParams: PageProps["searchParams"]) {
+  const mock = getMockTransactions();
+  let canonicalId = searchParams?.canonical_id?.trim() || null;
+  if (!canonicalId && searchParams?.hotel_id) {
+    canonicalId = await resolveCanonicalIdFromSnapshotHotelId(searchParams.hotel_id.trim());
+  }
+  if (!canonicalId) return mock;
+  const hotel = await getCanonicalHotelById(canonicalId);
+  if (!hotel) return mock;
+  return { ...mock, hotelLabel: hotel.canonical_name ?? mock.hotelLabel };
+}
+
+export default async function TransactionsPage({ searchParams = {} }: PageProps) {
+  const data = await loadTransactionsData(searchParams);
 
   const headerActions = (
     <div className="flex items-center gap-4">
