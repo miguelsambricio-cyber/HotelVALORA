@@ -100,9 +100,12 @@ function pickUniqueUrls(list: ReadonlyArray<string>, cap: number): string[] {
  * Real shape (validated 2026-05-26 against the live API):
  *   { status: true, message: "Success", data: [{ id: number, url: string }] }
  *
- * The `url` field is the complete cf.bstatic.com CDN URL (already at
- * square1024 size by default). We strip the query string suffix (auth
- * signature `?k=...&o=`) so dedup by basename works on the photo_id.
+ * IMPORTANT · the `?k=<signature>&o=` query suffix is a REQUIRED CloudFront
+ * auth signature, NOT optional. Stripping it produces HTTP 401 Unauthorized
+ * (confirmed empirically 2026-05-26 against cf.bstatic.com). Keep the full
+ * URL · dedup-by-basename in `pickUniqueUrls` still works correctly because
+ * basename is derived from the path's last segment minus the file extension
+ * (the `?k=` portion lives further right and never appears in the basename).
  */
 function extractBookingPhotoUrls(payload: unknown): string[] {
   if (!payload || typeof payload !== "object") return [];
@@ -113,10 +116,8 @@ function extractBookingPhotoUrls(payload: unknown): string[] {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
     if (typeof o.url === "string" && /^https?:\/\//.test(o.url)) {
-      // Strip the auth query string for clean URLs · CDN serves the photo
-      // unchanged whether the signature is present or not for public hotels.
-      const clean = o.url.split("?")[0];
-      urls.push(clean);
+      // Store the URL VERBATIM · the signature is required for CDN auth
+      urls.push(o.url);
     }
   }
   return urls;
