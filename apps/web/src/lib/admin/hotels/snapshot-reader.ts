@@ -353,9 +353,13 @@ let cache: { mtime: number; snapshot: HotelsSnapshot | null } | null = null;
  * first hit reads + parses the file, every subsequent canonical-reader
  * call (10× per report navigation) returns in microseconds.
  *
- * Trade-off: operator-driven snapshot changes won't be visible until the
- * next deploy. Acceptable · snapshot updates land via the ingest.py
- * pipeline which already triggers a deploy.
+ * E1 (2026-05-26 · cold-start fix): bypass `loadHotelsSnapshot()` for the
+ * resolver path. The resolver only needs `market_snapshots` (CoStar
+ * KPIs per submarket/market/country) · NOT operator-managed manual rows
+ * (manual_hotels, manual_transactions, manual_projects, manual_enrichment).
+ * `_mergeAllManual` triggers 4 cascaded Supabase Storage list+download
+ * chains on cold start that account for ~30-50s of the observed 54s
+ * cold start latency.
  *
  * Used by canonical-reader.ts `resolveBestAvailableMarketKpis`.
  */
@@ -363,11 +367,37 @@ let marketSnapshotsCache: Array<Record<string, unknown>> | null = null;
 
 export async function loadMarketSnapshotsCached(): Promise<Array<Record<string, unknown>>> {
   if (marketSnapshotsCache !== null) return marketSnapshotsCache;
-  const snap = await loadHotelsSnapshot();
-  const ms = (snap as unknown as { market_snapshots?: Array<Record<string, unknown>> } | null)
-    ?.market_snapshots ?? [];
-  marketSnapshotsCache = ms;
-  return ms;
+
+  // Path 1 · local filesystem (bundled with the lambda · always present
+  // on Vercel deploys built from this repo).
+  try {
+    const raw = await readFile(SNAPSHOT_PATH, "utf-8");
+    const parsed = JSON.parse(raw) as { market_snapshots?: Array<Record<string, unknown>> };
+    marketSnapshotsCache = parsed.market_snapshots ?? [];
+    return marketSnapshotsCache;
+  } catch {
+    /* fall through to storage */
+  }
+
+  // Path 2 · Supabase Storage fallback (only if filesystem path missing).
+  // Wrapped in a 3s timeout so a stalled Storage call can't tank the
+  // whole report render.
+  try {
+    const parsed = await Promise.race([
+      downloadFromStorage(),
+      new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error("Storage timeout 3s")), 3000),
+      ),
+    ]);
+    const ms =
+      (parsed as unknown as { market_snapshots?: Array<Record<string, unknown>> } | null)
+        ?.market_snapshots ?? [];
+    marketSnapshotsCache = ms;
+    return ms;
+  } catch {
+    marketSnapshotsCache = [];
+    return marketSnapshotsCache;
+  }
 }
 
 /**
@@ -579,13 +609,33 @@ async function loadManualEnrichment(): Promise<EnrichmentRow[]> {
   }
 }
 
+/**
+ * DC (2026-05-26 · cold-start safety): wrap a manual-prefix loader in
+ * a Promise.race timeout. If a Supabase Storage cascade stalls (cold
+ * lambda · DNS · TLS · network), the loader returns [] instead of
+ * blocking the page render for tens of seconds. The next request (warm)
+ * will retry · cache-hit will return fresh data within 30s TTL.
+ */
+async function _withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T | []> {
+  return Promise.race([
+    p,
+    new Promise<[]>((resolve) =>
+      setTimeout(() => {
+        console.warn(`[snapshot-reader] ${label} timeout after ${ms}ms · returning []`);
+        resolve([] as unknown as []);
+      }, ms),
+    ),
+  ]) as Promise<T | []>;
+}
+
 async function _mergeAllManual(snapshot: HotelsSnapshot): Promise<HotelsSnapshot> {
-  // Load all four operator write-paths in parallel
+  // Load all four operator write-paths in parallel · each guarded by a
+  // 3-second timeout so a stalled Storage cascade can't hold the render.
   const [manualHotels, manualTransactions, manualProjects, manualEnrichment] = await Promise.all([
-    loadManualHotels(),
-    loadManualTransactions(),
-    loadManualProjects(),
-    loadManualEnrichment(),
+    _withTimeout(loadManualHotels(), 3000, "loadManualHotels") as Promise<HotelRecord[]>,
+    _withTimeout(loadManualTransactions(), 3000, "loadManualTransactions") as Promise<TransactionEntry[]>,
+    _withTimeout(loadManualProjects(), 3000, "loadManualProjects") as Promise<unknown[]>,
+    _withTimeout(loadManualEnrichment(), 3000, "loadManualEnrichment") as Promise<EnrichmentRow[]>,
   ]);
 
   // Hotels · canonical wins on hotel_id collision
