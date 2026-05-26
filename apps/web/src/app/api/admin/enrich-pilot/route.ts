@@ -15,7 +15,7 @@ import { enrichHotel } from "@/lib/enrichment/enrich-hotel";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 min · Vercel Hobby max
 
-const MAX_BATCH = 10;
+const MAX_BATCH = 15;
 
 interface PilotBody {
   canonical_ids?: string[];
