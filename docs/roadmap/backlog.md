@@ -4,6 +4,23 @@ Three buckets: **Future ideas** · **Blocked** · **Technical debt**. Anything e
 
 ---
 
+## Active pending (post 2026-05-26 sweep)
+
+Captured at end-of-day shutdown. Ordered roughly by tomorrow's working order — PASO 4 first.
+
+1. **PASO 4 · facility-aware P&L rule** — 3-factor by hotel type (urban 2% · mixed 3% · resort 4%) configurable in `/user/admin/financials`. Includes F&B uplift + drop absent facilities + proportional redistribution to 100%. **Tomorrow's session**.
+2. **PASO 4 sub-task · MICE parser fix** — sweep produced **0/226** `meeting_rooms_count` because the parser doesn't catch the Booking pattern. Decision firmed: presence of *any* event space → MICE P&L line activates (no minimum count). Parser must extract this binary signal correctly.
+3. **PASO 4 sub-task · F&B point-weighting** — open question, decided with the P&L document in hand. F&B + MICE both expanded in methodology.
+4. **PASO 4 sub-task · `restaurants_count` empty fallback** — only 19/226 hotels surface `accommodationHighlights "N restaurants"`. Decide rule for the other 207 (default to 1? infer from amenities bitmap? hide line?).
+5. **Methodology page 404** — `/methodology` (or equivalent route) returns 404. Page exists in concept but not in routing. Restore.
+6. **Catastral map / floor-plan on Asset Analysis** — institutional surface for parcel imagery + cadastral overlay. Spec already filed at `docs/features/catastro-imagen-mapa-spec.md`.
+7. **Rebrand policy** — 3-layer infrastructure shipped (`hotel_name_alias` + `hotel_canonical_history` + `same_building_rebrand` enum + 2 seeded). **Untouched today.** Future: same-building detector + admin UI for operator-curated merges + cross-border behaviour once CoStar mundial lands.
+8. **Vercel Pro pre-demo** — current Hobby plan limits (1024MB function memory · 300s maxDuration · 2-4 daily crons) tight under demo load. Upgrade before institutional demo.
+9. **Integrations key management** — `/user/admin/integrations` needs a clean operator UI for provisioning / rotating / invalidating API keys (RapidAPI · Google Places · Resend · CRON_SECRET · INGESTION_AUDIT_TOKEN). T1 credentials currently encrypted in Supabase; expose via admin without leaking values.
+10. **Agents system review** — 9 operational agents + CEO seeded but mostly dormant. Review status of each, decide which to activate post-Paso 4.
+
+---
+
 ## Future ideas
 
 ### Library

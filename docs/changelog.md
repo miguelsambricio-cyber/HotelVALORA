@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-26 — feat(enrichment): sweep 226/226 hotels + daily refresh cron live
+
+End-of-day enrichment milestone. After the 3-hotel pilot validated end-to-end (Bless · Mandarin · Four Seasons), the full Madrid corpus was swept and a daily refresh cron registered. Rebrands stayed intact throughout.
+
+- **Sweep** · 15 sequential batches × 15 hotels via `/api/admin/enrich-pilot` (MAX_BATCH bumped 10→15). 27 min wall time · `ok=223 err=0` on top of the 3 pilots = **226/226**. Quality on the enriched corpus: 224/226 with photos (avg **38.7 photos/hotel** · all `?k=…&o=` signed) · 225/226 with amenities bitmap · 19/226 with `restaurants_count` (Booking surfaces `accommodationHighlights "N restaurants"` only ~8% of the time) · **0/226 with `meeting_rooms_count`** — parser doesn't catch the MICE pattern, queued for Paso 4.
+- **Cron** · `POST /api/cron/hotel-enrichment` registered in `vercel.json` at `0 4 * * *` UTC (06:00 Madrid summer). Selection `last_enriched_at IS NULL OR < NOW() - 30 days` ordered oldest-first · batch 20 hotels/run within 300s maxDuration. Auth accepts `CRON_SECRET` (Vercel auto-inject) OR `INGESTION_AUDIT_TOKEN` (manual). First fire tomorrow 27-05.
+- **Verification samples** · 3 random non-pilot hotels handed to operator for browser check: VP Plaza España Design (5★ · 40 photos · 2 restaurants) · Clement Barajas (4★ airport · 40 photos) · Exe Convention Plaza Madrid (4★ corporate · 34 photos).
+
+Methodology decisions firmed this session (page renders 404 — fix queued):
+
+- **F&B and MICE both expanded** in the institutional methodology surface.
+- **MICE detection rule (firm)** · presence of *any* event/meeting space → MICE P&L line activates (no minimum count). The Paso 4 parser fix must extract this signal correctly.
+- **F&B point-weighting** · open question, decided tomorrow with the P&L document in hand.
+
+---
+
 ## 2026-05-26 — fix(enrichment): unsigned hero_image_path made photo 1 fail with 401
 
 After commit 69694b7 restored the `?k=` CloudFront signature on `gallery_paths`, the 3 pilot hotels still rendered photo 1 black with only alt-text on Executive Summary. Root cause: `hero_image_path` was a leftover from phase C/D when the parser stripped the signature · the executive-summary mapper prepended it before `gallery_paths` and the dedup-by-basename retained the unsigned hero, kicking out the signed `gallery[0]`. Counter "1/40" matched: 1 unsigned hero + 39 signed gallery photos (gallery[0] dropped).
