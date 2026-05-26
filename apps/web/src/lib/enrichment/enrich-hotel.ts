@@ -354,6 +354,10 @@ export async function enrichHotel(canonical_id: string): Promise<EnrichResult> {
         update.gallery_paths = unique;
         fields_updated.push("gallery_paths");
         photos_persisted = unique.length;
+        // Keep hero_image_path in lockstep with the signed gallery · prevents
+        // the phase C/D unsigned hero from re-emerging on the sweep of 221.
+        update.hero_image_path = unique[0];
+        fields_updated.push("hero_image_path");
       } else {
         photos_persisted = row.gallery_paths?.length ?? 0;
       }

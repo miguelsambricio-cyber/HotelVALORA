@@ -173,13 +173,15 @@ export function mapCanonicalToExecutiveSummary(
   // Provenance signal · downstream provenance/methodology can read this
   const keysFromHeuristic = canonicalKeys === null && engineRun !== null;
 
-  // Hotel photos · combine hero_image_path + gallery_paths, dedupe by
-  // basename (Booking returns the same image at 3 sizes — keep the
-  // largest occurrence per image). Empty array → carousel uses its
-  // placeholder set.
+  // Hotel photos · combine gallery_paths + hero_image_path, dedupe by
+  // basename. gallery_paths is ENRICHED (Booking signed URLs · always
+  // carries the ?k= CloudFront signature). hero_image_path is a phase
+  // C/D legacy that may be unsigned · we keep it as a fallback only.
+  // Order matters · gallery first so dedup retains the signed copy
+  // when both reference the same basename (= same image, 3 sizes).
   const photoCandidates: string[] = [
-    ...(hotel.hero_image_path ? [hotel.hero_image_path] : []),
     ...(hotel.gallery_paths ?? []),
+    ...(hotel.hero_image_path ? [hotel.hero_image_path] : []),
   ];
   const seenBasenames = new Set<string>();
   const uniquePhotos: string[] = [];

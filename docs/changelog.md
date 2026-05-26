@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-26 — fix(enrichment): unsigned hero_image_path made photo 1 fail with 401
+
+After commit 69694b7 restored the `?k=` CloudFront signature on `gallery_paths`, the 3 pilot hotels still rendered photo 1 black with only alt-text on Executive Summary. Root cause: `hero_image_path` was a leftover from phase C/D when the parser stripped the signature · the executive-summary mapper prepended it before `gallery_paths` and the dedup-by-basename retained the unsigned hero, kicking out the signed `gallery[0]`. Counter "1/40" matched: 1 unsigned hero + 39 signed gallery photos (gallery[0] dropped).
+
+Two fixes ship together:
+
+- **Mapper · prefer gallery over hero**. `executive-summary.ts` photoCandidates now lists `gallery_paths` first, `hero_image_path` second. Dedup retains the signed copy. Hero remains as fallback when gallery is empty.
+- **Enrichment worker · lockstep update**. `enrich-hotel.ts` now also sets `hero_image_path = unique[0]` when it updates `gallery_paths` · prevents the unsigned-hero state from re-emerging on the 221-hotel sweep.
+- **DB backfill** · the 3 pilot hotels' `hero_image_path` rewritten to `gallery_paths[1]` (signed) via SQL.
+
+Typecheck: PASS exit 0. No structural changes · CLAUDE.md "When NOT to update" applies for the other docs files.
+
+---
+
 ## 2026-05-26 — feat(rebrand-policy): 3-layer building-identity infrastructure
 
 The 4-slug audit on 2026-05-25 surfaced a structural gap: the existing dedup engine (name-weighted 35/30/20/10/5) misses rebrands of the same building under drastically different names (e.g. AC Hotel Cuzco → The Westin Madrid Cuzco). With CoStar mundial about to land thousands of cross-border hotels, this becomes a duplicate-row factory. Three layers ship together to close the gap.
