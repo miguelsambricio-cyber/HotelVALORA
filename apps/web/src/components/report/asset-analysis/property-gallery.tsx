@@ -33,9 +33,11 @@ function GalleryItem({ image }: GalleryItemProps) {
           </button>
         )}
       </div>
-      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-        {image.caption}
-      </span>
+      {image.caption && (
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          {image.caption}
+        </span>
+      )}
     </div>
   );
 }

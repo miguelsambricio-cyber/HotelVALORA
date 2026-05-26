@@ -92,6 +92,8 @@ export default async function AssetAnalysisPage({ params }: PageProps) {
               <div className="md:col-span-4 print:col-span-4 flex flex-col gap-4">
                 <PropertyImageCard
                   src={data.media.heroImage}
+                  photos={data.media.photos}
+                  alt={data.hotelLabel}
                   tabs={data.media.heroTabs}
                 />
 

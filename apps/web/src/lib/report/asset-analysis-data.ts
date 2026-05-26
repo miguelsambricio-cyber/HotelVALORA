@@ -10,6 +10,12 @@ export interface FacilityItem {
   label: string;
   /** True = available (green check). False = not available (slate dash) */
   available: boolean;
+  /**
+   * Optional unit count from canonical data. When set and > 1, renders as
+   * "Label ×N" (e.g. "Restaurant ×4"). When null/undefined, only the
+   * presence checkmark renders (honest absence of count · data principle).
+   */
+  count?: number | null;
 }
 
 export interface RoomMixRow {
@@ -30,13 +36,21 @@ export interface GalleryImage {
 }
 
 export interface PropertyMedia {
-  /** Square hero image at the top of the right column */
+  /** Square hero image at the top of the right column · legacy single-image
+   *  slot · superseded by `photos` carousel when available. */
   heroImage: string;
-  /** Tabs below the hero (e.g. "Catastro", "Planos") — first item is active */
+  /**
+   * Real photo gallery (gallery_paths from canonical, deduped). Drives the
+   * carousel in the right column of Asset Analysis. When empty, the page
+   * falls back to a single `heroImage`. 0-40 entries.
+   */
+  photos?: string[];
+  /** Tabs below the hero · placeholder for future IMAGEN / MAPA (Catastro) */
   heroTabs: { label: string; href?: string }[];
   /** Section label above the vertical gallery (e.g. "GRAFICOS: MYPROPERTY") */
   galleryLabel: string;
-  /** Vertical gallery images (Lobby, Restaurante, Rooftop, …) */
+  /** Vertical gallery images · captions empty when the photo's role
+   *  (Lobby/Restaurante/etc.) can't be identified from the source. */
   galleryImages: GalleryImage[];
 }
 
@@ -86,7 +100,6 @@ export function getMockAssetAnalysis(): AssetAnalysisData {
       { label: "SPA Wellness", available: false },
       { label: "Pool", available: false },
       { label: "Parking", available: true },
-      { label: "Other rentals", available: false },
     ],
     roomMix: [
       { type: "Total Rooms", units: 150, sizeSqm: 29, isTotal: true },

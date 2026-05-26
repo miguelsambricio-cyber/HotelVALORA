@@ -20,11 +20,15 @@ const PLACEHOLDER_PHOTOS = [
 interface HotelPhotoCarouselProps {
   name: string;
   photos?: string[];
+  /** Override the aspect ratio. Defaults to "[4/3]". Asset Analysis uses
+   *  "square" so the hero photo card stays on its existing footprint. */
+  aspect?: "[4/3]" | "square" | "video";
 }
 
 export function HotelPhotoCarousel({
   name,
   photos,
+  aspect = "[4/3]",
 }: HotelPhotoCarouselProps) {
   // Prefer real photos · fall back to placeholder set when canonical
   // lacks media. Empty array is treated as "no real photos".
@@ -39,39 +43,68 @@ export function HotelPhotoCarousel({
     setIndex((i) => (i === effectivePhotos.length - 1 ? 0 : i + 1));
   }
 
+  const aspectClass =
+    aspect === "square" ? "aspect-square" :
+    aspect === "video" ? "aspect-video" :
+    "aspect-[4/3]";
+
+  // Preload the next 2 photos so navigation feels instant · prevents the
+  // "gray flash" the operator reported (was caused by React remount via
+  // `key={src}` forcing the new img to fetch from scratch on each click).
+  const upcoming = [
+    effectivePhotos[(index + 1) % effectivePhotos.length],
+    effectivePhotos[(index + 2) % effectivePhotos.length],
+  ];
+
   return (
-    <div className="aspect-[4/3] w-full rounded-lg border border-slate-200 shadow-sm overflow-hidden relative bg-slate-100">
-      {/* Photo */}
+    <div className={`${aspectClass} w-full rounded-lg border border-slate-200 shadow-sm overflow-hidden relative bg-slate-900`}>
+      {/* Photo · no `key` prop so React reuses the <img> element on
+       *  navigation (avoids the unmount+remount that flashed the bg
+       *  through during fetch). `decoding="async"` lets the browser
+       *  draw the previous frame until the next is ready. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        key={effectivePhotos[index]}
         src={effectivePhotos[index]}
         alt={`${name} — foto ${index + 1}`}
-        className="w-full h-full object-cover transition-opacity duration-300"
+        className="w-full h-full object-cover"
+        loading="eager"
+        decoding="async"
       />
 
-      {/* Bottom gradient bar */}
-      <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-between">
-        <p className="text-white text-[10px] font-semibold truncate pr-2">{name}</p>
+      {/* Hidden preload of the next 2 photos */}
+      <div className="hidden" aria-hidden>
+        {upcoming.map((src) => (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img key={src} src={src} alt="" loading="eager" />
+        ))}
+      </div>
 
-        {/* Navigation — bottom-right */}
-        <div className="flex items-center gap-1 shrink-0">
+      {/* Bottom caption bar · the gradient is `pointer-events-none` so
+       *  it never intercepts hovers on the photo. The caption + nav
+       *  buttons live in a sibling flex row above, with their own
+       *  pointer-events restored. Reduced gradient intensity (45 from 70)
+       *  so the photo's bottom 30% isn't obscured. */}
+      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/45 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 px-3 py-2 flex items-end justify-between pointer-events-none">
+        <p className="text-white text-[10px] font-semibold truncate pr-2 drop-shadow-sm">{name}</p>
+
+        <div className="flex items-center gap-1 shrink-0 pointer-events-auto">
           <button
             type="button"
             onClick={prev}
             aria-label="Foto anterior"
-            className="w-6 h-6 rounded bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
+            className="w-6 h-6 rounded bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="text-white text-[10px] font-bold tabular-nums min-w-[28px] text-center">
+          <span className="text-white text-[10px] font-bold tabular-nums min-w-[32px] text-center drop-shadow-sm">
             {index + 1}/{effectivePhotos.length}
           </span>
           <button
             type="button"
             onClick={next}
             aria-label="Foto siguiente"
-            className="w-6 h-6 rounded bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors"
+            className="w-6 h-6 rounded bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
           >
             <ChevronRight size={14} />
           </button>

@@ -30,16 +30,29 @@ export function FacilitiesCard({
         {title}
       </h4>
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] text-slate-700">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-center gap-2">
-            {item.available ? (
-              <Check size={16} className="text-emerald-600" strokeWidth={3} />
-            ) : (
-              <Minus size={16} className="text-slate-400" strokeWidth={3} />
-            )}
-            <span>{item.label}</span>
-          </div>
-        ))}
+        {items.map((item) => {
+          // Render count only when present AND > 1 (single-unit "×1" is
+          // visual noise · the check alone communicates presence). NULL
+          // count = unknown · check only, no number (honest absence).
+          const hasCount = typeof item.count === "number" && item.count > 1;
+          return (
+            <div key={item.label} className="flex items-center gap-2">
+              {item.available ? (
+                <Check size={16} className="text-emerald-600" strokeWidth={3} />
+              ) : (
+                <Minus size={16} className="text-slate-400" strokeWidth={3} />
+              )}
+              <span>
+                {item.label}
+                {hasCount && (
+                  <span className="ml-1.5 font-semibold text-forest-900 tabular-nums">
+                    ×{item.count}
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

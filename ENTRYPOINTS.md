@@ -341,6 +341,7 @@ Maps tasks to exact files. Start here before scanning.
 | **Report system synchronization audit (v1 · institutional · no implementation)** | `docs/report/synchronization-audit-v1.md` |
 | **Phase 1 · Token harmonization plan (gated · approval pending)** | `docs/report/phase-1-token-harmonization.md` |
 | **Booking Expansion + CompSet Substitution spec (PLANNED · NOT built)** — widen selectable universe with Booking-only hotels · enforce ≥4 with CoStar data via real-hotel substitution + transparency asterisks | `docs/features/booking-expansion-spec.md` |
+| **Catastro / Planos → IMAGEN / MAPA tabs spec (PLANNED · NOT built)** — replace inert tabs in Asset Analysis with real Spanish Catastro parcel map · 3-4h work · low risk | `docs/features/catastro-imagen-mapa-spec.md` |
 | **Rebrand policy · Layer A · same-building detector (geo-first · haversine ≤30m + postal + rooms ±20%)** | `apps/web/src/lib/enrichment/dedup/same-building-detector.ts` (`detectSameBuilding`, `classifyCandidate`) |
 | **Rebrand policy · Layer B · `hotel_name_alias` table** | migration `docs/database/migrations/0032_rebrand_policy_aliases_history.sql` (applied via MCP) · resolver lookup in `apps/web/src/lib/report/canonical-reader.ts` `resolveCanonicalIdFromAliasSlug` |
 | **Rebrand policy · Layer C · `hotel_canonical_history` table** | same migration 0032 |

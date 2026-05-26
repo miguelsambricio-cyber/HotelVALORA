@@ -27,14 +27,25 @@ const FACILITY_LABELS: { key: string; label: string }[] = [
   { key: "parking", label: "Parking" },
 ];
 
-function facilityFromAmenities(amenities: Record<string, boolean | null> | null) {
-  if (!amenities) {
-    return FACILITY_LABELS.map((f) => ({ label: f.label, available: false }));
-  }
-  return FACILITY_LABELS.map((f) => ({
-    label: f.label,
-    available: amenities[f.key] === true,
-  }));
+/**
+ * Build the facilities list with optional unit counts for the lines that
+ * canonical tracks discretely. NULL count = unknown · UI renders only the
+ * check, no number (honest absence per data principle).
+ */
+function facilityFromAmenities(
+  amenities: Record<string, boolean | null> | null,
+  counts: { restaurants: number | null; meetingRooms: number | null },
+) {
+  const present = (k: string) => amenities?.[k] === true;
+  return FACILITY_LABELS.map((f) => {
+    const item: { label: string; available: boolean; count?: number | null } = {
+      label: f.label,
+      available: present(f.key),
+    };
+    if (f.key === "restaurant") item.count = counts.restaurants;
+    if (f.key === "meet") item.count = counts.meetingRooms;
+    return item;
+  });
 }
 
 function categoryDisplay(starRating: number | null, chainScale: string | null): string {
@@ -127,14 +138,38 @@ export function mapCanonicalToAssetAnalysis(hotel: CanonicalHotelRow): AssetAnal
       { label: "Lot size", value: "—" },
       { label: "Planta tipo", value: "—" },
     ],
-    facilities: facilityFromAmenities(hotel.amenities),
+    facilities: facilityFromAmenities(hotel.amenities, {
+      restaurants:
+        (hotel as unknown as { restaurants_count?: number | null }).restaurants_count ?? null,
+      meetingRooms: hotel.meeting_rooms_count ?? null,
+    }),
     roomMix: deriveRoomMix(hotel),
     guestInsights: templatedInsights(hotel),
-    // Media: prefer canonical hero · gallery falls back to mock until
-    // image-strategy ships (Storage bucket per hotel)
-    media: {
-      ...mock.media,
-      heroImage: hotel.hero_image_path ?? mock.media.heroImage,
-    },
+    // Media:
+    //  - `photos`: full canonical gallery (40 photos) · drives the carousel
+    //    in the right column. Empty array when canonical has no gallery
+    //    (mock pages still get their placeholder set in the component).
+    //  - `heroImage`: legacy single-slot · kept for components that haven't
+    //    moved to the carousel yet.
+    //  - `galleryImages`: the 3 small thumbnails below the carousel · uses
+    //    a SUBSET of the real gallery (no fake labels like "Lobby" /
+    //    "Restaurante" because we can't identify photo roles from Booking's
+    //    response · empty caption = honest absence per data principle).
+    media: (() => {
+      const real = hotel.gallery_paths ?? [];
+      const hero = hotel.hero_image_path ?? real[0] ?? mock.media.heroImage;
+      // Pick 3 thumbnails AFTER the hero (so the bottom strip isn't
+      // identical to the carousel's first frame).
+      const thumbnails = real.slice(1, 4).map((src) => ({ src, caption: "" }));
+      return {
+        heroImage: hero,
+        photos: real,
+        heroTabs: mock.media.heroTabs,
+        galleryLabel: mock.media.galleryLabel,
+        // When canonical has 3+ photos we use real (no labels). Otherwise
+        // fall to mock so the page doesn't render an empty rail.
+        galleryImages: thumbnails.length === 3 ? thumbnails : mock.media.galleryImages,
+      };
+    })(),
   };
 }
