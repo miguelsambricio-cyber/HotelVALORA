@@ -147,3 +147,55 @@ export function getHotelFacilities(
     currency_code: params.currencyCode ?? "EUR",
   });
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// E4 — hotels/photos · returns ~40 image URLs from cf.bstatic.com CDN
+// ───────────────────────────────────────────────────────────────────────────
+
+export interface HotelPhotosParams {
+  hotelId: string | number;
+  languagecode?: string;
+}
+
+/** Raw photo response shape · the booking-com15 family returns an array
+ *  of objects with a `url_max` or `url_original` field per photo. We use
+ *  defensive parsing in map-to-canonical · cast as `unknown` here. */
+export type BookingPhotosResponse = unknown;
+
+export const PATH_E4_PHOTOS = "/api/v1/hotels/getHotelPhotos";
+
+export function getHotelPhotos(
+  client: BookingRapidApiClient,
+  params: HotelPhotosParams,
+): Promise<RapidApiResult<BookingPhotosResponse>> {
+  return client.execute<BookingPhotosResponse>(PATH_E4_PHOTOS, {
+    hotel_id: params.hotelId,
+    languagecode: params.languagecode ?? "en-us",
+  });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// E5 — hotels/room-list · room types, configurations, prices
+// ───────────────────────────────────────────────────────────────────────────
+
+export type BookingRoomListResponse = unknown;
+
+export const PATH_E5_ROOM_LIST = "/api/v1/hotels/getRoomList";
+
+export function getRoomList(
+  client: BookingRapidApiClient,
+  params: HotelDataParams,
+): Promise<RapidApiResult<BookingRoomListResponse>> {
+  return client.execute<BookingRoomListResponse>(PATH_E5_ROOM_LIST, {
+    hotel_id: params.hotelId,
+    arrival_date: params.arrivalDate,
+    departure_date: params.departureDate,
+    adults: params.adults ?? 2,
+    children_age: params.childrenAge ?? "",
+    room_qty: params.roomQty ?? 1,
+    units: params.units ?? "metric",
+    temperature_unit: params.temperatureUnit ?? "c",
+    languagecode: params.languagecode ?? "en-us",
+    currency_code: params.currencyCode ?? "EUR",
+  });
+}
