@@ -95,127 +95,144 @@ function pickUniqueUrls(list: ReadonlyArray<string>, cap: number): string[] {
 }
 
 /**
- * Extract photo URLs from a Booking `getHotelPhotos` payload. The
- * booking-com15 family typically returns `data[]` with `url_max` /
- * `url_original` / variants. Parse defensively · skip what doesn't look
- * like an HTTPS URL.
+ * Extract photo URLs from a Booking `getHotelPhotos` payload.
+ *
+ * Real shape (validated 2026-05-26 against the live API):
+ *   { status: true, message: "Success", data: [{ id: number, url: string }] }
+ *
+ * The `url` field is the complete cf.bstatic.com CDN URL (already at
+ * square1024 size by default). We strip the query string suffix (auth
+ * signature `?k=...&o=`) so dedup by basename works on the photo_id.
  */
 function extractBookingPhotoUrls(payload: unknown): string[] {
   if (!payload || typeof payload !== "object") return [];
-  // booking-com15 returns `{ status: true, data: [...] }`
   const rawData = (payload as { data?: unknown }).data;
-  const list = Array.isArray(rawData) ? rawData : Array.isArray(payload) ? (payload as unknown[]) : [];
+  if (!Array.isArray(rawData)) return [];
   const urls: string[] = [];
-  for (const item of list) {
+  for (const item of rawData) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
-    const candidate =
-      (typeof o.url_max === "string" && o.url_max) ||
-      (typeof o.url_original === "string" && o.url_original) ||
-      (typeof o.url_1440 === "string" && o.url_1440) ||
-      (typeof o.url_640 === "string" && o.url_640) ||
-      null;
-    if (candidate && /^https?:\/\//.test(candidate)) urls.push(candidate);
+    if (typeof o.url === "string" && /^https?:\/\//.test(o.url)) {
+      // Strip the auth query string for clean URLs · CDN serves the photo
+      // unchanged whether the signature is present or not for public hotels.
+      const clean = o.url.split("?")[0];
+      urls.push(clean);
+    }
   }
   return urls;
 }
 
 /**
- * Extract the restaurants count from a Booking `getHotelFacilities`
- * payload. The endpoint typically returns categories with sub-items;
- * "Food & drink" / "Restaurants" / "Eating" categories carry restaurant
- * sub-entries. Conservative parsing · returns null when no recognizable
- * restaurant signal is found (per data principle).
+ * Collect the structured facility titles we care about: accommodationHighlights
+ * (Booking's curated hero list) + facility group titles + individual
+ * facility instance titles. This bounded list is what we scan for counts
+ * and presence · NOT the entire payload tree (which contains noisy nested
+ * attributes that caused over-counting in v1).
  */
-function extractRestaurantsCount(payload: unknown): number | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = (payload as { data?: unknown }).data ?? payload;
+function collectFacilityTitles(payload: unknown): {
+  highlights: string[];          // accommodationHighlights[].title
+  groupedFacilities: Array<{ group: string; title: string }>;
+} {
+  const out = { highlights: [] as string[], groupedFacilities: [] as Array<{ group: string; title: string }> };
+  if (!payload || typeof payload !== "object") return out;
+  const data = ((payload as { data?: unknown }).data ?? payload) as Record<string, unknown>;
 
-  // Walk known shapes to find a "restaurants" list
-  let restaurantEntries = 0;
-  const tryNode = (n: unknown): void => {
-    if (!n) return;
-    if (Array.isArray(n)) {
-      for (const item of n) tryNode(item);
-      return;
+  // accommodationHighlights · Booking's curated hero list with explicit
+  // patterns like "4 restaurants", "2 meeting rooms"
+  const highlights = data.accommodationHighlights;
+  if (Array.isArray(highlights)) {
+    for (const h of highlights) {
+      const t = (h as { title?: unknown })?.title;
+      if (typeof t === "string") out.highlights.push(t);
     }
-    if (typeof n !== "object") return;
-    const node = n as Record<string, unknown>;
-    const name =
-      typeof node.name === "string" ? node.name :
-      typeof node.title === "string" ? node.title :
-      typeof node.facility_name === "string" ? node.facility_name : "";
-    if (/restauran/i.test(name)) {
-      restaurantEntries++;
+  }
+
+  // facilityGroups · category labels (e.g. "Business Facilities", "Food & Drink")
+  const groups = data.facilityGroups;
+  const groupTitleById = new Map<number, string>();
+  if (Array.isArray(groups)) {
+    for (const g of groups) {
+      const o = g as { id?: unknown; title?: unknown };
+      if (typeof o.id === "number" && typeof o.title === "string") {
+        groupTitleById.set(o.id, o.title);
+      }
     }
-    for (const value of Object.values(node)) {
-      if (typeof value === "object") tryNode(value);
+  }
+
+  // facilities · list of feature instances with groupId → group title
+  const facilities = data.facilities;
+  if (Array.isArray(facilities)) {
+    for (const f of facilities) {
+      const o = f as { groupId?: unknown; instances?: unknown };
+      const groupTitle = typeof o.groupId === "number" ? (groupTitleById.get(o.groupId) ?? "") : "";
+      if (Array.isArray(o.instances)) {
+        for (const inst of o.instances) {
+          const t = (inst as { title?: unknown })?.title;
+          if (typeof t === "string") out.groupedFacilities.push({ group: groupTitle, title: t });
+        }
+      }
     }
-  };
-  tryNode(data);
-  return restaurantEntries > 0 ? restaurantEntries : null;
+  }
+  return out;
 }
 
 /**
- * Extract meeting_rooms_count from facilities. Same defensive walk ·
- * counts sub-items under "meeting / business / conference / event" nodes.
+ * Extract restaurants_count from Booking facilities payload.
+ *
+ * Strategy:
+ *   1. PRIMARY · `accommodationHighlights[].title` matching `^(\d+)\s+restaurants?$`
+ *      → returns the explicit count Booking surfaces (e.g. "4 restaurants" → 4)
+ *   2. FALLBACK · presence-only signal · returns null when count unknown
+ *      (data principle: lo que no sabemos NO lo inventamos)
+ *
+ * Replaces the v1 recursive walk that over-counted (Bless → 8 instead of 4).
  */
-function extractMeetingRoomsCount(payload: unknown): number | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = (payload as { data?: unknown }).data ?? payload;
-  let meetingEntries = 0;
-  const tryNode = (n: unknown): void => {
-    if (!n) return;
-    if (Array.isArray(n)) {
-      for (const item of n) tryNode(item);
-      return;
-    }
-    if (typeof n !== "object") return;
-    const node = n as Record<string, unknown>;
-    const name =
-      typeof node.name === "string" ? node.name :
-      typeof node.title === "string" ? node.title :
-      typeof node.facility_name === "string" ? node.facility_name : "";
-    if (/meeting|conferenc|business cent|banquet|ball ?room|function room/i.test(name)) {
-      meetingEntries++;
-    }
-    for (const value of Object.values(node)) {
-      if (typeof value === "object") tryNode(value);
-    }
-  };
-  tryNode(data);
-  return meetingEntries > 0 ? meetingEntries : null;
+function extractRestaurantsCount(payload: unknown): number | null {
+  const { highlights } = collectFacilityTitles(payload);
+  for (const t of highlights) {
+    const m = t.match(/^\s*(\d+)\s+restaurants?\s*$/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
 }
 
-/** Detect a facility presence boolean from facilities payload. */
+/**
+ * Extract meeting_rooms_count from Booking facilities payload.
+ *
+ * PRIMARY · `accommodationHighlights[].title` matching `^(\d+)\s+(meeting|conference)…`.
+ * FALLBACK · null (presence comes from amenities.meet · count unknown).
+ *
+ * Booking rarely surfaces meeting room counts even for hotels that have
+ * them · the bare amenity boolean is the reliable signal.
+ */
+function extractMeetingRoomsCount(payload: unknown): number | null {
+  const { highlights } = collectFacilityTitles(payload);
+  for (const t of highlights) {
+    const m = t.match(/^\s*(\d+)\s+(meeting room|conference room|banquet hall|ball ?room|function room)s?\s*$/i);
+    if (m) return parseInt(m[1], 10);
+  }
+  return null;
+}
+
+/**
+ * Detect facility presence from the structured facility titles (NOT
+ * recursive walk · avoids the v1 false-positives from nested attrs).
+ *
+ * Returns true if the pattern matches in accommodationHighlights OR
+ * grouped facility titles · false when scanned but nothing matched ·
+ * null when the payload had no structured facility data.
+ */
 function detectFacility(payload: unknown, pattern: RegExp): boolean | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = (payload as { data?: unknown }).data ?? payload;
-  let found = false;
-  let any = false;
-  const tryNode = (n: unknown): void => {
-    if (!n) return;
-    if (Array.isArray(n)) {
-      for (const item of n) tryNode(item);
-      return;
-    }
-    if (typeof n !== "object") return;
-    any = true;
-    const node = n as Record<string, unknown>;
-    const name =
-      typeof node.name === "string" ? node.name :
-      typeof node.title === "string" ? node.title :
-      typeof node.facility_name === "string" ? node.facility_name : "";
-    if (pattern.test(name)) found = true;
-    if (found) return;
-    for (const value of Object.values(node)) {
-      if (typeof value === "object") tryNode(value);
-    }
-  };
-  tryNode(data);
-  // If the payload had no recognizable structure return null (no data).
-  // If walked but didn't match, return false (confidently absent).
-  return any ? found : null;
+  const { highlights, groupedFacilities } = collectFacilityTitles(payload);
+  if (highlights.length === 0 && groupedFacilities.length === 0) return null;
+
+  for (const t of highlights) if (pattern.test(t)) return true;
+  for (const gf of groupedFacilities) {
+    // Check both group title and the instance title · "Business Facilities ::
+    // Meeting/Banquet facilities" matches /meeting/ in either.
+    if (pattern.test(gf.group) || pattern.test(gf.title)) return true;
+  }
+  return false;
 }
 
 export async function enrichHotel(canonical_id: string): Promise<EnrichResult> {
