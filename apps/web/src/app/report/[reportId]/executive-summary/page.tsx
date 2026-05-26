@@ -54,7 +54,11 @@ async function loadExecutiveSummaryData(
   const engineRun = (() => {
     try { return runForHotel(hotel); } catch { return null; }
   })();
-  await upsertHotelReportLibrary(hotel, {
+  // FIRE-AND-FORGET · library row write is not on the render's critical
+  // path · the DB write blocks the page response if awaited (~80-150ms
+  // per render). Errors are already swallowed inside the helper. The
+  // promise still runs on the server side after the response ships.
+  void upsertHotelReportLibrary(hotel, {
     engineRun,
     valuation: {
       estimated_value_eur: data.valuation.estimatedValue,
@@ -68,6 +72,8 @@ async function loadExecutiveSummaryData(
     scenario_label: data.valuation.scenario,
     keys_from_heuristic: data.valuation.scenario?.includes("heurístico") ?? false,
     report_url: `/report/${reportId}/executive-summary`,
+  }).catch((err) => {
+    console.error("[upsertHotelReportLibrary] background write failed:", err);
   });
   return { data, source: "canonical", canonical_id: session.canonical_id };
 }

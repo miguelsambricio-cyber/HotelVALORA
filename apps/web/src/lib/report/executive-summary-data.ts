@@ -11,6 +11,12 @@ export interface AssetData {
   keys: number;
   buildableArea: string;
   brand: string;
+  /**
+   * Real hotel photos from canonical (hero_image_path + gallery_paths).
+   * Undefined when canonical lacks media · the HotelPhotoCarousel falls
+   * back to its institutional placeholder set in that case.
+   */
+  photos?: string[];
 }
 
 export interface MarketMetricsData {

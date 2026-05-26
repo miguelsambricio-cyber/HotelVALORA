@@ -1,6 +1,6 @@
 import "server-only";
 import { createAnonServerSupabaseClient } from "@/lib/supabase/anon-server";
-import { loadHotelsSnapshot } from "@/lib/admin/hotels/snapshot-reader";
+import { loadHotelsSnapshot, loadMarketSnapshotsCached } from "@/lib/admin/hotels/snapshot-reader";
 
 /**
  * Phase 4 · canonical data layer for reports.
@@ -51,6 +51,7 @@ export interface CanonicalHotelRow {
   website_url: string | null;
   booking_url: string | null;
   hero_image_path: string | null;
+  gallery_paths: string[] | null;
   google_place_id: string | null;
   wikidata_qid: string | null;
   data_quality_tier: string | null;
@@ -64,7 +65,7 @@ export interface CanonicalHotelRow {
 }
 
 const SELECT_COLS =
-  "id,canonical_name,brand,brand_family,chain_scale,star_rating,hotel_type,segment,operator_type,address_line1,city,city_normalized,postal_code,country_code,region,neighborhood,lat,lng,total_rooms,total_keys,meeting_rooms_count,meeting_space_sqm,year_opened,year_renovated_last,review_score,review_count,phone,website_url,booking_url,hero_image_path,google_place_id,wikidata_qid,data_quality_tier,documented_independent,last_enriched_at,amenities,market_id,submarket_id,operator_id";
+  "id,canonical_name,brand,brand_family,chain_scale,star_rating,hotel_type,segment,operator_type,address_line1,city,city_normalized,postal_code,country_code,region,neighborhood,lat,lng,total_rooms,total_keys,meeting_rooms_count,meeting_space_sqm,year_opened,year_renovated_last,review_score,review_count,phone,website_url,booking_url,hero_image_path,gallery_paths,google_place_id,wikidata_qid,data_quality_tier,documented_independent,last_enriched_at,amenities,market_id,submarket_id,operator_id";
 
 type RawHotelRow = Omit<CanonicalHotelRow, "market_name" | "submarket_name" | "operator_name"> & {
   market_id?: string | null;
@@ -468,14 +469,15 @@ export async function resolveBestAvailableMarketKpis(
     }
     return toBundle("no_data", noDataLabel, "—", null, null, /* baselineFill */ false);
   }
-  const snap = await loadHotelsSnapshot();
-  if (!snap) {
+  // Module-scope cached read · 4.6MB snapshot.json parsed once per lambda
+  // instance · avoids the 100-300ms re-parse on every report page hit.
+  const ms = await loadMarketSnapshotsCached();
+  if (ms.length === 0) {
     if (isSpain) {
       return toBundle("baseline", baselineLabel, market_name, submarket_name, null);
     }
     return toBundle("no_data", noDataLabel, market_name, submarket_name, null, false);
   }
-  const ms = (snap as unknown as { market_snapshots?: Array<Record<string, unknown>> }).market_snapshots ?? [];
 
   const marketLc = market_name.toLowerCase();
   const submarketLc = submarket_name?.toLowerCase() ?? null;

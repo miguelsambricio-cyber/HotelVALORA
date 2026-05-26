@@ -70,7 +70,7 @@ export function AssetSection({ asset, meta }: AssetSectionProps) {
               Report ID: {meta.reportDisplayId} | {meta.reportDate}
             </p>
           </div>
-          <HotelPhotoCarousel name={asset.name} />
+          <HotelPhotoCarousel name={asset.name} photos={asset.photos} />
         </div>
 
       </div>

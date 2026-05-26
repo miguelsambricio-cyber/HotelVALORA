@@ -5,6 +5,11 @@
   "buildCommand": "pnpm build",
   "devCommand": "pnpm dev",
   "outputDirectory": ".next",
+  "functions": {
+    "src/app/report/**/page.tsx": {
+      "memory": 1024
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/hospitality-intel",

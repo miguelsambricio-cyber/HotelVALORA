@@ -345,6 +345,32 @@ let resolvedPathLogged = false;
 let cache: { mtime: number; snapshot: HotelsSnapshot | null } | null = null;
 
 /**
+ * PROCESS-LIFETIME cache for `market_snapshots` only. The 4.6 MB
+ * snapshot.json doesn't change between deploys (bundled at build time on
+ * Vercel) so re-reading + re-parsing it per request is pure overhead.
+ *
+ * This cache lives for the lifetime of the lambda instance. After the
+ * first hit reads + parses the file, every subsequent canonical-reader
+ * call (10× per report navigation) returns in microseconds.
+ *
+ * Trade-off: operator-driven snapshot changes won't be visible until the
+ * next deploy. Acceptable · snapshot updates land via the ingest.py
+ * pipeline which already triggers a deploy.
+ *
+ * Used by canonical-reader.ts `resolveBestAvailableMarketKpis`.
+ */
+let marketSnapshotsCache: Array<Record<string, unknown>> | null = null;
+
+export async function loadMarketSnapshotsCached(): Promise<Array<Record<string, unknown>>> {
+  if (marketSnapshotsCache !== null) return marketSnapshotsCache;
+  const snap = await loadHotelsSnapshot();
+  const ms = (snap as unknown as { market_snapshots?: Array<Record<string, unknown>> } | null)
+    ?.market_snapshots ?? [];
+  marketSnapshotsCache = ms;
+  return ms;
+}
+
+/**
  * Load the snapshot. Returns `null` when the file is missing or
  * malformed — caller renders the "data plane not yet wired" empty state.
  *

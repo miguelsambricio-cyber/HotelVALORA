@@ -173,6 +173,24 @@ export function mapCanonicalToExecutiveSummary(
   // Provenance signal · downstream provenance/methodology can read this
   const keysFromHeuristic = canonicalKeys === null && engineRun !== null;
 
+  // Hotel photos · combine hero_image_path + gallery_paths, dedupe by
+  // basename (Booking returns the same image at 3 sizes — keep the
+  // largest occurrence per image). Empty array → carousel uses its
+  // placeholder set.
+  const photoCandidates: string[] = [
+    ...(hotel.hero_image_path ? [hotel.hero_image_path] : []),
+    ...(hotel.gallery_paths ?? []),
+  ];
+  const seenBasenames = new Set<string>();
+  const uniquePhotos: string[] = [];
+  for (const url of photoCandidates) {
+    const basename = url.split("/").pop()?.split(".")[0] ?? url;
+    if (seenBasenames.has(basename)) continue;
+    seenBasenames.add(basename);
+    uniquePhotos.push(url);
+  }
+  const photos = uniquePhotos.length > 0 ? uniquePhotos : undefined;
+
   // Asset attributes from canonical (real · engine fallback for keys)
   const asset = {
     name: hotel.canonical_name ?? "—",
@@ -185,6 +203,7 @@ export function mapCanonicalToExecutiveSummary(
     keys,
     buildableArea: keys > 0 ? `${(keys * 38).toLocaleString("es-ES")} m²` : "—",
     brand,
+    photos,
   };
 
   // Market KPIs from resolveBestAvailableMarketKpis (real submarket where available)

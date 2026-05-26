@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-const HOTEL_PHOTOS = [
+/**
+ * Placeholder photo set · used ONLY when no canonical hotel photos arrive
+ * (mock fallback path, or canonical row without hero_image_path /
+ * gallery_paths). Real hotels render their Booking gallery via the
+ * `photos` prop · see canonical-mappers/executive-summary.ts.
+ */
+const PLACEHOLDER_PHOTOS = [
   "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80",
   "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80",
   "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80",
@@ -18,15 +24,19 @@ interface HotelPhotoCarouselProps {
 
 export function HotelPhotoCarousel({
   name,
-  photos = HOTEL_PHOTOS,
+  photos,
 }: HotelPhotoCarouselProps) {
+  // Prefer real photos · fall back to placeholder set when canonical
+  // lacks media. Empty array is treated as "no real photos".
+  const effectivePhotos =
+    photos && photos.length > 0 ? photos : PLACEHOLDER_PHOTOS;
   const [index, setIndex] = useState(0);
 
   function prev() {
-    setIndex((i) => (i === 0 ? photos.length - 1 : i - 1));
+    setIndex((i) => (i === 0 ? effectivePhotos.length - 1 : i - 1));
   }
   function next() {
-    setIndex((i) => (i === photos.length - 1 ? 0 : i + 1));
+    setIndex((i) => (i === effectivePhotos.length - 1 ? 0 : i + 1));
   }
 
   return (
@@ -34,8 +44,8 @@ export function HotelPhotoCarousel({
       {/* Photo */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        key={photos[index]}
-        src={photos[index]}
+        key={effectivePhotos[index]}
+        src={effectivePhotos[index]}
         alt={`${name} — foto ${index + 1}`}
         className="w-full h-full object-cover transition-opacity duration-300"
       />
@@ -55,7 +65,7 @@ export function HotelPhotoCarousel({
             <ChevronLeft size={14} />
           </button>
           <span className="text-white text-[10px] font-bold tabular-nums min-w-[28px] text-center">
-            {index + 1}/{photos.length}
+            {index + 1}/{effectivePhotos.length}
           </span>
           <button
             type="button"
