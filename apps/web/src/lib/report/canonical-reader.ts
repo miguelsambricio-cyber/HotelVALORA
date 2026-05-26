@@ -52,6 +52,7 @@ export interface CanonicalHotelRow {
   booking_url: string | null;
   hero_image_path: string | null;
   gallery_paths: string[] | null;
+  restaurants_count: number | null;
   google_place_id: string | null;
   wikidata_qid: string | null;
   data_quality_tier: string | null;
@@ -65,7 +66,7 @@ export interface CanonicalHotelRow {
 }
 
 const SELECT_COLS =
-  "id,canonical_name,brand,brand_family,chain_scale,star_rating,hotel_type,segment,operator_type,address_line1,city,city_normalized,postal_code,country_code,region,neighborhood,lat,lng,total_rooms,total_keys,meeting_rooms_count,meeting_space_sqm,year_opened,year_renovated_last,review_score,review_count,phone,website_url,booking_url,hero_image_path,gallery_paths,google_place_id,wikidata_qid,data_quality_tier,documented_independent,last_enriched_at,amenities,market_id,submarket_id,operator_id";
+  "id,canonical_name,brand,brand_family,chain_scale,star_rating,hotel_type,segment,operator_type,address_line1,city,city_normalized,postal_code,country_code,region,neighborhood,lat,lng,total_rooms,total_keys,meeting_rooms_count,meeting_space_sqm,restaurants_count,year_opened,year_renovated_last,review_score,review_count,phone,website_url,booking_url,hero_image_path,gallery_paths,google_place_id,wikidata_qid,data_quality_tier,documented_independent,last_enriched_at,amenities,market_id,submarket_id,operator_id";
 
 type RawHotelRow = Omit<CanonicalHotelRow, "market_name" | "submarket_name" | "operator_name"> & {
   market_id?: string | null;

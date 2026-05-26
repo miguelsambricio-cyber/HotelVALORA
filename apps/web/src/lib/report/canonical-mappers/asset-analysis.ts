@@ -139,8 +139,7 @@ export function mapCanonicalToAssetAnalysis(hotel: CanonicalHotelRow): AssetAnal
       { label: "Planta tipo", value: "—" },
     ],
     facilities: facilityFromAmenities(hotel.amenities, {
-      restaurants:
-        (hotel as unknown as { restaurants_count?: number | null }).restaurants_count ?? null,
+      restaurants: hotel.restaurants_count ?? null,
       meetingRooms: hotel.meeting_rooms_count ?? null,
     }),
     roomMix: deriveRoomMix(hotel),
