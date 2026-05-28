@@ -4,6 +4,34 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(db): FASE 3 sub-pasos 1 + 1.5 · migration 0036 + mapping/i18n layer · 2 backlog items surfaced
+
+**Sub-paso 1 · pure code, zero BD, zero UI** — two new modules under `apps/web/src/lib/admin/financials/`:
+- `pnl-line-mapping.ts` (173 LOC) — declarative `PANEL_ROW_TO_DB_COLUMN` mapping (18 rows ↔ 18 columns) · `dbRowToPanelState()` + `panelStateToOverrides()` transformers · `dbToPanelValue()` / `panelToDbValue()` with comma-decimal Spanish locale + ε 0.05pp epsilon on the diff to absorb display-rounding noise · `EffectiveTemplateRow` TS interface matching the view shape post-0036 · `PNL_DB_COLUMNS_HIDDEN` constant for `it_telecom_pct`/`staff_cost_memo_pct`/`rent_pct` (stored for CoStar traceability but never displayed · EBITDA HotelVALORA is pre-rent and pre-IT-allocations).
+- `pnl-i18n.ts` (152 LOC) — display-time ES translations · 47 country codes · 6 Madrid submarkets with correct diacritics (Argüelles, Chamberí, Chamartín) · classes per operator-firmed convention (Lujo + Económico translated · Upper Upscale / Upscale / Upper Midscale / Midscale stay in English STR canonical) · `DATA_SOURCE_BADGE` with 4 tones for the panel honesty UX (lime CoStar real / amber derived / rose pending). Nothing imports these yet · zero runtime impact.
+
+**Sub-paso 1.5 · migration 0036 · `pnl_template_split_fb_add_ffe`** — schema deltas required before sub-paso 2 (API GET pnl-template) can be wired:
+- `ADD pnl_template.expenses_food_pct numeric(5,2)` + `expenses_beverage_pct` + `ffe_reserve_pct`
+- `DEPRECATE pnl_template.expenses_fb_pct` (kept in table as safety net, removed from view exposure · drop in 0037 after API validation)
+- `RECREATE pnl_template_effective view` to expose the 3 new columns COALESCE'd with their `pnl_template_override` counterparts
+- COLUMN COMMENTs on all 4 columns documenting provenance and deprecation
+
+**Backfill (108 rows non-pending · 41 pending untouched):**
+- F&B split via revenue-weighted per-row formula: `expenses_food_pct = expenses_fb_pct × fb_food_pct / (fb_food_pct + fb_beverage_pct)` · symmetric for beverage · sum preserved exactly under any unit interpretation. Sample row Madrid Centre Upper Upscale hotel: 90.70 → food 62.67 + beverage 28.03 = 90.70 ✓.
+- FF&E reserve uniform 4.0 (USALI convention default · explicitly NOT a CoStar measurement per geography · documented as such in column comment + audit row).
+
+`import_pnl_to_supabase.py` updated to match new schema: `PCT_COLS` replaces `expenses_fb_pct` with the 2 new F&B + adds `ffe_reserve_pct` · `APARTAHOTEL_RULES` and `HOSTEL_RULES` carry pre-computed splits (60.0/15.0 and 26.25/43.75 respectively · revenue-weighted matches the SQL backfill formula exactly so re-running the import would be a true no-op).
+
+**Two backlog items surfaced (methodological debt pre-existing FASE 3 · MUST be visible across sessions, NOT buried in an audit row):**
+- **Backlog #19 · FF&E reserve refinement per geography** (post-FASE 3, non-blocking). The uniform 4.0 backfill is an industry rule-of-thumb, not CoStar real per (country, market, submarket, class). Sub-paso 6 of FASE 3 must render this value with a distinct badge ("convención sectorial") so operators don't read precision into a value that doesn't have it. Refine when better data becomes available.
+- **Backlog #20 · expenses_fb_pct unit reconciliation** (HIGH priority · before investor demo). BD values across the 149-row corpus (90.7 costar_submarket / 79.2 costar_national / 72.5 derived) are ~3× the panel default (`32% food rev + 22% beverage rev → ~29% weighted`). Hypothesis: BD carries CoStar all-in F&B (labor + overhead + allocations) while panel default reflects cost-of-goods only. Decision deferred to sub-paso 6: either (a) adjust panel sub-labels to `% food rev all-in` / `% beverage rev all-in`, or (b) reinterpret the BD value into cost-of-goods. The migration backfill preserves the total exactly under either interpretation — this is NOT a migration bug, it is methodological debt that FASE 3 surfaces.
+
+Audit row in `ai_agent_runs` (`operation=schema_migration` · `migration_name=0036_pnl_template_split_fb_add_ffe`) records all schema changes, backfill methodology, and both open debts explicitly. Memory updated in `project_paso4_closed.md` so the two backlog items are visible across sessions, not buried in BD.
+
+Verification (6/6 PASS): backfill complete (0 orphans) · 108 FF&E rows at 4.0 · pending FF&E NULL preserved · view exposes 3 new columns and hides deprecated `expenses_fb_pct` · audit row with both backlog notes landed.
+
+---
+
 ## 2026-05-28 — fix(data): resolve booking_hotel_id for 2 manual_curated hotels · last enrichment blind-spot closed (audit #16 follow-up)
 
 EDITION Madrid + Riu Plaza España (the 2 hotels created via `primary_source = manual_curated` without ID matching) resolved through the standard `booking-com15 /api/v1/hotels/searchDestination` flow · resolved IDs verified against operator-confirmed identity (Plaza de Celenque 2 / Gran Vía 84). The dest_id returned by `searchDestination` for `dest_type=hotel` hits IS the hotel_id used by the rest of the corpus · no separate mapping needed.

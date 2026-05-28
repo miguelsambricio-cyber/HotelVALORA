@@ -75,11 +75,11 @@ SUBMARKET_NORMALIZATIONS: dict[str, str] = {
 PCT_COLS: list[str] = [
     "rooms_revenue_pct", "fb_food_pct", "fb_beverage_pct", "meeting_events_pct",
     "spa_wellness_pct", "parking_other_pct",
-    "expenses_rooms_pct", "expenses_fb_pct", "other_departments_pct",
+    "expenses_rooms_pct", "expenses_food_pct", "expenses_beverage_pct", "other_departments_pct",
     "admin_general_pct", "it_telecom_pct", "sales_marketing_pct",
     "operations_maintenance_pct", "utilities_pct",
     "gop_pct", "management_fees_pct", "rent_pct",
-    "property_taxes_pct", "insurance_pct", "ebitda_pct", "staff_cost_memo_pct",
+    "property_taxes_pct", "insurance_pct", "ffe_reserve_pct", "ebitda_pct", "staff_cost_memo_pct",
 ]
 
 ID_COLS: list[str] = ["country", "market", "submarket", "class", "segmentation_type"]
@@ -100,7 +100,8 @@ APARTAHOTEL_RULES: dict[str, float | None] = {
     "spa_wellness_pct": 0.0,
     "parking_other_pct": 3.0,
     "expenses_rooms_pct": 22.0,
-    "expenses_fb_pct": 75.0,
+    "expenses_food_pct": 60.0,          # post-0036 split · 75 × 4/(4+1) = 60.0 (revenue-weighted)
+    "expenses_beverage_pct": 15.0,      # post-0036 split · 75 × 1/(4+1) = 15.0 (revenue-weighted)
     "other_departments_pct": None,     # no methodology value for derived
     "admin_general_pct": 4.0,
     "it_telecom_pct": None,             # stored but excluded from HV EBITDA
@@ -112,6 +113,7 @@ APARTAHOTEL_RULES: dict[str, float | None] = {
     "rent_pct": None,                   # stored but excluded from HV EBITDA
     "property_taxes_pct": 0.7,
     "insurance_pct": 0.4,
+    "ffe_reserve_pct": 4.0,             # USALI convention default (backlog #19 · refine per geography post-FASE 3)
     "ebitda_pct": 40.2,                 # HV EBITDA pre-alquiler
     "staff_cost_memo_pct": 18.0,
 }
@@ -124,7 +126,8 @@ HOSTEL_RULES: dict[str, float | None] = {
     "spa_wellness_pct": 0.0,
     "parking_other_pct": 10.0,
     "expenses_rooms_pct": 28.0,
-    "expenses_fb_pct": 70.0,
+    "expenses_food_pct": 26.25,         # post-0036 split · 70 × 3/(3+5) = 26.25 (revenue-weighted)
+    "expenses_beverage_pct": 43.75,     # post-0036 split · 70 × 5/(3+5) = 43.75 (revenue-weighted)
     "other_departments_pct": None,
     "admin_general_pct": 5.0,
     "it_telecom_pct": None,
@@ -136,6 +139,7 @@ HOSTEL_RULES: dict[str, float | None] = {
     "rent_pct": None,
     "property_taxes_pct": 0.7,
     "insurance_pct": 0.4,
+    "ffe_reserve_pct": 4.0,             # USALI convention default (backlog #19 · refine per geography post-FASE 3)
     "ebitda_pct": 36.8,                 # HV EBITDA pre-alquiler
     "staff_cost_memo_pct": 22.0,
 }
