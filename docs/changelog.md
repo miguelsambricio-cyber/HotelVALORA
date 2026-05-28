@@ -4,6 +4,19 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(api): FASE 3 sub-paso 2 · GET /api/admin/financials/pnl-template
+
+Read-only route that returns a `pnl_template_effective` row for an exact dimension tuple. Auth-gated via `requireOperator()` (fail-closed). 110 LOC. Cache-Control `no-store` because overrides mutate via sub-paso 4. Nothing consumes it yet · sub-paso 5 (useDraftedOverridesSupabase hook) is the first caller.
+
+API contract:
+- Required: `country` (ISO alpha-2). Optional: `market`, `submarket`, `class`, `segmentation_type` (NULL-matched when absent → handles `pending_costar` lookup with country-only query without a separate endpoint).
+- `segmentation_type` validated against the enum (`hotel` / `apartahotel` / `hostel`) · 400 on invalid.
+- 200 → `{ ok: true, template: EffectiveTemplateRow }` · 400 bad_request · 403 unauthorized · 404 not_found (echoes the requested tuple) · 500 db_query_failed.
+
+Cast to `EffectiveTemplateRow` (declared in sub-paso 1) is safe: post-0036 view shape matches the interface exactly. SQL smoke pre-commit covered all 4 categories (`costar_submarket_aggregate` · `derived_mvp_rule` · `pending_costar` · `not_found`).
+
+---
+
 ## 2026-05-28 — feat(db): FASE 3 sub-pasos 1 + 1.5 · migration 0036 + mapping/i18n layer · 2 backlog items surfaced
 
 **Sub-paso 1 · pure code, zero BD, zero UI** — two new modules under `apps/web/src/lib/admin/financials/`:
