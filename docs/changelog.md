@@ -4,6 +4,36 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(api): FASE 3 sub-paso 4 · POST /api/admin/financials/pnl-overrides · FIRST write endpoint
+
+First mutation endpoint of FASE 3. Persists operator overrides to `pnl_template_override` per declarative-set semantics: the request body declares the COMPLETE override set for the template_id · server UPSERTs the listed rows and DELETEs any pre-existing overrides not in the body. 218 LOC.
+
+Why declarative-set: `panelStateToOverrides()` (sub-paso 1) only emits rows that DIFFER from the BD-effective base. If the operator reverts an edit to the base value, the diff drops it · the server then removes the stale override naturally · no client-side delete bookkeeping required. Reset = `overrides: []` · server wipes all overrides for the template.
+
+Validation (defense-in-depth):
+- `template_id` MUST be UUID + MUST exist in `pnl_template` (404 if not)
+- `overrides[].line_item` MUST be in `PNL_DB_COLUMNS_VISIBLE` · rejects hidden columns `it_telecom_pct` / `staff_cost_memo_pct` / `rent_pct` even via direct curl (defense-in-depth on operator decision 2 that those columns stay BD-traceability-only and don't reach the panel)
+- `overrides[].override_value` MUST be finite + in `[0, 999.99]` (numeric(5,2) BD constraint · negatives don't make sense for percentages)
+- No duplicate `line_item` entries
+- 400 with descriptive message on any failure
+
+Operator identity: `requireOperator().email` captured and persisted on every override row + audit. Dev-permissive mode (local) falls back to `dev@hotelvalora.local`.
+
+Atomicity caveat (backlog #22 registered): 3 sequential supabase-js calls (verify template + selective delete + upsert) + best-effort audit. Race window tolerable today (1 operator) but recommended hardening pre-multi-operator = wrap in a Postgres stored procedure. Audit failure does NOT fail the save (data succeeded) · reported in response as `warning`.
+
+SQL smoke pre-commit · 5/5 PASS · end-to-end mutation round-trip on Madrid Centre Upper Upscale hotel against real BD with full cleanup:
+1. baseline (0 overrides)
+2. SAVE one (rooms_revenue_pct=70.0 · view returns 70.00 + overridden_lines=[rooms_revenue_pct])
+3. SAVE two (declarative · adds fb_food_pct=17.0 · both overridden)
+4. **REVERT one** (declarative-set CRITICAL test · operator drops fb_food_pct from body · server auto-deletes · view returns fb_food=16.10 base · only rooms_revenue_pct stays overridden)
+5. RESET (empty array · server wipes all · view returns baseline · overridden_lines=[])
+
+BD post-smoke: clean (0 overrides for the test template · cleanup was naturally part of step 5).
+
+Nothing consumes this yet · sub-paso 5 hook (useDraftedOverridesSupabase) is the first caller.
+
+---
+
 ## 2026-05-28 — feat(api): FASE 3 sub-paso 3 · GET /api/admin/financials/pnl-dimensions
 
 Read-only endpoint that returns the distinct dimension tuples present in `pnl_template` so the admin panel can build its 5-level cascade (País → Mercado → Submercado → Clase → Tipo) from BD truth instead of the hardcoded `PNL_GEO_FILTERS` in `defaults.ts`. ~110 LOC. Same patterns as sub-paso 2: `requireOperator()` fail-closed · `cache-control: no-store` · `force-dynamic` · admin Supabase client.
