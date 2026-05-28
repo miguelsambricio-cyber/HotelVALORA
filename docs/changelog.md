@@ -4,6 +4,37 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — verify(financials): post-deploy delta for 5 verification hotels (cd7eda5)
+
+Post-deploy verification of `cd7eda5` against 5 hotels chosen across the methodology axes (4 provisional · 1 control banner-hidden). Year-1 revenue per line was extracted from the PLAssumptions JSON embedded in each rendered page (BEFORE captures saved pre-deploy in `.smoke/paso4-pl-snapshots/BEFORE-*.html`, AFTER captures post-deploy). 5/5 PASS — every observed behaviour matches the methodology specification.
+
+| Hotel · segment | Banner | F&B Y1 | Meeting Y1 | Spa Y1 | Parking Y1 | Total Y1 |
+|---|---|---|---|---|---|---|
+| **Bless** · Salamanca · luxury · 4 rest · all amenities | NEW shown | 2.78M → **3.78M** (+36%) | 422k → 463k | 244k → 268k | 211k → 232k | 11.10M → 12.19M (+9.8%) |
+| **voco Retiro** · Retiro · upscale · 1 rest · all | NEW shown | 7.66M (unchanged · 1 rest = no uplift) | 1.17M | 674k | 583k | 30.66M (+0.0%) |
+| **Wellington** · Salamanca · unknown · 2 rest · all | NEW shown | 7.50M → **8.35M** (+11%) | 1.14M → 1.18M | 660k → 680k | 570k → 588k | 30.01M → 30.93M (+3.1%) |
+| **One Shot Fortuny** · Argüelles-Chamberí · unknown · 1 rest · NO meet · NO parking | NEW shown | 5.42M → 4.99M (-7.8% · same ratio, lower total) | 824k → **DROPPED** | 477k → 440k | 412k → **DROPPED** | 21.67M → 19.98M (**-7.8%**) |
+| **Hyatt Centric** · Madrid Centre · upper_upscale · 3 rest · all (CONTROL) | **hidden** ✓ | 3.98M → **4.91M** (+23%) | 605k → 643k | 350k → 373k | 303k → 322k | 15.92M → 16.93M (+6.3%) |
+
+**Key validations**:
+
+- **Banner logic** · 4/5 provisional show "Plantilla USALI provisional · cobertura CoStar pendiente" · 1/5 control (Hyatt Centric · Madrid Centre × Upper Upscale × hotel) banner correctly suppressed. Method orthogonal to the engine adjustments (Hyatt still gets F&B uplift even with banner hidden).
+- **F&B uplift correct** · urban × (restaurants - 1) × 2% per extra outlet: Bless +6pp (4 rest), Wellington +2pp (2 rest), Hyatt +4pp (3 rest), voco/One Shot +0pp (1 rest). Same factor across all 4 multi-restaurant hotels confirms `FACILITY_AWARE_FB_FACTORS.urban = 0.02` applied correctly.
+- **Facility drops correct** · One Shot Fortuny (`amenities.meet=false`, `amenities.parking=false`): Meeting line dropped (824k€ → 0), Parking line dropped (412k€ → 0). Spa kept (`amen=true`). F&B kept (1 restaurant + bar).
+- **Rooms residual** · Y1 rooms revenue € unchanged in all 5 hotels (revpar × rooms × days doesn't depend on ancillary ratios). Total revenue moves to reflect the new ancillary mix — One Shot now rooms-dominant (73% of total vs prior 67%), matching the apartahotel/boutique profile the methodology principle predicts.
+- **Operator-flagged bugs closed** · One Shot BEFORE imputed 824k€ to Meeting + 412k€ to Parking despite the hotel lacking both facilities (BUG 1 of 2026-05-28). Both lines now correctly drop. Wellington & Bless previously showed identical F&B mix as One Shot despite different restaurant counts (BUG 2). Now differentiated.
+
+Verification URLs (production):
+- https://www.hotelvalora.com/report/financials/pl?ref=bless-hotel-madrid
+- https://www.hotelvalora.com/report/financials/pl?ref=voco-madrid-retiro-by-ihg
+- https://www.hotelvalora.com/report/financials/pl?ref=wellington-hotel-spa-madrid
+- https://www.hotelvalora.com/report/financials/pl?ref=one-shot-fortuny
+- https://www.hotelvalora.com/report/financials/pl?ref=hyatt-centric-gran-via-madrid
+
+Rebrands intact · enrichment cron unaffected · typecheck PASS.
+
+---
+
 ## 2026-05-28 — feat(financials): facility-aware P&L engine + provisional CoStar template flag + master xlsx/json
 
 Closes the two systemic P&L bugs the operator surfaced on 2026-05-28 (one for each side of the methodology rule firmed 2026-05-26):
