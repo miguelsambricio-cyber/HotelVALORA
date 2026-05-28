@@ -4,6 +4,22 @@ Maps tasks to exact files. Start here before scanning.
 
 ---
 
+## Strategic / Methodology (repo root)
+
+Top-level documents every new collaborator should read first. Kept at repo root for maximum visibility.
+
+| Doc | What it owns |
+|---|---|
+| `README.md` | Executive overview · GitHub-facing · setup · ports (≤300 lines) |
+| `CLAUDE.md` | Operating rules for Claude Code · mandatory doc maintenance contract |
+| `AI_CONTEXT.md` | Compressed AI mental model of the project (≤300 lines) |
+| `RULES.md` | Coding rules + invariants (≤300 lines) |
+| `ENTRYPOINTS.md` | Task-to-file map · this file (target ≤200 lines, currently over by debt) |
+| `VALUATION_METHODOLOGY.md` | **Methodology source of truth** · 3 phases · USALI worldwide · facility-aware P&L rule · F&B definition · MICE binary rule firmed 2026-05-26 |
+| `BOOKING_EXPANSION_SPEC.md` | Strategic brief for the Booking-universe expansion + CompSet substitution feature (PLANNED · prereq: enrichment complete + facility-aware P&L). Engineering elaboration lives at `docs/features/booking-expansion-spec.md` |
+
+---
+
 ## Backend
 
 | Task | File(s) |

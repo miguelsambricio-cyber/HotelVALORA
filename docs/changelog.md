@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — docs: consolidate valuation methodology in repo root + entrypoints registration
+
+Repository-organisation pass at session start, ahead of the Paso 4 work. Three docs land at the root + one registry update + one minor backlog entry. No code touched · Rebrands intact.
+
+- **`VALUATION_METHODOLOGY.md` (root, new)** · methodology source of truth: 3 phases (Asset · Market · P&L+Valoración) · USALI worldwide · facility-aware P&L rule · F&B definition (bar/cafetería/lobby bar/restaurante/buffet/desayunos/rooftop) · MICE binary activation rule firmed 2026-05-26 (any event space → line active). Anchors what `apps/web/src/app/user/admin/financials` codifies as defaults.
+- **`BOOKING_EXPANSION_SPEC.md` (root, new)** · strategic brief for Booking-universe expansion + CompSet substitution. Engineering elaboration stays at `docs/features/booking-expansion-spec.md` — root is the operator-decision register, /docs/features is the implementation spec.
+- **`ENTRYPOINTS.md`** · new top-level "Strategic / Methodology (repo root)" section listing the 7 canonical root docs (README · CLAUDE · AI_CONTEXT · RULES · ENTRYPOINTS · VALUATION_METHODOLOGY · BOOKING_EXPANSION_SPEC).
+- **`docs/roadmap/backlog.md`** · item #11 added (SSL apex cert · Let's Encrypt covers only `www.hotelvalora.com`; bare apex returns `SEC_E_WRONG_PRINCIPAL` on strict TLS clients · bundle with Vercel Pro upgrade pre-demo).
+- **`.gitignore`** · `.smoke/` registered as gitignored (ephemeral diagnostic dumps from API probes never enter source).
+
+Root-doc audit conclusion: no further promotions. The 7-doc set is the minimal "anyone entering the project should see first" surface · `/docs/` master systems (HOTELVALORA_MASTER_SYSTEM · HOSPITALITY_INTELLIGENCE · AI_OPERATIONS_LAYER) stay under their domain folders by design (per CLAUDE.md documentation architecture).
+
+---
+
 ## 2026-05-26 — feat(enrichment): sweep 226/226 hotels + daily refresh cron live
 
 End-of-day enrichment milestone. After the 3-hotel pilot validated end-to-end (Bless · Mandarin · Four Seasons), the full Madrid corpus was swept and a daily refresh cron registered. Rebrands stayed intact throughout.

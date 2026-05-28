@@ -18,6 +18,7 @@ Captured at end-of-day shutdown. Ordered roughly by tomorrow's working order —
 8. **Vercel Pro pre-demo** — current Hobby plan limits (1024MB function memory · 300s maxDuration · 2-4 daily crons) tight under demo load. Upgrade before institutional demo.
 9. **Integrations key management** — `/user/admin/integrations` needs a clean operator UI for provisioning / rotating / invalidating API keys (RapidAPI · Google Places · Resend · CRON_SECRET · INGESTION_AUDIT_TOKEN). T1 credentials currently encrypted in Supabase; expose via admin without leaking values.
 10. **Agents system review** — 9 operational agents + CEO seeded but mostly dormant. Review status of each, decide which to activate post-Paso 4.
+11. **SSL apex cert** — `hotelvalora.com` apex Let's Encrypt cert only covers `www.hotelvalora.com`. Windows schannel rejects bare apex with `SEC_E_WRONG_PRINCIPAL` even though Vercel 307-redirects → www. Browsers tolerate it; institutional clients on strict TLS won't. Re-issue or extend cert to apex. Bundle with Vercel Pro upgrade pre-demo.
 
 ---
 

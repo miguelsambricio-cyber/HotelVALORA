@@ -81,6 +81,9 @@ exports/
 tmp/
 .vercel
 
+# ─── Diagnostic probes (ephemeral · raw API dumps, never tracked) ────────────
+.smoke/
+
 # ─── CONTACTOS DATASITE (institutional relationship intelligence · PII) ──────
 # Datasite Outreach exports contain emails, phones, LinkedIn URLs, internal
 # notes, and bid history. Never commit any of it to git. The README at
