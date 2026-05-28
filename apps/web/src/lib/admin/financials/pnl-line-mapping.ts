@@ -175,6 +175,21 @@ export interface EffectiveTemplateRow {
 export type PnlPanelState = Record<string, { value: string; sub: string }>;
 
 /**
+ * Pre-override values straight from `pnl_template` (the base table).
+ *
+ * Returned by GET /api/admin/financials/pnl-template?include_base=true so
+ * the panel can paint "Excel base: X,X%" tooltips on overridden cells
+ * and offer per-cell revert (1-click restore the base value).
+ *
+ * Keys are PnlDbColumn (panel-visible only · hidden columns excluded).
+ * Values mirror the BD numeric type (nullable when the base value is
+ * missing, e.g. `restaurants_count=null` for some pending rows).
+ *
+ * Activated for sub-paso 6 (FASE 3) per operator decision "Camino A".
+ */
+export type BaseValues = Partial<Record<PnlDbColumn, number | null>>;
+
+/**
  * BD row → panel state. Used on initial load and re-fetch.
  *
  * Strategy:

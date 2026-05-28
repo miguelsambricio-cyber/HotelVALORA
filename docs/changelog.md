@@ -4,6 +4,25 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-29 — feat(api): FASE 3 sub-paso 6 · PASO 1 · GET pnl-template `?include_base=true` extension · closes backlog #24
+
+Additive query param on the existing `/api/admin/financials/pnl-template` route. When `include_base=true` is present, the response carries an extra `base_values: BaseValues` field with the panel-visible columns straight from `pnl_template` (pre-override). Without the param the response shape is unchanged · no regression for existing callers. Drives the per-cell revert UX in the sub-paso 6 panel (the "↻ restore Excel base" 1-click).
+
+Hook `useDraftedOverridesSupabase` updated: always calls with `include_base=true` and exposes `baseValues: BaseValues | null` to its consumers. New `BaseValues` type added to `pnl-line-mapping.ts` as `Partial<Record<PnlDbColumn, number | null>>`.
+
+This is the PASO 1 of sub-paso 6 (operator-firmed 7-point plan · Camino A · activate #24 now rather than ship MVP without per-cell revert). Closes backlog #24 technically. PASO 2 — the panel rewrite proper (cascading filters · radix dialog for filter-change-with-dirty modal · data_source badge · cell-level revert with tooltip · loading/error states) — pending dedicated session because the 12 manual browser flows (mount · filter swap · modal 3 actions · save 1 cell · save 2 cells · revert 1 cell · reset all · fetch_failed via DevTools offline · save_failed via DevTools offline · pending country UX · console warnings · other 4 cards untouched) require attentive human verification in a real browser and cannot be automated meaningfully without a Playwright harness this repo does not have. Operator-firmed pause per acordada rule "paramos a la primera señal de duda".
+
+SQL smoke pre-commit (3/3 PASS via MCP):
+- Case 1: no `include_base` → response unchanged (regression check)
+- Case 2: `include_base=true` + 0 overrides → `base_values` equals template numerics for all visible columns (4/4 match)
+- Case 3: `include_base=true` + 2 overrides → `base_values` shows pre-edit Excel values (rooms 69.20 · ffe 4.00) while `template` shows merged overrides (rooms 72.00 · ffe 5.50)
+
+BD clean post-smoke. TypeScript strict over the 5 FASE 3 modules: zero errors.
+
+State of FASE 3: 6/8 sub-pasos vivos en prod + PASO 1 of sub-paso 6 cabled (extension only · panel still on legacy hook). PASO 2 pending dedicated session.
+
+---
+
 ## 2026-05-28 — feat(hook) + fix(db): FASE 3 sub-paso 5 · useDraftedOverridesSupabase + hotfix CHECK constraint sync
 
 New client-side hook `use-drafted-overrides-supabase.ts` (~365 LOC) that mirrors the old `useDraftedOverrides` surface (so sub-paso 6 panel migration stays surgical) and adds 4 server-derived states the old hook didn't need (`loading`, `saving`, `error`, `template/dataSource/overriddenLines`). Replaces localStorage with the 3 APIs from sub-pasos 2 + 4. Consumes nothing else FASE 3-shipped yet · sub-paso 6 panel is the first caller.

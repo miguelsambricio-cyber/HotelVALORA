@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   dbRowToPanelState,
   panelStateToOverrides,
+  type BaseValues,
   type EffectiveTemplateRow,
   type PnlDbColumn,
   type PnlPanelState,
@@ -91,6 +92,8 @@ export interface UseDraftedOverridesSupabaseApi {
   template: EffectiveTemplateRow | null;
   dataSource: DataSource | null;
   overriddenLines: PnlDbColumn[];
+  /** Pre-override (Excel) values per panel-visible column · drives revert UX. */
+  baseValues: BaseValues | null;
   lastSavedAt: Date | null;
 
   // ── Actions ──
@@ -112,6 +115,9 @@ function buildTemplateUrl(filters: DimensionTuple): string {
   if (filters.class !== null) u.searchParams.set("class", filters.class);
   if (filters.segmentation_type !== null)
     u.searchParams.set("segmentation_type", filters.segmentation_type);
+  // Always request base_values so the panel can paint revert tooltips + restore base
+  // values on per-cell click (sub-paso 6 / backlog #24).
+  u.searchParams.set("include_base", "true");
   return u.pathname + u.search;
 }
 
@@ -134,6 +140,7 @@ export function useDraftedOverridesSupabase(
 ): UseDraftedOverridesSupabaseApi {
   // Server snapshot (the merged template returned by GET pnl-template)
   const [template, setTemplate] = useState<EffectiveTemplateRow | null>(null);
+  const [baseValues, setBaseValues] = useState<BaseValues | null>(null);
   // Draft = operator's current edits · diverges from `template`-derived state when isDirty
   const [draft, setDraftRaw] = useState<PnlPanelState>(() => buildSeedDraft(rows));
   // Server-derived panel state (draft snapshot when not dirty)
@@ -184,6 +191,7 @@ export function useDraftedOverridesSupabase(
         }
         if (res.status === 404) {
           setTemplate(null);
+          setBaseValues(null);
           setServerState(buildSeedDraft(rows));
           setDraftRaw(buildSeedDraft(rows));
           setError({
@@ -201,7 +209,11 @@ export function useDraftedOverridesSupabase(
           });
           return;
         }
-        const body = (await res.json()) as { ok: boolean; template?: EffectiveTemplateRow };
+        const body = (await res.json()) as {
+          ok: boolean;
+          template?: EffectiveTemplateRow;
+          base_values?: BaseValues;
+        };
         if (mySeq !== fetchSeqRef.current) return;
         if (!body.ok || !body.template) {
           setError({
@@ -214,6 +226,7 @@ export function useDraftedOverridesSupabase(
         const tpl = body.template;
         const next = dbRowToPanelState(tpl, rows);
         setTemplate(tpl);
+        setBaseValues(body.base_values ?? null);
         setServerState(next);
         setDraftRaw(next);
         setError(null);
@@ -370,6 +383,7 @@ export function useDraftedOverridesSupabase(
     template,
     dataSource,
     overriddenLines,
+    baseValues,
     lastSavedAt,
     setDraft,
     setFilters,

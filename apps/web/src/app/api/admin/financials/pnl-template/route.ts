@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireOperator, OperatorDenied } from "@/lib/security/operator-guard";
-import type { EffectiveTemplateRow } from "@/lib/admin/financials/pnl-line-mapping";
+import {
+  PNL_DB_COLUMNS_VISIBLE,
+  type BaseValues,
+  type EffectiveTemplateRow,
+  type PnlDbColumn,
+} from "@/lib/admin/financials/pnl-line-mapping";
 
 /**
  * GET /api/admin/financials/pnl-template
@@ -27,8 +32,17 @@ import type { EffectiveTemplateRow } from "@/lib/admin/financials/pnl-line-mappi
  *     returns the pending_costar row (where market/submarket/class are
  *     NULL in BD because no CoStar data is loaded yet).
  *
+ * Optional query param:
+ *   include_base   "true" → response carries an additional `base_values`
+ *                   field with the panel-visible columns straight from
+ *                   `pnl_template` (pre-override). Drives the per-cell
+ *                   revert UX in the sub-paso 6 panel (closes backlog #24).
+ *                   When override-less, `base_values` equals the template
+ *                   numerics by construction. Additive · existing callers
+ *                   that omit the param see no change in response shape.
+ *
  * Response shapes:
- *   200 → { ok: true, template: EffectiveTemplateRow }
+ *   200 → { ok: true, template: EffectiveTemplateRow, base_values?: BaseValues }
  *   400 → { ok: false, error: "bad_request", message: "..." }
  *   403 → { ok: false, error: "unauthorized" }
  *   404 → { ok: false, error: "not_found", tuple: { ... } }
@@ -37,8 +51,8 @@ import type { EffectiveTemplateRow } from "@/lib/admin/financials/pnl-line-mappi
  * `cache-control: no-store` because overrides mutate on every save and the
  * panel must always see the latest state.
  *
- * Nothing imports this route yet — sub-paso 5 (useDraftedOverridesSupabase)
- * is the first consumer.
+ * Consumed by useDraftedOverridesSupabase (sub-paso 5) · panel via
+ * sub-paso 6 wiring.
  */
 
 export const dynamic = "force-dynamic";
@@ -128,5 +142,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // The view shape matches EffectiveTemplateRow exactly (declared in
   // pnl-line-mapping.ts · sub-paso 1) so the cast is safe.
   const row = data[0] as unknown as EffectiveTemplateRow;
-  return jsonNoStore({ ok: true, template: row });
+
+  // ── 5 · Optional include_base · query base table for revert UX ───────
+  const includeBase = url.searchParams.get("include_base") === "true";
+  if (!includeBase) {
+    return jsonNoStore({ ok: true, template: row });
+  }
+
+  // Select only the panel-visible columns to keep payload tight.
+  const baseCols = PNL_DB_COLUMNS_VISIBLE.join(",");
+  const baseRes = await sb
+    .from("pnl_template")
+    .select(baseCols)
+    .eq("id", row.id)
+    .limit(1);
+  if (baseRes.error) {
+    return jsonNoStore(
+      { ok: false, error: "db_query_failed", details: baseRes.error.message },
+      { status: 500 },
+    );
+  }
+  if (!baseRes.data || baseRes.data.length === 0) {
+    // Shouldn't happen · the effective row's id came from pnl_template via
+    // the view. If it does, fall back to omitting base_values (better than
+    // 500 since the effective row is still valid).
+    return jsonNoStore({ ok: true, template: row });
+  }
+  const baseRaw = baseRes.data[0] as unknown as Record<string, number | null>;
+  const base_values: BaseValues = {};
+  for (const col of PNL_DB_COLUMNS_VISIBLE) {
+    base_values[col as PnlDbColumn] = baseRaw[col] ?? null;
+  }
+  return jsonNoStore({ ok: true, template: row, base_values });
 }
