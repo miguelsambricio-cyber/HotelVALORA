@@ -1,6 +1,6 @@
 import type { CanonicalHotelRow, MarketKpiBundle } from "@/lib/report/canonical-reader";
-import { getDefaultAssumptions } from "@/lib/report/financials";
-import type { PLAssumptions } from "@/lib/report/financials/types";
+import { applyFacilityAwareRule, getDefaultAssumptions } from "@/lib/report/financials";
+import type { FacilityProfile, PLAssumptions } from "@/lib/report/financials/types";
 import { PNL_ROOM_STATS, PNL_ROOM_STATS_FALLBACK } from "@/lib/admin/financials/defaults";
 import type { FinancialsSlice, SectionProvenance } from "../types";
 
@@ -65,19 +65,89 @@ export function buildFinancialsSlice(
     }
   }
 
-  const assumptions: PLAssumptions = {
+  const baseWithHotelKpis: PLAssumptions = {
     ...base,
     rooms,
     occupancyYear1: Number(occupancyYear1.toFixed(3)),
     adrYear1: Number(adrYear1.toFixed(1)),
   };
 
+  // Build FacilityProfile from canonical · drives the facility-aware rule
+  // (drop absent revenue lines + F&B uplift per extra restaurant).
+  const facilityProfile = buildFacilityProfile(hotel);
+
+  // Apply facility-aware rule · pure transformation of the ratios. Provenance
+  // appends a brief note when adjustments triggered, so the operator can
+  // see at a glance whether the hotel diverged from the base template.
+  const assumptions = applyFacilityAwareRule(baseWithHotelKpis, facilityProfile);
+  const adjustments = summariseFacilityAdjustments(baseWithHotelKpis, assumptions, facilityProfile);
+
   const provenance: SectionProvenance = {
-    source: provenanceSource,
+    source: adjustments.length > 0
+      ? `${provenanceSource} · facility-aware: ${adjustments.join(", ")}`
+      : provenanceSource,
     generated_at: new Date().toISOString(),
   };
 
   return { assumptions, provenance };
+}
+
+/**
+ * Compose a `FacilityProfile` from a canonical hotel row · drives
+ * `applyFacilityAwareRule`. Conservative null handling: an absent amenity
+ * key is treated as `false` (data principle: lo que no sabemos NO lo
+ * inventamos).
+ */
+function buildFacilityProfile(hotel: CanonicalHotelRow): FacilityProfile {
+  const am = hotel.amenities ?? {};
+  const hasBar = am.bar === true;
+  const hasRooftop = am.rooftop === true;
+  const restaurantsCount = hotel.restaurants_count ?? null;
+
+  return {
+    hasFB:
+      (restaurantsCount !== null && restaurantsCount > 0) ||
+      hasBar ||
+      hasRooftop,
+    restaurantsCount,
+    hasMICE: am.meet === true,
+    hasSpa: am.spa === true,
+    hasParking: am.parking === true,
+    hotelType: normaliseHotelType(hotel.hotel_type),
+  };
+}
+
+function normaliseHotelType(raw: string | null): "urban" | "mixed" | "resort" {
+  if (raw === "mixed") return "mixed";
+  if (raw === "resort") return "resort";
+  return "urban";
+}
+
+/**
+ * Human-readable summary of which facility-aware adjustments fired ·
+ * surfaces in `SectionProvenance.source` for operator visibility.
+ */
+function summariseFacilityAdjustments(
+  before: PLAssumptions,
+  after: PLAssumptions,
+  profile: FacilityProfile,
+): string[] {
+  const notes: string[] = [];
+  if (before.ratios.revFB !== after.ratios.revFB) {
+    if (after.ratios.revFB === 0) notes.push("F&B dropped (no outlets)");
+    else if (after.ratios.revFB > before.ratios.revFB)
+      notes.push(`F&B uplift +${((after.ratios.revFB - before.ratios.revFB) * 100).toFixed(1)}pp (${profile.restaurantsCount} restaurants)`);
+  }
+  if (before.ratios.revMeeting !== after.ratios.revMeeting && after.ratios.revMeeting === 0) {
+    notes.push("Meeting/MICE dropped");
+  }
+  if (before.ratios.revSpa !== after.ratios.revSpa && after.ratios.revSpa === 0) {
+    notes.push("Spa dropped");
+  }
+  if (before.ratios.revParkingOther !== after.ratios.revParkingOther && after.ratios.revParkingOther === 0) {
+    notes.push("Parking/other dropped");
+  }
+  return notes;
 }
 
 function chainScaleToClassLabel(scale: string | null): string | null {

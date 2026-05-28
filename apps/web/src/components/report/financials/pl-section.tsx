@@ -31,6 +31,24 @@ export interface PLSectionProps {
   onAssumptionChange: (id: PLLineItemId, next: number) => void;
 }
 
+/**
+ * Facility-aware row hiding · suppresses any line whose 5-year values are
+ * all zero (within a small float tolerance to absorb computePL rounding).
+ *
+ * Behaviour kicks in when `applyFacilityAwareRule` zeroes a revenue ratio
+ * because the underlying facility is absent (e.g. One Shot Fortuny has no
+ * meeting space — `rev-meeting` becomes [0,0,0,0,0] and disappears, taking
+ * the linked `exp-other-dept` line with it when no other ancillary remains).
+ * Derived rows like `rev-rooms` (residual) are never zero so they always
+ * render.
+ */
+function rowHasSignal(values: readonly number[]): boolean {
+  for (const v of values) {
+    if (Math.abs(v) > 0.5) return true;
+  }
+  return false;
+}
+
 export function PLSection({
   section,
   computed,
@@ -42,6 +60,10 @@ export function PLSection({
   resolveAssumption,
   onAssumptionChange,
 }: PLSectionProps) {
+  const visibleLines = section.lineItems.filter((line) =>
+    rowHasSignal(computed.lineItems[line.id] ?? [0, 0, 0, 0, 0]),
+  );
+
   return (
     <tbody className="print:break-inside-avoid">
       <FinancialSectionHeader
@@ -50,7 +72,7 @@ export function PLSection({
         compact={isFirst}
       />
 
-      {section.lineItems.map((line) => (
+      {visibleLines.map((line) => (
         <PLRow
           key={line.id}
           config={line}

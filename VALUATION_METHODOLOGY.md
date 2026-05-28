@@ -278,3 +278,41 @@ Cuando se contrate la suscripción completa de CoStar y se integre la API:
 4. **Retirar la bandera** "plantilla provisional" automáticamente para todos los activos cuyo submercado/clase/`segmentation_type` esté ya cubierto.
 
 Hasta entonces, la bandera es el mecanismo de honestidad visible que mantiene el producto utilizable sin engañar al usuario sobre el alcance real de los datos.
+
+---
+
+## ANEXO · Ajuste por tamaño del activo (añadido 2026-05-28 · pendiente de cableado)
+
+### Observación profesional
+
+Un hotel de 11 habitaciones y uno de 490 habitaciones no comparten el mismo perfil de rentabilidad, aunque pertenezcan a la misma clase y submercado. Los hoteles pequeños tienen:
+
+- Menor peso de F&B (frecuentemente sin restaurante de carta, sin banquetes).
+- Menor peso de MICE (sin salas dedicadas, sin departamento de eventos).
+- Menor estructura de personal administrativo y de ventas/marketing (un boutique de 30 habitaciones no sostiene un departamento de A&G del 7,2% del ingreso, ni un equipo de ventas del 6,5%).
+
+Aplicar la misma plantilla USALI a ambos extremos del corpus distorsiona la valoración de ambos. Esta observación es un principio profesional bien establecido en el sector hotelero institucional.
+
+### Tramos firmados (criterio operador, 2026-05-28)
+
+El criterio de tramos por tamaño ya está definido en el producto en `/user/admin/financials`:
+
+- **Tramo 1**: 0–75 habitaciones (boutique / pequeño)
+- **Tramo 2**: 76–200 habitaciones (mediano)
+- **Tramo 3**: 201+ habitaciones (grande)
+
+Estos tramos NO son inventados aquí — son la propiedad intelectual del operador ya codificada en el panel admin.
+
+### Estado actual y plan de cableado
+
+**Estado a fecha 2026-05-28**: los tramos existen como configuración en admin, pero el motor del P&L NO los lee todavía. Aplica la plantilla USALI única para todos los tamaños dentro de un mismo (submercado × clase). Esto es un wiring pendiente, NO una regla por inventar.
+
+**Plan**: tras cerrar el Paso 4 (regla facility-aware) y la carga manual de los 6 submercados de Madrid en `COSTAR_MASTER_FINANCIALS.xlsx`, se abre un Paso 5 dedicado a:
+
+1. Calibrar los porcentajes diferenciales por tramo, partiendo de los datos CoStar segmentados cuando estén disponibles. Si CoStar no entrega segmentación por tamaño explícita, usar el criterio profesional del operador como fuente.
+2. Cablear el motor del P&L para que lea el tramo según `restaurants_count` o equivalente (número real de habitaciones) y aplique los % correspondientes.
+3. Verificar el efecto en valoraciones comparando hoteles del mismo (submercado × clase) pero de tramos distintos.
+
+Coherente con el principio de honestidad: ningún número se inventa. Los tramos están firmados por el operador, los porcentajes diferenciales se calibran con evidencia (CoStar o juicio profesional documentado), y el motor lee dinámicamente.
+
+Hasta el cableado, el motor sigue operando con la plantilla única por (submercado × clase), reflejando la limitación en la bandera "plantilla provisional" ya existente.

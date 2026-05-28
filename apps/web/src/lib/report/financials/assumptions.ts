@@ -5,7 +5,8 @@
 // reference exactly (the BASE preset reproduces the Stitch table figures).
 
 import type { UnderwritingScenario } from "@/lib/underwriting/scenario";
-import type { PLAssumptions } from "./types";
+import type { FacilityProfile, PLAssumptions } from "./types";
+import { FACILITY_AWARE_FB_FACTORS } from "@/lib/admin/financials/defaults";
 
 /**
  * Per-scenario preset: 4 occupancy pp-deltas (Year 2 → Year 5) and 4 ADR
@@ -91,5 +92,78 @@ export function getDefaultAssumptions(): PLAssumptions {
     staffCostShare: 0.317,
 
     daysInYear: 365,
+  };
+}
+
+// ── Facility-aware rule ─────────────────────────────────────────────────────
+
+/**
+ * Adjust a base `PLAssumptions` for the actual facilities of a specific
+ * hotel. This is the engine half of the facility-aware methodology rule
+ * (operator decision firmed 2026-05-26, codified in `VALUATION_METHODOLOGY.md`).
+ *
+ * Two operations on the revenue ratios:
+ *
+ * 1. **Drop absent services** · For each ancillary revenue line, if the
+ *    hotel doesn't have that facility, the ratio is set to 0. The compute
+ *    layer (`computePL`) treats rooms revenue as the residual of total
+ *    revenue minus ancillaries, so dropped lines naturally concentrate
+ *    weight in rooms — exactly the apartahotel / boutique behaviour
+ *    described in the methodology.
+ *
+ *      hasFB      = false → revFB           = 0
+ *      hasMICE    = false → revMeeting      = 0
+ *      hasSpa     = false → revSpa          = 0
+ *      hasParking = false → revParkingOther = 0
+ *
+ * 2. **F&B uplift per extra restaurant** · When `restaurantsCount > 1`,
+ *    each restaurant above the first adds a configurable factor to revFB,
+ *    keyed by `hotel_type`:
+ *
+ *      urban  → +2% per extra outlet
+ *      mixed  → +3% per extra outlet
+ *      resort → +4% per extra outlet
+ *
+ *    The methodology principle: smaller urban venues add less F&B mix per
+ *    outlet than larger resort/leisure venues.
+ *
+ * Defensive cap: if the resulting ancillary sum reaches 0.95, ratios are
+ * scaled down proportionally so rooms residual stays >= 5%. This protects
+ * `computePL` from the `ancillarySum >= 1` runtime error if an operator
+ * configures absurd factors via admin.
+ *
+ * Pure function · no side effects · no I/O.
+ */
+export function applyFacilityAwareRule(
+  base: PLAssumptions,
+  profile: FacilityProfile,
+  factors: { urban: number; mixed: number; resort: number } = FACILITY_AWARE_FB_FACTORS,
+): PLAssumptions {
+  // 1 · per-facility presence gate
+  let revFB = profile.hasFB ? base.ratios.revFB : 0;
+  const revMeeting = profile.hasMICE ? base.ratios.revMeeting : 0;
+  const revSpa = profile.hasSpa ? base.ratios.revSpa : 0;
+  const revParkingOther = profile.hasParking ? base.ratios.revParkingOther : 0;
+
+  // 2 · F&B uplift · only when hotel actually has F&B AND > 1 restaurant
+  if (profile.hasFB && profile.restaurantsCount !== null && profile.restaurantsCount > 1) {
+    const factor = factors[profile.hotelType] ?? factors.urban;
+    revFB = revFB + (profile.restaurantsCount - 1) * factor;
+  }
+
+  // 3 · defensive cap · ancillary sum must stay < 0.95 (rooms residual >= 5%)
+  const ancillarySum = revFB + revMeeting + revSpa + revParkingOther;
+  const scale = ancillarySum >= 0.95 ? 0.95 / ancillarySum : 1;
+
+  return {
+    ...base,
+    ratios: {
+      ...base.ratios,
+      revFB: revFB * scale,
+      revMeeting: revMeeting * scale,
+      revSpa: revSpa * scale,
+      revParkingOther: revParkingOther * scale,
+    },
+    facilityProfile: profile,
   };
 }

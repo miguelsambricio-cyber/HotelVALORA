@@ -18,6 +18,7 @@ export {
 } from "./format";
 
 export type {
+  FacilityProfile,
   FiveYears,
   PLAssumptions,
   PLComputed,
@@ -32,7 +33,11 @@ export type {
   Tier,
 } from "./types";
 
-export { getDefaultAssumptions, SCENARIO_PRESETS } from "./assumptions";
+export {
+  applyFacilityAwareRule,
+  getDefaultAssumptions,
+  SCENARIO_PRESETS,
+} from "./assumptions";
 export { PL_STRUCTURE } from "./pl-structure";
 export { computePL } from "./calculations";
 

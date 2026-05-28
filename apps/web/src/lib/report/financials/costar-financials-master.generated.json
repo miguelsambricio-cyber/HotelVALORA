@@ -1,0 +1,1775 @@
+{
+  "generated_at": "2026-05-28T01:47:59Z",
+  "generator_version": "1.0.0",
+  "row_count": 221,
+  "rows": [
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "costar_real"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Centre",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Chamartin & Plaza de Castilla",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Salamanca",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Arguelles & Chamberi",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Retiro",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castille & Leon Regional",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Castille-Leon/CLM/Extremadura",
+      "submarket": "Castilla-La Mancha Regional",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Barajas/Hortaleza/San Blas",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Province Regional",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Economy",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Economy",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Economy",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Luxury",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Luxury",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Luxury",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upper Midscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upper Midscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upper Midscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upper Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upper Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upper Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upscale",
+      "segmentation_type": "hotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upscale",
+      "segmentation_type": "apartahotel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "ES",
+      "market": "Madrid",
+      "submarket": "Madrid Surrounding",
+      "class": "Upscale",
+      "segmentation_type": "hostel",
+      "data_source": "hardcoded_default"
+    },
+    {
+      "country": "US",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "GB",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "PT",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "FR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "DE",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "BE",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "NL",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "IT",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "CH",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "AT",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "PL",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "HU",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "CZ",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "GR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "NO",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "SE",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "DK",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "BG",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "CA",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "MX",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "BR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "AR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "CO",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "PE",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "AE",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "SA",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "TR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "IL",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "CN",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "JP",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "KR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "IN",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "AU",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "ZA",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "IE",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "FI",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "RO",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "HR",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "EG",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "SG",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    },
+    {
+      "country": "NZ",
+      "market": null,
+      "submarket": null,
+      "class": null,
+      "segmentation_type": null,
+      "data_source": "pending_costar"
+    }
+  ]
+}

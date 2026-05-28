@@ -93,6 +93,30 @@ export interface PLSectionConfig {
   };
 }
 
+// ── Facility profile · drives facility-aware ratio adjustments ─────────────
+
+/**
+ * What the hotel actually has · drives the facility-aware rule
+ * (drop revenue lines for absent services, F&B uplift per restaurant above
+ * the first). Populated by `applyFacilityAwareRule` from canonical data:
+ * `restaurants_count` + `amenities.{meet, spa, parking, bar, rooftop}` +
+ * `hotel_type`.
+ */
+export interface FacilityProfile {
+  /** True when the hotel has ANY F&B presence (restaurant, bar, rooftop). */
+  hasFB: boolean;
+  /** Explicit Booking-derived count · null when no signal. */
+  restaurantsCount: number | null;
+  /** True when meeting/banquet/conference/event space exists. */
+  hasMICE: boolean;
+  /** True when spa/wellness exists. */
+  hasSpa: boolean;
+  /** True when on-site parking exists (drives parking + rentals line). */
+  hasParking: boolean;
+  /** Geographic typology · drives the F&B uplift factor per extra outlet. */
+  hotelType: "urban" | "mixed" | "resort";
+}
+
 // ── Assumptions store ───────────────────────────────────────────────────────
 
 /**
@@ -154,6 +178,15 @@ export interface PLAssumptions {
 
   /** Operating days per year (typically 365) */
   daysInYear: number;
+
+  /**
+   * Facility profile of the underlying asset · populated by
+   * `applyFacilityAwareRule`. Optional for backward compatibility with
+   * callers that build assumptions outside the canonical pipeline (mock
+   * pages, tests). When present, `pl-table.tsx` collapses rows whose
+   * ratio is 0 (services the hotel doesn't have).
+   */
+  facilityProfile?: FacilityProfile;
 }
 
 // ── Computed shape returned by `computePL(assumptions, scenario)` ──────────

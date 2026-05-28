@@ -11,6 +11,7 @@ import {
 } from "@/lib/report/canonical-reader";
 import { buildFinancialsSlice } from "@/lib/report/report-object";
 import { getReportById } from "@/lib/report/report-session";
+import { isProvisionalTemplate } from "@/lib/report/financials/coverage";
 
 export const metadata: Metadata = {
   title: "5-Year P&L Forecast — HotelVALORA",
@@ -25,10 +26,10 @@ interface PageProps {
 
 async function loadAssumptions(reportId: string) {
   const session = await getReportById(reportId);
-  if (!session) return { initialAssumptions: undefined, hotelLabel: "Prime" };
+  if (!session) return { initialAssumptions: undefined, hotelLabel: "Prime", provisional: false };
 
   const hotel = await getCanonicalHotelById(session.canonical_id);
-  if (!hotel) return { initialAssumptions: undefined, hotelLabel: "Prime" };
+  if (!hotel) return { initialAssumptions: undefined, hotelLabel: "Prime", provisional: false };
 
   const marketKpi = await resolveBestAvailableMarketKpis(
     hotel.market_name,
@@ -36,11 +37,16 @@ async function loadAssumptions(reportId: string) {
     { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
   );
   const slice = buildFinancialsSlice(hotel, marketKpi);
-  return { initialAssumptions: slice.assumptions, hotelLabel: hotel.canonical_name ?? "Hotel" };
+  const provisional = isProvisionalTemplate(hotel);
+  return {
+    initialAssumptions: slice.assumptions,
+    hotelLabel: hotel.canonical_name ?? "Hotel",
+    provisional,
+  };
 }
 
 export default async function PLPage({ params }: PageProps) {
-  const { initialAssumptions, hotelLabel } = await loadAssumptions(params.reportId);
+  const { initialAssumptions, hotelLabel, provisional } = await loadAssumptions(params.reportId);
 
   const headerActions = (
     <div className="flex items-center gap-4 print:gap-3">
@@ -64,7 +70,10 @@ export default async function PLPage({ params }: PageProps) {
         >
           <div className="px-8 py-6 print:px-3 print:py-2">
             <Suspense fallback={null}>
-              <PLContent initialAssumptions={initialAssumptions} />
+              <PLContent
+                initialAssumptions={initialAssumptions}
+                provisional={provisional}
+              />
             </Suspense>
           </div>
         </ReportPaper>

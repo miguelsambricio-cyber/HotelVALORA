@@ -758,3 +758,27 @@ export const PNL_FORECAST_5Y: PnlForecastRow[] = [
   },
 ];
 
+// ── Facility-aware rule constants ─────────────────────────────────────────
+
+/**
+ * F&B uplift factor per additional restaurant above the first, applied by
+ * `applyFacilityAwareRule` in `lib/report/financials/assumptions.ts`.
+ *
+ * Per hotel_type — geographic typology of the asset:
+ *   · urban  → 2% per extra outlet (smaller venues, business clientele)
+ *   · mixed  → 3% per extra outlet (resort/urban hybrid)
+ *   · resort → 4% per extra outlet (larger venues, leisure clientele)
+ *
+ * Example: a 3-restaurant urban hotel sees revFB go from base 0.25 to
+ * 0.25 + (3 - 1) × 0.02 = 0.29 · rooms residual drops correspondingly.
+ *
+ * Operator-editable from /user/admin/financials (FacilityAwareFactorsCard).
+ */
+export const FACILITY_AWARE_FB_FACTORS = {
+  urban: 0.02,
+  mixed: 0.03,
+  resort: 0.04,
+} as const;
+
+export type FacilityAwareFBFactors = typeof FACILITY_AWARE_FB_FACTORS;
+

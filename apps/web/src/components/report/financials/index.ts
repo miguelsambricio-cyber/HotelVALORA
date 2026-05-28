@@ -47,3 +47,5 @@ export type {
   ExpenseInflationCardProps,
   EbitdaStabilizedCardProps,
 } from "./pl-top-cards";
+
+export { ProvisionalTemplateBanner } from "./provisional-template-banner";

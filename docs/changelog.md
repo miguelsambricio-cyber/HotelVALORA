@@ -4,6 +4,28 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(financials): facility-aware P&L engine + provisional CoStar template flag + master xlsx/json
+
+Closes the two systemic P&L bugs the operator surfaced on 2026-05-28 (one for each side of the methodology rule firmed 2026-05-26):
+
+- **BUG 1 · revenue imputed to absent services**: a hotel without spa / meeting / parking was still receiving the corresponding USALI ratios. Fix: `applyFacilityAwareRule` reads `amenities.{meet, spa, parking}` + `restaurants_count` + `amenities.{bar, rooftop}` from the canonical row, zeroes the absent ancillary ratios, and `computePL` naturally absorbs the dropped share into rooms (which is the residual line). `pl-section.tsx` hides any row whose 5-year computed values are all zero.
+
+- **BUG 2 · F&B percentage flat across restaurant counts**: a 1-restaurant boutique and a 4-restaurant luxury received the same `revFB = 25%`. Fix: when `restaurantsCount > 1` the rule applies a per-extra-outlet uplift keyed by `hotel_type` (urban 2% · mixed 3% · resort 4%). New `FACILITY_AWARE_FB_FACTORS` constant in `lib/admin/financials/defaults.ts`, exposed for the future admin editor card (backlog #13). Defensive cap keeps ancillary sum < 0.95 so rooms residual stays >= 5% even on aggressive operator-edited factors.
+
+Both rules pure · `applyFacilityAwareRule(base, profile, factors?)` · no I/O · same input → same output. Implementation lives in `lib/report/financials/assumptions.ts` and is wired through `buildFinancialsSlice` (orchestrator section builder) which composes a `FacilityProfile` from `CanonicalHotelRow` and propagates an adjustment summary in `SectionProvenance`.
+
+**Provisional CoStar template flag** · new annex codified the data-coverage reality: only the (ES, Madrid, Madrid Centre, Upper Upscale, hotel) template is loaded operationally today; the other 226 hotels in the corpus valuate against the same template until CoStar full lands. A new informational banner ("Plantilla USALI provisional · cobertura CoStar pendiente") renders on `/report/[reportId]/financials/pl` for hotels whose `(country, market, submarket, class_label, segmentation_type)` does NOT match a `data_source = 'costar_real'` row. Conservative behaviour: `chain_scale='unknown'` (49% of corpus today, backlog #15) → null classLabel → provisional. Expected: ~20/226 hotels banner-hidden (the upper_upscale subset really in Madrid Centre) · ~206/226 banner-shown.
+
+**Master Excel + JSON** · introduces `services/costar/MASTER/COSTAR_MASTER_FINANCIALS.xlsx` (221 rows · 1 `costar_real` · 179 `hardcoded_default` Spain combinations · 41 `pending_costar` country headers) as the institutional record of which (submarket × class × segmentation_type) combinations have real CoStar data. Generated reproducibly by `services/costar/scripts/build_financials_master.py` reading from existing master files (SUBMERCADOS + CLASS) + a hardcoded USALI plantilla matching the methodology section 3.1. A minimal JSON projection (`apps/web/src/lib/report/financials/costar-financials-master.generated.json`) is bundled into Next.js for zero-cost runtime lookup in `coverage.ts`. Market names normalised (`"Madrid ESP"` → `"Madrid"`) on the JSON side so the matcher compares directly with `hotel.market_name` from BD.
+
+**Methodology document** · `VALUATION_METHODOLOGY.md` annex "Ajuste por tamaño del activo" appended (Paso 5 horizon · operator-authored). Tramos 0-75 / 76-200 / 201+ habitaciones definidos en `/user/admin/financials` pero engine wiring pending (separate session).
+
+**Backlog items added**: #13 (admin card editable para los 3 factores facility-aware · estimación 2-3h), #14 (columna `segmentation_type` en `hotel_canonical` · 1-2h), #15 (backfill `chain_scale` para los 111 hoteles unknown · 1-2h).
+
+Typecheck PASS exit 0 · BEFORE HTML snapshots of 5 verification hotels saved in `.smoke/paso4-pl-snapshots/` for institutional record. Rebrands intact.
+
+---
+
 ## 2026-05-28 — docs: methodology — current CoStar coverage scope + provisional template flag
 
 Second annex appended to `VALUATION_METHODOLOGY.md` (root, 18 KB · was 14 KB) capturing the data-coverage reality at session date: no full CoStar subscription yet, only one example loaded (Spain → Madrid → submarkets, Upper-Upscale template). The 226 hotels are valued today with the same base USALI percentages — Madrid Centro Upper-Upscale — regardless of their real submarket or class. This is a data-loading limitation, not an architecture one.

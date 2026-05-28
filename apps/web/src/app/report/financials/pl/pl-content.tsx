@@ -7,6 +7,7 @@ import {
   ExpenseInflationCard,
   FinancialSummaryStrip,
   PLTable,
+  ProvisionalTemplateBanner,
   RevparScenarioCard,
   applyAssumptionChange,
 } from "@/components/report/financials";
@@ -30,6 +31,11 @@ import {
  */
 export interface PLContentProps {
   initialAssumptions?: PLAssumptions;
+  /**
+   * When true, the page renders the "Plantilla USALI provisional" banner
+   * at the top. Computed server-side via `isProvisionalTemplate(hotel)`.
+   */
+  provisional?: boolean;
 }
 
 /**
@@ -37,7 +43,7 @@ export interface PLContentProps {
  * `PLComputed` on every change. Three scenario rates live inside the
  * assumption store; the live P&L uses the `base` (Mercado) rate.
  */
-export function PLContent({ initialAssumptions }: PLContentProps = {}) {
+export function PLContent({ initialAssumptions, provisional = false }: PLContentProps = {}) {
   const tier = useTier();
   const editable = canEditAssumptions(tier);
   const canView = canViewFinancials(tier);
@@ -59,6 +65,8 @@ export function PLContent({ initialAssumptions }: PLContentProps = {}) {
 
   return (
     <div className="space-y-8 print:space-y-3">
+      {provisional && <ProvisionalTemplateBanner />}
+
       {/* TOP STRIP — 3 institutional summary cards */}
       <FinancialSummaryStrip>
         <RevparScenarioCard
