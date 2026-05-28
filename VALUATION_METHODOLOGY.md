@@ -316,3 +316,101 @@ Estos tramos NO son inventados aquí — son la propiedad intelectual del operad
 Coherente con el principio de honestidad: ningún número se inventa. Los tramos están firmados por el operador, los porcentajes diferenciales se calibran con evidencia (CoStar o juicio profesional documentado), y el motor lee dinámicamente.
 
 Hasta el cableado, el motor sigue operando con la plantilla única por (submercado × clase), reflejando la limitación en la bandera "plantilla provisional" ya existente.
+
+---
+
+## ANEXO · Modelo HotelVALORA de EBITDA — exclusiones frente a CoStar (firmado 2026-05-28)
+
+### Decisión
+
+El cálculo del EBITDA en HotelVALORA **excluye dos líneas** que CoStar sí incluye en su tabla de rentabilidad USALI. Esta es una decisión metodológica deliberada del operador, no un error de extracción. El EBITDA resultante es por tanto un **EBITDA pre-alquiler**.
+
+### Línea excluida 1 · Sistemas de información y telecomunicaciones (IT)
+
+CoStar reporta "Sistemas de información y telecomunicaciones" como línea de gasto no distribuido (≈1,3% nacional / 1,9% Madrid Centre). HotelVALORA **NO la cuenta por separado** porque considera que ese gasto está ya incluido dentro de "Ventas y Marketing". Contarlo aparte sería **doble conteo**.
+
+Implicación: el motor del P&L ignora la línea IT al encadenar gastos hacia el GOP y el EBITDA. El dato de CoStar se puede almacenar (para trazabilidad) pero no se resta.
+
+### Línea excluida 2 · Precios de alquiler / rent
+
+CoStar reporta "Precios de alquiler" (≈7,8% nacional / 0,4% Madrid Centre). HotelVALORA **NO la usa para calcular el EBITDA** porque el alquiler es un **coste discrecional** que depende de la estructura inmobiliaria de cada activo (propiedad vs arrendamiento), no un baremo aplicable de forma uniforme a todos los hoteles.
+
+Esto es coherente con la práctica institucional de valorar el **negocio operativo** con independencia de cómo esté financiado o estructurado el inmueble. Un mismo hotel en propiedad o en alquiler tiene el mismo EBITDA operativo HotelVALORA; lo que cambia es la estructura de capital, que se trata por separado en el underwriting.
+
+### Consecuencia: EBITDA HotelVALORA > EBITDA CoStar
+
+Al excluir IT y alquiler, el EBITDA HotelVALORA es **superior** al EBITDA que reporta CoStar para el mismo activo. Ejemplo con el dato nacional España:
+
+- EBITDA CoStar (con IT y alquiler): 23,2%
+- EBITDA HotelVALORA (sin IT ni alquiler, pre-alquiler): ≈31,2%
+
+Esta diferencia es **esperada y defendible**, pero debe poder explicarse a un inversor: "nuestro EBITDA es pre-alquiler y excluye IT como partida independiente; valoramos el negocio operativo y tratamos la estructura inmobiliaria por separado". Esto debe quedar claro en la presentación del informe para no inducir a comparaciones incorrectas con benchmarks que sí incluyen esas líneas.
+
+### Fórmula EBITDA HotelVALORA
+
+```
+EBITDA = GOP − management_fees − property_taxes − insurance
+         (SIN restar IT/telecom · SIN restar rent)
+```
+
+Donde el GOP se calcula restando de los ingresos totales: gastos departamentales (rooms, F&B, otros) + gastos no distribuidos (admin, ventas&marketing, operaciones&mantenimiento, utilities), **sin** la línea IT.
+
+---
+
+## ANEXO · Perfiles derivados para apartahotel y hostel — regla MVP (firmado 2026-05-28)
+
+### Problema
+
+CoStar, en los informes PDF de submercado disponibles hoy, entrega la tabla de rentabilidad USALI **solo para hoteles de servicio completo**. No hay tabla separada para apartamentos turísticos ni para hostels. Dejar estos tipos de activo en "pending" (sin valoración) no sirve para el MVP: hay hoteles de estos tipos en el corpus que deben poder valorarse para la demo a inversores.
+
+### Principio: derivación honesta, no invención
+
+Donde no hay dato CoStar para un tipo de activo, se aplica una **regla derivada** que parte del dato real de hotel y aplica ajustes **fundamentados en la lógica de negocio conocida del sector**. La clave de honestidad: estos perfiles se etiquetan como `data_source = "derived_mvp_rule"`, NO como dato real de CoStar. Son una aproximación operativa explícita, sustituible por dato real cuando entre la API de CoStar segmentada por tipo.
+
+### Perfil APARTAHOTEL (derivado, modelo HotelVALORA)
+
+Lógica de negocio: ingreso dominado por habitaciones, F&B casi nula (solo desayunos), sin MICE, sin spa, parking pequeño, mínima estructura de personal (frecuentemente sin recepción 24h), management fee alto (gestión externalizada de canales/check-in/limpieza).
+
+| Línea | % | Nota |
+|---|---|---|
+| Habitaciones (ingreso) | 92,0% | dominante |
+| F&B comida | 4,0% | solo desayunos |
+| F&B bebida | 1,0% | mínima |
+| Meeting/eventos | 0,0% | no aplica |
+| Spa | 0,0% | no aplica |
+| Parking/otros | 3,0% | |
+| **Suma ingresos** | **100%** | cuadra |
+| GOP | 61,3% | alto por poca estructura |
+| Management fee | 20,0% | gestión externalizada |
+| EBITDA (pre-alquiler) | 40,2% | alto pero defendible |
+| Staff (memo) | 18,0% | sin recepción 24h |
+
+El EBITDA de ~40% es alto pero coherente: un edificio de apartamentos turísticos sin personal de recepción y con el modelo HotelVALORA (sin IT ni alquiler) genuinamente alcanza ese margen. El management fee del 20% es lo que recoge el coste de la gestión profesional externalizada.
+
+### Perfil HOSTEL (derivado, modelo HotelVALORA)
+
+Lógica de negocio: habitaciones con peso alto (mix de camas compartidas y privadas), F&B mínima (bar social), ingreso ancillary alto (tours, lockers, lavandería, eventos sociales), sin MICE formal, sin spa, management fee moderado.
+
+| Línea | % | Nota |
+|---|---|---|
+| Habitaciones (ingreso) | 82,0% | alto |
+| F&B comida | 3,0% | mínima |
+| F&B bebida | 5,0% | bar social |
+| Meeting/eventos | 0,0% | no aplica |
+| Spa | 0,0% | no aplica |
+| Parking/ancillary | 10,0% | tours/lockers/lavandería |
+| **Suma ingresos** | **100%** | cuadra |
+| GOP | 49,9% | |
+| Management fee | 12,0% | |
+| EBITDA (pre-alquiler) | 36,8% | sano para hostel bien gestionado |
+| Staff (memo) | 22,0% | recepción + limpieza intensiva |
+
+### Etiquetado y comportamiento
+
+- `data_source = "derived_mvp_rule"` distingue estos perfiles de los datos reales de CoStar.
+- Decisión de bandera (a confirmar al ver en producción): probablemente bandera suave tipo "Estimación por tipo de activo según modelo HotelVALORA · datos CoStar segmentados pendientes", coherente con la jerarquía de honestidad (submarket_aggregate → national → derived → pending).
+- Estos % son punto de partida MVP. Cuando CoStar entregue datos reales de apartahotel/hostel por submercado, se sustituyen y la etiqueta pasa a `costar_*`.
+
+### Cuadre matemático obligatorio
+
+Cualquier ajuste futuro de estos perfiles debe mantener: ingresos suman 100%, gastos encadenan correctamente a GOP, y EBITDA = GOP − mgmt − taxes − insurance (modelo HotelVALORA sin IT ni rent). Un P&L que no cuadre es inaceptable en una demo a inversores.
