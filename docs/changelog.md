@@ -4,6 +4,20 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — fix(data): amenities.spa false-positives cleaned · 153 → 61 (−92 hotels · −60.1%) · backlog #16 CLOSED
+
+Two coordinated UPDATEs against `hotel_canonical.amenities.spa` after Part A parser fix (`detectSpa()` Level-1-instance-only · `b76e0a0`). The original parser used `detectFacility(data, /spa/i)` which matched Booking's generic "Spa" taxonomy group name even when only Level-3 instances (gym/sauna/jacuzzi) existed underneath. Audit on 152 spa=true hotels (1 unauditable · `edition-madrid` has no `booking_hotel_id`) classified instance titles per 3-level vocabulary (L1 real spa · L2 ambiguous · L3 not spa) and yielded 59 MANTENER + 93 QUITAR.
+
+**Part B · 84 SEGUROS** (only-Level-3 or no-vocab · 4★ only · 5★ deferred): `audit_16_part_b` · `rows_updated=84` · audit row `3d74c1a2-c7e0-48ab-a7a8-5bd0f1e84deb`.
+
+**Part C · 8 DUDOSOS** (5★ operator-verified false-positive via web research): Barceló Imagine · Hotel Puerta America · Hotel Urban · Hotel Villa Real · Hyatt Centric Gran Vía · NH Collection Paseo del Prado · Thompson Madrid by Hyatt · UMusic Hotel Madrid · `audit_16_part_c_dudosos` · `rows_updated=8` · audit row `779a8b70-9ef2-49ad-af30-02225dd5e6c4`. Eurostars Suites Mirasierra deliberately excluded · operator-confirmed has real spa (false negative · stays `true`).
+
+Reversibility: BEFORE-snapshots in `.smoke/paso4-spa-audit/BEFORE-snapshot-2026-05-28T07-22-15Z.json` (84) + `BEFORE-snapshot-dudosos-2026-05-28T07-37-07Z.json` (8) · `REVERT.sql` + `REVERT-dudosos.sql` ready · audit rows carry full `affected_canonical_ids` array. EDITION Madrid untouched (no booking_hotel_id · awaits future enrichment).
+
+Post-apply verification: `spa=true=61` (153 − 84 − 8 = 61 ✓) · Eurostars Mirasierra still `true` ✓ · Hyatt Centric/Barceló/Thompson now `false` ✓.
+
+---
+
 ## 2026-05-28 — docs: promote DATA_ARCHITECTURE.md to repo root (8th canonical strategic doc, twin of VALUATION_METHODOLOGY)
 
 New strategic root doc · `DATA_ARCHITECTURE.md` (16 KB · 203 lines) consolidates the product-level data architecture: pipeline INPUT/MASTER/OLD across multi-source ingestion (CoStar · Booking · Google · futures), perfil 360 del hotel (4-block hotel profile), explicit data debts (PDFs no parseados · HOTELESperMARKET incompleto · INPUT→OLD manual), and the strategic decision "Supabase como fuente única de verdad" (operator-firmed 2026-05-28 · already implemented through migration 0035 + import_pnl_to_supabase.py in Phase 2).
