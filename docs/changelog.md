@@ -4,6 +4,22 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — fix(data): resolve booking_hotel_id for 2 manual_curated hotels · last enrichment blind-spot closed (audit #16 follow-up)
+
+EDITION Madrid + Riu Plaza España (the 2 hotels created via `primary_source = manual_curated` without ID matching) resolved through the standard `booking-com15 /api/v1/hotels/searchDestination` flow · resolved IDs verified against operator-confirmed identity (Plaza de Celenque 2 / Gran Vía 84). The dest_id returned by `searchDestination` for `dest_type=hotel` hits IS the hotel_id used by the rest of the corpus · no separate mapping needed.
+
+**The Madrid EDITION** → `booking_hotel_id=8176578`. Parser auto-detected `amenities.spa=true` (zero false-negative · new `detectSpa()` Level-1-instance parser works as designed). Parking moved `false→true` per Booking valet confirmation. Lat/lng corrected to `40.4177, −3.70575` (Δ ~155m). `review_count=647` · `restaurants_count=1` · `meeting_rooms_count=1` · 60 signed gallery photos.
+
+**Riu Plaza España** → `booking_hotel_id=4204507`. Parser detected `amenities.spa=false` (matches operator-verified ground truth · pool+gym+skybar, no spa). Lat/lng corrected to `40.423693, −3.7108`. Address realigned to Booking's facade `Calle Gran Vía, 84` (was `Plaza de España 8` · same building, different side). `review_count=18760` · `meeting_rooms_count=1` · 60 signed gallery photos. `restaurants_count` stays NULL (parser found no Food&Drink::Restaurant · consistent with Riu's bar/skybar focus).
+
+Both: `primary_source` moved `manual_curated → booking_rapidapi` · `enrichment_version 1→2` · `last_enriched_at` touched. `data_quality_tier` NOT recalculated (cron doesn't touch the tier · candidate backlog item: auto-tier recalc post-enrichment based on field coverage).
+
+Post-apply BD state: `missing_booking_id = 0/226` (was 2/226 · punto ciego total cerrado) · `spa=true = 61` (unchanged · audit #16 baseline holds). Audit row `884a4046-8968-4500-930f-0df70751fbc4` · operation `manual_curated_id_resolution` · source `audit_16_followup`. Reversibility: BEFORE snapshot + `REVERT.sql` in `.smoke/manual-curated-id-resolution/`.
+
+Engineering note: the new `detectSpa()` parser proved correct on EDITION (true positive) and Riu (true negative) without any operator override needed. force_spa flags were retained as belt-and-braces but did not change the merged result.
+
+---
+
 ## 2026-05-28 — fix(data): amenities.spa false-positives cleaned · 153 → 61 (−92 hotels · −60.1%) · backlog #16 CLOSED
 
 Two coordinated UPDATEs against `hotel_canonical.amenities.spa` after Part A parser fix (`detectSpa()` Level-1-instance-only · `b76e0a0`). The original parser used `detectFacility(data, /spa/i)` which matched Booking's generic "Spa" taxonomy group name even when only Level-3 instances (gym/sauna/jacuzzi) existed underneath. Audit on 152 spa=true hotels (1 unauditable · `edition-madrid` has no `booking_hotel_id`) classified instance titles per 3-level vocabulary (L1 real spa · L2 ambiguous · L3 not spa) and yielded 59 MANTENER + 93 QUITAR.
