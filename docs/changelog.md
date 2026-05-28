@@ -4,6 +4,36 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(hook) + fix(db): FASE 3 sub-paso 5 · useDraftedOverridesSupabase + hotfix CHECK constraint sync
+
+New client-side hook `use-drafted-overrides-supabase.ts` (~365 LOC) that mirrors the old `useDraftedOverrides` surface (so sub-paso 6 panel migration stays surgical) and adds 4 server-derived states the old hook didn't need (`loading`, `saving`, `error`, `template/dataSource/overriddenLines`). Replaces localStorage with the 3 APIs from sub-pasos 2 + 4. Consumes nothing else FASE 3-shipped yet · sub-paso 6 panel is the first caller.
+
+Design per operator-firmed 7-point plan:
+1. `filters` prop · hook INERT when `filters === null` · panel owns "no filter yet" UX
+2. `setFilters(new)` triggers re-fetch · panel owns modal-of-3 (save/discard/cancel) for `isDirty=true`
+3. AbortController + sequence counter (belt-and-braces) on every fetch · old responses never overwrite newer state
+4. Errors typed by `kind` (`fetch_failed` / `save_failed` / `reset_failed` / `template_not_found` / `auth`) with `retriable` flag · `save_failed` PRESERVES draft + isDirty
+5. `lastSavedAt` in-session only (null on mount even if overrides exist) · backlog #23 for multi-operator timestamp
+6. `overriddenLines` exposed raw `PnlDbColumn[]` · base values deferred to sub-paso 6 (backlog #24)
+7. `reset()` direct · panel owns confirmation modal with override count visible
+
+**Hotfix migration `pnl_template_override_constraint_sync_with_0036`** applied. Discovered by sub-paso 5 smoke pre-commit: the `pnl_override_line_item_known` CHECK constraint in `pnl_template_override` was missed by migration 0036 · still listed the original 21 line items from 0035 · NOT the 3 new ones (`expenses_food_pct` / `expenses_beverage_pct` / `ffe_reserve_pct`). Impact pre-fix: any operator save on Food expense / Beverage expense / FF&E reserve would have failed with constraint violation 23514. Bug latent · would have blocked sub-paso 6 entirely. Hotfix adds the 3 new line items + keeps `expenses_fb_pct` for transition (drop in 0037 with the column). REVERT.sql captured in `.smoke/fase-3-sub-paso-5/REVERT.sql`. Audit row in `ai_agent_runs`.
+
+This is the methodological win operator asked for: smoke pre-commit caught a real bug that would have surfaced in production.
+
+Verification 29/29 PASS:
+- TypeScript clean (caught + fixed `template_id`→`id` mismatch in `EffectiveTemplateRow` shape vs view)
+- 25 structural smoke tests (URL builder · dbRowToPanelState · panelStateToOverrides diff + ε 0.05pp · buildSeedDraft) + mock-based React-behavior (race condition / save_failed preserves draft / no-ghost-overrides after save→re-fetch)
+- 4 BD round-trip stages on Madrid Centre Upper Upscale hotel post-hotfix (mount fetch · save 2 cells · declarative-set revert one + add another · reset cleanup)
+
+Race condition test specifically: 3 fetches with delays 200/100/50 · only the highest-seq fetch (last initiated · C) wins · A and B are detected and dropped after their delays resolve. Proves the AbortController + sequence counter belt-and-braces design works.
+
+Backlogs #23 (last_override_updated_at view column · multi-operator) + #24 (include_base=true query param for tooltip) + #25 (test infrastructure for hooks · Vitest+RTL+jsdom) registered for post-FASE 3 hardening.
+
+Nothing consumes the hook yet · sub-paso 6 panel wiring is the next risk-bearing step.
+
+---
+
 ## 2026-05-28 — feat(api): FASE 3 sub-paso 4 · POST /api/admin/financials/pnl-overrides · FIRST write endpoint
 
 First mutation endpoint of FASE 3. Persists operator overrides to `pnl_template_override` per declarative-set semantics: the request body declares the COMPLETE override set for the template_id · server UPSERTs the listed rows and DELETEs any pre-existing overrides not in the body. 218 LOC.

@@ -138,7 +138,7 @@ export function panelToDbValue(s: string | null | undefined): number | null {
  * "operator-edited" tinting on the panel.
  */
 export interface EffectiveTemplateRow {
-  template_id: string;
+  id: string;
   country: string;
   market: string | null;
   submarket: string | null;
