@@ -178,3 +178,49 @@ Regla CERRADA (Miguel, 2026-05-26): la PRESENCIA de cualquier espacio de eventos
 
 - restaurants_count se pobló solo en ~8% (19/226): Booking solo emite el número exacto vía accommodationHighlights para algunos hoteles. Decisión pendiente para el P&L: qué hacer cuando el conteo no está (¿presencia = 1? ¿estimar por clase?).
 - meeting_rooms_count = 0/226: parser demasiado estrecho. Ampliar con las definiciones MICE de arriba. Revisar en Paso 4.
+
+---
+
+## ANEXO · Tipos de activo y segmentation_type (añadido 2026-05-28)
+
+### Principio: un solo motor, tres conjuntos de porcentajes
+
+El motor de valoración es **uno solo y universal**. NO hay "tres modos" del P&L codificados en la lógica. La metodología de underwriting es idéntica para hoteles tradicionales, apartamentos turísticos y hostels: misma estructura USALI, misma cadena Asset → Market → P&L → Valoración, misma regla facility-aware.
+
+**Lo que cambia entre tipos son los porcentajes USALI mismos**, y CoStar ya los entrega segmentados por tipo de activo. El campo `segmentation_type` de CoStar identifica cada activo como una de tres categorías:
+
+- **Hotel** (tradicional, con mix diversificado de ingresos)
+- **Apartamento turístico** (ingreso dominado por habitaciones, F&B/MICE residuales)
+- **Hostel** (modelo propio: dormitorios compartidos típicos, F&B básica, menos servicios, márgenes GOP/EBITDA típicamente superiores por menor estructura de personal)
+
+CoStar entrega los % USALI **diferenciados** para cada tipo en cada submercado/clase. Por ejemplo, el % de F&B sobre ingresos totales de un apartamento turístico en Madrid Centro será muy inferior al de un hotel tradicional del mismo submercado/clase, porque CoStar ya refleja esa realidad de mercado en sus datos. El motor solo tiene que leer el `segmentation_type` del activo y aplicar los % correspondientes de CoStar.
+
+### Implicación 1 · arquitectura mundial intacta
+
+Esta lógica refuerza el principio mundial del modelo: ningún tipo de activo necesita lógica especial en código. La diferenciación viene de los datos de CoStar, no de reglas hardcodeadas. Un mercado nuevo se activa cargando los datos de CoStar de sus tres tipos de activo, sin tocar el motor.
+
+### Implicación 2 · la regla facility-aware aplica IGUAL a los tres tipos
+
+La regla de ajuste por facilities reales (commit 2026-05-26) opera del mismo modo sobre los tres `segmentation_type`. Si un apartamento turístico no tiene restaurante, la línea F&B se ajusta o desaparece exactamente igual que en un hotel. La regla actúa sobre los % USALI que CoStar entrega para ESE tipo de activo, no sobre los de "hotel" como base universal.
+
+Consecuencia natural y deseable: si un apartamento turístico genuinamente carece de restaurante, MICE, spa, etc. (lo habitual del modelo de negocio), su P&L resultante reflejará un mix dominado por habitaciones, con márgenes GOP/EBITDA típicamente superiores. No porque el motor "sepa" que es un apartahotel, sino porque los % de CoStar para apartamentos en ese submercado ya describen ese mix, y la regla facility-aware solo retira lo que en ese activo concreto tampoco existe.
+
+### Implicación 3 · el "fallback" de restaurants_count vacío
+
+El re-sweep del 2026-05-28 deja muchos hoteles con `restaurants_count = NULL`, mayoritariamente apartamentos turísticos. NO hay que inventar un valor de fallback (default a 1, asumir por clase, etc.). El sistema se comporta correctamente:
+
+1. CoStar entrega un % de F&B bajo o nulo para apartamentos turísticos del submercado.
+2. La regla facility-aware lee `restaurants_count = NULL` o `amenities.restaurant = false` y retira la línea F&B.
+3. El P&L resultante refleja la realidad: ingreso casi monolínea de habitaciones.
+
+Esto resuelve sin invento la decisión que quedó abierta sobre "qué hacer cuando el conteo de restaurantes está vacío". La respuesta es: nada — el motor ya hace lo correcto leyendo el `segmentation_type` y aplicando la regla facility-aware sobre los % de CoStar de ese tipo.
+
+### Implementación para Paso 4
+
+El motor del P&L debe:
+1. Leer `segmentation_type` del `canonical_id`.
+2. Cargar los % USALI de CoStar **para ese submercado, clase Y segmentation_type**.
+3. Aplicar la regla facility-aware sobre esos % (no sobre los % "de hotel" como base).
+4. Aplicar el factor 2/3/4% (urban/mixed/resort) por restaurante adicional sobre el F&B base que CoStar entregue **para ese tipo de activo**.
+
+Si en algún submercado CoStar no ha entregado todavía los % segmentados por tipo (cobertura parcial), aplicar el guard: "datos no disponibles para este tipo de activo en este submercado", NUNCA fabricar usando los % de hotel como fallback. Coherente con el principio de honestidad de la sección 1.

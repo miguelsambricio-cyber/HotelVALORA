@@ -4,6 +4,44 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — docs: methodology — segmentation_type aware P&L (single engine, three CoStar percentage sets)
+
+New annex appended to `VALUATION_METHODOLOGY.md` (root, 14 KB · was 9.5 KB) capturing the architectural decision on asset types: **one universal engine**, NOT three modes. CoStar already delivers USALI percentages segmented by `segmentation_type` (hotel · apartamento turístico · hostel) per submarket and class — the engine reads the field and applies the corresponding percentages.
+
+Implications captured for Paso 4 implementation:
+- Worldwide architecture stays intact · no per-type code branches.
+- Facility-aware rule applies identically to all three types, on the percentages CoStar delivers for that type (NOT on hotel percentages as a base).
+- Resolves the empty `restaurants_count` fallback question without invention: an apartahotel with NULL restaurants reads apartment percentages from CoStar (where F&B is typically near-zero), then facility-aware drops the line.
+- Guard of honesty: if CoStar lacks segmented percentages for a submarket/type, show "data not available" — never fabricate using hotel percentages as fallback (coherent with country guard, commit C).
+
+---
+
+## 2026-05-28 — fix(enrichment): restaurants_count parser PRIMARY = Food&Drink instance count + re-sweep 226
+
+Diagnostic probe (`.smoke/paso4-probe/`, 4 hotels) showed the existing parser had only the secondary path: `accommodationHighlights "N restaurants"` regex, emitted by Booking for ~8% of hotels (19/226 baseline). Real outlet count lives in instances literal `"Restaurant"` inside the `Food & Drink` facility group · empirically validated 4/4 in the probe (Mandarin 3 · Four Seasons 3 · Marriott Auditorium 3 · URSO 1).
+
+Parser change in `apps/web/src/lib/enrichment/enrich-hotel.ts` is quirurgico — only `extractRestaurantsCount` modified. PRIMARY counts F&B group instances; SECONDARY keeps the highlight regex as fallback; NULL behaviour unchanged. Worker downstream still writes only when extractor returns non-null, so re-sweeps are non-destructive.
+
+**Re-sweep results (226 hotels · 30:24 wall · 1 fail Hotel Palacio del Retiro recoverable)**:
+- Coverage 19/226 (8.4%) → **141/226 (62.4%)** · 7.4× improvement.
+- Distribution: rc=1×106 · rc=2×15 · rc=3×15 · rc=4×4 · rc=5×1 (Meliá Castilla) · NULL=85.
+- Zero regressions (count → NULL). Zero overwrites with different value. The 85 NULLs are legitimate "no Restaurant outlet" (apartahoteles, breakfast-only 3★, boutique studios).
+
+Smoke 4/4 PASS replaying against `.smoke/paso4-probe/` dumps · typecheck PASS exit 0 · MICE binary signal untouched (`amenities.meet` already populated by `detectFacility`, 159/226 true · 14/14 in golden sample).
+
+---
+
+## 2026-05-28 — chore: protect operator-sensitive files from git tracking
+
+Explicit gitignore patterns for two file classes that must never enter git:
+
+- `HotelVALORA_Modelo_Financiero.xlsx` (investor-facing P&L, valuation scenarios, deal terms) + future renames via `*Modelo_Financiero*.xlsx`.
+- `scripts/provision-*-keys.{ps1,sh}` — operator provisioning helpers that handle live API keys via stdin pipes. Even when the script body has no plaintext secret, the operational pattern (live keys flowing through) makes them unsafe to track as a habit.
+
+Preventive plumbing — both files were already untracked, this just forbids accidental future commits.
+
+---
+
 ## 2026-05-28 — docs: consolidate valuation methodology in repo root + entrypoints registration
 
 Repository-organisation pass at session start, ahead of the Paso 4 work. Three docs land at the root + one registry update + one minor backlog entry. No code touched · Rebrands intact.
