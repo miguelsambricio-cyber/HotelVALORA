@@ -84,6 +84,15 @@ tmp/
 # ─── Diagnostic probes (ephemeral · raw API dumps, never tracked) ────────────
 .smoke/
 
+# ─── Operator-sensitive working files (NEVER track) ──────────────────────────
+# Financial models (investor-facing P&L, valuation scenarios, deal terms).
+HotelVALORA_Modelo_Financiero.xlsx
+*Modelo_Financiero*.xlsx
+# Operator-side provisioning helpers (handle secrets via stdin · live keys
+# may transit through these scripts even if not stored in plaintext).
+scripts/provision-*-keys.ps1
+scripts/provision-*-keys.sh
+
 # ─── CONTACTOS DATASITE (institutional relationship intelligence · PII) ──────
 # Datasite Outreach exports contain emails, phones, LinkedIn URLs, internal
 # notes, and bid history. Never commit any of it to git. The README at
