@@ -93,6 +93,11 @@ HotelVALORA_Modelo_Financiero.xlsx
 scripts/provision-*-keys.ps1
 scripts/provision-*-keys.sh
 
+# ─── Transient artifacts from pnl import (regenerable from canonical Excel) ──
+# Plan JSON + bulk SQL + chunked SQL + scaffold output.
+services/costar/MASTER/_pnl_upsert*
+services/costar/MASTER/COSTAR_MASTER_FINANCIALS.scaffold.xlsx
+
 # ─── CONTACTOS DATASITE (institutional relationship intelligence · PII) ──────
 # Datasite Outreach exports contain emails, phones, LinkedIn URLs, internal
 # notes, and bid history. Never commit any of it to git. The README at

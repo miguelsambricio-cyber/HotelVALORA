@@ -1,4 +1,11 @@
-"""Reproducible builder for COSTAR_MASTER_FINANCIALS.xlsx + JSON snapshot.
+"""Reproducible builder for an EMPTY scaffold template + JSON snapshot.
+
+LEGACY · superseded by import_pnl_to_supabase.py for the production data
+path (FASE 2 of Supabase migration · 2026-05-28). This script remains
+useful for BOOTSTRAPPING new countries: it generates a methodology-firmed
+empty template the operator can copy values into. Its output now writes
+to COSTAR_MASTER_FINANCIALS.scaffold.xlsx (NOT .xlsx) so it can never
+overwrite the operator-curated canonical file at COSTAR_MASTER_FINANCIALS.xlsx.
 
 Run from repo root:
     python services/costar/scripts/build_financials_master.py
@@ -53,7 +60,7 @@ from openpyxl.utils import get_column_letter
 
 REPO = Path(__file__).resolve().parents[3]
 MASTER_DIR = REPO / "services" / "costar" / "MASTER"
-OUTPUT_XLSX = MASTER_DIR / "COSTAR_MASTER_FINANCIALS.xlsx"
+OUTPUT_XLSX = MASTER_DIR / "COSTAR_MASTER_FINANCIALS.scaffold.xlsx"
 OUTPUT_JSON = (
     REPO / "apps" / "web" / "src" / "lib" / "report" / "financials"
     / "costar-financials-master.generated.json"

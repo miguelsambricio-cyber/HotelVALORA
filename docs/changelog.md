@@ -4,6 +4,42 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(import): 149 rows landed in pnl_template + audit run (Phase 2 of Supabase migration · CLOSED)
+
+Operator-approved import of the canonical USALI plantilla into Supabase, replacing the localStorage-only persistence path that has been institutional debt since Phase D was placeholder-only.
+
+New script · `services/costar/scripts/import_pnl_to_supabase.py` (320 LOC) reads the operator-filled `COSTAR_MASTER_FINANCIALS.xlsx`, applies three normalisations vs the canonical schema (`costar_national_ES` → `costar_national` · submarket dashes → ampersands `Arguelles & Chamberi`/`Chamartin & Plaza de Castilla` · ratios 0-1 → percentages 0-100), and generates apartahotel + hostel derived rows for Madrid only (72 rows) where there's a real CoStar base (`costar_submarket_aggregate` or `costar_national`). NEVER touches `pnl_template_override` so operator edits survive any re-import. Idempotency via `INSERT...ON CONFLICT pnl_template_uk DO UPDATE SET ... WHERE col IS DISTINCT FROM EXCLUDED.col` so re-runs with identical data are true no-ops (`updated_at` doesn't move). Conflict detection scaffolded for runs ≥2 (BD already has rows from a previous import).
+
+Apply mechanism: script emits SQL · operator-approved via `--dry-run` review · 4 SQL chunks of 30 rows + 1 of 29 applied via Supabase MCP `execute_sql` after green light. First run is BD-empty → 100% INSERTs, no conflicts. Audit row registered in `ai_agent_runs` (agent_id=`data_ingestion` · trigger_kind=`manual` · status=`success` · metadata carries total_rows/derived_count/by_data_source).
+
+Final state in `twebgqutuqgonabvhzjk`:
+
+| Bucket | Rows |
+|---|---|
+| `costar_submarket_aggregate` (Madrid Centre × 6 classes × hotel) | 6 |
+| `costar_national` (5 Madrid submarkets × 6 classes × hotel · fallback nacional) | 30 |
+| `derived_mvp_rule` (6 Madrid submarkets × 6 classes × {apartahotel,hostel}) | 72 |
+| `pending_costar` (41 country headers · USA/UK/Portugal/...) | 41 |
+| **`pnl_template` total** | **149** |
+| `pnl_template_effective` (view) | 149 |
+| `pnl_template_override` | 0 (intacto · panel reconnect en FASE 3) |
+
+Methodology decisions baked into the imported data:
+
+- HotelVALORA EBITDA pre-alquiler · `it_telecom_pct` + `rent_pct` stored as columns but engine excludes them (FASE 4). Derived apartahotel/hostel rows have these as NULL since the methodology doesn't define them.
+- Derived MVP rules (operator-firmed): apartahotel mgmt_fee 20% / EBITDA 40.2% · hostel mgmt_fee 12% / EBITDA 36.8%. Full 21-column tables per VALUATION_METHODOLOGY.md annex.
+
+Repository organisation:
+
+- `COSTAR_MASTER_FINANCIALS_datos_reales.xlsx` renamed to canonical `COSTAR_MASTER_FINANCIALS.xlsx` matching the rest of the COSTAR_MASTER_* family. The Phase 1 scaffold-generator script (`build_financials_master.py`) now writes to `COSTAR_MASTER_FINANCIALS.scaffold.xlsx` so it can never overwrite the operator-curated canonical file in future runs. The legacy script remains useful for bootstrapping new countries; its header now documents the FASE 2 supersession.
+- `.gitignore` adds `services/costar/MASTER/_pnl_upsert*` (transient plan/SQL chunks · regenerable) and the new scaffold output path.
+
+Backlog #18 added: align importer default `trigger_kind` to `manual` (script template said `scripted_import` which is not in the `ai_agent_runs` CHECK constraint — caught during apply, corrected manually for this run).
+
+Phase 3 (panel admin reads/writes Supabase via `pnl_template_effective` + drops localStorage) and Phase 4 (engine reads from BD with hierarchical fallback + HV EBITDA flip) queued for dedicated sessions. Rebrands intactos · enrichment cron intact · Paso 4 facility-aware engine intact.
+
+---
+
 ## 2026-05-28 — feat(db): pnl_template + pnl_template_override + effective view (migration 0035 · Phase 1 of Supabase migration)
 
 Phase 1 of the 5-phase migration that makes Supabase the single source of truth for the USALI percentages currently fragmented across `lib/admin/financials/defaults.ts` (hardcoded display strings), `lib/report/financials/assumptions.ts` (hardcoded engine ratios), and `costar-financials-master.generated.json` (provenance only). Scope today: schema only · no runtime code touched · no impact on production reports (tables are empty until Phase 2 importer runs).

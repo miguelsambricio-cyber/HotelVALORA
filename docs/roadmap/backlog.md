@@ -32,6 +32,7 @@ Captured at end-of-day shutdown. Ordered roughly by tomorrow's working order —
     - Auditar el resto del corpus: identificar todos los hoteles con `spa=true` y verificar contra fuente oficial (sample 10-15 al azar, calibrar tasa de falsos positivos).
     Estimación: 3-4h. Bloqueante: NO. Prioridad: **alta** antes de demo a inversores (defendibilidad de valoraciones).
 17. **Ambigüedad parking Hyatt Centric** (no urgente) — Booking dice parking=true · fuente independiente sugiere parking concertado externo, no propio. Dejar como está hasta confirmación manual operador. Similar dinámica que #16 pero menor impacto (parking & rentals = 1.9% del revenue base).
+18. **Importer `trigger_kind` default · 1-line microfix** — `import_pnl_to_supabase.py` actualmente emite `trigger_kind='scripted_import'` para el audit row de `ai_agent_runs`, valor que no está en el CHECK constraint real (`cron|event|manual|webhook|escalation|agent`). En el apply de Fase 2 lo corregí manualmente a `'manual'` (semántica correcta · script disparado por operador). El script sigue con el valor incorrecto · cambiar `emit_audit_sql` a usar `'manual'` para que runs futuros no fallen el INSERT. <30 min trabajo.
 
 ---
 
