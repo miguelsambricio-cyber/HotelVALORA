@@ -4,6 +4,28 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(api): FASE 3 sub-paso 3 · GET /api/admin/financials/pnl-dimensions
+
+Read-only endpoint that returns the distinct dimension tuples present in `pnl_template` so the admin panel can build its 5-level cascade (País → Mercado → Submercado → Clase → Tipo) from BD truth instead of the hardcoded `PNL_GEO_FILTERS` in `defaults.ts`. ~110 LOC. Same patterns as sub-paso 2: `requireOperator()` fail-closed · `cache-control: no-store` · `force-dynamic` · admin Supabase client.
+
+Design choices:
+- Query the base table, NOT the view. View hides deprecated `expenses_fb_pct` but dimensions live on the table.
+- INCLUDE pending_costar rows. Operator decision is Option 3 (show pending countries with "sin datos CoStar" UI message) · filtering at API would lose that honesty layer.
+- Keys in CoStar English canonical (Madrid Centre · Upper Upscale · ES). NEVER translate here. ES display is sub-paso 6's job via `pnl-i18n.ts`. Mixing data + display contaminates the data layer.
+- Flat list shape over indexed tree: indexed tree would save ~5KB wire but the panel rebuilds cascade maps in-memory anyway · simplicity wins for 149 rows.
+
+Response shape: `{ ok, count, rows: [{country, market, submarket, class, segmentation_type, data_source}, ...], meta }`. `meta` includes `by_data_source` breakdown plus `country_count` (42 · ES + 41 pending) split into `country_count_with_data` (1 · only ES) and `country_count_pending` (41) so the panel can paint "1 país con datos · 41 pending" without re-walking the rows.
+
+Determinism: `ORDER BY country, market NULLS LAST, submarket NULLS LAST, class NULLS LAST, segmentation_type NULLS LAST`. Pending rows cluster at country group ends.
+
+Backlog #21 registered: `pnl-i18n.ts` covers 47 countries but BD has 5+ pending without ES translation (EG, IL, NZ, SA, +1). Helpers fall back to ISO code · acceptable because pending countries are not yet operative selections. Cosmetic · non-blocking demo.
+
+SQL smoke pre-commit verified: row_count=149 · country_count=42 (operator's earlier "41" was a miscount on my part during smoke C inspection · BD confirms 42) · by_data_source {6, 30, 72, 41} · first 3 / last 3 rows in alphabetical order · ES Madrid Centre Upper Upscale window at rn 64-66 with deterministic class+segmentation ordering.
+
+Nothing consumes this yet · sub-paso 5 hook + sub-paso 6 panel are the first callers.
+
+---
+
 ## 2026-05-28 — feat(api): FASE 3 sub-paso 2 · GET /api/admin/financials/pnl-template
 
 Read-only route that returns a `pnl_template_effective` row for an exact dimension tuple. Auth-gated via `requireOperator()` (fail-closed). 110 LOC. Cache-Control `no-store` because overrides mutate via sub-paso 4. Nothing consumes it yet · sub-paso 5 (useDraftedOverridesSupabase hook) is the first caller.
