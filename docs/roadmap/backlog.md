@@ -19,6 +19,7 @@ Captured at end-of-day shutdown. Ordered roughly by tomorrow's working order —
 9. **Integrations key management** — `/user/admin/integrations` needs a clean operator UI for provisioning / rotating / invalidating API keys (RapidAPI · Google Places · Resend · CRON_SECRET · INGESTION_AUDIT_TOKEN). T1 credentials currently encrypted in Supabase; expose via admin without leaking values.
 10. **Agents system review** — 9 operational agents + CEO seeded but mostly dormant. Review status of each, decide which to activate post-Paso 4.
 11. **SSL apex cert** — `hotelvalora.com` apex Let's Encrypt cert only covers `www.hotelvalora.com`. Windows schannel rejects bare apex with `SEC_E_WRONG_PRINCIPAL` even though Vercel 307-redirects → www. Browsers tolerate it; institutional clients on strict TLS won't. Re-issue or extend cert to apex. Bundle with Vercel Pro upgrade pre-demo.
+12. **CoStar full API integration** — replace the single Upper-Upscale Madrid Centro template currently loaded with the real CoStar dataset: full hotel inventory by market + USALI percentages segmented by country/market/submarket/class/segmentation_type + STR for real compsets. When complete: (a) engine starts reading the matching percentages per asset, no code change; (b) the "plantilla provisional" flag (added 2026-05-28) auto-retires for covered assets; (c) facility-aware rule keeps operating on the correctly segmented base. See `VALUATION_METHODOLOGY.md` annex "Alcance actual de cobertura CoStar" for full scope.
 
 ---
 

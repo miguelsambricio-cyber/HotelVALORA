@@ -4,6 +4,18 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — docs: methodology — current CoStar coverage scope + provisional template flag
+
+Second annex appended to `VALUATION_METHODOLOGY.md` (root, 18 KB · was 14 KB) capturing the data-coverage reality at session date: no full CoStar subscription yet, only one example loaded (Spain → Madrid → submarkets, Upper-Upscale template). The 226 hotels are valued today with the same base USALI percentages — Madrid Centro Upper-Upscale — regardless of their real submarket or class. This is a data-loading limitation, not an architecture one.
+
+The engine reads percentages dynamically by (submarket, class, segmentation_type) from BD; today all lookups return the same template because only one is loaded. When CoStar full lands, NO code change is required — only data.
+
+Decision (operator, 2026-05-28): keep computing the P&L with the available template but show a visible flag on Financials warning the user that the underlying USALI percentages are provisional. The flag suppresses automatically for hotels whose (submarket × class × segmentation_type) matches a fully-loaded template.
+
+Facility-aware rule partially mitigates the limitation (drops absent lines, concentrates weight on rooms for apartahoteles/boutiques) but the surviving percentages remain Upper-Upscale values until CoStar full coverage lands.
+
+---
+
 ## 2026-05-28 — docs: methodology — segmentation_type aware P&L (single engine, three CoStar percentage sets)
 
 New annex appended to `VALUATION_METHODOLOGY.md` (root, 14 KB · was 9.5 KB) capturing the architectural decision on asset types: **one universal engine**, NOT three modes. CoStar already delivers USALI percentages segmented by `segmentation_type` (hotel · apartamento turístico · hostel) per submarket and class — the engine reads the field and applies the corresponding percentages.

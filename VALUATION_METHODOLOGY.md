@@ -224,3 +224,57 @@ El motor del P&L debe:
 4. Aplicar el factor 2/3/4% (urban/mixed/resort) por restaurante adicional sobre el F&B base que CoStar entregue **para ese tipo de activo**.
 
 Si en algún submercado CoStar no ha entregado todavía los % segmentados por tipo (cobertura parcial), aplicar el guard: "datos no disponibles para este tipo de activo en este submercado", NUNCA fabricar usando los % de hotel como fallback. Coherente con el principio de honestidad de la sección 1.
+
+---
+
+## ANEXO · Alcance actual de cobertura CoStar (añadido 2026-05-28)
+
+### Situación real de datos a fecha 2026-05-28
+
+El producto NO tiene todavía suscripción completa a CoStar. Lo que hay cargado hoy en el sistema es **un ejemplo descargado**:
+
+- Cobertura geográfica: **España → Madrid → submercados de Madrid**.
+- Cobertura de clase: **un solo segmento, Upper-Upscale**, con su compset de referencia.
+- Cobertura USALI: los porcentajes de la **plantilla "Madrid Centro Upper-Upscale"** (los que aparecen en la sección 3.1).
+
+Esto significa que, a fecha de hoy, **los 226 hoteles del corpus se valoran usando los mismos % USALI base** —los de Upper-Upscale Madrid Centro—, independientemente de su submercado real o de su clase real. Un hotel midscale de un submercado periférico de Madrid se calcula hoy con los porcentajes de un upper-upscale del centro. Es una limitación de **datos cargados**, NO de la arquitectura del motor.
+
+### Por qué la arquitectura es correcta aunque los datos sean parciales
+
+El motor del P&L está diseñado para **leer dinámicamente** los % USALI por submercado/clase/`segmentation_type` de la base de datos. Hoy todos los lookups devuelven la misma plantilla porque solo hay una cargada. Cuando entren los datos completos de CoStar:
+
+1. El sistema cargará los % USALI segmentados por submercado, clase y `segmentation_type` (ver anexo anterior).
+2. El motor leerá automáticamente los % correctos para cada activo según su ubicación, clase y tipo.
+3. La regla facility-aware seguirá operando idénticamente — solo cambia la base de % sobre la que actúa.
+
+**Ningún cambio de código será necesario** cuando llegue CoStar completo. Solo cambian los datos cargados. Esta es la base del argumento de escalabilidad mundial del producto.
+
+### Mitigación parcial vía regla facility-aware
+
+La regla facility-aware (commit 2026-05-26) mitiga PARCIALMENTE la limitación de datos cargados:
+
+- Un hotel midscale boutique sin spa, sin meeting rooms y con 1 restaurante NO recibe esas líneas en su P&L porque facility-aware las pone a 0. El peso se concentra en rooms.
+- Esto acerca el P&L resultante a la realidad económica del activo, aunque la plantilla base de partida sea la de Upper-Upscale.
+
+Sin embargo, los % que SOBREVIVEN al filtrado de facility-aware siguen siendo los de Upper-Upscale Madrid Centro, no los del segmento real del activo. Por tanto la valoración resultante es una **aproximación funcional pero provisional**.
+
+### Bandera visible "plantilla provisional · cobertura CoStar pendiente"
+
+Decisión operador (Miguel, 2026-05-28): mantener el cálculo del P&L con la plantilla disponible, pero mostrar al usuario una **bandera visible** en el informe (en Financials, donde se sirve el P&L) que advierta:
+
+> "Plantilla USALI provisional · cobertura CoStar pendiente. Los porcentajes base aplicados corresponden a Madrid Centro Upper-Upscale. La valoración se recalibrará automáticamente cuando se carguen los datos segmentados de CoStar para el submercado y la clase de este activo."
+
+La bandera debe ser visible pero no alarmante. El usuario debe poder ver el P&L y la valoración, entendiendo que es una aproximación con la plantilla actualmente cargada. Esta transparencia es coherente con el principio de honestidad de la sección 1.
+
+Cuando un activo pertenezca al subgrupo exacto que sí tiene plantilla cargada (Madrid Centro Upper-Upscale en su submercado real), la bandera NO se muestra — esos activos sí están valorados con sus % reales de CoStar.
+
+### Plan de cobertura futura
+
+Cuando se contrate la suscripción completa de CoStar y se integre la API:
+
+1. **Actualizar el inventario de hoteles por mercado** (la lista canónica de cada país/mercado/submercado).
+2. **Cargar los datos completos de país/mercado/submercado/clase** para cada submercado del mundo (% USALI por segmentación).
+3. **Activar la integración STR** para construir compsets reales por activo.
+4. **Retirar la bandera** "plantilla provisional" automáticamente para todos los activos cuyo submercado/clase/`segmentation_type` esté ya cubierto.
+
+Hasta entonces, la bandera es el mecanismo de honestidad visible que mantiene el producto utilizable sin engañar al usuario sobre el alcance real de los datos.
