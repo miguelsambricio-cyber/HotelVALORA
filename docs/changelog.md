@@ -4,6 +4,31 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — feat(db): pnl_template + pnl_template_override + effective view (migration 0035 · Phase 1 of Supabase migration)
+
+Phase 1 of the 5-phase migration that makes Supabase the single source of truth for the USALI percentages currently fragmented across `lib/admin/financials/defaults.ts` (hardcoded display strings), `lib/report/financials/assumptions.ts` (hardcoded engine ratios), and `costar-financials-master.generated.json` (provenance only). Scope today: schema only · no runtime code touched · no impact on production reports (tables are empty until Phase 2 importer runs).
+
+Applied via Supabase MCP on `twebgqutuqgonabvhzjk`. Verified:
+
+- `pnl_template`: 0 rows · 5 indexes (pkey, composite uk with NULLS NOT DISTINCT, geo, source, class_seg) · RLS public-read.
+- `pnl_template_override`: 0 rows · 4 indexes (pkey, uk on template_id+line_item, template, operator) · RLS enabled with NO policies (service-role only).
+- `pnl_template_effective` view: 0 rows · compiles cleanly · `security_invoker=false` so anon sees merged values while override table stays inaccessible.
+- Enums `pnl_data_source` (6 values) + `pnl_segmentation_type` (3 values) created.
+- `updated_at` trigger function `tg_set_updated_at()` + 2 triggers wired.
+
+Methodology decisions baked into the schema:
+
+- **HotelVALORA EBITDA pre-alquiler**: `it_telecom_pct` + `rent_pct` columns exist (CoStar parity) but the engine excludes them from EBITDA. Column comments make this explicit.
+- **`derived_mvp_rule` data_source**: enum value present from day 1. Phase 2 importer will generate apartahotel/hostel rows using documented sector rules (mgmt_fee 20%/12%).
+
+Scalability ajuste pre-apply: the original `costar_national_ES` enum value was renamed to `costar_national` (generic) since country is already encoded in the `country` column. Avoids future ALTER TYPE friction when other countries come online.
+
+TS types regenerated via Supabase MCP (`apps/web/src/lib/supabase/types.ts` · 218K chars · 19 pnl_* references). `pnpm typecheck` PASS exit 0. `docs/database.md` updated with new section covering enums, 3 structures, methodology decisions, and the 5-phase roadmap.
+
+Phases 2-5 (importer · panel · engine · verification) queued for dedicated sessions. Rebrands intactos · enrichment cron unaffected · Paso 4 facility-aware engine untouched.
+
+---
+
 ## 2026-05-28 — verify(financials): post-deploy delta for 5 verification hotels (cd7eda5)
 
 Post-deploy verification of `cd7eda5` against 5 hotels chosen across the methodology axes (4 provisional · 1 control banner-hidden). Year-1 revenue per line was extracted from the PLAssumptions JSON embedded in each rendered page (BEFORE captures saved pre-deploy in `.smoke/paso4-pl-snapshots/BEFORE-*.html`, AFTER captures post-deploy). 5/5 PASS — every observed behaviour matches the methodology specification.

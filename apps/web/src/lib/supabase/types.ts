@@ -929,6 +929,821 @@ export type Database = {
           },
         ]
       }
+      hotel_canonical: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          agoda_id: string | null
+          amenities: Json
+          block_key: string | null
+          booking_hotel_id: string | null
+          booking_url: string | null
+          brand: string | null
+          brand_family: string | null
+          canonical_name: string
+          chain_scale: Database["public"]["Enums"]["hotel_segment"]
+          city: string
+          city_normalized: string
+          costar_property_id: string | null
+          country_code: string
+          created_at: string
+          data_quality_tier: Database["public"]["Enums"]["quality_tier_enum"]
+          deleted_at: string | null
+          documented_independent: boolean
+          email: string | null
+          enrichment_version: number
+          expedia_id: string | null
+          field_provenance_summary: Json
+          gallery_paths: string[] | null
+          geom: unknown
+          google_place_id: string | null
+          hero_image_path: string | null
+          hotel_type: Database["public"]["Enums"]["hotel_type_enum"] | null
+          id: string
+          last_enriched_at: string | null
+          lat: number | null
+          legal_name: string | null
+          lng: number | null
+          market_id: string | null
+          meeting_rooms_count: number | null
+          meeting_space_sqm: number | null
+          neighborhood: string | null
+          operator_id: string | null
+          operator_type: Database["public"]["Enums"]["operator_type_enum"]
+          osm_id: string | null
+          ownership_structure: string | null
+          phone: string | null
+          postal_code: string | null
+          primary_review_source: string | null
+          primary_source: string | null
+          region: string | null
+          restaurants_count: number | null
+          review_count: number | null
+          review_score: number | null
+          room_type_mix: Json | null
+          segment: Database["public"]["Enums"]["hotel_segment"]
+          slug: string
+          source_confidence: Json
+          star_rating: number | null
+          status: Database["public"]["Enums"]["hotel_lifecycle_enum"]
+          str_property_id: string | null
+          submarket_id: string | null
+          total_keys: number | null
+          total_rooms: number | null
+          tripadvisor_id: string | null
+          updated_at: string
+          website_url: string | null
+          wikidata_qid: string | null
+          year_opened: number | null
+          year_renovated_last: number | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          agoda_id?: string | null
+          amenities?: Json
+          block_key?: string | null
+          booking_hotel_id?: string | null
+          booking_url?: string | null
+          brand?: string | null
+          brand_family?: string | null
+          canonical_name: string
+          chain_scale?: Database["public"]["Enums"]["hotel_segment"]
+          city: string
+          city_normalized: string
+          costar_property_id?: string | null
+          country_code: string
+          created_at?: string
+          data_quality_tier?: Database["public"]["Enums"]["quality_tier_enum"]
+          deleted_at?: string | null
+          documented_independent?: boolean
+          email?: string | null
+          enrichment_version?: number
+          expedia_id?: string | null
+          field_provenance_summary?: Json
+          gallery_paths?: string[] | null
+          geom?: unknown
+          google_place_id?: string | null
+          hero_image_path?: string | null
+          hotel_type?: Database["public"]["Enums"]["hotel_type_enum"] | null
+          id?: string
+          last_enriched_at?: string | null
+          lat?: number | null
+          legal_name?: string | null
+          lng?: number | null
+          market_id?: string | null
+          meeting_rooms_count?: number | null
+          meeting_space_sqm?: number | null
+          neighborhood?: string | null
+          operator_id?: string | null
+          operator_type?: Database["public"]["Enums"]["operator_type_enum"]
+          osm_id?: string | null
+          ownership_structure?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          primary_review_source?: string | null
+          primary_source?: string | null
+          region?: string | null
+          restaurants_count?: number | null
+          review_count?: number | null
+          review_score?: number | null
+          room_type_mix?: Json | null
+          segment?: Database["public"]["Enums"]["hotel_segment"]
+          slug: string
+          source_confidence?: Json
+          star_rating?: number | null
+          status?: Database["public"]["Enums"]["hotel_lifecycle_enum"]
+          str_property_id?: string | null
+          submarket_id?: string | null
+          total_keys?: number | null
+          total_rooms?: number | null
+          tripadvisor_id?: string | null
+          updated_at?: string
+          website_url?: string | null
+          wikidata_qid?: string | null
+          year_opened?: number | null
+          year_renovated_last?: number | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          agoda_id?: string | null
+          amenities?: Json
+          block_key?: string | null
+          booking_hotel_id?: string | null
+          booking_url?: string | null
+          brand?: string | null
+          brand_family?: string | null
+          canonical_name?: string
+          chain_scale?: Database["public"]["Enums"]["hotel_segment"]
+          city?: string
+          city_normalized?: string
+          costar_property_id?: string | null
+          country_code?: string
+          created_at?: string
+          data_quality_tier?: Database["public"]["Enums"]["quality_tier_enum"]
+          deleted_at?: string | null
+          documented_independent?: boolean
+          email?: string | null
+          enrichment_version?: number
+          expedia_id?: string | null
+          field_provenance_summary?: Json
+          gallery_paths?: string[] | null
+          geom?: unknown
+          google_place_id?: string | null
+          hero_image_path?: string | null
+          hotel_type?: Database["public"]["Enums"]["hotel_type_enum"] | null
+          id?: string
+          last_enriched_at?: string | null
+          lat?: number | null
+          legal_name?: string | null
+          lng?: number | null
+          market_id?: string | null
+          meeting_rooms_count?: number | null
+          meeting_space_sqm?: number | null
+          neighborhood?: string | null
+          operator_id?: string | null
+          operator_type?: Database["public"]["Enums"]["operator_type_enum"]
+          osm_id?: string | null
+          ownership_structure?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          primary_review_source?: string | null
+          primary_source?: string | null
+          region?: string | null
+          restaurants_count?: number | null
+          review_count?: number | null
+          review_score?: number | null
+          room_type_mix?: Json | null
+          segment?: Database["public"]["Enums"]["hotel_segment"]
+          slug?: string
+          source_confidence?: Json
+          star_rating?: number | null
+          status?: Database["public"]["Enums"]["hotel_lifecycle_enum"]
+          str_property_id?: string | null
+          submarket_id?: string | null
+          total_keys?: number | null
+          total_rooms?: number | null
+          tripadvisor_id?: string | null
+          updated_at?: string
+          website_url?: string | null
+          wikidata_qid?: string | null
+          year_opened?: number | null
+          year_renovated_last?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_canonical_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_canonical_history: {
+        Row: {
+          brand: string | null
+          brand_family: string | null
+          canonical_id: string
+          canonical_name: string
+          chain_scale: Database["public"]["Enums"]["hotel_segment"] | null
+          created_at: string
+          id: string
+          rebrand_reason: string | null
+          source_record_id: string | null
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          brand?: string | null
+          brand_family?: string | null
+          canonical_id: string
+          canonical_name: string
+          chain_scale?: Database["public"]["Enums"]["hotel_segment"] | null
+          created_at?: string
+          id?: string
+          rebrand_reason?: string | null
+          source_record_id?: string | null
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          brand?: string | null
+          brand_family?: string | null
+          canonical_id?: string
+          canonical_name?: string
+          chain_scale?: Database["public"]["Enums"]["hotel_segment"] | null
+          created_at?: string
+          id?: string
+          rebrand_reason?: string | null
+          source_record_id?: string | null
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_canonical_history_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_canonical_history_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_canonical_history_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_canonical_history_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_canonical_history_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_canonical_history_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_canonical_history_source_record_id_fkey"
+            columns: ["source_record_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_source_record"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_dedup_mark: {
+        Row: {
+          canonical_supabase_id: string | null
+          canonical_survivor_snapshot_id: string | null
+          dedup_status: string
+          hidden_from_admin: boolean
+          hidden_from_reports: boolean
+          id: string
+          marked_at: string
+          marked_by: string
+          match_evidence: Json
+          reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          snapshot_hotel_id: string
+        }
+        Insert: {
+          canonical_supabase_id?: string | null
+          canonical_survivor_snapshot_id?: string | null
+          dedup_status: string
+          hidden_from_admin?: boolean
+          hidden_from_reports?: boolean
+          id?: string
+          marked_at?: string
+          marked_by?: string
+          match_evidence?: Json
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          snapshot_hotel_id: string
+        }
+        Update: {
+          canonical_supabase_id?: string | null
+          canonical_survivor_snapshot_id?: string | null
+          dedup_status?: string
+          hidden_from_admin?: boolean
+          hidden_from_reports?: boolean
+          id?: string
+          marked_at?: string
+          marked_by?: string
+          match_evidence?: Json
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          snapshot_hotel_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_dedup_mark_canonical_supabase_id_fkey"
+            columns: ["canonical_supabase_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_dedup_mark_canonical_supabase_id_fkey"
+            columns: ["canonical_supabase_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_dedup_mark_canonical_supabase_id_fkey"
+            columns: ["canonical_supabase_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_dedup_mark_canonical_supabase_id_fkey"
+            columns: ["canonical_supabase_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_dedup_mark_canonical_supabase_id_fkey"
+            columns: ["canonical_supabase_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_dedup_mark_canonical_supabase_id_fkey"
+            columns: ["canonical_supabase_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      hotel_duplicate_candidate: {
+        Row: {
+          components: Json
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          hotel_a_id: string
+          hotel_b_id: string
+          id: string
+          score: number
+          status: Database["public"]["Enums"]["dup_status_enum"]
+          tier: Database["public"]["Enums"]["dup_tier_enum"]
+        }
+        Insert: {
+          components: Json
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          hotel_a_id: string
+          hotel_b_id: string
+          id?: string
+          score: number
+          status?: Database["public"]["Enums"]["dup_status_enum"]
+          tier: Database["public"]["Enums"]["dup_tier_enum"]
+        }
+        Update: {
+          components?: Json
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          hotel_a_id?: string
+          hotel_b_id?: string
+          id?: string
+          score?: number
+          status?: Database["public"]["Enums"]["dup_status_enum"]
+          tier?: Database["public"]["Enums"]["dup_tier_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_a_id_fkey"
+            columns: ["hotel_a_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_a_id_fkey"
+            columns: ["hotel_a_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_a_id_fkey"
+            columns: ["hotel_a_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_a_id_fkey"
+            columns: ["hotel_a_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_a_id_fkey"
+            columns: ["hotel_a_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_a_id_fkey"
+            columns: ["hotel_a_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_b_id_fkey"
+            columns: ["hotel_b_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_b_id_fkey"
+            columns: ["hotel_b_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_b_id_fkey"
+            columns: ["hotel_b_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_b_id_fkey"
+            columns: ["hotel_b_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_b_id_fkey"
+            columns: ["hotel_b_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_duplicate_candidate_hotel_b_id_fkey"
+            columns: ["hotel_b_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      hotel_enrichment_dlq: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          error_class: string
+          error_message: string
+          id: string
+          job_id: string | null
+          payload_snapshot: Json | null
+          request_meta: Json
+          resolved_at: string | null
+          resolved_by: string | null
+          source: string
+          source_id: string | null
+        }
+        Insert: {
+          attempt_count: number
+          created_at?: string
+          error_class: string
+          error_message: string
+          id?: string
+          job_id?: string | null
+          payload_snapshot?: Json | null
+          request_meta?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source: string
+          source_id?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          error_class?: string
+          error_message?: string
+          id?: string
+          job_id?: string | null
+          payload_snapshot?: Json | null
+          request_meta?: Json
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source?: string
+          source_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_enrichment_dlq_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_enrichment_job"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_enrichment_job: {
+        Row: {
+          attempt_count: number
+          created_at: string
+          dedup_key: string
+          hotel_id: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["enrichment_job_type_enum"]
+          last_error: string | null
+          leased_at: string | null
+          leased_by: string | null
+          params: Json
+          priority: number
+          scheduled_for: string
+          source: string
+          status: Database["public"]["Enums"]["enrichment_job_status_enum"]
+        }
+        Insert: {
+          attempt_count?: number
+          created_at?: string
+          dedup_key: string
+          hotel_id?: string | null
+          id?: string
+          job_type: Database["public"]["Enums"]["enrichment_job_type_enum"]
+          last_error?: string | null
+          leased_at?: string | null
+          leased_by?: string | null
+          params?: Json
+          priority?: number
+          scheduled_for?: string
+          source: string
+          status?: Database["public"]["Enums"]["enrichment_job_status_enum"]
+        }
+        Update: {
+          attempt_count?: number
+          created_at?: string
+          dedup_key?: string
+          hotel_id?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["enrichment_job_type_enum"]
+          last_error?: string | null
+          leased_at?: string | null
+          leased_by?: string | null
+          params?: Json
+          priority?: number
+          scheduled_for?: string
+          source?: string
+          status?: Database["public"]["Enums"]["enrichment_job_status_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_enrichment_job_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_enrichment_job_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_enrichment_job_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_enrichment_job_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_enrichment_job_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_enrichment_job_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      hotel_enrichment_run: {
+        Row: {
+          budget_max_requests: number | null
+          budget_used: number
+          completed_at: string | null
+          errors_count: number
+          fields_updated: number
+          hotels_inserted: number
+          hotels_seen: number
+          hotels_updated: number
+          id: string
+          notes: string | null
+          rate_limit_hits: number
+          scope: Json
+          source: string
+          started_at: string
+          status: Database["public"]["Enums"]["enrichment_run_status_enum"]
+          triggered_by: string
+        }
+        Insert: {
+          budget_max_requests?: number | null
+          budget_used?: number
+          completed_at?: string | null
+          errors_count?: number
+          fields_updated?: number
+          hotels_inserted?: number
+          hotels_seen?: number
+          hotels_updated?: number
+          id?: string
+          notes?: string | null
+          rate_limit_hits?: number
+          scope?: Json
+          source: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["enrichment_run_status_enum"]
+          triggered_by: string
+        }
+        Update: {
+          budget_max_requests?: number | null
+          budget_used?: number
+          completed_at?: string | null
+          errors_count?: number
+          fields_updated?: number
+          hotels_inserted?: number
+          hotels_seen?: number
+          hotels_updated?: number
+          id?: string
+          notes?: string | null
+          rate_limit_hits?: number
+          scope?: Json
+          source?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["enrichment_run_status_enum"]
+          triggered_by?: string
+        }
+        Relationships: []
+      }
+      hotel_field_provenance: {
+        Row: {
+          confidence: number
+          created_at: string
+          fetched_at: string
+          field_name: string
+          hotel_id: string
+          id: string
+          override_by: string | null
+          source: string
+          source_record_id: string | null
+          superseded_at: string | null
+          value: Json
+        }
+        Insert: {
+          confidence: number
+          created_at?: string
+          fetched_at: string
+          field_name: string
+          hotel_id: string
+          id?: string
+          override_by?: string | null
+          source: string
+          source_record_id?: string | null
+          superseded_at?: string | null
+          value: Json
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          fetched_at?: string
+          field_name?: string
+          hotel_id?: string
+          id?: string
+          override_by?: string | null
+          source?: string
+          source_record_id?: string | null
+          superseded_at?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_field_provenance_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_field_provenance_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_field_provenance_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_field_provenance_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_field_provenance_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_field_provenance_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_field_provenance_source_record_id_fkey"
+            columns: ["source_record_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_source_record"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hotel_filters: {
         Row: {
           created_at: string
@@ -964,6 +1779,85 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_name_alias: {
+        Row: {
+          alias_name: string
+          alias_slug: string | null
+          canonical_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          alias_name: string
+          alias_slug?: string | null
+          canonical_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          alias_name?: string
+          alias_slug?: string | null
+          canonical_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_name_alias_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_name_alias_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_name_alias_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_name_alias_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_name_alias_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_name_alias_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
           },
         ]
       }
@@ -1043,6 +1937,324 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "operators"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_report: {
+        Row: {
+          canonical_id: string
+          created_at: string
+          id: string
+          input_params: Json
+          last_viewed_at: string
+          owner_user_id: string | null
+          report_date: string
+          tier_snapshot: string | null
+        }
+        Insert: {
+          canonical_id: string
+          created_at?: string
+          id?: string
+          input_params?: Json
+          last_viewed_at?: string
+          owner_user_id?: string | null
+          report_date?: string
+          tier_snapshot?: string | null
+        }
+        Update: {
+          canonical_id?: string
+          created_at?: string
+          id?: string
+          input_params?: Json
+          last_viewed_at?: string
+          owner_user_id?: string | null
+          report_date?: string
+          tier_snapshot?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_report_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_report_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      hotel_report_library: {
+        Row: {
+          brand_family: string | null
+          canonical_id: string
+          cap_rate_pct: number | null
+          chain_scale: string | null
+          city: string | null
+          confidence_score: number | null
+          contact_info: Json | null
+          contact_visible: boolean
+          created_at: string
+          estimated_value_eur: number | null
+          gop_margin_pct: number | null
+          hotel_name: string
+          id: string
+          is_top_promote: boolean
+          keys_from_heuristic: boolean
+          last_operator_render_at: string | null
+          last_rendered_at: string
+          lat: number | null
+          lng: number | null
+          market: string | null
+          per_key_eur: number | null
+          per_sqm_eur: number | null
+          render_count: number
+          report_origin: string
+          report_status: string
+          report_url: string
+          scenario_label: string | null
+          showcase_priority: number
+          star_rating: number | null
+          submarket: string | null
+          tier_badge: string
+          total_rooms: number | null
+          updated_at: string
+          valuation_range_high_eur: number | null
+          valuation_range_low_eur: number | null
+        }
+        Insert: {
+          brand_family?: string | null
+          canonical_id: string
+          cap_rate_pct?: number | null
+          chain_scale?: string | null
+          city?: string | null
+          confidence_score?: number | null
+          contact_info?: Json | null
+          contact_visible?: boolean
+          created_at?: string
+          estimated_value_eur?: number | null
+          gop_margin_pct?: number | null
+          hotel_name: string
+          id?: string
+          is_top_promote?: boolean
+          keys_from_heuristic?: boolean
+          last_operator_render_at?: string | null
+          last_rendered_at?: string
+          lat?: number | null
+          lng?: number | null
+          market?: string | null
+          per_key_eur?: number | null
+          per_sqm_eur?: number | null
+          render_count?: number
+          report_origin?: string
+          report_status?: string
+          report_url: string
+          scenario_label?: string | null
+          showcase_priority?: number
+          star_rating?: number | null
+          submarket?: string | null
+          tier_badge?: string
+          total_rooms?: number | null
+          updated_at?: string
+          valuation_range_high_eur?: number | null
+          valuation_range_low_eur?: number | null
+        }
+        Update: {
+          brand_family?: string | null
+          canonical_id?: string
+          cap_rate_pct?: number | null
+          chain_scale?: string | null
+          city?: string | null
+          confidence_score?: number | null
+          contact_info?: Json | null
+          contact_visible?: boolean
+          created_at?: string
+          estimated_value_eur?: number | null
+          gop_margin_pct?: number | null
+          hotel_name?: string
+          id?: string
+          is_top_promote?: boolean
+          keys_from_heuristic?: boolean
+          last_operator_render_at?: string | null
+          last_rendered_at?: string
+          lat?: number | null
+          lng?: number | null
+          market?: string | null
+          per_key_eur?: number | null
+          per_sqm_eur?: number | null
+          render_count?: number
+          report_origin?: string
+          report_status?: string
+          report_url?: string
+          scenario_label?: string | null
+          showcase_priority?: number
+          star_rating?: number | null
+          submarket?: string | null
+          tier_badge?: string
+          total_rooms?: number | null
+          updated_at?: string
+          valuation_range_high_eur?: number | null
+          valuation_range_low_eur?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_report_library_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_report_library_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_library_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_library_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_library_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_report_library_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: true
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+        ]
+      }
+      hotel_source_record: {
+        Row: {
+          enrichment_run_id: string | null
+          fetch_status: Database["public"]["Enums"]["fetch_status_enum"]
+          fetched_at: string
+          fetched_at_day: string | null
+          hotel_id: string | null
+          id: string
+          payload: Json
+          payload_hash: string
+          source: string
+          source_id: string
+          ttl_expires_at: string
+        }
+        Insert: {
+          enrichment_run_id?: string | null
+          fetch_status: Database["public"]["Enums"]["fetch_status_enum"]
+          fetched_at?: string
+          fetched_at_day?: string | null
+          hotel_id?: string | null
+          id?: string
+          payload: Json
+          payload_hash: string
+          source: string
+          source_id: string
+          ttl_expires_at: string
+        }
+        Update: {
+          enrichment_run_id?: string | null
+          fetch_status?: Database["public"]["Enums"]["fetch_status_enum"]
+          fetched_at?: string
+          fetched_at_day?: string | null
+          hotel_id?: string | null
+          id?: string
+          payload?: Json
+          payload_hash?: string
+          source?: string
+          source_id?: string
+          ttl_expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_source_record_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_canonical"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_source_record_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_scored_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_source_record_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_coverage_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_source_record_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_library_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_source_record_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_premium_report_ready_v"
+            referencedColumns: ["hotel_id"]
+          },
+          {
+            foreignKeyName: "hotel_source_record_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_underwriting_ready_v"
+            referencedColumns: ["hotel_id"]
           },
         ]
       }
@@ -1457,6 +2669,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      market: {
+        Row: {
+          country_code: string
+          created_at: string
+          description: string | null
+          geom: unknown
+          id: string
+          name: string
+          region: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          description?: string | null
+          geom?: unknown
+          id?: string
+          name: string
+          region?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          description?: string | null
+          geom?: unknown
+          id?: string
+          name?: string
+          region?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       market_news: {
         Row: {
@@ -1961,6 +3209,168 @@ export type Database = {
           },
         ]
       }
+      pnl_template: {
+        Row: {
+          admin_general_pct: number | null
+          class: string | null
+          country: string
+          created_at: string
+          data_source: Database["public"]["Enums"]["pnl_data_source"]
+          ebitda_pct: number | null
+          expenses_fb_pct: number | null
+          expenses_rooms_pct: number | null
+          fb_beverage_pct: number | null
+          fb_food_pct: number | null
+          gop_pct: number | null
+          id: string
+          imported_from: string | null
+          insurance_pct: number | null
+          it_telecom_pct: number | null
+          last_imported_at: string
+          management_fees_pct: number | null
+          market: string | null
+          meeting_events_pct: number | null
+          notes: string | null
+          operations_maintenance_pct: number | null
+          other_departments_pct: number | null
+          parking_other_pct: number | null
+          property_taxes_pct: number | null
+          rent_pct: number | null
+          rooms_revenue_pct: number | null
+          sales_marketing_pct: number | null
+          segmentation_type:
+            | Database["public"]["Enums"]["pnl_segmentation_type"]
+            | null
+          spa_wellness_pct: number | null
+          staff_cost_memo_pct: number | null
+          submarket: string | null
+          updated_at: string
+          utilities_pct: number | null
+        }
+        Insert: {
+          admin_general_pct?: number | null
+          class?: string | null
+          country: string
+          created_at?: string
+          data_source: Database["public"]["Enums"]["pnl_data_source"]
+          ebitda_pct?: number | null
+          expenses_fb_pct?: number | null
+          expenses_rooms_pct?: number | null
+          fb_beverage_pct?: number | null
+          fb_food_pct?: number | null
+          gop_pct?: number | null
+          id?: string
+          imported_from?: string | null
+          insurance_pct?: number | null
+          it_telecom_pct?: number | null
+          last_imported_at?: string
+          management_fees_pct?: number | null
+          market?: string | null
+          meeting_events_pct?: number | null
+          notes?: string | null
+          operations_maintenance_pct?: number | null
+          other_departments_pct?: number | null
+          parking_other_pct?: number | null
+          property_taxes_pct?: number | null
+          rent_pct?: number | null
+          rooms_revenue_pct?: number | null
+          sales_marketing_pct?: number | null
+          segmentation_type?:
+            | Database["public"]["Enums"]["pnl_segmentation_type"]
+            | null
+          spa_wellness_pct?: number | null
+          staff_cost_memo_pct?: number | null
+          submarket?: string | null
+          updated_at?: string
+          utilities_pct?: number | null
+        }
+        Update: {
+          admin_general_pct?: number | null
+          class?: string | null
+          country?: string
+          created_at?: string
+          data_source?: Database["public"]["Enums"]["pnl_data_source"]
+          ebitda_pct?: number | null
+          expenses_fb_pct?: number | null
+          expenses_rooms_pct?: number | null
+          fb_beverage_pct?: number | null
+          fb_food_pct?: number | null
+          gop_pct?: number | null
+          id?: string
+          imported_from?: string | null
+          insurance_pct?: number | null
+          it_telecom_pct?: number | null
+          last_imported_at?: string
+          management_fees_pct?: number | null
+          market?: string | null
+          meeting_events_pct?: number | null
+          notes?: string | null
+          operations_maintenance_pct?: number | null
+          other_departments_pct?: number | null
+          parking_other_pct?: number | null
+          property_taxes_pct?: number | null
+          rent_pct?: number | null
+          rooms_revenue_pct?: number | null
+          sales_marketing_pct?: number | null
+          segmentation_type?:
+            | Database["public"]["Enums"]["pnl_segmentation_type"]
+            | null
+          spa_wellness_pct?: number | null
+          staff_cost_memo_pct?: number | null
+          submarket?: string | null
+          updated_at?: string
+          utilities_pct?: number | null
+        }
+        Relationships: []
+      }
+      pnl_template_override: {
+        Row: {
+          created_at: string
+          id: string
+          line_item: string
+          operator_email: string
+          operator_reason: string | null
+          override_value: number
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_item: string
+          operator_email: string
+          operator_reason?: string | null
+          override_value: number
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_item?: string
+          operator_email?: string
+          operator_reason?: string | null
+          override_value?: number
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pnl_template_override_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "pnl_template"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pnl_template_override_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "pnl_template_effective"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2004,6 +3414,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rate_limit_state: {
+        Row: {
+          budget: number
+          created_at: string
+          id: string
+          meta: Json
+          provider: string
+          reset_at: string
+          status: string
+          updated_at: string
+          used: number
+          window_label: string
+        }
+        Insert: {
+          budget: number
+          created_at?: string
+          id?: string
+          meta?: Json
+          provider: string
+          reset_at: string
+          status?: string
+          updated_at?: string
+          used?: number
+          window_label: string
+        }
+        Update: {
+          budget?: number
+          created_at?: string
+          id?: string
+          meta?: Json
+          provider?: string
+          reset_at?: string
+          status?: string
+          updated_at?: string
+          used?: number
+          window_label?: string
+        }
+        Relationships: []
       }
       relationship_companies: {
         Row: {
@@ -2964,6 +4413,80 @@ export type Database = {
         }
         Relationships: []
       }
+      spatial_ref_sys: {
+        Row: {
+          auth_name: string | null
+          auth_srid: number | null
+          proj4text: string | null
+          srid: number
+          srtext: string | null
+        }
+        Insert: {
+          auth_name?: string | null
+          auth_srid?: number | null
+          proj4text?: string | null
+          srid: number
+          srtext?: string | null
+        }
+        Update: {
+          auth_name?: string | null
+          auth_srid?: number | null
+          proj4text?: string | null
+          srid?: number
+          srtext?: string | null
+        }
+        Relationships: []
+      }
+      submarket: {
+        Row: {
+          created_at: string
+          geom: unknown
+          id: string
+          institutional_tier: number | null
+          kind: string
+          market_id: string
+          name: string
+          neighborhood_aliases: string[] | null
+          postal_prefixes: string[] | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          geom?: unknown
+          id?: string
+          institutional_tier?: number | null
+          kind?: string
+          market_id: string
+          name: string
+          neighborhood_aliases?: string[] | null
+          postal_prefixes?: string[] | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          geom?: unknown
+          id?: string
+          institutional_tier?: number | null
+          kind?: string
+          market_id?: string
+          name?: string
+          neighborhood_aliases?: string[] | null
+          postal_prefixes?: string[] | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submarket_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "market"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_products: {
         Row: {
           badge: string | null
@@ -3486,10 +5009,1267 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      geography_columns: {
+        Row: {
+          coord_dimension: number | null
+          f_geography_column: unknown
+          f_table_catalog: unknown
+          f_table_name: unknown
+          f_table_schema: unknown
+          srid: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      geometry_columns: {
+        Row: {
+          coord_dimension: number | null
+          f_geometry_column: unknown
+          f_table_catalog: string | null
+          f_table_name: unknown
+          f_table_schema: unknown
+          srid: number | null
+          type: string | null
+        }
+        Insert: {
+          coord_dimension?: number | null
+          f_geometry_column?: unknown
+          f_table_catalog?: string | null
+          f_table_name?: unknown
+          f_table_schema?: unknown
+          srid?: number | null
+          type?: string | null
+        }
+        Update: {
+          coord_dimension?: number | null
+          f_geometry_column?: unknown
+          f_table_catalog?: string | null
+          f_table_name?: unknown
+          f_table_schema?: unknown
+          srid?: number | null
+          type?: string | null
+        }
+        Relationships: []
+      }
+      hotel_coverage_madrid_v: {
+        Row: {
+          avg_t1_pct: number | null
+          avg_t2_pct: number | null
+          city_normalized: string | null
+          country_code: string | null
+          goal_reached: boolean | null
+          hotels_bronze: number | null
+          hotels_gold: number | null
+          hotels_institutional_passing: number | null
+          hotels_non_quarantined: number | null
+          hotels_quarantined: number | null
+          hotels_silver: number | null
+          hotels_t1_passing: number | null
+          hotels_t2_passing: number | null
+          hotels_total: number | null
+          institutional_passing_rate: number | null
+        }
+        Relationships: []
+      }
+      hotel_coverage_market_v: {
+        Row: {
+          avg_t1_pct: number | null
+          avg_t2_pct: number | null
+          city_normalized: string | null
+          country_code: string | null
+          hotels_bronze: number | null
+          hotels_gold: number | null
+          hotels_institutional_passing: number | null
+          hotels_non_quarantined: number | null
+          hotels_quarantined: number | null
+          hotels_silver: number | null
+          hotels_t1_passing: number | null
+          hotels_t2_passing: number | null
+          hotels_total: number | null
+          institutional_passing_rate: number | null
+        }
+        Relationships: []
+      }
+      hotel_coverage_scored_v: {
+        Row: {
+          canonical_name: string | null
+          city_normalized: string | null
+          country_code: string | null
+          data_quality_tier:
+            | Database["public"]["Enums"]["quality_tier_enum"]
+            | null
+          hotel_id: string | null
+          institutional_passing: boolean | null
+          last_enriched_at: string | null
+          t0_complete: boolean | null
+          t0_filled: number | null
+          t1_filled: number | null
+          t1_passing: boolean | null
+          t1_pct: number | null
+          t2_filled: number | null
+          t2_passing: boolean | null
+          t2_pct: number | null
+        }
+        Insert: {
+          canonical_name?: string | null
+          city_normalized?: string | null
+          country_code?: string | null
+          data_quality_tier?:
+            | Database["public"]["Enums"]["quality_tier_enum"]
+            | null
+          hotel_id?: string | null
+          institutional_passing?: never
+          last_enriched_at?: string | null
+          t0_complete?: never
+          t0_filled?: never
+          t1_filled?: never
+          t1_passing?: never
+          t1_pct?: never
+          t2_filled?: never
+          t2_passing?: never
+          t2_pct?: never
+        }
+        Update: {
+          canonical_name?: string | null
+          city_normalized?: string | null
+          country_code?: string | null
+          data_quality_tier?:
+            | Database["public"]["Enums"]["quality_tier_enum"]
+            | null
+          hotel_id?: string | null
+          institutional_passing?: never
+          last_enriched_at?: string | null
+          t0_complete?: never
+          t0_filled?: never
+          t1_filled?: never
+          t1_passing?: never
+          t1_pct?: never
+          t2_filled?: never
+          t2_passing?: never
+          t2_pct?: never
+        }
+        Relationships: []
+      }
+      hotel_coverage_v: {
+        Row: {
+          canonical_name: string | null
+          city_normalized: string | null
+          country_code: string | null
+          data_quality_tier:
+            | Database["public"]["Enums"]["quality_tier_enum"]
+            | null
+          hotel_id: string | null
+          last_enriched_at: string | null
+          t0_filled: number | null
+          t1_filled: number | null
+          t2_filled: number | null
+        }
+        Insert: {
+          canonical_name?: string | null
+          city_normalized?: string | null
+          country_code?: string | null
+          data_quality_tier?:
+            | Database["public"]["Enums"]["quality_tier_enum"]
+            | null
+          hotel_id?: string | null
+          last_enriched_at?: string | null
+          t0_filled?: never
+          t1_filled?: never
+          t2_filled?: never
+        }
+        Update: {
+          canonical_name?: string | null
+          city_normalized?: string | null
+          country_code?: string | null
+          data_quality_tier?:
+            | Database["public"]["Enums"]["quality_tier_enum"]
+            | null
+          hotel_id?: string | null
+          last_enriched_at?: string | null
+          t0_filled?: never
+          t1_filled?: never
+          t2_filled?: never
+        }
+        Relationships: []
+      }
+      hotel_library_ready_v: {
+        Row: {
+          canonical_name: string | null
+          city_normalized: string | null
+          core_fields_filled: number | null
+          country_code: string | null
+          documented_independent: boolean | null
+          has_amenities_5plus: boolean | null
+          has_chain_scale: number | null
+          has_hero_image: boolean | null
+          has_keys: number | null
+          has_market: number | null
+          has_operator_type: number | null
+          has_postal_code: number | null
+          has_review_score: boolean | null
+          has_segment: number | null
+          has_submarket: number | null
+          has_year: number | null
+          hotel_id: string | null
+          is_branded: boolean | null
+          is_library_partial: boolean | null
+          is_library_ready: boolean | null
+          is_underwriting_partial: boolean | null
+          is_underwriting_ready: boolean | null
+        }
+        Relationships: []
+      }
+      hotel_premium_report_ready_v: {
+        Row: {
+          canonical_name: string | null
+          city_normalized: string | null
+          core_fields_filled: number | null
+          country_code: string | null
+          documented_independent: boolean | null
+          has_amenities_5plus: boolean | null
+          has_brand_family: boolean | null
+          has_chain_scale: number | null
+          has_hero_image: boolean | null
+          has_keys: number | null
+          has_market: number | null
+          has_operator_type: number | null
+          has_postal_code: number | null
+          has_review_score: boolean | null
+          has_room_type_mix: boolean | null
+          has_segment: number | null
+          has_submarket: number | null
+          has_year: number | null
+          hotel_id: string | null
+          is_branded: boolean | null
+          is_library_partial: boolean | null
+          is_library_ready: boolean | null
+          is_premium_report_ready: boolean | null
+          is_underwriting_partial: boolean | null
+          is_underwriting_ready: boolean | null
+          mice_satisfied: boolean | null
+        }
+        Relationships: []
+      }
+      hotel_readiness_market_v: {
+        Row: {
+          avg_core_fields_filled: number | null
+          branded_n: number | null
+          branded_underwriting_partial_n: number | null
+          city_normalized: string | null
+          country_code: string | null
+          documented_indie_n: number | null
+          hotels_total: number | null
+          indie_n: number | null
+          indie_underwriting_partial_n: number | null
+          library_partial_n: number | null
+          library_partial_rate: number | null
+          library_ready_n: number | null
+          premium_report_ready_n: number | null
+          premium_report_ready_rate: number | null
+          underwriting_partial_n: number | null
+          underwriting_partial_rate: number | null
+          underwriting_ready_n: number | null
+          underwriting_ready_rate: number | null
+        }
+        Relationships: []
+      }
+      hotel_underwriting_ready_v: {
+        Row: {
+          canonical_name: string | null
+          city_normalized: string | null
+          core_fields_filled: number | null
+          country_code: string | null
+          documented_independent: boolean | null
+          has_chain_scale: number | null
+          has_keys: number | null
+          has_market: number | null
+          has_operator_type: number | null
+          has_postal_code: number | null
+          has_segment: number | null
+          has_submarket: number | null
+          has_year: number | null
+          hotel_id: string | null
+          is_branded: boolean | null
+          is_underwriting_partial: boolean | null
+          is_underwriting_ready: boolean | null
+        }
+        Insert: {
+          canonical_name?: string | null
+          city_normalized?: string | null
+          core_fields_filled?: never
+          country_code?: string | null
+          documented_independent?: boolean | null
+          has_chain_scale?: never
+          has_keys?: never
+          has_market?: never
+          has_operator_type?: never
+          has_postal_code?: never
+          has_segment?: never
+          has_submarket?: never
+          has_year?: never
+          hotel_id?: string | null
+          is_branded?: never
+          is_underwriting_partial?: never
+          is_underwriting_ready?: never
+        }
+        Update: {
+          canonical_name?: string | null
+          city_normalized?: string | null
+          core_fields_filled?: never
+          country_code?: string | null
+          documented_independent?: boolean | null
+          has_chain_scale?: never
+          has_keys?: never
+          has_market?: never
+          has_operator_type?: never
+          has_postal_code?: never
+          has_segment?: never
+          has_submarket?: never
+          has_year?: never
+          hotel_id?: string | null
+          is_branded?: never
+          is_underwriting_partial?: never
+          is_underwriting_ready?: never
+        }
+        Relationships: []
+      }
+      pnl_template_effective: {
+        Row: {
+          admin_general_pct: number | null
+          class: string | null
+          country: string | null
+          created_at: string | null
+          data_source: Database["public"]["Enums"]["pnl_data_source"] | null
+          ebitda_pct: number | null
+          expenses_fb_pct: number | null
+          expenses_rooms_pct: number | null
+          fb_beverage_pct: number | null
+          fb_food_pct: number | null
+          gop_pct: number | null
+          id: string | null
+          imported_from: string | null
+          insurance_pct: number | null
+          it_telecom_pct: number | null
+          last_imported_at: string | null
+          management_fees_pct: number | null
+          market: string | null
+          meeting_events_pct: number | null
+          notes: string | null
+          operations_maintenance_pct: number | null
+          other_departments_pct: number | null
+          overridden_lines: string[] | null
+          parking_other_pct: number | null
+          property_taxes_pct: number | null
+          rent_pct: number | null
+          rooms_revenue_pct: number | null
+          sales_marketing_pct: number | null
+          segmentation_type:
+            | Database["public"]["Enums"]["pnl_segmentation_type"]
+            | null
+          spa_wellness_pct: number | null
+          staff_cost_memo_pct: number | null
+          submarket: string | null
+          updated_at: string | null
+          utilities_pct: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      _postgis_deprecate: {
+        Args: { newname: string; oldname: string; version: string }
+        Returns: undefined
+      }
+      _postgis_index_extent: {
+        Args: { col: string; tbl: unknown }
+        Returns: unknown
+      }
+      _postgis_pgsql_version: { Args: never; Returns: string }
+      _postgis_scripts_pgsql_version: { Args: never; Returns: string }
+      _postgis_selectivity: {
+        Args: { att_name: string; geom: unknown; mode?: string; tbl: unknown }
+        Returns: number
+      }
+      _postgis_stats: {
+        Args: { ""?: string; att_name: string; tbl: unknown }
+        Returns: string
+      }
+      _st_3dintersects: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_contains: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_containsproperly: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_coveredby:
+        | { Args: { geog1: unknown; geog2: unknown }; Returns: boolean }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      _st_covers:
+        | { Args: { geog1: unknown; geog2: unknown }; Returns: boolean }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      _st_crosses: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_dwithin: {
+        Args: {
+          geog1: unknown
+          geog2: unknown
+          tolerance: number
+          use_spheroid?: boolean
+        }
+        Returns: boolean
+      }
+      _st_equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      _st_intersects: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_linecrossingdirection: {
+        Args: { line1: unknown; line2: unknown }
+        Returns: number
+      }
+      _st_longestline: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      _st_maxdistance: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      _st_orderingequals: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_overlaps: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_sortablehash: { Args: { geom: unknown }; Returns: number }
+      _st_touches: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      _st_voronoi: {
+        Args: {
+          clip?: unknown
+          g1: unknown
+          return_polygons?: boolean
+          tolerance?: number
+        }
+        Returns: unknown
+      }
+      _st_within: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      addauth: { Args: { "": string }; Returns: boolean }
+      addgeometrycolumn:
+        | {
+            Args: {
+              catalog_name: string
+              column_name: string
+              new_dim: number
+              new_srid_in: number
+              new_type: string
+              schema_name: string
+              table_name: string
+              use_typmod?: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              column_name: string
+              new_dim: number
+              new_srid: number
+              new_type: string
+              schema_name: string
+              table_name: string
+              use_typmod?: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              column_name: string
+              new_dim: number
+              new_srid: number
+              new_type: string
+              table_name: string
+              use_typmod?: boolean
+            }
+            Returns: string
+          }
+      disablelongtransactions: { Args: never; Returns: string }
+      dropgeometrycolumn:
+        | {
+            Args: {
+              catalog_name: string
+              column_name: string
+              schema_name: string
+              table_name: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              column_name: string
+              schema_name: string
+              table_name: string
+            }
+            Returns: string
+          }
+        | { Args: { column_name: string; table_name: string }; Returns: string }
+      dropgeometrytable:
+        | {
+            Args: {
+              catalog_name: string
+              schema_name: string
+              table_name: string
+            }
+            Returns: string
+          }
+        | { Args: { schema_name: string; table_name: string }; Returns: string }
+        | { Args: { table_name: string }; Returns: string }
+      enablelongtransactions: { Args: never; Returns: string }
+      equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      geometry: { Args: { "": string }; Returns: unknown }
+      geometry_above: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_below: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_cmp: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      geometry_contained_3d: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_contains: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_contains_3d: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_distance_box: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      geometry_distance_centroid: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      geometry_eq: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_ge: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_gt: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_le: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_left: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_lt: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_overabove: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_overbelow: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_overlaps: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_overlaps_3d: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_overleft: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_overright: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_right: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_same: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_same_3d: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geometry_within: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      geomfromewkt: { Args: { "": string }; Returns: unknown }
+      gettransactionid: { Args: never; Returns: unknown }
+      longtransactionsenabled: { Args: never; Returns: boolean }
+      populate_geometry_columns:
+        | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
+        | { Args: { use_typmod?: boolean }; Returns: string }
+      postgis_constraint_dims: {
+        Args: { geomcolumn: string; geomschema: string; geomtable: string }
+        Returns: number
+      }
+      postgis_constraint_srid: {
+        Args: { geomcolumn: string; geomschema: string; geomtable: string }
+        Returns: number
+      }
+      postgis_constraint_type: {
+        Args: { geomcolumn: string; geomschema: string; geomtable: string }
+        Returns: string
+      }
+      postgis_extensions_upgrade: { Args: never; Returns: string }
+      postgis_full_version: { Args: never; Returns: string }
+      postgis_geos_version: { Args: never; Returns: string }
+      postgis_lib_build_date: { Args: never; Returns: string }
+      postgis_lib_revision: { Args: never; Returns: string }
+      postgis_lib_version: { Args: never; Returns: string }
+      postgis_libjson_version: { Args: never; Returns: string }
+      postgis_liblwgeom_version: { Args: never; Returns: string }
+      postgis_libprotobuf_version: { Args: never; Returns: string }
+      postgis_libxml_version: { Args: never; Returns: string }
+      postgis_proj_version: { Args: never; Returns: string }
+      postgis_scripts_build_date: { Args: never; Returns: string }
+      postgis_scripts_installed: { Args: never; Returns: string }
+      postgis_scripts_released: { Args: never; Returns: string }
+      postgis_svn_version: { Args: never; Returns: string }
+      postgis_type_name: {
+        Args: {
+          coord_dimension: number
+          geomname: string
+          use_new_name?: boolean
+        }
+        Returns: string
+      }
+      postgis_version: { Args: never; Returns: string }
+      postgis_wagyu_version: { Args: never; Returns: string }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      st_3dclosestpoint: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_3ddistance: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      st_3dintersects: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      st_3dlongestline: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_3dmakebox: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_3dmaxdistance: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      st_3dshortestline: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_addpoint: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_angle:
+        | { Args: { line1: unknown; line2: unknown }; Returns: number }
+        | {
+            Args: { pt1: unknown; pt2: unknown; pt3: unknown; pt4?: unknown }
+            Returns: number
+          }
+      st_area:
+        | { Args: { geog: unknown; use_spheroid?: boolean }; Returns: number }
+        | { Args: { "": string }; Returns: number }
+      st_asencodedpolyline: {
+        Args: { geom: unknown; nprecision?: number }
+        Returns: string
+      }
+      st_asewkt: { Args: { "": string }; Returns: string }
+      st_asgeojson:
+        | {
+            Args: { geog: unknown; maxdecimaldigits?: number; options?: number }
+            Returns: string
+          }
+        | {
+            Args: { geom: unknown; maxdecimaldigits?: number; options?: number }
+            Returns: string
+          }
+        | {
+            Args: {
+              geom_column?: string
+              maxdecimaldigits?: number
+              pretty_bool?: boolean
+              r: Record<string, unknown>
+            }
+            Returns: string
+          }
+        | { Args: { "": string }; Returns: string }
+      st_asgml:
+        | {
+            Args: {
+              geog: unknown
+              id?: string
+              maxdecimaldigits?: number
+              nprefix?: string
+              options?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: { geom: unknown; maxdecimaldigits?: number; options?: number }
+            Returns: string
+          }
+        | { Args: { "": string }; Returns: string }
+        | {
+            Args: {
+              geog: unknown
+              id?: string
+              maxdecimaldigits?: number
+              nprefix?: string
+              options?: number
+              version: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              geom: unknown
+              id?: string
+              maxdecimaldigits?: number
+              nprefix?: string
+              options?: number
+              version: number
+            }
+            Returns: string
+          }
+      st_askml:
+        | {
+            Args: { geog: unknown; maxdecimaldigits?: number; nprefix?: string }
+            Returns: string
+          }
+        | {
+            Args: { geom: unknown; maxdecimaldigits?: number; nprefix?: string }
+            Returns: string
+          }
+        | { Args: { "": string }; Returns: string }
+      st_aslatlontext: {
+        Args: { geom: unknown; tmpl?: string }
+        Returns: string
+      }
+      st_asmarc21: { Args: { format?: string; geom: unknown }; Returns: string }
+      st_asmvtgeom: {
+        Args: {
+          bounds: unknown
+          buffer?: number
+          clip_geom?: boolean
+          extent?: number
+          geom: unknown
+        }
+        Returns: unknown
+      }
+      st_assvg:
+        | {
+            Args: { geog: unknown; maxdecimaldigits?: number; rel?: number }
+            Returns: string
+          }
+        | {
+            Args: { geom: unknown; maxdecimaldigits?: number; rel?: number }
+            Returns: string
+          }
+        | { Args: { "": string }; Returns: string }
+      st_astext: { Args: { "": string }; Returns: string }
+      st_astwkb:
+        | {
+            Args: {
+              geom: unknown
+              prec?: number
+              prec_m?: number
+              prec_z?: number
+              with_boxes?: boolean
+              with_sizes?: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              geom: unknown[]
+              ids: number[]
+              prec?: number
+              prec_m?: number
+              prec_z?: number
+              with_boxes?: boolean
+              with_sizes?: boolean
+            }
+            Returns: string
+          }
+      st_asx3d: {
+        Args: { geom: unknown; maxdecimaldigits?: number; options?: number }
+        Returns: string
+      }
+      st_azimuth:
+        | { Args: { geog1: unknown; geog2: unknown }; Returns: number }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: number }
+      st_boundingdiagonal: {
+        Args: { fits?: boolean; geom: unknown }
+        Returns: unknown
+      }
+      st_buffer:
+        | {
+            Args: { geom: unknown; options?: string; radius: number }
+            Returns: unknown
+          }
+        | {
+            Args: { geom: unknown; quadsegs: number; radius: number }
+            Returns: unknown
+          }
+      st_centroid: { Args: { "": string }; Returns: unknown }
+      st_clipbybox2d: {
+        Args: { box: unknown; geom: unknown }
+        Returns: unknown
+      }
+      st_closestpoint: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_collect: { Args: { geom1: unknown; geom2: unknown }; Returns: unknown }
+      st_concavehull: {
+        Args: {
+          param_allow_holes?: boolean
+          param_geom: unknown
+          param_pctconvex: number
+        }
+        Returns: unknown
+      }
+      st_contains: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      st_containsproperly: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      st_coorddim: { Args: { geometry: unknown }; Returns: number }
+      st_coveredby:
+        | { Args: { geog1: unknown; geog2: unknown }; Returns: boolean }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_covers:
+        | { Args: { geog1: unknown; geog2: unknown }; Returns: boolean }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_crosses: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_curvetoline: {
+        Args: { flags?: number; geom: unknown; tol?: number; toltype?: number }
+        Returns: unknown
+      }
+      st_delaunaytriangles: {
+        Args: { flags?: number; g1: unknown; tolerance?: number }
+        Returns: unknown
+      }
+      st_difference: {
+        Args: { geom1: unknown; geom2: unknown; gridsize?: number }
+        Returns: unknown
+      }
+      st_disjoint: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      st_distance:
+        | {
+            Args: { geog1: unknown; geog2: unknown; use_spheroid?: boolean }
+            Returns: number
+          }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: number }
+      st_distancesphere:
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: number }
+        | {
+            Args: { geom1: unknown; geom2: unknown; radius: number }
+            Returns: number
+          }
+      st_distancespheroid: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      st_dwithin: {
+        Args: {
+          geog1: unknown
+          geog2: unknown
+          tolerance: number
+          use_spheroid?: boolean
+        }
+        Returns: boolean
+      }
+      st_equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_expand:
+        | { Args: { box: unknown; dx: number; dy: number }; Returns: unknown }
+        | {
+            Args: { box: unknown; dx: number; dy: number; dz?: number }
+            Returns: unknown
+          }
+        | {
+            Args: {
+              dm?: number
+              dx: number
+              dy: number
+              dz?: number
+              geom: unknown
+            }
+            Returns: unknown
+          }
+      st_force3d: { Args: { geom: unknown; zvalue?: number }; Returns: unknown }
+      st_force3dm: {
+        Args: { geom: unknown; mvalue?: number }
+        Returns: unknown
+      }
+      st_force3dz: {
+        Args: { geom: unknown; zvalue?: number }
+        Returns: unknown
+      }
+      st_force4d: {
+        Args: { geom: unknown; mvalue?: number; zvalue?: number }
+        Returns: unknown
+      }
+      st_generatepoints:
+        | { Args: { area: unknown; npoints: number }; Returns: unknown }
+        | {
+            Args: { area: unknown; npoints: number; seed: number }
+            Returns: unknown
+          }
+      st_geogfromtext: { Args: { "": string }; Returns: unknown }
+      st_geographyfromtext: { Args: { "": string }; Returns: unknown }
+      st_geohash:
+        | { Args: { geog: unknown; maxchars?: number }; Returns: string }
+        | { Args: { geom: unknown; maxchars?: number }; Returns: string }
+      st_geomcollfromtext: { Args: { "": string }; Returns: unknown }
+      st_geometricmedian: {
+        Args: {
+          fail_if_not_converged?: boolean
+          g: unknown
+          max_iter?: number
+          tolerance?: number
+        }
+        Returns: unknown
+      }
+      st_geometryfromtext: { Args: { "": string }; Returns: unknown }
+      st_geomfromewkt: { Args: { "": string }; Returns: unknown }
+      st_geomfromgeojson:
+        | { Args: { "": Json }; Returns: unknown }
+        | { Args: { "": Json }; Returns: unknown }
+        | { Args: { "": string }; Returns: unknown }
+      st_geomfromgml: { Args: { "": string }; Returns: unknown }
+      st_geomfromkml: { Args: { "": string }; Returns: unknown }
+      st_geomfrommarc21: { Args: { marc21xml: string }; Returns: unknown }
+      st_geomfromtext: { Args: { "": string }; Returns: unknown }
+      st_gmltosql: { Args: { "": string }; Returns: unknown }
+      st_hasarc: { Args: { geometry: unknown }; Returns: boolean }
+      st_hausdorffdistance: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      st_hexagon: {
+        Args: { cell_i: number; cell_j: number; origin?: unknown; size: number }
+        Returns: unknown
+      }
+      st_hexagongrid: {
+        Args: { bounds: unknown; size: number }
+        Returns: Record<string, unknown>[]
+      }
+      st_interpolatepoint: {
+        Args: { line: unknown; point: unknown }
+        Returns: number
+      }
+      st_intersection: {
+        Args: { geom1: unknown; geom2: unknown; gridsize?: number }
+        Returns: unknown
+      }
+      st_intersects:
+        | { Args: { geog1: unknown; geog2: unknown }; Returns: boolean }
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_isvaliddetail: {
+        Args: { flags?: number; geom: unknown }
+        Returns: Database["public"]["CompositeTypes"]["valid_detail"]
+        SetofOptions: {
+          from: "*"
+          to: "valid_detail"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      st_length:
+        | { Args: { geog: unknown; use_spheroid?: boolean }; Returns: number }
+        | { Args: { "": string }; Returns: number }
+      st_letters: { Args: { font?: Json; letters: string }; Returns: unknown }
+      st_linecrossingdirection: {
+        Args: { line1: unknown; line2: unknown }
+        Returns: number
+      }
+      st_linefromencodedpolyline: {
+        Args: { nprecision?: number; txtin: string }
+        Returns: unknown
+      }
+      st_linefromtext: { Args: { "": string }; Returns: unknown }
+      st_linelocatepoint: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      st_linetocurve: { Args: { geometry: unknown }; Returns: unknown }
+      st_locatealong: {
+        Args: { geometry: unknown; leftrightoffset?: number; measure: number }
+        Returns: unknown
+      }
+      st_locatebetween: {
+        Args: {
+          frommeasure: number
+          geometry: unknown
+          leftrightoffset?: number
+          tomeasure: number
+        }
+        Returns: unknown
+      }
+      st_locatebetweenelevations: {
+        Args: { fromelevation: number; geometry: unknown; toelevation: number }
+        Returns: unknown
+      }
+      st_longestline: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_makebox2d: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_makeline: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_makevalid: {
+        Args: { geom: unknown; params: string }
+        Returns: unknown
+      }
+      st_maxdistance: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: number
+      }
+      st_minimumboundingcircle: {
+        Args: { inputgeom: unknown; segs_per_quarter?: number }
+        Returns: unknown
+      }
+      st_mlinefromtext: { Args: { "": string }; Returns: unknown }
+      st_mpointfromtext: { Args: { "": string }; Returns: unknown }
+      st_mpolyfromtext: { Args: { "": string }; Returns: unknown }
+      st_multilinestringfromtext: { Args: { "": string }; Returns: unknown }
+      st_multipointfromtext: { Args: { "": string }; Returns: unknown }
+      st_multipolygonfromtext: { Args: { "": string }; Returns: unknown }
+      st_node: { Args: { g: unknown }; Returns: unknown }
+      st_normalize: { Args: { geom: unknown }; Returns: unknown }
+      st_offsetcurve: {
+        Args: { distance: number; line: unknown; params?: string }
+        Returns: unknown
+      }
+      st_orderingequals: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      st_overlaps: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: boolean
+      }
+      st_perimeter: {
+        Args: { geog: unknown; use_spheroid?: boolean }
+        Returns: number
+      }
+      st_pointfromtext: { Args: { "": string }; Returns: unknown }
+      st_pointm: {
+        Args: {
+          mcoordinate: number
+          srid?: number
+          xcoordinate: number
+          ycoordinate: number
+        }
+        Returns: unknown
+      }
+      st_pointz: {
+        Args: {
+          srid?: number
+          xcoordinate: number
+          ycoordinate: number
+          zcoordinate: number
+        }
+        Returns: unknown
+      }
+      st_pointzm: {
+        Args: {
+          mcoordinate: number
+          srid?: number
+          xcoordinate: number
+          ycoordinate: number
+          zcoordinate: number
+        }
+        Returns: unknown
+      }
+      st_polyfromtext: { Args: { "": string }; Returns: unknown }
+      st_polygonfromtext: { Args: { "": string }; Returns: unknown }
+      st_project: {
+        Args: { azimuth: number; distance: number; geog: unknown }
+        Returns: unknown
+      }
+      st_quantizecoordinates: {
+        Args: {
+          g: unknown
+          prec_m?: number
+          prec_x: number
+          prec_y?: number
+          prec_z?: number
+        }
+        Returns: unknown
+      }
+      st_reduceprecision: {
+        Args: { geom: unknown; gridsize: number }
+        Returns: unknown
+      }
+      st_relate: { Args: { geom1: unknown; geom2: unknown }; Returns: string }
+      st_removerepeatedpoints: {
+        Args: { geom: unknown; tolerance?: number }
+        Returns: unknown
+      }
+      st_segmentize: {
+        Args: { geog: unknown; max_segment_length: number }
+        Returns: unknown
+      }
+      st_setsrid:
+        | { Args: { geog: unknown; srid: number }; Returns: unknown }
+        | { Args: { geom: unknown; srid: number }; Returns: unknown }
+      st_sharedpaths: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_shortestline: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_simplifypolygonhull: {
+        Args: { geom: unknown; is_outer?: boolean; vertex_fraction: number }
+        Returns: unknown
+      }
+      st_split: { Args: { geom1: unknown; geom2: unknown }; Returns: unknown }
+      st_square: {
+        Args: { cell_i: number; cell_j: number; origin?: unknown; size: number }
+        Returns: unknown
+      }
+      st_squaregrid: {
+        Args: { bounds: unknown; size: number }
+        Returns: Record<string, unknown>[]
+      }
+      st_srid:
+        | { Args: { geog: unknown }; Returns: number }
+        | { Args: { geom: unknown }; Returns: number }
+      st_subdivide: {
+        Args: { geom: unknown; gridsize?: number; maxvertices?: number }
+        Returns: unknown[]
+      }
+      st_swapordinates: {
+        Args: { geom: unknown; ords: unknown }
+        Returns: unknown
+      }
+      st_symdifference: {
+        Args: { geom1: unknown; geom2: unknown; gridsize?: number }
+        Returns: unknown
+      }
+      st_symmetricdifference: {
+        Args: { geom1: unknown; geom2: unknown }
+        Returns: unknown
+      }
+      st_tileenvelope: {
+        Args: {
+          bounds?: unknown
+          margin?: number
+          x: number
+          y: number
+          zoom: number
+        }
+        Returns: unknown
+      }
+      st_touches: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_transform:
+        | {
+            Args: { from_proj: string; geom: unknown; to_proj: string }
+            Returns: unknown
+          }
+        | {
+            Args: { from_proj: string; geom: unknown; to_srid: number }
+            Returns: unknown
+          }
+        | { Args: { geom: unknown; to_proj: string }; Returns: unknown }
+      st_triangulatepolygon: { Args: { g1: unknown }; Returns: unknown }
+      st_union:
+        | { Args: { geom1: unknown; geom2: unknown }; Returns: unknown }
+        | {
+            Args: { geom1: unknown; geom2: unknown; gridsize: number }
+            Returns: unknown
+          }
+      st_voronoilines: {
+        Args: { extend_to?: unknown; g1: unknown; tolerance?: number }
+        Returns: unknown
+      }
+      st_voronoipolygons: {
+        Args: { extend_to?: unknown; g1: unknown; tolerance?: number }
+        Returns: unknown
+      }
+      st_within: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      st_wkbtosql: { Args: { wkb: string }; Returns: unknown }
+      st_wkttosql: { Args: { "": string }; Returns: unknown }
+      st_wrapx: {
+        Args: { geom: unknown; move: number; wrap: number }
+        Returns: unknown
+      }
+      unlockrows: { Args: { "": string }; Returns: number }
+      updategeometrysrid: {
+        Args: {
+          catalogn_name: string
+          column_name: string
+          new_srid_in: number
+          schema_name: string
+          table_name: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       ai_agent_id:
@@ -3544,6 +6324,34 @@ export type Database = {
         | "update"
         | "delete"
         | "execute"
+      dup_status_enum:
+        | "pending_review"
+        | "merged"
+        | "dismissed"
+        | "sibling_listing"
+      dup_tier_enum:
+        | "auto_merge"
+        | "needs_review"
+        | "likely_duplicate"
+        | "same_building_rebrand"
+      enrichment_job_status_enum:
+        | "pending"
+        | "leased"
+        | "done"
+        | "failed"
+        | "dlq"
+      enrichment_job_type_enum:
+        | "discover"
+        | "enrich"
+        | "refresh"
+        | "conflict_recheck"
+        | "fallback_dispatch"
+      enrichment_run_status_enum:
+        | "running"
+        | "completed"
+        | "failed"
+        | "partial"
+        | "budget_exceeded"
       entity_role:
         | "buyer"
         | "seller"
@@ -3557,6 +6365,19 @@ export type Database = {
         | "partner"
         | "mentioned"
       excel_status: "queued" | "parsing" | "staged" | "applied" | "failed"
+      fetch_status_enum:
+        | "ok"
+        | "parsed_with_warnings"
+        | "parse_failed"
+        | "rate_limited"
+        | "not_found"
+        | "auth_blocked"
+      hotel_lifecycle_enum:
+        | "active"
+        | "closed"
+        | "under_construction"
+        | "planned"
+        | "unverified"
       hotel_segment:
         | "luxury"
         | "upper_upscale"
@@ -3570,6 +6391,14 @@ export type Database = {
         | "mixed_use"
         | "serviced_apartments"
         | "unknown"
+      hotel_type_enum:
+        | "urban"
+        | "resort"
+        | "airport"
+        | "extended_stay"
+        | "flex_living"
+        | "aparthotel"
+        | "boutique"
       ingestion_source_kind: "rss" | "scrape" | "api" | "manual"
       ingestion_status: "queued" | "running" | "success" | "partial" | "failed"
       intelligence_auth_strategy:
@@ -3622,8 +6451,23 @@ export type Database = {
         | "share"
         | "system"
       oauth_provider: "google" | "linkedin" | "apple" | "microsoft"
+      operator_type_enum:
+        | "franchise"
+        | "managed"
+        | "owned"
+        | "lease"
+        | "unknown"
       org_role: "owner" | "admin" | "member" | "viewer"
       pdf_status: "queued" | "generating" | "ready" | "failed"
+      pnl_data_source:
+        | "costar_real"
+        | "costar_submarket_aggregate"
+        | "costar_national"
+        | "hardcoded_default"
+        | "derived_mvp_rule"
+        | "pending_costar"
+      pnl_segmentation_type: "hotel" | "apartahotel" | "hostel"
+      quality_tier_enum: "gold" | "silver" | "bronze" | "quarantined"
       report_objective:
         | "For Sale"
         | "Rent HMA"
@@ -3653,7 +6497,15 @@ export type Database = {
         | "comped"
     }
     CompositeTypes: {
-      [_ in never]: never
+      geometry_dump: {
+        path: number[] | null
+        geom: unknown
+      }
+      valid_detail: {
+        valid: boolean | null
+        reason: string | null
+        location: unknown
+      }
     }
   }
 }
@@ -3829,6 +6681,39 @@ export const Constants = {
         "shared",
       ],
       ai_permission_action: ["select", "insert", "update", "delete", "execute"],
+      dup_status_enum: [
+        "pending_review",
+        "merged",
+        "dismissed",
+        "sibling_listing",
+      ],
+      dup_tier_enum: [
+        "auto_merge",
+        "needs_review",
+        "likely_duplicate",
+        "same_building_rebrand",
+      ],
+      enrichment_job_status_enum: [
+        "pending",
+        "leased",
+        "done",
+        "failed",
+        "dlq",
+      ],
+      enrichment_job_type_enum: [
+        "discover",
+        "enrich",
+        "refresh",
+        "conflict_recheck",
+        "fallback_dispatch",
+      ],
+      enrichment_run_status_enum: [
+        "running",
+        "completed",
+        "failed",
+        "partial",
+        "budget_exceeded",
+      ],
       entity_role: [
         "buyer",
         "seller",
@@ -3843,6 +6728,21 @@ export const Constants = {
         "mentioned",
       ],
       excel_status: ["queued", "parsing", "staged", "applied", "failed"],
+      fetch_status_enum: [
+        "ok",
+        "parsed_with_warnings",
+        "parse_failed",
+        "rate_limited",
+        "not_found",
+        "auth_blocked",
+      ],
+      hotel_lifecycle_enum: [
+        "active",
+        "closed",
+        "under_construction",
+        "planned",
+        "unverified",
+      ],
       hotel_segment: [
         "luxury",
         "upper_upscale",
@@ -3856,6 +6756,15 @@ export const Constants = {
         "mixed_use",
         "serviced_apartments",
         "unknown",
+      ],
+      hotel_type_enum: [
+        "urban",
+        "resort",
+        "airport",
+        "extended_stay",
+        "flex_living",
+        "aparthotel",
+        "boutique",
       ],
       ingestion_source_kind: ["rss", "scrape", "api", "manual"],
       ingestion_status: ["queued", "running", "success", "partial", "failed"],
@@ -3916,8 +6825,19 @@ export const Constants = {
         "system",
       ],
       oauth_provider: ["google", "linkedin", "apple", "microsoft"],
+      operator_type_enum: ["franchise", "managed", "owned", "lease", "unknown"],
       org_role: ["owner", "admin", "member", "viewer"],
       pdf_status: ["queued", "generating", "ready", "failed"],
+      pnl_data_source: [
+        "costar_real",
+        "costar_submarket_aggregate",
+        "costar_national",
+        "hardcoded_default",
+        "derived_mvp_rule",
+        "pending_costar",
+      ],
+      pnl_segmentation_type: ["hotel", "apartahotel", "hostel"],
+      quality_tier_enum: ["gold", "silver", "bronze", "quarantined"],
       report_objective: [
         "For Sale",
         "Rent HMA",
