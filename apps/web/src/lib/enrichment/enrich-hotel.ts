@@ -232,6 +232,98 @@ function extractMeetingRoomsCount(payload: unknown): number | null {
   return null;
 }
 
+// ── Spa classification vocabulary (operator-firmed criteria · audit #16, 2026-05-28) ──
+//
+// LEVEL 1 = high-confidence spa keywords · presence in an instance/highlight
+//           title means the hotel really has spa amenities. Triggers spa=true.
+// LEVEL 2 = ambiguous keywords · alone they do NOT trigger spa=true. Per
+//           operator criteria they only count when there is ALSO a Level 1
+//           keyword in the same hotel · since Level 1 already triggers true
+//           by itself, Level 2 effectively never sets spa=true on its own.
+// LEVEL 3 = NOT spa · gym/fitness/sauna/jacuzzi/steam/indoor pool alone are
+//           NOT spa per the criteria.
+
+const SPA_LEVEL1_KEYWORDS: readonly string[] = [
+  "thalasso",          // includes "thalassotherapy"
+  "massage",
+  "treatment",         // includes "treatment room", "body treatment", "beauty treatment"
+  "hammam",
+  "facial",
+  "thermal",           // includes "thermal circuit"
+  "wellness center",   // explicit "center" only (NOT "wellness area" or just "wellness")
+  "spa center",
+  "beauty",            // beauty treatments / beauty room
+];
+
+const SPA_LEVEL2_KEYWORDS: readonly string[] = [
+  "wellness area",
+  "relax area",
+  "spa & fitness",
+  "spa and fitness",
+];
+
+const SPA_LEVEL3_KEYWORDS: readonly string[] = [
+  "fitness center",
+  "fitness room",
+  "fitness",
+  "gym",
+  "sauna",
+  "jacuzzi",
+  "hot tub",
+  "steam room",
+  "indoor pool",
+];
+
+/**
+ * Classify a single facility title per the spa criteria. Returns the level
+ * number (1 / 2 / 3) when the title matches a known keyword, or null
+ * otherwise. Used internally by detectSpa.
+ */
+function classifySpaTitle(title: string): 1 | 2 | 3 | null {
+  const t = title.toLowerCase().trim();
+  if (!t) return null;
+  for (const kw of SPA_LEVEL1_KEYWORDS) if (t.includes(kw)) return 1;
+  for (const kw of SPA_LEVEL2_KEYWORDS) if (t.includes(kw)) return 2;
+  // Standalone "wellness" (NOT already caught as Level-1 "wellness center")
+  if (/\bwellness\b/.test(t) && !t.includes("wellness center")) return 2;
+  for (const kw of SPA_LEVEL3_KEYWORDS) if (t.includes(kw)) return 3;
+  // Bare "spa" instance · Level 1 default (if NOT already caught as
+  // "spa & fitness" Level 2 above).
+  if (/\bspa\b/.test(t)) return 1;
+  return null;
+}
+
+/**
+ * Spa detection · stricter than the generic `detectFacility(... /spa/i)`
+ * that this replaces. Background: audit #16 (2026-05-28) found 93/152
+ * hotels (61%) flagged spa=true incorrectly because Booking has a generic
+ * "Spa" group/category that includes hotels whose only instance under it
+ * is "Fitness center". The group title is Booking taxonomy, NOT a hotel
+ * claim. Real evidence = an instance whose title matches Level 1 spa
+ * vocabulary (massage, hammam, treatment, etc.).
+ *
+ * Returns true ONLY when at least one Level-1 keyword appears in an
+ * instance title or accommodation highlight. The group title "Spa" by
+ * itself NO LONGER counts. Level 2 alone NEVER triggers true (per spec).
+ * Level 3 NEVER triggers true.
+ *
+ * Returns null when the payload has no structured facility data at all.
+ *
+ * NOTE on existing data: the immediately-downstream merge logic in
+ * enrichHotel() never overwrites an existing `true` with `false` (institutional
+ * non-destructive policy). So this stricter detector prevents NEW false
+ * positives but does NOT correct the 93 already in BD. Those are handled
+ * via an operator-approved SQL UPDATE separately (audit #16 Part B).
+ */
+function detectSpa(payload: unknown): boolean | null {
+  const { highlights, groupedFacilities } = collectFacilityTitles(payload);
+  if (highlights.length === 0 && groupedFacilities.length === 0) return null;
+  // Check ONLY instance/highlight titles · NEVER group titles.
+  for (const t of highlights) if (classifySpaTitle(t) === 1) return true;
+  for (const gf of groupedFacilities) if (classifySpaTitle(gf.title) === 1) return true;
+  return false;
+}
+
 /**
  * Detect facility presence from the structured facility titles (NOT
  * recursive walk · avoids the v1 false-positives from nested attrs).
@@ -338,7 +430,7 @@ export async function enrichHotel(canonical_id: string): Promise<EnrichResult> {
       // overwrite an existing truthy boolean with false.
       const detectedAmenities: Record<string, boolean | null> = {
         meet: detectFacility(facRes.data, /meeting|conferenc|business cent|banquet|ball ?room/i),
-        spa: detectFacility(facRes.data, /spa/i),
+        spa: detectSpa(facRes.data),  // strict Level-1-instance detector (audit #16)
         gym: detectFacility(facRes.data, /gym|fitness/i),
         pool: detectFacility(facRes.data, /pool|swimming/i),
         parking: detectFacility(facRes.data, /parking/i),
