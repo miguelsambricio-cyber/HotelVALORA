@@ -180,16 +180,33 @@ function collectFacilityTitles(payload: unknown): {
 /**
  * Extract restaurants_count from Booking facilities payload.
  *
- * Strategy:
- *   1. PRIMARY · `accommodationHighlights[].title` matching `^(\d+)\s+restaurants?$`
- *      → returns the explicit count Booking surfaces (e.g. "4 restaurants" → 4)
- *   2. FALLBACK · presence-only signal · returns null when count unknown
- *      (data principle: lo que no sabemos NO lo inventamos)
- *
- * Replaces the v1 recursive walk that over-counted (Bless → 8 instead of 4).
+ * Strategy (post-2026-05-28 diagnostic probe · .smoke/paso4-probe/):
+ *   1. PRIMARY · count `Restaurant` instances in the `Food & Drink`
+ *      facility group. Booking emits one F&B instance per real outlet;
+ *      empirically validated 4/4 in the diagnostic probe (Mandarin 3 ·
+ *      Four Seasons 3 · Marriott Auditorium 3 · URSO 1) — matches the
+ *      real-world outlet count per hotel. Expected corpus coverage >95%
+ *      (vs ~8% of the previous SECONDARY-only path).
+ *   2. SECONDARY · `accommodationHighlights[].title` matching
+ *      `^(\d+)\s+restaurants?$` · Booking emits this curated highlight
+ *      only for ~8% of hotels (19/226 in the 2026-05-26 sweep) but it
+ *      agrees with PRIMARY when both exist. Retained as fallback for
+ *      hotels where the F&B group is structurally empty.
+ *   3. NULL · neither source had a signal. Data principle stands:
+ *      lo que no sabemos NO lo inventamos.
  */
 function extractRestaurantsCount(payload: unknown): number | null {
-  const { highlights } = collectFacilityTitles(payload);
+  const { highlights, groupedFacilities } = collectFacilityTitles(payload);
+
+  // PRIMARY · count "Restaurant" instances inside Food & Drink group
+  let fbCount = 0;
+  for (const gf of groupedFacilities) {
+    if (!/food\s*&\s*drink/i.test(gf.group)) continue;
+    if (/^restaurant$/i.test(gf.title.trim())) fbCount++;
+  }
+  if (fbCount > 0) return fbCount;
+
+  // SECONDARY · accommodationHighlights "N restaurants" pattern
   for (const t of highlights) {
     const m = t.match(/^\s*(\d+)\s+restaurants?\s*$/i);
     if (m) return parseInt(m[1], 10);
