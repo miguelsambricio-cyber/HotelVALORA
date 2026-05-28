@@ -4,6 +4,24 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-28 — docs: promote DATA_ARCHITECTURE.md to repo root (8th canonical strategic doc, twin of VALUATION_METHODOLOGY)
+
+New strategic root doc · `DATA_ARCHITECTURE.md` (16 KB · 203 lines) consolidates the product-level data architecture: pipeline INPUT/MASTER/OLD across multi-source ingestion (CoStar · Booking · Google · futures), perfil 360 del hotel (4-block hotel profile), explicit data debts (PDFs no parseados · HOTELESperMARKET incompleto · INPUT→OLD manual), and the strategic decision "Supabase como fuente única de verdad" (operator-firmed 2026-05-28 · already implemented through migration 0035 + import_pnl_to_supabase.py in Phase 2).
+
+Twin of `VALUATION_METHODOLOGY.md` · one owns the logic ("how data is used to value"), the other owns the data architecture ("how data is mounted into the system"). Both cross-reference each other.
+
+Audit confirmed no overlap with the 3 existing technical deep-dives, which become subordinates:
+
+- `docs/architecture.md` (system runtime · FastAPI/Next.js/Celery/PG/Redis) — different layer.
+- `docs/data-pipeline.md` (legacy `services/data_pipeline/` Python ETL with FastAPI staging tables) — different module.
+- `docs/intelligence/costar-master-dataset-architecture.md` (the 4 .xlsx CoStar workbooks with 5-sheet layout + ingestion-meta block) — technical deep-dive on one dataset.
+
+Cross-refs added in `DATA_ARCHITECTURE.md` pointing operators to these 3 deep-dives for technical detail. `ENTRYPOINTS.md` root list grows from 7 → 8 canonical strategic docs (README · CLAUDE · AI_CONTEXT · RULES · ENTRYPOINTS · VALUATION_METHODOLOGY · DATA_ARCHITECTURE · BOOKING_EXPANSION_SPEC).
+
+No code touched. Rebrands intactos.
+
+---
+
 ## 2026-05-28 — feat(import): 149 rows landed in pnl_template + audit run (Phase 2 of Supabase migration · CLOSED)
 
 Operator-approved import of the canonical USALI plantilla into Supabase, replacing the localStorage-only persistence path that has been institutional debt since Phase D was placeholder-only.
