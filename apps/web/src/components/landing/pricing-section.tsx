@@ -79,18 +79,20 @@ export function PricingSection() {
         </div>
 
         {/* Mobile · compact rows · tier + name + button, NO features.
-         *  Whole row + button share ONE destination: /pricing#<id>.
-         *  GRATIS is the featured row (accent border + "Recomendado" badge +
-         *  filled "Empezar ahora"); Pro/Premium are outline "Seleccionar".
-         *  (Mike's hard requirement #2 · the 3 fit without scroll.) */}
+         *  Whole row + button share ONE destination = plan.href (same as
+         *  desktop · Mike-confirmed): GRATIS → /compset (start the flow ·
+         *  the free plan isn't "contracted", it's used), Pro → /pricing#pro,
+         *  Premium → /pricing#premium. GRATIS is the featured row (accent
+         *  border + "Recomendado" badge + filled "Empezar ahora"); Pro/Premium
+         *  outline "Seleccionar". (Mike's req #2 · the 3 fit without scroll.) */}
         <ul className="md:hidden flex flex-col gap-2.5" aria-label="Planes y precios">
           {PLANS.map((plan) => {
             const featured = Boolean(plan.featured);
             return (
               <li key={plan.id}>
                 <Link
-                  href={`/pricing#${plan.id}`}
-                  aria-label={`Plan ${plan.name} — ver detalle`}
+                  href={plan.href}
+                  aria-label={`Plan ${plan.name}`}
                   className={cn(
                     "flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 transition-transform active:scale-[0.99]",
                     featured
