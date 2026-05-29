@@ -4,6 +4,18 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-30 — feat(financial-engine): X4 + F3 · cablear % CoStar (`pnl_template`) → `computePL` + valoración NOI/cap
+
+Rama `feat/x4-f3-costar-pnl-wiring` (pendiente de revisión humana · no mergeado). Cierra el núcleo del informe de punta a punta detectado en la auditoría (`docs/underwriting/AUDIT_MOTOR_FINANCIERO.md`, X4/F3/X5).
+
+- **X4** · `buildFinancialsSlice` lee los % USALI reales de `pnl_template` (÷100) vía el nuevo `pnl-template-reader.ts`; antes usaba constantes "Stitch". Línea de **seguros** nueva (`expInsurance`); base de **A&G** corregida a ingreso habitaciones; etiqueta de fuente submercado→nacional→derivado→no_data; `coverage.ts` superseded (bandera leída del slice).
+- **F1** · EBITDA partido en `ebitda` (pre-replacement = GOP − mgmt − tax − insurance) y `ebitdaAfterReplacement` (− reserva FF&E).
+- **D1/D2** · reserva FF&E = rampa CAPEX-driven 2→3→4 / 4% plano (`ffe-reserve.ts`, `operator_assumption`). Señal `hasCapex` = obra nueva / reno ≤5 años / operador. `segmentation_type` (4 valores) derivado en `canonical-reader` (no hay columna BD).
+- **F3/D3** · valor = NOI/cap en Executive Summary (`valuation.ts`): FREE = NOI TTM · PRO/PREMIUM = NOI año salida (default 7, rango 1..10, proyección terminal Y6-10). X5: solo con ratios CoStar + cap rate.
+- **D4** · cap de salida re-derivado del estado proyectado del activo (sin spread fijo +20 bps).
+- `ENGINE_VERSION` 0.2.0 → 0.3.0. Tests vitest 11/11 verdes (rampa · guarda ×100 · reconciliación EBITDA · valoración X5). Typecheck limpio. Cobertura: 10/226 hoteles ES con rampa, 216 a 4% plano.
+- Pendiente: re-correr parity (`excel-parity-block-3a/3b.md`) — los números cambian a propósito · verificación visual del operador.
+
 ## 2026-05-29 — feat(contacts): β · `ingest_consolidated.py` · 4º lane del pipeline canónico
 
 Cuarto handler del pipeline de contactos. Digiere los XLSX de Capa A (FASE 1: Outlook libreta + LinkedIn exports + Access · FASE 2: .msg sueltos · futuro FASE 3: PSTs) y los aplica al Master canónico vía strict gap-fill con paranoid mode para filas Datasite-sembradas. Reusa el dedup engine de `ingest_google.py` (4 estrategias) y las funciones de Master I/O de `ingest.py` (sin duplicar lógica).

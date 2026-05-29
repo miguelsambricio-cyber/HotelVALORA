@@ -1,6 +1,8 @@
 import type { CanonicalHotelRow, MarketKpiBundle } from "@/lib/report/canonical-reader";
 import { applyFacilityAwareRule, getDefaultAssumptions } from "@/lib/report/financials";
 import type { FacilityProfile, PLAssumptions } from "@/lib/report/financials/types";
+import { resolvePnlTemplate, sourceLevelLabel } from "@/lib/report/financials/pnl-template-reader";
+import { deriveHasCapex } from "@/lib/report/financials/ffe-reserve";
 import { PNL_ROOM_STATS, PNL_ROOM_STATS_FALLBACK } from "@/lib/admin/financials/defaults";
 import type { FinancialsSlice, SectionProvenance } from "../types";
 
@@ -25,12 +27,21 @@ import type { FinancialsSlice, SectionProvenance } from "../types";
  *  Replaces the previous behaviour where `getDefaultAssumptions()`
  *  was called with no hotel context.
  */
-export function buildFinancialsSlice(
+export async function buildFinancialsSlice(
   hotel: CanonicalHotelRow,
   marketKpi: MarketKpiBundle | null,
-): FinancialsSlice {
-  // Start from the operator-tuned default ratios (F&B mix · cost lines).
+): Promise<FinancialsSlice> {
+  // Start from the operator-tuned default ratios (used only as the hard
+  // fallback when CoStar coverage is absent).
   const base = getDefaultAssumptions();
+
+  // X4 · resolve the real CoStar USALI ratios (÷100) from pnl_template.
+  const tpl = await resolvePnlTemplate(hotel);
+  const costarResolved = tpl.costar_resolved && tpl.ratios != null;
+  const ratios = costarResolved && tpl.ratios ? tpl.ratios : base.ratios;
+
+  // D1/D2 · CAPEX signal drives the FF&E reserve ramp inside computePL.
+  const hasCapex = deriveHasCapex(hotel);
 
   // Resolve rooms · prefer canonical · fall back to engine heuristic in the
   // mapper · here we just take canonical (the caller layer already ran the
@@ -67,6 +78,8 @@ export function buildFinancialsSlice(
 
   const baseWithHotelKpis: PLAssumptions = {
     ...base,
+    ratios,
+    hasCapex,
     rooms,
     occupancyYear1: Number(occupancyYear1.toFixed(3)),
     adrYear1: Number(adrYear1.toFixed(1)),
@@ -82,14 +95,23 @@ export function buildFinancialsSlice(
   const assumptions = applyFacilityAwareRule(baseWithHotelKpis, facilityProfile);
   const adjustments = summariseFacilityAdjustments(baseWithHotelKpis, assumptions, facilityProfile);
 
+  // P&L ratio provenance (X4): the CoStar template level drives the source
+  // pill; the occ/ADR source is appended for traceability.
+  const ratioSource = costarResolved
+    ? sourceLevelLabel(tpl.source_level)
+    : "plantilla por defecto (sin cobertura CoStar)";
+  const facilityNote = adjustments.length > 0 ? ` · facility-aware: ${adjustments.join(", ")}` : "";
   const provenance: SectionProvenance = {
-    source: adjustments.length > 0
-      ? `${provenanceSource} · facility-aware: ${adjustments.join(", ")}`
-      : provenanceSource,
+    source: `${ratioSource} · KPIs: ${provenanceSource}${facilityNote}`,
     generated_at: new Date().toISOString(),
   };
 
-  return { assumptions, provenance };
+  return {
+    assumptions,
+    provenance,
+    source_level: tpl.source_level,
+    costar_resolved: costarResolved,
+  };
 }
 
 /**

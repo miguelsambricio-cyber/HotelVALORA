@@ -125,6 +125,8 @@ export function resolveAssumptionValue(
       return a.ratios.expMgmtFee;
     case "exp-property-tax":
       return a.ratios.expPropertyTax;
+    case "exp-insurance":
+      return a.ratios.expInsurance;
     case "exp-ffe-reserve":
       return a.ratios.expFfeReserve;
     case "rev-rooms":
@@ -199,6 +201,11 @@ export function applyAssumptionChange(
       return {
         ...a,
         ratios: { ...a.ratios, expPropertyTax: clamp(next, 0, 1) },
+      };
+    case "exp-insurance":
+      return {
+        ...a,
+        ratios: { ...a.ratios, expInsurance: clamp(next, 0, 1) },
       };
     case "exp-ffe-reserve":
       return {

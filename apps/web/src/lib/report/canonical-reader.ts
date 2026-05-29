@@ -20,6 +20,14 @@ import { loadHotelsSnapshot, loadMarketSnapshotsCached } from "@/lib/admin/hotel
  * over `snap.market_snapshots`.
  */
 
+/**
+ * Asset segmentation for the P&L engine (D2 · 4 values). NOTE: `hotel_canonical`
+ * does NOT carry a `segmentation_type` column yet — it is DERIVED here from
+ * `hotel_type` / `segment` (default "hotel"). `hotelproject` has no canonical
+ * signal today and is reserved for operator-set / future (building selection).
+ */
+export type SegmentationType = "hotel" | "apartmenthotel" | "hostel" | "hotelproject";
+
 export interface CanonicalHotelRow {
   id: string;
   canonical_name: string | null;
@@ -29,6 +37,8 @@ export interface CanonicalHotelRow {
   star_rating: number | null;
   hotel_type: string | null;
   segment: string | null;
+  /** Derived (not a DB column) · see SegmentationType. */
+  segmentation_type: SegmentationType | null;
   operator_type: string | null;
   address_line1: string | null;
   city: string | null;
@@ -68,11 +78,31 @@ export interface CanonicalHotelRow {
 const SELECT_COLS =
   "id,canonical_name,brand,brand_family,chain_scale,star_rating,hotel_type,segment,operator_type,address_line1,city,city_normalized,postal_code,country_code,region,neighborhood,lat,lng,total_rooms,total_keys,meeting_rooms_count,meeting_space_sqm,restaurants_count,year_opened,year_renovated_last,review_score,review_count,phone,website_url,booking_url,hero_image_path,gallery_paths,google_place_id,wikidata_qid,data_quality_tier,documented_independent,last_enriched_at,amenities,market_id,submarket_id,operator_id";
 
-type RawHotelRow = Omit<CanonicalHotelRow, "market_name" | "submarket_name" | "operator_name"> & {
+type RawHotelRow = Omit<
+  CanonicalHotelRow,
+  "market_name" | "submarket_name" | "operator_name" | "segmentation_type"
+> & {
   market_id?: string | null;
   submarket_id?: string | null;
   operator_id?: string | null;
 };
+
+/**
+ * Derive `segmentation_type` from existing canonical signals (no DB column).
+ * apartment/extended-stay/serviced → apartmenthotel · hostel → hostel · else hotel.
+ * `hotelproject` is NOT auto-derived (no canonical signal) — operator/future only.
+ */
+function deriveSegmentationType(
+  hotelType: string | null,
+  segment: string | null,
+): SegmentationType {
+  const t = (hotelType ?? "").toLowerCase();
+  const s = (segment ?? "").toLowerCase();
+  if (["aparthotel", "apartmenthotel", "extended_stay", "flex_living", "serviced_apartments"].includes(t)
+    || s === "serviced_apartments") return "apartmenthotel";
+  if (t === "hostel" || s === "hostel") return "hostel";
+  return "hotel";
+}
 
 async function joinLookups(row: RawHotelRow): Promise<CanonicalHotelRow> {
   const sb = createAnonServerSupabaseClient() as unknown as {
@@ -110,6 +140,7 @@ async function joinLookups(row: RawHotelRow): Promise<CanonicalHotelRow> {
     market_name: market,
     submarket_name: submarket,
     operator_name: operator,
+    segmentation_type: deriveSegmentationType(clean.hotel_type, clean.segment),
   };
 }
 

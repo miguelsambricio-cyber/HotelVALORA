@@ -35,6 +35,7 @@ export type PLLineItemId =
   // Non-operating charges
   | "exp-mgmt-fee"
   | "exp-property-tax"
+  | "exp-insurance"
   | "exp-ffe-reserve";
 
 export type PLSectionId =
@@ -168,6 +169,14 @@ export interface PLAssumptions {
     // Non-operating charges (% of total revenue)
     expMgmtFee: number;
     expPropertyTax: number;
+    expInsurance: number;
+    /**
+     * FF&E reserve baseline (% of total revenue). Operator assumption, NOT
+     * CoStar. NOTE: `computePL` no longer reads this constant for the EBITDA
+     * after-replacement line — it derives the reserve per-year from the
+     * CAPEX-driven ramp (`ffeReservePct`, see `ffe-reserve.ts`). Retained for
+     * backward compatibility / display defaults.
+     */
     expFfeReserve: number;
   };
 
@@ -187,6 +196,15 @@ export interface PLAssumptions {
    * ratio is 0 (services the hotel doesn't have).
    */
   facilityProfile?: FacilityProfile;
+
+  /**
+   * CAPEX signal (D1/D2) · drives the FF&E reserve ramp in `computePL`.
+   * Set by `buildFinancialsSlice` from canonical (new build / recent
+   * renovation / operator-set). Threaded on the assumption store so client
+   * callers of `computePL(assumptions)` pick it up without extra args.
+   * Absent → false → flat 4% reserve (stabilised asset).
+   */
+  hasCapex?: boolean;
 }
 
 // ── Computed shape returned by `computePL(assumptions, scenario)` ──────────
@@ -200,8 +218,11 @@ export interface PLComputed {
   results: {
     totalRevenue: FiveYears;
     gop: FiveYears;
+    /** EBITDA pre-replacement (headline) = GOP − mgmt − tax − insurance. */
     ebitda: FiveYears;
-    ebitdaMargin: FiveYears; // ratio 0..1
+    /** EBITDA after replacement (valuation) = ebitda − FF&E reserve (ramp). */
+    ebitdaAfterReplacement: FiveYears;
+    ebitdaMargin: FiveYears; // ratio 0..1 · on pre-replacement EBITDA
   };
 }
 

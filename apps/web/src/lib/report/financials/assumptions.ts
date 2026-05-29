@@ -82,6 +82,9 @@ export function getDefaultAssumptions(): PLAssumptions {
       // Non-operating charges — % of total revenue
       expMgmtFee: 0.046,
       expPropertyTax: 0.011,
+      expInsurance: 0.004,
+      // FF&E reserve baseline (operator_assumption). computePL derives the
+      // per-year reserve from the CAPEX ramp (ffe-reserve.ts), not this constant.
       expFfeReserve: 0.04,
     },
 

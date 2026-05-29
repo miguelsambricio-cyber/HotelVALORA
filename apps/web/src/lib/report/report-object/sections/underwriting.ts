@@ -69,10 +69,11 @@ export function buildUnderwritingSlice(
   // Use engine valuation when available · else fall back to SCENARIO_BASE
   // pricing. Cap-rate engine output drives both asking_price + hotel_value
   // + cap_rate.
-  const valuation = engineRun?.capRate
-    ? rooms * (engineRun.assetBasics.rooms > 0 ? (baseInputs.acquisition.hotel_value / baseInputs.asset.rooms) : 285_000)
-    : baseInputs.acquisition.hotel_value;
-  // Better: derive from chain_scale tier · same as Executive Summary mapper.
+  // F3 SCOPE NOTE: the headline NOI/cap valuation lands in the Executive
+  // Summary mapper. The underwriting ENGINE value below stays €/key-derived
+  // on purpose: its P&L is still driven by static `pl_drivers` (F6), so
+  // feeding a NOI/cap value here would produce an IRR inconsistent with the
+  // engine's own cash flows. Wiring NOI/cap into the engine belongs with F6.
   const perKeyByChainScale: Record<string, number> = {
     luxury: 800_000,
     upper_upscale: 500_000,

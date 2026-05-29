@@ -414,3 +414,59 @@ Lógica de negocio: habitaciones con peso alto (mix de camas compartidas y priva
 ### Cuadre matemático obligatorio
 
 Cualquier ajuste futuro de estos perfiles debe mantener: ingresos suman 100%, gastos encadenan correctamente a GOP, y EBITDA = GOP − mgmt − taxes − insurance (modelo HotelVALORA sin IT ni rent). Un P&L que no cuadre es inaceptable en una demo a inversores.
+
+---
+
+## ANEXO · Valoración: EBITDA after replacement, rampa FF&E, segmentation_type y año de salida por plan (firmado 2026-05-29)
+
+Tres decisiones que cierran cómo el motor convierte el P&L en valor. Refinan las secciones 3.2 y 3.3 y el anexo EBITDA HotelVALORA. Provienen de la auditoría del motor financiero (`docs/underwriting/AUDIT_MOTOR_FINANCIERO.md`, hallazgos X3/X4/X5) y su plan de cableado (`docs/underwriting/PLAN_X4_F3_WIRING.md`).
+
+### Decisión 1 · La valoración se hace sobre EBITDA AFTER REPLACEMENT (post-FF&E), con rampa
+
+- El cap rate se aplica al **NOI después de restar la reserva FF&E**, no al EBITDA pre-reserva. Hay por tanto **dos cifras** de EBITDA:
+  - **EBITDA (pre-replacement)** = `GOP − management_fees − property_taxes − insurance` (la del anexo EBITDA HotelVALORA · cifra de cabecera para el lector).
+  - **EBITDA after replacement** = `EBITDA − reserva FF&E` (**la que se capitaliza al cap rate**).
+- La reserva FF&E **depende del CAPEX, no del tipo de activo**:
+  - **Default = 4% estable (sin rampa)** para activos **operativos sin CAPEX**.
+  - **Rampa `2% → 3% → 4%` (estabiliza en 4%, techo en el año 3) SOLO cuando hay CAPEX**: tras invertir, el activo está nuevo → la reserva arranca baja y sube.
+  - **Definición de la señal `hasCapex`** (separada del catch-all `renovated`): `hasCapex = true` cuando el activo es **obra nueva** (`year_opened` ≤ 5 años) **o tiene CAPEX reciente** (`year_renovated_last` ≤ 5 años), **o** está **seteado por el operador** (Premium · override del cálculo automático). En cualquier otro caso (sin dato, o renovación/apertura antiguas) `hasCapex = false` → **4% plano**. Comparte fuente con el estado de renovación que usa el motor de cap rate dinámico; una sola señal sirve a la rampa FF&E (D1) y al estado-a-salida (D4).
+- La reserva FF&E es un **supuesto del operador** (`provenance = operator_assumption`), **NUNCA un dato de CoStar**. Cualquier valor de FF&E almacenado como `costar_*` es incorrecto por construcción (CoStar no publica reserva FF&E).
+- Para los activos CON CAPEX, el punto de la rampa que entra en el NOI de valoración **depende del año de salida** (Decisión 3): salida en año 7 → 4% estabilizado; salida temprana → un punto menor de la curva.
+
+### Decisión 2 · `segmentation_type` tiene CUATRO valores
+
+`hotel` · `apartmenthotel` · `hostel` · `hotelproject`. La cadena Asset → Market → P&L → Valoración y la regla facility-aware son idénticas para los cuatro; lo que cambia son los % USALI (de CoStar) por tipo. (La rampa FF&E **no** depende del tipo sino del CAPEX — ver Decisión 1; `hotelproject` típicamente lleva CAPEX y por tanto rampa, pero la decisión se toma por la señal de CAPEX, no por el tipo.) El mapeo a la enum de CoStar es silencioso: `apartmenthotel → apartahotel`, `hotelproject → hotel`.
+
+### Decisión 3 · El NOI de valoración depende del AÑO DE SALIDA, que depende del PLAN
+
+El año de salida es un **parámetro del motor**, gateado por plan de suscripción:
+
+| Plan | Año de salida | NOI de valoración |
+|---|---|---|
+| **FREE** | sin año de salida | **valor de mercado actual** = NOI sobre el compset **TTM (últimos 12 meses)** = año 1. Modo por defecto. |
+| **PRO** | configurable de **TTM(12m) a 10 años**, default **año 7** (regla base HotelVALORA) · puede VER todo | NOI del año de salida elegido (EBITDA after replacement de ese año) |
+| **PREMIUM** | igual que PRO + puede **MODIFICAR** supuestos | NOI del año de salida elegido |
+
+Regla de honestidad (X5): el valor por NOI/cap **solo se calcula** cuando hay % de CoStar resueltos para el activo **y** cap rate no nulo. Si falta cualquiera de los dos, el motor no fabrica valor por NOI (no hereda, no inventa) — coherente con el guard de país y la sección 1.
+
+Proyección Y6–Y10 (para salidas posteriores al año 5): **ocupación plana del año 5 + ADR a la última delta del escenario** (crecimiento terminal). Solo aplica a PRO/Premium con año de salida > 5; FREE usa TTM (año 1).
+
+### Decisión 4 · El cap rate de SALIDA es dinámico (no un spread fijo)
+
+El cap de **entrada** y el de **salida** salen ambos del **motor de cap rate dinámico** según el **estado del activo**, no de un diferencial fijo:
+
+- Activo con CAPEX / renovado → **entrada ≈ salida** (sale al mercado en buen estado).
+- Activo viejo sin CAPEX → **salida más alta que entrada** (el comprador futuro tendrá que invertir; sin el plus de CAPEX, el yield de salida se ensancha).
+- Se **elimina** cualquier spread fijo de salida (+20 bps): el diferencial entrada↔salida lo determina el estado del activo a través del motor, no una constante.
+
+### FUTURO (IP · NO implementar ahora) · Encaje de habitaciones por superficie
+
+Para la selección de edificio (sobre todo `hotelproject`): derivar el nº de habitaciones por categoría a partir de la superficie. Ratios brutos de referencia (m²/hab brutos · % zonas comunes · neto resultante):
+
+| Categoría | m²/hab brutos | Zonas comunes | Neto aprox. |
+|---|---|---|---|
+| 3★ | 30 | ~30% | ~21 |
+| 4★ full service | 45 | ~40% | ~27 |
+| 5★ | ≥55 | ~40% | ~33 |
+
+Planta baja = lobby / zonas comunes; habitaciones en plantas superiores; cálculo sobre **superficie bruta sobre rasante** y **tamaño de planta**. Esto da sentido futuro al `segmentation_type = 'hotelproject'` (partir de un edificio y derivar el programa de habitaciones). Pendiente de implementación; aquí queda solo como propiedad intelectual del método.

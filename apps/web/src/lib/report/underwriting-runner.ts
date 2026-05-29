@@ -7,6 +7,7 @@ import {
   type DynamicCapRateResult,
 } from "@/lib/underwriting/cap-rate-engine";
 import type { AssetBasics, StarCategory, AssetState } from "@/lib/underwriting/types";
+import { deriveHasCapex } from "@/lib/report/financials/ffe-reserve";
 
 /**
  * Cap-rate engine `runForHotel(canonical_id)` adapter.
@@ -117,6 +118,12 @@ function buildAssetBasics(hotel: CanonicalHotelRow): AssetBasics | null {
 
 export interface UnderwritingRunResult {
   capRate: DynamicCapRateResult;
+  /**
+   * D4 · exit cap rate, re-derived from the asset's PROJECTED state at exit
+   * (NOT a fixed spread). hasCapex asset → exits "renovated" (≈ entry);
+   * no-CAPEX asset → ages to "needs_work" → wider exit cap.
+   */
+  capRateExit: DynamicCapRateResult;
   assetBasics: AssetBasics;
   /** Whether any of the asset fields were filled from heuristic defaults. */
   used_heuristics: boolean;
@@ -167,8 +174,22 @@ export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | n
     side: "entry",
   });
 
+  // D4 · exit cap from the asset's projected state at exit (shares the
+  // CAPEX signal with the FF&E ramp · deriveHasCapex). No fixed spread.
+  const hasCapex = deriveHasCapex(hotel);
+  const assetAtExit: AssetBasics = { ...asset, state: hasCapex ? "renovated" : "needs_work" };
+  const resultExit = runDynamicCapRate({
+    asset: assetAtExit,
+    scenario_id: "base",
+    override: { enabled: false },
+    rates_regime: DEFAULT_RATES_REGIME,
+    comparables: SEEDED_HOTEL_COMPS,
+    side: "exit",
+  });
+
   return {
     capRate: result,
+    capRateExit: resultExit,
     assetBasics: asset,
     used_heuristics: heuristic_fields.length > 0,
     heuristic_fields,
