@@ -68,8 +68,10 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 for d in (INCOMING_ROOT, OLD_ROOT,
           INCOMING_ROOT / "google-contacts",
           INCOMING_ROOT / "gmail-signals",
+          INCOMING_ROOT / "consolidated",
           OLD_ROOT / "google-contacts",
-          OLD_ROOT / "gmail-signals"):
+          OLD_ROOT / "gmail-signals",
+          OLD_ROOT / "consolidated"):
     d.mkdir(parents=True, exist_ok=True)
 
 
@@ -94,6 +96,13 @@ SOURCE_TYPES = {
         "extensions": (".jsonl", ".json"),
         "script": SCRIPTS_DIR / "ingest_gmail.py",
         "label": "Gmail signal snapshot",
+    },
+    "consolidated": {
+        "incoming_subdir": "consolidated",
+        "old_subdir": "consolidated",
+        "extensions": (".xlsx",),
+        "script": SCRIPTS_DIR / "ingest_consolidated.py",
+        "label": "Consolidated Outlook/LinkedIn/PSTs export",
     },
 }
 

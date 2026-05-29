@@ -4,6 +4,39 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-05-29 — feat(contacts): β · `ingest_consolidated.py` · 4º lane del pipeline canónico
+
+Cuarto handler del pipeline de contactos. Digiere los XLSX de Capa A (FASE 1: Outlook libreta + LinkedIn exports + Access · FASE 2: .msg sueltos · futuro FASE 3: PSTs) y los aplica al Master canónico vía strict gap-fill con paranoid mode para filas Datasite-sembradas. Reusa el dedup engine de `ingest_google.py` (4 estrategias) y las funciones de Master I/O de `ingest.py` (sin duplicar lógica).
+
+Decisiones operator-firmadas:
+- 5 campos descriptivos preservados en `notes_consolidated` (B1): title · phone · city · country · linkedin (con prefijo `[YYYY-MM-DD lane]` · solo si la columna Master está vacía).
+- Paranoid puro en filas Datasite-sembradas EXCEPTO `source_capa_a` (procedencia · queryable · merge idempotente alphabetic-sorted + "+" separator).
+- Cero auto-INSERTs · unmatched al CSV de candidatos onboarding (backlog #29).
+- Dedup engine intacto (email/phone/linkedin/name+company exacto + fuzzy ≥0.88 mismo company) · 2.6% de falsos negativos aceptable → CSV de sospechosos `consolidated-suspect-false-negatives_<batch>.csv` con 3 lentes A/B/C + hard cap 5 por master_id.
+- Subcarpeta `incoming/consolidated/` con cuarto lane en `pipeline.py` · cierra el riesgo del filtro-por-extensión que destapamos en α (los .xlsx Capa A en `incoming/` raíz caían como Datasite por defecto).
+- Flags `--dry-run` y `--limit N` (N = identidades únicas post-pre-merge, no raw rows).
+
+Master schema: 62 → 63 cols con `source_capa_a` appended al final (regla "never reorder, only append"). Verificado que `load_existing_master` y `write_master_workbook` son header-based, no posicionales · añadir col al final no rompe las 4 398 filas existentes.
+
+Pre-merge interno robusto: FASE 2/3 emite 1 fila por persona×mensaje×rol · el aggregator colapsa por identity_key (email > linkedin > name+company > fallback) con hard caps (top-5 subjects · top-3 PST folders · max-5 alt emails/phones · max-4 roles). Ejemplo real: `international@hotusa.com` colapsó 738 raw rows en 1 candidate.
+
+Run completo (d) · `batch_id=20260529T003447Z`: 35 260 raw rows → 31 897 valid → 9 470 candidates únicos post-pre-merge → 425 matched paranoid · 9 045 unmatched a CSV · 0 violaciones canónicas · Master 4 398 → 4 398 filas (cero INSERTs) · 5min 02s. Idempotencia verificada in-situ sobre las 19 rows tocadas en el subset prior (`--limit 100` · batch `20260529T002215Z`): `combined not in existing_notes` evita re-añadir bloques idénticos.
+
+Backup pre-β atómico: `master/metcub-contacts-master.PRE-BETA-20260529.xlsx` (local · gitignored). Revert atómico disponible hasta que backlog #30 (BEFORE snapshots por master_id en applied-to-master.csv) se implemente.
+
+Migración Supabase pendiente: añadir `source_capa_a` a la tabla canónica al ejecutar `promote_to_supabase.py` (post-α+β+γ).
+
+Backlogs registrados en esta sesión:
+- #26 · borrado controlado de outputs Capa A (Grupo 2) post-promoción
+- #27 · conservación indefinida de old/ (Grupo 3) durante operación normal
+- #28 · borrado eventual de PSTs originales · 5 condiciones explícitas (Grupo 1)
+- #29 · revisión manual del CSV de unmatched (9 045) + sospechosos falsos negativos (255)
+- #30 · revert automático real para handlers · BEFORE snapshots en applied-to-master.csv
+
+Scripts de Capa A modificados localmente (fuera del repo · `Desktop/Contactos Linkedin/_consolidate_fase{1,2,3}.py`): 1 línea cada uno · `DEST` apunta a `incoming/consolidated/` en lugar de `incoming/` raíz.
+
+---
+
 ## 2026-05-29 — feat(api): FASE 3 sub-paso 6 · PASO 1 · GET pnl-template `?include_base=true` extension · closes backlog #24
 
 Additive query param on the existing `/api/admin/financials/pnl-template` route. When `include_base=true` is present, the response carries an extra `base_values: BaseValues` field with the panel-visible columns straight from `pnl_template` (pre-override). Without the param the response shape is unchanged · no regression for existing callers. Drives the per-cell revert UX in the sub-paso 6 panel (the "↻ restore Excel base" 1-click).

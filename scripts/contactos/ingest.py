@@ -162,6 +162,8 @@ MASTER_SCHEMA: list[str] = [
     "last_bounce_date",            # most recent bounce date · ISO
     "flagged_for_correction",      # "yes" / "" · routes to DATASITE-CORREGIR bucket
     "bucket",                      # active | DATASITE-CORREGIR | dormant-archive (operator routing)
+    # β · Consolidated lane (Outlook XLSX + LinkedIn CSV + .msg + PSTs + VCF + Access)
+    "source_capa_a",               # outlook_libreta | outlook_msg | outlook_pst | linkedin_csv | linkedin_outlook_fmt | linkedin_imported | vcf | access | unknown
 ]
 
 
