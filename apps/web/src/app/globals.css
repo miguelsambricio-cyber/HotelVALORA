@@ -233,13 +233,23 @@
   }
 }
 
+/* Default density (below 800px viewport height) — natural padding so
+ * the pricing band still breathes on tablets / short laptops where
+ * the single-screen guarantee is relaxed. */
+.landing-pricing {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
 /* MOBILE (< md) · distribute the whole visible height instead of stacking from
  * the top. The desktop rule above is height-gated, which fails on phones (the
  * browser chrome eats viewport height < 800px) → content clumped up top. Here
  * `landing-main` (flex-grow on <main>) becomes a column with space-between so
  * hero+search sit up top (with air) and the 3 pricing rows anchor to the bottom
  * (PREMIUM touching the slim footer). The page uses 100svh so it fits the small
- * viewport (chrome shown) without scroll. */
+ * viewport (chrome shown) without scroll.
+ * MUST come AFTER the default `.landing-pricing` rule so its padding-bottom:0
+ * wins by source order (equal specificity). */
 @media (max-width: 767px) {
   .landing-main {
     display: flex;
@@ -252,15 +262,8 @@
   }
   .landing-pricing {
     flex: 0 0 auto;
+    padding-bottom: 0; /* PREMIUM pegada al footer · sin hueco */
   }
-}
-
-/* Default density (below 800px viewport height) — natural padding so
- * the pricing band still breathes on tablets / short laptops where
- * the single-screen guarantee is relaxed. */
-.landing-pricing {
-  padding-top: 1.5rem;
-  padding-bottom: 1.5rem;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
