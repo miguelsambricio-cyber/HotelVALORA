@@ -15,7 +15,8 @@ Top-level documents every new collaborator should read first. Kept at repo root 
 | `AI_CONTEXT.md` | Compressed AI mental model of the project (≤300 lines) |
 | `RULES.md` | Coding rules + invariants (≤300 lines) |
 | `ENTRYPOINTS.md` | Task-to-file map · this file (target ≤200 lines, currently over by debt) |
-| `VALUATION_METHODOLOGY.md` | **Methodology source of truth** (lógica) · 3 phases · USALI worldwide · facility-aware P&L rule · F&B/MICE definitions · HV EBITDA pre-alquiler · perfiles derivados apartahotel/hostel |
+| `VALUATION_METHODOLOGY.md` | **Methodology source of truth** (lógica) · 3 phases · USALI worldwide · facility-aware P&L rule · F&B/MICE definitions · HV EBITDA pre-alquiler · perfiles derivados apartahotel/hostel · X4b bridge config→motor (financiación · fricción · cap rate por segmento + Score + CAPEX reforma) |
+| `docs/underwriting/TRAMO5_ADR_Y_SUBMERCADO.md` | **TRAMO 5 design (escrito, no implementado)** · ADR real por hotel (cascada · Booking como índice relativo) + cap rate por submercado (factor de ubicación · €/llave) |
 | `DATA_ARCHITECTURE.md` | **Data architecture source of truth** (datos · gemelo de VALUATION_METHODOLOGY) · pipeline INPUT/MASTER/OLD · perfil 360 multi-fuente · decisión Supabase fuente única. Subordinate deep-dives: `docs/architecture.md` · `docs/data-pipeline.md` · `docs/intelligence/costar-master-dataset-architecture.md` |
 | `BOOKING_EXPANSION_SPEC.md` | Strategic brief for the Booking-universe expansion + CompSet substitution feature (PLANNED · prereq: enrichment complete + facility-aware P&L). Engineering elaboration lives at `docs/features/booking-expansion-spec.md` |
 

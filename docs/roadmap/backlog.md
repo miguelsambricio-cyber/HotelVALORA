@@ -4,6 +4,56 @@ Three buckets: **Future ideas** · **Blocked** · **Technical debt**. Anything e
 
 ---
 
+## X4b · Underwriting bridge + TRAMO 5 pendings (2026-05-30)
+
+Capturados al cerrar el bridge config→motor (X4b · 4 tramos). Algunos ya tienen fila detallada en
+*Technical debt* abajo (marcado ✓det).
+
+1. **TRAMO 5 · ADR real + cap por submercado** — diseño completo en
+   `docs/underwriting/TRAMO5_ADR_Y_SUBMERCADO.md`. (a) ADR real: cascada operador → CoStar por clase
+   → CoStar submercado × índice Booking (BAR como índice relativo, nunca absoluto) → fallback ·
+   barrida RapidAPI → tabla `hotel_rate_daily` → medias internas. (b) Cap por submercado: factor de
+   ubicación ortogonal al prior de segmento, calibrado con €/llave por submercado de las 661 tx ·
+   cascada €/llave → tier experto editable → etiquetado · validado por el espejo de cap implícito.
+   **Decisión pendiente:** factor submercado vs liquidez (complementarios o fundidos) — se decide al
+   abrir el Tramo 5. Es un tramo entero · NO empezar hasta cerrar X4b.
+2. **Disparador "tipo de operación" (estabilizado / reposición)** — activa el CAPEX de reforma que
+   hoy está dormido. El camino matriz→`reposition_capex_total_eur`→CF[0] está cableado+testeado, pero
+   `state` se deriva siempre new/renovated (nunca `needs_work`) → reposición 0 para todo hotel
+   auto-valorado (no-regresión exacta). Falta un selector/override de tipo de operación que ponga
+   `state=needs_work`. ✓det
+3. **ADR por segmento (CoStar por clase)** — ancla los `segment_base_priors` de `expert_prior` a
+   `calibrated_from_kpi` vía el espejo de cap implícito. El market snapshot trae ADR mezclado por
+   submercado (sesga el NOI · lujo infravalorado). ✓det
+4. **21 hoteles Barajas sin `chain_scale`** — caen al fallback star→segmento del cap base; el L2
+   USALI ya los rescata (clase-invariante), pero el segmento del cap queda aproximado. Backfill
+   `chain_scale` (Booking class + Google priceLevel). (Relacionado con item 15 de Active pending.)
+5. **Matriz CAPEX en localStorage → migrar a Supabase** — el override de la card CAPEX vive en
+   `admin.financials.capex.v1` (localStorage); el motor lee `CAPEX_DEFAULTS` (per_key).
+   `capexReformTotalEur` ya acepta `CapexMatrixState` → persistir server-side cablea las ediciones
+   del operador al IRR. Mismo patrón que la persistencia del panel cap-rate. ✓det
+6. **Sub-scores del Score · persistencia** — los 6 sub-scores Booking que alimentan el factor Score
+   no están en tabla consultable (solo `review_score` global) → el flujo vivo pasa contexto vacío →
+   ajuste Score 0 etiquetado. ✓det
+7. **Liquidez aún sobre el stub de 12 comps** — el factor liquidez cuenta `SEEDED_HOTEL_COMPS`; el
+   snapshot real (661 tx) tiene conteos por submercado. Retirar el stub. ✓det
+8. **Desglose factor-a-factor del cap rate en el informe** — `capRate.adjustments` (incl. Score,
+   operator, liquidity, base segmento) está en la salida del motor pero el informe solo muestra el
+   cap final. Card de desglose en el Investment Memorandum. ✓det
+9. **DX · default de auth en dev + arranque local showcase** — `AUTH_ENABLED="true"` commiteado en
+   `.env.development` fuerza login Supabase (no cableado) en local → el admin/informe da 500/redirect.
+   Hoy se esquiva con `$env:AUTH_ENABLED="false"`. Decidir default dev = false (showcase) + script de
+   arranque local que ponga las env mínimas.
+10. **Cablear Supabase Auth de verdad** — hoy esquivado con `AUTH_ENABLED=false`. Implementar el
+    login Supabase + allow-list real (`ADMIN_OPERATOR_EMAILS`) para que el admin estricto funcione en
+    preview/prod sin el bypass.
+11. **Verificación de coherencia de las otras 5 páginas del informe con el motor nuevo** —
+    asset-analysis · competitive-set · market-overview · executive-summary · financials: confirmar
+    que consumen el cap/NOI/IRR del motor reconciliado (X4b) y no valores viejos/mock.
+12. **select-corpus** — EN HOLD (plan hecho). Retomar cuando se decida.
+
+---
+
 ## Active pending (post 2026-05-26 sweep)
 
 Captured at end-of-day shutdown. Ordered roughly by tomorrow's working order — PASO 4 first.
