@@ -10,12 +10,11 @@
  * the legal links (Términos · Privacidad · Contacto) — same story, same
  * order on mobile and desktop. "Institucional" was removed from the footer
  * (its home, if needed, is the top nav · not the legal/utility row).
- *   · MOBILE: one centered line — "© 2026 HotelVALORA · Términos ·
- *     Privacidad · Contacto" (copyright plain text, links clickable, short
- *     copyright so it fits 360/390px).
- *   · DESKTOP (md+): full copyright left, links right (copyright → links).
+ * Layout unified across breakpoints too (2026-05-30): ONE row with
+ * justify-between — © left, the 3 legal links right — on BOTH mobile and
+ * desktop (same left/right split). Mobile uses the short copyright + no "·"
+ * separators so it fits 360/390px without wrapping.
  */
-import { Fragment } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -43,21 +42,25 @@ export function InstitutionalFooter({
         className,
       )}
     >
-      {/* Mobile · ONE centered line · copyright FIRST, then the 3 links. */}
-      <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap text-[10px] font-medium uppercase tracking-normal text-slate-400 md:hidden">
+      {/* Mobile · SAME split as desktop · © left, links right (justify-between).
+       *  No "·" separators + short copyright so it fits 360/390px in one row. */}
+      <nav
+        aria-label="Footer"
+        className="flex flex-nowrap items-center justify-between gap-2 whitespace-nowrap text-[10px] font-medium uppercase tracking-normal text-slate-400 md:hidden"
+      >
         <span>© 2026 HotelVALORA</span>
-        {FOOTER_LINKS.map((l) => (
-          <Fragment key={l.href}>
-            <span aria-hidden className="text-slate-600">·</span>
+        <span className="flex items-center gap-3">
+          {FOOTER_LINKS.map((l) => (
             <Link
+              key={l.href}
               href={l.href}
               className="py-2 text-slate-500 transition-colors hover:text-emerald-300"
             >
               {l.label}
             </Link>
-          </Fragment>
-        ))}
-      </div>
+          ))}
+        </span>
+      </nav>
 
       {/* Desktop (md+) · copyright FIRST (left, full) · links (right) · same order. */}
       <div className="mx-auto hidden max-w-7xl flex-row items-center justify-between gap-3 md:flex">
