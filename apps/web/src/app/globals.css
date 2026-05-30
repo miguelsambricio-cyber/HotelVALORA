@@ -245,16 +245,51 @@
   }
   .landing-pricing {
     flex: 0 0 auto;
+    /* HARD RULE: the monetization band never exceeds 30% of the viewport
+     * height. It's a ceiling, not a target. */
+    max-height: 30vh;
     /* fluid band padding · tight on short laptops, roomy on big monitors */
-    padding-top: clamp(0.35rem, 1.4vh, 1.5rem);
-    padding-bottom: clamp(0.35rem, 1.4vh, 1.5rem);
+    padding-top: clamp(0.3rem, 1.3vh, 1.5rem);
+    padding-bottom: clamp(0.3rem, 1.3vh, 1.5rem);
   }
-  /* Vertical-only card compression on short viewports (the 720-tall bottleneck
-   * is HEIGHT, not width — cards are already compact horizontally). Scoped to
-   * the landing band so the shared PricingCard on /compset is untouched. */
+  /* Card interior scales by viewport HEIGHT so the band fits under the 30vh
+   * ceiling without clipping text — aggressive on short laptops, full-size on
+   * tall monitors (clamps hit their max). Scoped to .landing-pricing so the
+   * shared PricingCard on /compset is untouched. (Single-class Tailwind
+   * utilities lose to these descendant selectors; only space-y needs the
+   * !important since its :not() chain raises specificity.) */
   .landing-pricing article {
-    padding-top: clamp(0.5rem, 1.5vh, 1rem);
-    padding-bottom: clamp(0.5rem, 1.5vh, 1rem);
+    padding-top: clamp(0.3rem, 1.1vh, 1rem);
+    padding-bottom: clamp(0.3rem, 1.1vh, 1rem);
+  }
+  .landing-pricing article h3 {
+    font-size: clamp(0.9rem, 2vh, 1.25rem);
+    line-height: 1.1;
+  }
+  .landing-pricing article p {
+    font-size: clamp(0.62rem, 1.2vh, 0.75rem);
+  }
+  .landing-pricing article ul {
+    margin-bottom: clamp(0.2rem, 1vh, 0.75rem);
+  }
+  .landing-pricing article ul > li + li {
+    margin-top: clamp(0.05rem, 0.4vh, 0.25rem) !important;
+  }
+  .landing-pricing article li {
+    font-size: clamp(0.66rem, 1.45vh, 0.78rem);
+    line-height: 1.2;
+  }
+  .landing-pricing article li svg {
+    width: clamp(11px, 1.5vh, 16px);
+    height: clamp(11px, 1.5vh, 16px);
+  }
+  .landing-pricing article a {
+    padding-top: clamp(0.3rem, 0.9vh, 0.5rem);
+    padding-bottom: clamp(0.3rem, 0.9vh, 0.5rem);
+  }
+  /* header block (tier + name) margin */
+  .landing-pricing article .flex-col > div:first-child {
+    margin-bottom: clamp(0.15rem, 0.8vh, 0.5rem);
   }
 }
 
