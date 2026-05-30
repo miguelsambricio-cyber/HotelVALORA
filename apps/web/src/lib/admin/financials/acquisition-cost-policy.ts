@@ -197,3 +197,62 @@ export function computeAcquisitionCostsForCell(
 function round0(n: number): number {
   return Math.round(n);
 }
+
+// ─── X4b · TRAMO 2 · bridge admin policy → engine acquisition.costs ───
+//
+// The engine consumes `inputs.acquisition.costs` (4 pct-of-asking lines +
+// key-money €). This bridge reads the country×category×size friction matrix
+// and expresses it in that shape so the engine reproduces the matrix total
+// EXACTLY. Country-agnostic: resolve the country's policy, never hardcode ES
+// at the call site. (More countries → extend ACQUISITION_POLICY_BY_COUNTRY ·
+// backlog item 22.)
+
+/** Room-count → size tier (0-75 small · 76-200 medium · 201+ large). */
+export function sizeTierForRooms(rooms: number): SizeTierId {
+  if (rooms <= 75) return "small";
+  if (rooms <= 200) return "medium";
+  return "large";
+}
+
+/** Per-country acquisition-cost policies. Only ES today; agnostic by design. */
+export const ACQUISITION_POLICY_BY_COUNTRY: Record<string, AcquisitionCostPolicy> = {
+  ES: ACQUISITION_COST_POLICY_DEFAULTS,
+};
+
+/** Resolve the acquisition-cost policy for a country code (null when none). */
+export function acquisitionPolicyForCountry(countryCode: string | null): AcquisitionCostPolicy | null {
+  if (!countryCode) return null;
+  return ACQUISITION_POLICY_BY_COUNTRY[countryCode.toUpperCase()] ?? null;
+}
+
+export interface EngineAcquisitionCosts {
+  notary_registry_pct: number;
+  ajd_pct: number;
+  itp_pct: number;
+  acquisition_fee_pct: number;
+  key_money_total: number;
+}
+
+/**
+ * Map a country's acquisition-cost policy → the engine `acquisition.costs`
+ * shape for a given (category, size, asking price). Friction is computed from
+ * the matrix as absolute €, then expressed back as pct-of-asking (+ key-money
+ * €) so the engine's `pct × asking_price` reproduces the matrix total exactly.
+ */
+export function acquisitionPolicyToEngineCosts(
+  policy: AcquisitionCostPolicy,
+  category: StarCategoryId,
+  size: SizeTierId,
+  context: { asking_price_eur: number; rooms: number; total_sqm: number },
+): EngineAcquisitionCosts {
+  const computed = computeAcquisitionCostsForCell(policy, category, size, context);
+  const abs = (id: string) => computed.per_line.find((l) => l.id === id)?.absolute_eur ?? 0;
+  const asking = context.asking_price_eur > 0 ? context.asking_price_eur : 1;
+  return {
+    notary_registry_pct: abs("notary") / asking,
+    ajd_pct: abs("ajd") / asking,
+    itp_pct: abs("itp") / asking,
+    acquisition_fee_pct: abs("acq-fee") / asking,
+    key_money_total: abs("key-money"),
+  };
+}

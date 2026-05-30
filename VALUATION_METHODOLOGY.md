@@ -497,3 +497,110 @@ La regla no nombra España ni Madrid. Si entra Nueva York: si EEUU tiene USALI n
 ### Consecuencia para el guard de honestidad
 
 Refina la sección 1 y el guard de país: "sin fila de submercado en `pnl_template`" ya **no** equivale a no_data. Solo es no_data la ausencia de USALI nacional del país (Nivel 3). Mientras haya datos de mercado + USALI nacional, el informe se sirve como aproximación nacional **etiquetada**, nunca como pendiente.
+
+---
+
+## ANEXO · Cap rate dinámico · reconciliación panel ↔ motor (X4b · TRAMO 3 · 2026-05-30)
+
+El motor de cap rate dinámico (`lib/underwriting/cap-rate-engine`) **consume su política del panel admin** (`user/admin/financials` · Dynamic Cap Rate). Antes el panel mostraba pesos que el motor **no** usaba (estaban hardcodeados y diferían). Ahora el panel es VERDAD: lo que muestra = lo que el motor aplica. El motor es la referencia; el panel se corrigió hacia él (no al revés), preservando el cap de producción (Madrid Centre 4★ +200 renovado = **6,45%**, sin regresión).
+
+### Base del cap rate = prior institucional por segmento (ver TRAMO 3b)
+
+La base **NO** es una mediana de cap rates comparables (las transacciones reales CoStar **no traen cap rate**). Es un **prior institucional por segmento calibrado con €/llave real** — detallado en el anexo TRAMO 3b. El fijo `base_market_yield_pct` queda como **último recurso etiquetado**. La columna **Categoría se pone a 0** (el segmento ya está en la base · evita doble conteo).
+
+### Ejes de ajuste (todos leídos del panel · firma del motor)
+
+| Eje | Valores (defaults = paridad con el motor) | Convención |
+|---|---|---|
+| Categoría | **0** (residual · el segmento está en la base · TRAMO 3b) | evita doble conteo |
+| Tamaño | ≥200 hab −0,10 · 100-199 0 · <100 +0,20 | escala / pool de compradores |
+| Estado | nuevo −0,10 · renovado 0 · reposición +0,50 | riesgo de ejecución CAPEX |
+| Operador | cadena de marca −0,10 · independiente +0,10 | brand equity |
+| Liquidez | ≥6 ops/12m −0,05 · 3-5 0 · <3 +0,20 | profundidad de salida |
+| Escenario | conservador **+0,30** · base 0 · optimista **−0,20** · estrés +0,60 | overlay de prudencia |
+| Macro | (Euribor − media LP) × 20 bps/100 bps | régimen de tipos |
+
+### Signo del escenario CORREGIDO (era un bug)
+
+El escenario **conservador ENSANCHA el cap (+0,30)** → valoración **más baja** (prudencia). El panel anterior lo tenía invertido (conservador −0,25 = estrechaba = inflaba la valoración), lo que habría hecho que el caso "conservador" subiera el valor — lo contrario de prudente. Convención firme: conservador/estrés ensanchan, optimista estrecha.
+
+### Operator + liquidity ahora en el panel
+
+El motor siempre aplicó **operador** y **liquidez**; el panel no los mostraba. Se añaden como ejes visibles y editables; sin ellos, conectar el panel los habría borrado.
+
+### Nota de frontera de tamaño (deuda menor)
+
+El motor resuelve la **banda de tamaño por habitaciones** (≥200 / 100-199 / <100) — esa es su semántica de producción, intacta. Las etiquetas de tramo del panel (−75 / 75-200 / +200) comparten los **valores** pero no las fronteras exactas; unificar la taxonomía de tamaño en toda la plataforma (cap rate + costes de adquisición) queda anotado para fase de escalado, no bloquea.
+
+### Factor HotelVALORA Score · calidad relativa al COMPSET (±15 bps)
+
+Un hotel mejor que sus competidores (ubicación / confort / calidad percibida) merece un cap **más bajo** (menos riesgo percibido → se paga más por su NOI); peor que ellos, cap **más alto**. El ajuste es **relativo al compset del propio hotel**, no a una media global — destacar sobre tus rivales es lo que se premia. Agnóstico: cada mercado trae su compset (escala a 190 mercados sin tocar código).
+
+- **scoreCalidad** = HotelVALORA Score v1 **SIN el componente Class** (Class solapa el factor de categoría del cap rate → doble conteo). Los 6 componentes de huésped/ubicación se re-normalizan como en v1 (Location 0,30 · Comfort 0,20 · Cleanliness 0,15 · Staff 0,10 · Value 0,10 · Facilities 0,05). Sin solape con renovación (el Score no tiene componente de estado/CAPEX).
+- **Pivote = media del scoreCalidad del COMPSET** (sus competidores · mismo compset que la valoración), NO del corpus.
+- **Rango ASIMÉTRICO y ESCALONADO (postura metodológica consciente · Mike):** premio en pasos de **0,10** → 0 / −0,10 / −0,20 / −0,30pp; castigo en pasos de **0,05** → 0 / +0,05 / +0,10 / +0,15pp. El ajuste aplicado es **siempre uno de esos 7 valores** (incluido 0) — el cap rate nunca muestra cifras irregulares (nada de −0,1873%).
+  **Justificación de la asimetría:** la excelencia hotelera es **escasa** y el mercado la premia con primas **mayores** que el descuento que aplica a activos mediocres. A igual distancia del compset, destacar al alza vale más (−0,30) que quedarse corto penaliza (+0,15). Deliberado, no sesgo accidental.
+- **Escalonado por σ del compset:** `z = (scoreCalidad_hotel − media_compset) / σ_eff`, con `σ_eff = max(σ_compset, σ_floor)`. El nº de escalones = cuántos **cortes σ** supera `|z|`. **Cortes recomendados (editables): 0,67σ / 1,33σ / 2,0σ** → escalón 1 / 2 / 3. Banda muerta de ±0,67σ (hotel en línea con su compset → 0). Premio y castigo alcanzan su tope a ±2σ. `σ_floor = 0,30` evita sobre-sensibilidad (y divisón por cero) en compsets homogéneos.
+- **Mismo score absoluto → ajuste distinto** según contra quién compita. Correcto y deseado.
+- **Nunca penaliza por falta de dato:** hotel sin score calculable → 0 ("sin ajuste por Score"); compset con < N peers con score (default **N=4**) → 0 ("compset sin score").
+- **No-regresión:** hotel con scoreCalidad = media de su compset → ajuste 0 → mismo cap que hoy.
+
+**Editable por el administrador** (en la policy del Dynamic Cap Rate · mecánica "Saved · fecha" · el motor LEE de la policy): topes de premio y castigo **por separado**, tamaño de paso de cada lado, los **cortes σ** que disparan los escalones, σ_floor y N mínimo de compset. **NO editable aquí:** los pesos de los 6 componentes del Score (viven en `hotelvalora-score.ts`, afectan al Score en toda la app). UI: fila tipo "Base Market Yield" (no rejilla), con SELECTED = escalón aplicado al hotel. El factor entra en `capRate.adjustments` (trazabilidad: "HotelVALORA Score vs compset: −0,10pp").
+
+**Dependencia de datos (pendiente):** los 6 sub-scores de Booking que alimentan el scoreCalidad **no están persistidos en una tabla consultable** (hoy viven en el enriquecimiento; en DB solo está `review_score` global). Hasta que se persistan, el flujo vivo pasa contexto vacío → ajuste **0 etiquetado** (sin penalizar). El núcleo, el motor, el panel y los tests están completos; activar el factor en producción solo requiere la fuente de sub-scores del compset.
+
+## ANEXO · TRAMO 3b · Base del cap rate = prior institucional por segmento (2026-05-30)
+
+**Hallazgo:** las **661 transacciones reales CoStar** (snapshot.json) traen precio, **€/llave**, habitaciones y **segmento** (chain_scale), pero **CERO cap rates**. El motor venía usando un **stub ficticio de 12 comps**. Por tanto la base **no puede** ser "la mediana de cap rates comparables" (no existen). Decisión (Mike · CAMINO 2): **prior institucional por segmento, calibrado con el €/llave real.**
+
+### Cómo se origina la base
+
+- **Prior por segmento** (banda de mercado europeo, ajustada a prime local) en la **policy editable** (`segment_base_priors`). El motor lee el prior del **chain_scale** del activo (6 niveles); si falta chain_scale, cae a un **segmento por estrellas** (etiquetado).
+- **Calibración con €/llave real:** el orden de los cap rates es **coherente** con el orden del €/llave de las transacciones (más €/llave → cap más bajo). Cada prior **declara su €/llave y su nº de transacciones** (procedencia · nunca un número sin respaldo).
+- **Cascada (paralela a USALI):** el €/llave de respaldo se toma del **submercado** si hay muestra → si no, **mercado/nacional** → si no, **prior sin calibrar etiquetado**. El valor del prior nunca queda sin procedencia declarada.
+- **Agnóstico:** priors por país en la policy; un mercado nuevo trae los suyos. No se hardcodea Madrid en el motor.
+- **NO es "mediana de cap rates comparables"** — es **"prior institucional por segmento calibrado con €/llave de transacciones reales CoStar"**. Honestidad metodológica explícita.
+
+### REGLA de fijación de priors (sistemática · reproducible · misma para los 6)
+
+**`prior = punto medio de la banda de mercado − 0,25pp = (banda_low + banda_high)/2 − 0,25`.**
+"Mitad inferior de la banda" → compresión prime moderada, sin ir al extremo. NO es intuición:
+la misma regla aplica a los 6 segmentos sobre su banda de mercado europeo. `provenance: expert_prior`
+(regla sobre banda + orden calibrado por €/llave real); se auto-anclará a `calibrated_from_kpi`
+con ADR por segmento (ver mecanismo de validación abajo).
+
+### Priors ES seeded (Madrid · 2026-05 · validar/editar en panel)
+
+| Segmento | Banda mercado | medio −0,25 = **prior** | €/llave real (n) |
+|---|---|---|---|
+| luxury | 4,5–5,5 | **4,75%** | €719.801 (11) |
+| upper_upscale | 5,0–6,0 | **5,25%** | €422.705 (11) |
+| upscale | 5,5–6,5 | **5,75%** | €388.650 (20) |
+| upper_midscale | 6,0–7,0 | **6,25%** | €287.007 (3) |
+| midscale | 6,5–7,5 | **6,75%** | €193.764 (3) |
+| economy | 7,0–8,0 | **7,25%** | — (2) |
+
+Bandas en escalera limpia (+0,5 por peldaño). Orden coherente: cap↑ a medida que €/llave↓. ✓ La regla es **uniforme en los 6 segmentos, sin excepciones ni overrides** (upscale = 5,75 sale de la regla pura sobre 5,5–6,5).
+
+### Conexión y delta (corrección consciente, no regresión)
+
+El cap-rate-engine **deja de usar el stub de 12 comps para la base** y lee el prior por segmento. Con la regla (mitad de banda −0,25) toda la curva comprime. Caps de salida (base + factores size/operador/macro/liquidez), Madrid Centre:
+
+- **5★ lujo: ~6,25% → 5,00%** (−1,25pp · base luxury 4,75%).
+- **5★ upper_upscale: → 5,50%** (base 5,25%).
+- **4★ upscale (workhorse): 6,45% → 6,00%** (−0,45pp · base 5,75%).
+- **3★ midscale: → 7,10%** (base 6,75%).
+
+El lujo prime aterriza en **5,00%** (banda real 4,5–5,5); el 4★ baja a 6,00%. Es **corrección consciente del método**, no regresión.
+
+**Doble conteo resuelto:** como el segmento está en la base, el factor **Categoría se pone a 0** (no se cuenta "es lujo" dos veces).
+
+**Pendiente (follow-up):** el factor **Liquidez** aún usa el conteo de transacciones del stub; el snapshot real tiene conteos por submercado para reemplazarlo. El €/llave de respaldo está hoy en los priors de la policy (nivel mercado Madrid); cablear la cascada viva submercado→mercado→nacional desde el snapshot es la siguiente pieza de datos.
+
+### Mecanismo de validación de priors · ESPEJO de cap implícito (permanente)
+
+Para anclar los priors en evidencia (no solo en bandas europeas), se valida cada prior contra un **cap implícito**: para cada transacción real con precio+habitaciones, se estima el **NOI after-replacement** con el motor USALI (`estimateNoiAfterReplacement` · `lib/admin/financials/implied-cap-check.ts`) y se calcula `cap implícito = NOI ÷ precio real`. Por segmento se compara la **mediana del implícito** con el prior. Es un **espejo de sensatez**, NO una fuente nueva de base (evita circularidad): el prior sigue siendo lo que usa el motor. **Herramienta reutilizable y permanente** — se re-corre cuando entran más transacciones o nuevos mercados (valida los priors de CUALQUIER mercado).
+
+**Regla de anclaje:** si prior e implícito coinciden (±0,3pp) **con muestra de NOI fiable**, el prior sube a `provenance: "calibrated_from_kpi"` (anclado reforzado). Si divergen o la muestra es pobre, el prior se queda como **`expert_prior`** (banda EU + orden por €/llave), etiquetado.
+
+**Resultado de la primera corrida (Madrid · 2026-05) — priors NO anclados aún:** el ADR disponible es **mezclado por submercado** (no hay ADR por segmento), así que el NOI estimado es ∝ habitaciones y el cap implícito **colapsa a un inverso del €/llave**, sesgado para los extremos (lujo: ADR real ≫ media del submercado → NOI infravalorado → implícito artificialmente bajo, ~2,8%; n pequeño y rangos amplios). Por tanto la muestra con **NOI fiable por segmento es pobre en todos** y **todos los priors se mantienen `expert_prior`**. El anclaje a `calibrated_from_kpi` requiere **ADR por segmento (CoStar por clase)** — esa es la pieza de dato que falta. La herramienta queda lista para anclar automáticamente cuando llegue.

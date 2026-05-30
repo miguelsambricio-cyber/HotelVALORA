@@ -14,9 +14,13 @@ import { DEFAULT_RATES_REGIME, SEEDED_HOTEL_COMPS, runDynamicCapRate } from "../
  *   4. Rationale          · structured trace + narrative
  *   5. Override           · operator manual_override_pct, audit trail
  *
- * Entry vs Exit: exit adds a terminal-yield hedge (+20 bps default)
- * configured in `adjustments/index.ts`. Both sides share the same
- * evidence + scenario context · diverge only on the `side` flag.
+ * Entry vs Exit: the fixed +20 bps exit hedge was REMOVED (D4 · 2026-05-30).
+ * Run on the same `inputs.asset`, entry and exit now resolve to the SAME cap.
+ * The entry↔exit difference is driven by the asset's PROJECTED state at exit,
+ * computed in `runForHotel` (`underwriting-runner.ts`); the report path pins
+ * both caps via `inputs.acquisition.cap_rate` / `inputs.exit.cap_rate`
+ * overrides so the exit IRR uses the dynamic exit yield. Standalone callers
+ * that don't pin the exit cap get exit = entry (no spread).
  *
  * Block 7 swaps SEEDED_HOTEL_COMPS for a Supabase Intelligence Layer
  * query and adds a Cap Rate Policy Editor (admin) for tuning weights.

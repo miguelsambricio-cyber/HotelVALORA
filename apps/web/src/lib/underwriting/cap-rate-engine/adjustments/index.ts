@@ -1,27 +1,37 @@
 import type { CapRateAdjustment, MarketEvidence } from "../types";
 import type { AssetBasics } from "../../types";
+import {
+  DYNAMIC_CAP_RATE_POLICY_DEFAULTS,
+  type DynamicCapRatePolicy,
+  type RenovationOptionId,
+  type ScenarioOptionId,
+  type SizeTierId,
+} from "@/lib/admin/financials/dynamic-cap-rate-policy";
+import { computeScoreCapAdjustment, type ScoreContext } from "@/lib/admin/financials/score-cap-adjustment";
+import { resolveSegmentBase } from "@/lib/admin/financials/segment-base-priors";
 
 /**
  * Adjustment Policy Layer.
  *
- * Pure functions · each takes the asset context and the market
- * evidence, returns an Adjustment record. The policy is the proprietary
- * IP of HotelVALORA · operators can challenge / tune the deltas in
- * Block 7 (Cap Rate Policy Editor).
+ * Pure functions · each takes the asset context, the market evidence, and
+ * the operator-tunable POLICY (admin/financials · Dynamic Cap Rate card),
+ * returns an Adjustment record. The deltas are NO LONGER hardcoded here —
+ * they are READ from the policy so "what the admin panel shows = what the
+ * engine uses" (X4b · TRAMO 3). The engine still owns the deterministic
+ * APPLICATION (which band / state / scenario a given asset falls in).
  *
  * Sign convention: POSITIVE delta widens the cap rate (lowers price ·
  * adds conservatism). NEGATIVE delta tightens (raises price · premium).
  *
- * Default base point references (calibrated to Madrid Centro 4* /
- * 200-key benchmark):
- *   · Category: 5* −25 bps · 4* 0 · 3* +25 bps
- *   · Size:    ≥200 keys −10 bps · 100-199 0 · <100 +20 bps
- *   · State:   new −10 bps · renovated 0 · needs_work +50 bps
- *   · Operator: branded chain −10 bps · independent +10 bps
- *   · Macro:   Euribor 100 bps above LT mean → +20 bps
- *   · Liquidity: ≥6 deals/12m −5 bps · 3-5 0 · <3 +20 bps
- *   · Scenario: downside +30 bps · base +0 · upside −20 bps · stress +60 bps
- *   · Side:    exit +20 bps (terminal hedge) · entry 0
+ * Band semantics (engine-owned · unchanged so production is intact):
+ *   · Size:    ≥200 keys → "large" · 100-199 → "medium" · <100 → "small"
+ *   · Liquidity: ≥6 deals/12m → deep · 3-5 → moderate · <3 → thin
+ *   · State:   asset.state maps 1:1 to the policy renovation option
+ *   · Scenario: scenario_id mapped to the policy scenario option
+ *
+ * Base Market Yield is COMPS-DRIVEN (evidence median · cascade
+ * submarket→market→national); the policy's fixed base is the LABELED
+ * FALLBACK applied only when no comparable transactions exist in scope.
  */
 
 export function buildAdjustments(
@@ -29,33 +39,46 @@ export function buildAdjustments(
   evidence: MarketEvidence,
   scenarioId: string,
   side: "entry" | "exit",
+  policy: DynamicCapRatePolicy = DYNAMIC_CAP_RATE_POLICY_DEFAULTS,
+  scoreContext?: ScoreContext,
 ): CapRateAdjustment[] {
   const adjustments: CapRateAdjustment[] = [];
+  const sizeCol = sizeColumnFor(asset.rooms);
 
-  // ── Base Market Yield (NOT an adjustment per se · documents the start point) ──
+  // ── Base · SEGMENT PRIOR (TRAMO 3b · calibrated with real €/key) ──
+  // The base is the institutional prior for the asset's segment (chain_scale),
+  // NOT the median of comp cap rates (the real comps carry €/key, no cap rate).
+  const segBase = resolveSegmentBase({
+    segment: asset.segment,
+    category: asset.category,
+    priors: policy.segment_base_priors,
+    fallbackPct: policy.base_market_yield_pct,
+  });
   adjustments.push({
     id: "base",
     category: "base",
-    label: `Base Market Yield · ${scopeLabelFor(evidence)}`,
-    delta_pct: evidence.median_cap_pct,
-    rationale: `Median of ${evidence.comp_count} comparable transactions in scope · stddev ${evidence.stddev_cap_pct.toFixed(2)}%`,
-    source: "evidence",
+    label: `Base · ${segBase.segment}`,
+    delta_pct: segBase.base_pct,
+    rationale: segBase.prior ? segBase.prior.source : segBase.label,
+    source: "policy",
   });
 
-  // ── Category ──
-  adjustments.push(categoryAdjustment(asset));
+  // ── Category ── (policy · category-driven · read at the asset's size column)
+  adjustments.push(categoryAdjustment(asset, policy, sizeCol));
   // ── Size ──
-  adjustments.push(sizeAdjustment(asset));
+  adjustments.push(sizeAdjustment(asset, policy, sizeCol));
   // ── Renovation state ──
-  adjustments.push(renovationAdjustment(asset));
+  adjustments.push(renovationAdjustment(asset, policy, sizeCol));
   // ── Operator ──
-  adjustments.push(operatorAdjustment());
+  adjustments.push(operatorAdjustment(policy));
   // ── Macro (Euribor regime) ──
-  adjustments.push(macroAdjustment(evidence));
+  adjustments.push(macroAdjustment(evidence, policy));
   // ── Liquidity ──
-  adjustments.push(liquidityAdjustment(evidence));
+  adjustments.push(liquidityAdjustment(evidence, policy));
+  // ── HotelVALORA Score (compset-relative quality · ±max) ──
+  adjustments.push(scoreAdjustment(scoreContext, policy));
   // ── Scenario ──
-  adjustments.push(scenarioAdjustment(scenarioId));
+  adjustments.push(scenarioAdjustment(scenarioId, asset, policy, sizeCol));
   // ── Side ──
   // D4 (2026-05-30): the fixed +20 bps exit hedge is REMOVED. The
   // entry↔exit cap-rate difference is now driven by the asset's projected
@@ -66,13 +89,16 @@ export function buildAdjustments(
   return adjustments;
 }
 
+// ─── Band resolution (engine-owned · preserves production semantics) ──
+
+function sizeColumnFor(rooms: number): SizeTierId {
+  return rooms >= 200 ? "large" : rooms >= 100 ? "medium" : "small";
+}
+
 // ─── Individual adjustment functions ─────────────────────────────────
 
-function categoryAdjustment(asset: AssetBasics): CapRateAdjustment {
-  const delta =
-    asset.category === "5star" ? -0.25
-    : asset.category === "4star" ? 0
-    : 0.25;
+function categoryAdjustment(asset: AssetBasics, policy: DynamicCapRatePolicy, sizeCol: SizeTierId): CapRateAdjustment {
+  const delta = policy.category_adjustment[asset.category][sizeCol];
   const tier =
     asset.category === "5star" ? "Luxury"
     : asset.category === "4star" ? "Upscale"
@@ -91,11 +117,8 @@ function categoryAdjustment(asset: AssetBasics): CapRateAdjustment {
   };
 }
 
-function sizeAdjustment(asset: AssetBasics): CapRateAdjustment {
-  const delta =
-    asset.rooms >= 200 ? -0.10
-    : asset.rooms >= 100 ? 0
-    : 0.20;
+function sizeAdjustment(asset: AssetBasics, policy: DynamicCapRatePolicy, sizeCol: SizeTierId): CapRateAdjustment {
+  const delta = policy.size_adjustment[asset.category][sizeCol];
   return {
     id: "size",
     category: "size",
@@ -110,11 +133,9 @@ function sizeAdjustment(asset: AssetBasics): CapRateAdjustment {
   };
 }
 
-function renovationAdjustment(asset: AssetBasics): CapRateAdjustment {
-  const delta =
-    asset.state === "new" ? -0.10
-    : asset.state === "renovated" ? 0
-    : 0.50;
+function renovationAdjustment(asset: AssetBasics, policy: DynamicCapRatePolicy, sizeCol: SizeTierId): CapRateAdjustment {
+  const stateKey = asset.state as RenovationOptionId; // AssetState ≡ RenovationOptionId (new/renovated/needs_work)
+  const delta = policy.renovation_adjustment[stateKey][asset.category][sizeCol];
   const labelMap = {
     new: "Newly built · turnkey",
     renovated: "Renovated · non-CAPEX",
@@ -134,23 +155,23 @@ function renovationAdjustment(asset: AssetBasics): CapRateAdjustment {
   };
 }
 
-function operatorAdjustment(): CapRateAdjustment {
+function operatorAdjustment(policy: DynamicCapRatePolicy): CapRateAdjustment {
   // MVP · default to "branded chain" assumption (most institutional comps).
   // Block 7 will read inputs.operator.brand / inputs.operator.independent flag.
   return {
     id: "operator",
     category: "operator",
     label: "Operator · branded chain (assumed)",
-    delta_pct: -0.10,
+    delta_pct: policy.operator_adjustment.branded_chain,
     rationale: "Branded global chain default · stable distribution · brand equity premium · revisit when operator inputs land",
     source: "policy",
   };
 }
 
-function macroAdjustment(evidence: MarketEvidence): CapRateAdjustment {
+function macroAdjustment(evidence: MarketEvidence, policy: DynamicCapRatePolicy): CapRateAdjustment {
   const r = evidence.rates_regime;
-  const delta = ((r.euribor_12m_pct - r.euribor_12m_pct_long_term_mean) / 100) * 20;
-  // Each 100 bps above LT mean → +20 bps cap rate widening
+  const ltMean = policy.macro_long_term_mean_pct;
+  const delta = ((r.euribor_12m_pct - ltMean) / 100) * policy.macro_bps_per_100bps_euribor;
   const rounded = Math.round(delta * 100) / 100;
   return {
     id: "macro",
@@ -158,15 +179,16 @@ function macroAdjustment(evidence: MarketEvidence): CapRateAdjustment {
     label: `Macro · Euribor 12m at ${r.euribor_12m_pct.toFixed(2)}%`,
     delta_pct: rounded,
     rationale: rounded >= 0
-      ? `Rates ${(r.euribor_12m_pct - r.euribor_12m_pct_long_term_mean).toFixed(2)}pp above long-term mean (${r.euribor_12m_pct_long_term_mean.toFixed(2)}%) · yields widen with risk-free rate`
-      : `Rates ${(r.euribor_12m_pct_long_term_mean - r.euribor_12m_pct).toFixed(2)}pp below long-term mean · risk-on tightening`,
+      ? `Rates ${(r.euribor_12m_pct - ltMean).toFixed(2)}pp above long-term mean (${ltMean.toFixed(2)}%) · yields widen with risk-free rate`
+      : `Rates ${(ltMean - r.euribor_12m_pct).toFixed(2)}pp below long-term mean · risk-on tightening`,
     source: "policy",
   };
 }
 
-function liquidityAdjustment(evidence: MarketEvidence): CapRateAdjustment {
+function liquidityAdjustment(evidence: MarketEvidence, policy: DynamicCapRatePolicy): CapRateAdjustment {
   const t12 = evidence.liquidity_metrics.transactions_last_12m;
-  const delta = t12 >= 6 ? -0.05 : t12 >= 3 ? 0 : 0.20;
+  const band = t12 >= 6 ? "deep_6plus" : t12 >= 3 ? "moderate_3_5" : "thin_below_3";
+  const delta = policy.liquidity_adjustment[band];
   return {
     id: "liquidity",
     category: "liquidity",
@@ -181,17 +203,26 @@ function liquidityAdjustment(evidence: MarketEvidence): CapRateAdjustment {
   };
 }
 
-function scenarioAdjustment(scenarioId: string): CapRateAdjustment {
+function scenarioAdjustment(
+  scenarioId: string,
+  asset: AssetBasics,
+  policy: DynamicCapRatePolicy,
+  sizeCol: SizeTierId,
+): CapRateAdjustment {
   const id = scenarioId.toLowerCase();
-  let delta = 0;
+  let key: ScenarioOptionId = "base";
   let labelTag = "Base";
-  if (id.includes("down") || id.includes("conservative") || id.includes("stress")) {
-    delta = id.includes("stress") ? 0.60 : 0.30;
-    labelTag = id.includes("stress") ? "Stress" : "Conservative";
+  if (id.includes("stress")) {
+    key = "stress";
+    labelTag = "Stress";
+  } else if (id.includes("down") || id.includes("conservative")) {
+    key = "conservative";
+    labelTag = "Conservative";
   } else if (id.includes("up") || id.includes("aggressive")) {
-    delta = -0.20;
+    key = "aggressive";
     labelTag = "Aggressive";
   }
+  const delta = policy.scenario_adjustment[key][asset.category][sizeCol];
   return {
     id: "scenario",
     category: "scenario",
@@ -200,7 +231,7 @@ function scenarioAdjustment(scenarioId: string): CapRateAdjustment {
     rationale: labelTag === "Stress"
       ? "Stress overlay · tail-risk pricing for IC defence"
       : labelTag === "Conservative"
-        ? "Conservative overlay · underwriting prudence"
+        ? "Conservative overlay · underwriting prudence · cap widens"
         : labelTag === "Aggressive"
           ? "Aggressive overlay · tight pricing · acquisition narrative"
           : "Base case · no scenario overlay",
@@ -208,6 +239,18 @@ function scenarioAdjustment(scenarioId: string): CapRateAdjustment {
   };
 }
 
-function scopeLabelFor(evidence: MarketEvidence): string {
-  return `${evidence.context.submarket} · ${evidence.context.category.replace("star", "*")}`;
+function scoreAdjustment(scoreContext: ScoreContext | undefined, policy: DynamicCapRatePolicy): CapRateAdjustment {
+  // No context → contribute 0 (never penalise for missing data · labelled).
+  const ctx: ScoreContext = scoreContext ?? { hotel_quality: null, compset_qualities: [] };
+  const r = computeScoreCapAdjustment(ctx, policy.score_adjustment);
+  return {
+    id: "score",
+    category: "score",
+    label: `HotelVALORA Score vs compset`,
+    delta_pct: r.adjustment_pp,
+    rationale: r.status === "applied"
+      ? `${r.label} · pivote ${r.pivot?.toFixed(2)} · σ ${r.stddev?.toFixed(2)} · n=${r.n}`
+      : r.label,
+    source: "policy",
+  };
 }

@@ -42,7 +42,7 @@ async function loadBundle(reportId: string) {
     try { return runForHotel(hotel); } catch { return null; }
   })();
 
-  const bundle = buildUnderwritingBundleFromCanonical(hotel, marketKpi, engineRun);
+  const bundle = await buildUnderwritingBundleFromCanonical(hotel, marketKpi, engineRun);
   return { bundle, source: "canonical" as const, hotel };
 }
 

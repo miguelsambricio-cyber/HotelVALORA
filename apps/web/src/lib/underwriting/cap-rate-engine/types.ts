@@ -16,6 +16,8 @@
  */
 
 import type { AssetBasics, StarCategory } from "../types";
+import type { DynamicCapRatePolicy } from "@/lib/admin/financials/dynamic-cap-rate-policy";
+import type { ScoreContext } from "@/lib/admin/financials/score-cap-adjustment";
 
 // ─── Layer 1 · Market Evidence ────────────────────────────────────────
 
@@ -105,6 +107,7 @@ export type AdjustmentCategory =
   | "operator"
   | "macro"
   | "liquidity"
+  | "score"
   | "scenario"
   | "side";
 
@@ -208,6 +211,20 @@ export interface CapRateEngineContext {
   side: "entry" | "exit";
   /** ISO date for staleness scoring · defaults to today. */
   as_of_date?: string;
+  /**
+   * Operator-tunable adjustment policy (admin/financials · Dynamic Cap Rate).
+   * Optional · defaults to DYNAMIC_CAP_RATE_POLICY_DEFAULTS so existing
+   * callers are unaffected. Per-request policy wiring lands with Block 7
+   * Supabase persistence (X4b · TRAMO 3).
+   */
+  policy?: DynamicCapRatePolicy;
+  /**
+   * HotelVALORA Score context · subject quality + compset peers' qualities.
+   * Optional · absent → Score factor contributes 0 (labelled · never
+   * penalises for missing data). Assembled by the report build from
+   * `hotel_profiles` for the subject + its competitive set.
+   */
+  score_context?: ScoreContext;
 }
 
 export interface DynamicCapRateResult {

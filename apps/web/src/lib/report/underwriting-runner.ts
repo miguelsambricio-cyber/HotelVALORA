@@ -8,6 +8,7 @@ import {
 } from "@/lib/underwriting/cap-rate-engine";
 import type { AssetBasics, StarCategory, AssetState } from "@/lib/underwriting/types";
 import { deriveHasCapex } from "@/lib/report/financials/ffe-reserve";
+import type { ScoreContext } from "@/lib/admin/financials/score-cap-adjustment";
 
 /**
  * Cap-rate engine `runForHotel(canonical_id)` adapter.
@@ -113,6 +114,8 @@ function buildAssetBasics(hotel: CanonicalHotelRow): AssetBasics | null {
     submarket,
     category,
     state: deriveAssetState(hotel),
+    // Segment (chain_scale · 6 levels) drives the cap-rate base prior (3b).
+    segment: hotel.chain_scale ?? undefined,
   };
 }
 
@@ -152,7 +155,10 @@ const ENGINE_SUPPORTED_COUNTRIES: ReadonlySet<string> = new Set(["ES"]);
  *   - The canonical row lacks enough signal (no category or no market), OR
  *   - The hotel is outside the engine's country coverage (non-ES today).
  */
-export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | null {
+export function runForHotel(
+  hotel: CanonicalHotelRow,
+  scoreContext?: ScoreContext,
+): UnderwritingRunResult | null {
   const countryCode = (hotel.country_code ?? "").toUpperCase();
   if (!ENGINE_SUPPORTED_COUNTRIES.has(countryCode)) return null;
 
@@ -172,6 +178,7 @@ export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | n
     rates_regime: DEFAULT_RATES_REGIME,
     comparables: SEEDED_HOTEL_COMPS,
     side: "entry",
+    score_context: scoreContext,
   });
 
   // D4 · exit cap from the asset's projected state at exit (shares the
@@ -185,6 +192,7 @@ export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | n
     rates_regime: DEFAULT_RATES_REGIME,
     comparables: SEEDED_HOTEL_COMPS,
     side: "exit",
+    score_context: scoreContext,
   });
 
   return {

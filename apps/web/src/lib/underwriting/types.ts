@@ -66,6 +66,12 @@ export interface AssetBasics {
   submarket: string;
   category: StarCategory;
   state: AssetState;
+  /**
+   * Fine-grained market segment (chain_scale · 6 levels: luxury …economy).
+   * Drives the segment-based cap-rate BASE prior (X4b · TRAMO 3b). When
+   * absent, the base falls back to a star→segment default (labelled).
+   */
+  segment?: string;
 }
 
 // ─── Cap Rate engine I/O ──────────────────────────────────────────────

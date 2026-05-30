@@ -51,7 +51,7 @@ export function runDynamicCapRate(ctx: CapRateEngineContext): DynamicCapRateResu
   const evidence = buildMarketEvidence(ctx.asset, ctx.comparables, ctx.rates_regime, asOfDate);
 
   // Layer 2 · Adjustments
-  const adjustments = buildAdjustments(ctx.asset, evidence, ctx.scenario_id, ctx.side);
+  const adjustments = buildAdjustments(ctx.asset, evidence, ctx.scenario_id, ctx.side, ctx.policy, ctx.score_context);
 
   // Layer 3 · Confidence
   const confidence = buildConfidence(evidence, ctx.asset, adjustments);
