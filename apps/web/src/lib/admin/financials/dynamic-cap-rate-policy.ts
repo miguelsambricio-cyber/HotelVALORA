@@ -229,7 +229,9 @@ export function computeForCell(
   euribor12mPct: number,
   operator: OperatorOptionId = "branded_chain",
   liquidity: LiquidityBandId = "thin_below_3",
+  baseOverridePct?: number,
 ): ComputedCellResult {
+  const basePct = baseOverridePct ?? policy.base_market_yield_pct;
   const cat = policy.category_adjustment[category][size];
   const sz = policy.size_adjustment[category][size];
   const ren = policy.renovation_adjustment[renovation][category][size];
@@ -237,9 +239,9 @@ export function computeForCell(
   const liq = policy.liquidity_adjustment[liquidity];
   const scn = policy.scenario_adjustment[scenario][category][size];
   const macroDeltaPct = ((euribor12mPct - policy.macro_long_term_mean_pct) / 100) * policy.macro_bps_per_100bps_euribor;
-  const total = policy.base_market_yield_pct + cat + sz + ren + op + liq + scn + macroDeltaPct;
+  const total = basePct + cat + sz + ren + op + liq + scn + macroDeltaPct;
   return {
-    base: policy.base_market_yield_pct,
+    base: basePct,
     category: cat,
     size: sz,
     renovation: ren,

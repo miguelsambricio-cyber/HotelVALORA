@@ -21,6 +21,21 @@ import {
   computeScoreCapAdjustment,
   type ScoreAdjustmentPolicy,
 } from "@/lib/admin/financials/score-cap-adjustment";
+import {
+  resolveSegmentBase,
+  priorFromBand,
+  SEGMENTS,
+  type SegmentId,
+} from "@/lib/admin/financials/segment-base-priors";
+
+const SEGMENT_LABELS: Record<SegmentId, string> = {
+  luxury: "Luxury",
+  upper_upscale: "Upper Upscale",
+  upscale: "Upscale",
+  upper_midscale: "Upper Midscale",
+  midscale: "Midscale",
+  economy: "Economy",
+};
 
 const OPERATOR_OPTIONS: ReadonlyArray<{ id: OperatorOptionId; label: string }> = [
   { id: "branded_chain", label: "Cadena de marca" },
@@ -92,10 +107,22 @@ export function DynamicCapRateCard() {
   const [previewScn, setPreviewScn] = useState<ScenarioOptionId>(ADMIN_PREVIEW_SAMPLE.scenario);
   const [previewOperator, setPreviewOperator] = useState<OperatorOptionId>(ADMIN_PREVIEW_SAMPLE.operator);
   const [previewLiquidity, setPreviewLiquidity] = useState<LiquidityBandId>(ADMIN_PREVIEW_SAMPLE.liquidity);
+  const [previewSegment, setPreviewSegment] = useState<SegmentId>("upscale");
+
+  // Base = the SELECTED segment's prior (TRAMO 3b) · falls back to the fixed
+  // base_market_yield_pct when no priors. This is what the engine uses, so the
+  // panel preview mirrors it exactly.
+  const segBase = useMemo(
+    () => resolveSegmentBase({
+      segment: previewSegment, category: previewCategory,
+      priors: policy.segment_base_priors, fallbackPct: policy.base_market_yield_pct,
+    }),
+    [previewSegment, previewCategory, policy.segment_base_priors, policy.base_market_yield_pct],
+  );
 
   const result = useMemo(
-    () => computeForCell(policy, previewCategory, previewSize, previewReno, previewScn, ADMIN_PREVIEW_SAMPLE.euribor_12m_pct, previewOperator, previewLiquidity),
-    [policy, previewCategory, previewSize, previewReno, previewScn, previewOperator, previewLiquidity],
+    () => computeForCell(policy, previewCategory, previewSize, previewReno, previewScn, ADMIN_PREVIEW_SAMPLE.euribor_12m_pct, previewOperator, previewLiquidity, segBase.base_pct),
+    [policy, previewCategory, previewSize, previewReno, previewScn, previewOperator, previewLiquidity, segBase.base_pct],
   );
 
   // Update helpers · operator-friendly mutation patterns.
@@ -104,6 +131,22 @@ export function DynamicCapRateCard() {
   }
   function setBaseSource(text: string) {
     ov.setDraft((p) => ({ ...p, base_market_yield_source: text }));
+  }
+  // Segment yield · edit the market band → prior auto-derives by the rule
+  // (midpoint − 0.25), keeping the method uniform (no off-rule overrides).
+  function setSegmentBand(seg: SegmentId, patch: { band_low?: number; band_high?: number }) {
+    ov.setDraft((p) => {
+      const cur = p.segment_base_priors[seg];
+      const band_low = patch.band_low ?? cur.band_low;
+      const band_high = patch.band_high ?? cur.band_high;
+      return {
+        ...p,
+        segment_base_priors: {
+          ...p.segment_base_priors,
+          [seg]: { ...cur, band_low, band_high, base_pct: priorFromBand(band_low, band_high) },
+        },
+      };
+    });
   }
   function setMatrixCell(
     field: "category_adjustment" | "size_adjustment",
@@ -239,12 +282,26 @@ export function DynamicCapRateCard() {
           options={LIQUIDITY_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
         />
         <PreviewSelect
+          label="Segment (base)"
+          value={previewSegment}
+          onChange={(v) => setPreviewSegment(v as SegmentId)}
+          options={SEGMENTS.map((s) => ({ id: s, label: SEGMENT_LABELS[s] }))}
+        />
+        <PreviewSelect
           label="Scenario"
           value={previewScn}
           onChange={(v) => setPreviewScn(v as ScenarioOptionId)}
           options={SCENARIO_OPTIONS.map((s) => ({ id: s.id, label: s.label }))}
         />
       </div>
+
+      {/* ─── Segment yield · base por segmento (TRAMO 3b) ───────────── */}
+      <SegmentYieldTable
+        policy={policy}
+        previewSegment={previewSegment}
+        onSegmentBandChange={setSegmentBand}
+        onPreviewSegmentChange={setPreviewSegment}
+      />
 
       {/* ─── Policy matrix ──────────────────────────────────────────── */}
       <PolicyMatrix
@@ -336,7 +393,7 @@ function HeroBlock({
         <p className="font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-400">
           Formula
         </p>
-        <FormulaRow label="Base Market Yield · comps (fallback)" value={result.base} sign="+" />
+        <FormulaRow label="Base · prior de segmento" value={result.base} sign="+" />
         <FormulaRow label="Category Adjustment" value={result.category} sign={signed(result.category)} />
         <FormulaRow label="Size Adjustment" value={result.size} sign={signed(result.size)} />
         <FormulaRow label="Renovation Adjustment" value={result.renovation} sign={signed(result.renovation)} />
@@ -477,10 +534,10 @@ function PolicyMatrix({
           </tr>
         </thead>
         <tbody>
-          {/* Base Market Yield · single editable cell */}
+          {/* Base · fallback (the live base = segment prior · see Segment yield above) */}
           <tr className="border-t border-slate-800/60 bg-slate-900/30">
             <td className="sticky left-0 z-[1] bg-slate-950 px-3 py-2 align-top">
-              <div className="font-headline text-[11px] font-bold text-slate-100">Base Market Yield</div>
+              <div className="font-headline text-[11px] font-bold text-slate-100">Base · fallback</div>
               <input
                 type="text"
                 key={`base-source-${policy.base_market_yield_source}`}
@@ -491,7 +548,7 @@ function PolicyMatrix({
               />
             </td>
             <td className="px-2 py-2 text-right font-mono text-[10.5px] text-slate-500" colSpan={9}>
-              single value · applies to all cells
+              último recurso · solo si no hay prior de segmento · la base viva = prior de segmento (arriba)
             </td>
             <td className="px-2 py-2 text-right">
               <NumericCell value={policy.base_market_yield_pct} onChange={onBaseChange} tone="value" />
@@ -842,6 +899,66 @@ function NumericCell({
       className={`w-full rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-right font-mono text-[10.5px] tabular-nums hover:border-slate-700/60 focus:border-lime-300/50 focus:bg-slate-900/60 focus:outline-none ${colourClass}`}
       aria-label="Adjustment value (%)"
     />
+  );
+}
+
+// ─── Segment yield · base por segmento (TRAMO 3b) ────────────────────
+
+function SegmentYieldTable({
+  policy,
+  previewSegment,
+  onSegmentBandChange,
+  onPreviewSegmentChange,
+}: {
+  policy: DynamicCapRatePolicy;
+  previewSegment: SegmentId;
+  onSegmentBandChange: (seg: SegmentId, patch: { band_low?: number; band_high?: number }) => void;
+  onPreviewSegmentChange: (seg: SegmentId) => void;
+}) {
+  return (
+    <section className="mb-5 rounded-md border border-lime-300/20 bg-slate-950/40 p-4">
+      <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-lime-300/80">
+        Base por segmento · Segment yield
+      </p>
+      <p className="mt-1 max-w-3xl font-mono text-[10.5px] leading-relaxed text-slate-400">
+        La base del cap rate es el PRIOR institucional por segmento (no una media de comps · las
+        transacciones reales no traen cap rate). Regla uniforme: <span className="text-slate-200">prior = punto medio de la banda − 0,25pp</span>.
+        Edita la banda de mercado → el prior se recalcula. €/llave + n = respaldo real (CoStar);
+        procedencia <code className="text-slate-300">expert_prior</code> hasta anclar con ADR por segmento.
+      </p>
+      <div className="mt-3 overflow-x-auto rounded-md border border-slate-800/60">
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr className="bg-slate-900/60 text-left text-slate-400">
+              {["Segmento", "Banda baja", "Banda alta", "Prior (regla)", "€/llave", "n tx", "Procedencia"].map((h) => (
+                <th key={h} className="px-3 py-2 font-headline text-[9px] font-bold uppercase tracking-[0.16em]">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {SEGMENTS.map((seg) => {
+              const p = policy.segment_base_priors[seg];
+              const sel = seg === previewSegment;
+              return (
+                <tr
+                  key={seg}
+                  onClick={() => onPreviewSegmentChange(seg)}
+                  className={`cursor-pointer border-t border-slate-800/60 ${sel ? "bg-lime-300/10" : "hover:bg-slate-900/40"}`}
+                >
+                  <td className="px-3 py-1.5 font-headline text-[11px] font-bold text-slate-100">{SEGMENT_LABELS[seg]}</td>
+                  <td className="px-2 py-1 text-right"><div className="w-16"><ScoreKnob label="" value={p.band_low} onChange={(v) => onSegmentBandChange(seg, { band_low: v })} /></div></td>
+                  <td className="px-2 py-1 text-right"><div className="w-16"><ScoreKnob label="" value={p.band_high} onChange={(v) => onSegmentBandChange(seg, { band_high: v })} /></div></td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[12px] font-extrabold tabular-nums text-lime-200">{fmt(p.base_pct)}%</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[10.5px] text-slate-300">{p.eur_per_key ? `€${(p.eur_per_key / 1000).toFixed(0)}k` : "—"}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[10.5px] text-slate-400">{p.n_tx}</td>
+                  <td className="px-3 py-1.5 font-mono text-[9.5px] text-slate-500">{p.provenance}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 
