@@ -18,8 +18,12 @@ export function HeroSection() {
         <div className="absolute -top-48 -right-48 w-1/3 h-1/3 rounded-full bg-slate-200/40 blur-[120px]" />
       </div>
 
-      {/* Headline — static, server-rendered */}
-      <div className="w-full max-w-5xl text-center mb-5 relative z-10">
+      {/* Headline — static, server-rendered.
+       *  Desktop `md:mb-11` (vs base mb-5) opens the title→search air by raising
+       *  the title: under the hero's justify-center, the equal `md:mb-6` added to
+       *  the search below cancels the search's downward shift, so the search stays
+       *  put and only the title rises. Mobile keeps base mb-5 (title stays at top). */}
+      <div className="w-full max-w-5xl text-center mb-5 md:mb-11 relative z-10">
         <h1 className="font-display font-extrabold text-3xl md:text-5xl text-forest-900 tracking-tight mb-3 leading-tight">
           VALORA HOTELES
           {/* Always break so the title is two clean lines on mobile AND desktop:
@@ -34,8 +38,12 @@ export function HeroSection() {
         </p>
       </div>
 
-      {/* Client boundary — search with autocomplete */}
-      <HeroSearch className="w-full max-w-3xl relative z-10 mt-2" />
+      {/* Client boundary — search with autocomplete.
+       *  Mobile `mt-6` lowers the search a touch (more title→search separation;
+       *  title stays anchored at the top). Desktop `md:mt-2` keeps the original
+       *  top gap; `md:mb-6` is the counterweight to the headline's `md:mb-11`
+       *  (see above) so the desktop search position is unchanged. */}
+      <HeroSearch className="w-full max-w-3xl relative z-10 mt-6 md:mt-2 md:mb-6" />
     </section>
   );
 }
