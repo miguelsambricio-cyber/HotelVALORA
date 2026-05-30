@@ -47,7 +47,9 @@ export function InstitutionalFooter({
        *  Desktop (md+): unchanged — copyright left, nav right on one row. */}
       <div className="mx-auto flex max-w-7xl flex-col-reverse items-center justify-between gap-2 md:flex-row md:gap-3">
         <span className="text-center text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400 md:text-[10px] md:tracking-[0.18em]">
-          © 2026 HotelVALORA Institutional · Underwriting-grade intelligence.
+          © 2026 HotelVALORA Institutional
+          {/* Tagline only on desktop · keeps the mobile copyright to one line. */}
+          <span className="hidden md:inline"> · Underwriting-grade intelligence.</span>
         </span>
         <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-0.5">
           {FOOTER_LINKS.map((l) => (
