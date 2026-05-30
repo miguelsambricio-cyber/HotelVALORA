@@ -7,11 +7,14 @@
  * as the favorites map and the landing, where the footer must stay
  * below the fold of a 100vh layout without dominating it.
  *
- * Legal links migrated 2026-05-20 from hash anchors to real URLs so
- * the landing's previous LandingFooter (which carried the legal
- * destinations) can be retired in favour of this canonical footer
- * without losing /terms · /privacy · /contact · /institutional.
+ * Responsive (2026-05-30): MOBILE renders ONE centered line —
+ *   "Términos · Privacidad · Contacto · © 2026 HotelVALORA" — links
+ *   clickable, copyright is plain text, short copyright (no
+ *   "Institutional"/tagline) so it never wraps at 360/390px. DESKTOP
+ *   (md+) keeps the two-group layout: full copyright left, nav (all 4
+ *   links) right.
  */
+import { Fragment } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -24,11 +27,11 @@ const FOOTER_LINKS = [
   { href: "/terms",         label: "Términos",      mobile: true  },
   { href: "/privacy",       label: "Privacidad",    mobile: true  },
   { href: "/contact",       label: "Contacto",      mobile: true  },
-  // Institutional is a secondary link · hidden on mobile so the legal row
-  // stays a single clean line (Términos · Privacidad · Contacto). Desktop
-  // shows all four unchanged.
+  // Institutional is secondary · desktop-only (keeps the mobile line short).
   { href: "/institutional", label: "Institucional", mobile: false },
 ] as const;
+
+const MOBILE_LINKS = FOOTER_LINKS.filter((l) => l.mobile);
 
 export function InstitutionalFooter({
   variant = "default",
@@ -39,49 +42,43 @@ export function InstitutionalFooter({
     <footer
       className={cn(
         "w-full bg-slate-950 print:hidden",
-        isSlim ? "px-6 py-2" : "px-8 py-4",
+        isSlim ? "px-4 py-2 md:px-6" : "px-4 py-4 md:px-8",
         className,
       )}
     >
-      {/* Mobile: links row on top, copyright below (centered, small, muted).
-       *  Desktop (md+): unchanged — copyright left, nav right on one row. */}
-      <div className="mx-auto flex max-w-7xl flex-col-reverse items-center justify-between gap-2 md:flex-row md:gap-3">
-        <span className="text-center text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400 md:text-[10px] md:tracking-[0.18em]">
-          © 2026 HotelVALORA Institutional
-          {/* Tagline only on desktop · keeps the mobile copyright to one line. */}
-          <span className="hidden md:inline"> · Underwriting-grade intelligence.</span>
-        </span>
-        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-0.5">
-          {FOOTER_LINKS.map((l) => (
-            <FooterLink key={l.href} href={l.href} mobileHidden={!l.mobile}>
+      {/* Mobile · ONE centered line · links (clickable) + short copyright (text). */}
+      <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap text-[10px] font-medium uppercase tracking-normal text-slate-400 md:hidden">
+        {MOBILE_LINKS.map((l) => (
+          <Fragment key={l.href}>
+            <Link
+              href={l.href}
+              className="py-2 text-slate-500 transition-colors hover:text-emerald-300"
+            >
               {l.label}
-            </FooterLink>
+            </Link>
+            <span aria-hidden className="text-slate-600">·</span>
+          </Fragment>
+        ))}
+        <span>© 2026 HotelVALORA</span>
+      </div>
+
+      {/* Desktop (md+) · copyright left (full) · nav right · one row. */}
+      <div className="mx-auto hidden max-w-7xl flex-row items-center justify-between gap-3 md:flex">
+        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+          © 2026 HotelVALORA Institutional · Underwriting-grade intelligence.
+        </span>
+        <nav aria-label="Footer" className="flex flex-wrap justify-center gap-5">
+          {FOOTER_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300"
+            >
+              {l.label}
+            </Link>
           ))}
         </nav>
       </div>
     </footer>
-  );
-}
-
-function FooterLink({
-  href,
-  children,
-  mobileHidden = false,
-}: {
-  href: string;
-  children: React.ReactNode;
-  /** When true, hidden below md (keeps the mobile legal row to one clean line). */
-  mobileHidden?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "items-center py-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300",
-        mobileHidden ? "hidden md:inline-flex" : "inline-flex",
-      )}
-    >
-      {children}
-    </Link>
   );
 }
