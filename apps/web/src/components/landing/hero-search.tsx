@@ -65,6 +65,7 @@ export function HeroSearch({ className }: HeroSearchProps) {
       onViewAll={handleViewAll}
       onMapView={handleMapView}
       mapAlwaysInline
+      overlayDropdown
     />
   );
 }
