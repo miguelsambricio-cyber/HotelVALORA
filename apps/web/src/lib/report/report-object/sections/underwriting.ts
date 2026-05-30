@@ -25,6 +25,7 @@ import {
   acquisitionPolicyToEngineCosts,
   sizeTierForRooms,
 } from "@/lib/admin/financials/acquisition-cost-policy";
+import { repositionCapexForAsset } from "@/lib/admin/financials/capex-reform";
 import type { Tier } from "@/lib/report/financials/types";
 import type { UnderwritingSlice, SectionProvenance } from "../types";
 
@@ -186,8 +187,19 @@ async function buildUnderwritingInputs(
       // value/IRR use the same cap the Executive Summary used.
       cap_rate: { manual_override_pct: Number(entryCapPct.toFixed(2)), use_dynamic: false },
     },
-    // Stabilised acquisition · no reposition CAPEX (Decision B).
-    capex: ZERO_CAPEX,
+    // CAPEX (TRAMO 4): new-build model stays zero; reposition CAPEX from the
+    // admin renovation matrix is added ONLY when state="needs_work" (reposition).
+    // Stabilised (new/renovated) → 0 → exact no-regression.
+    capex: {
+      ...ZERO_CAPEX,
+      reposition_capex_total_eur: repositionCapexForAsset({
+        state,
+        category,
+        rooms,
+        total_sqm,
+        asking_price_eur: entryValue,
+      }),
+    },
     // Real CoStar P&L (F6).
     pl_drivers: plDrivers,
     exit: {

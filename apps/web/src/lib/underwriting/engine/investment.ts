@@ -80,7 +80,10 @@ export const investmentModule: EngineModule<"investment"> = {
 
     const softCostTotal =
       softPreContingencyAndInsurance + insurance + contingency;
-    const capexTotal = hardCostTotal + softCostTotal;
+    // Reposition CAPEX (X4b · TRAMO 4) · admin renovation matrix total €, added
+    // as reform investment. 0 for a stabilised asset (exact no-regression).
+    const reposition = round0(capex.reposition_capex_total_eur ?? 0);
+    const capexTotal = hardCostTotal + softCostTotal + reposition;
     const totalBuildingCost = siteAcquisitionTotal + capexTotal;
 
     // ─── BreakdownLine helpers ────────────────────────────────────────
@@ -112,6 +115,9 @@ export const investmentModule: EngineModule<"investment"> = {
     const projectLines: BreakdownLine[] = [
       mkLine("contingency", "Contingency", contingency, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.contingency_pct), capex.contingency_pct, "percent_subtotal"),
       mkLine("insurance_dev", "Insurance · Seguro de Obra", insurance, totalBuildingCost, rooms, totalSqm, intSqm, fmtPctAssumption(capex.soft_cost.insurance_pct), capex.soft_cost.insurance_pct, "percent_asking"),
+      ...(reposition > 0
+        ? [mkLine("reposition_capex", "CAPEX reforma · reposición", reposition, totalBuildingCost, rooms, totalSqm, intSqm, undefined, reposition, "currency_total")]
+        : []),
     ];
 
     const capexPhases: CapexPhase[] = [

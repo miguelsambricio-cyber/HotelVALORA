@@ -604,3 +604,15 @@ Para anclar los priors en evidencia (no solo en bandas europeas), se valida cada
 **Regla de anclaje:** si prior e implícito coinciden (±0,3pp) **con muestra de NOI fiable**, el prior sube a `provenance: "calibrated_from_kpi"` (anclado reforzado). Si divergen o la muestra es pobre, el prior se queda como **`expert_prior`** (banda EU + orden por €/llave), etiquetado.
 
 **Resultado de la primera corrida (Madrid · 2026-05) — priors NO anclados aún:** el ADR disponible es **mezclado por submercado** (no hay ADR por segmento), así que el NOI estimado es ∝ habitaciones y el cap implícito **colapsa a un inverso del €/llave**, sesgado para los extremos (lujo: ADR real ≫ media del submercado → NOI infravalorado → implícito artificialmente bajo, ~2,8%; n pequeño y rangos amplios). Por tanto la muestra con **NOI fiable por segmento es pobre en todos** y **todos los priors se mantienen `expert_prior`**. El anclaje a `calibrated_from_kpi` requiere **ADR por segmento (CoStar por clase)** — esa es la pieza de dato que falta. La herramienta queda lista para anclar automáticamente cuando llegue.
+
+## ANEXO · TRAMO 4 · CAPEX de reforma → inversión inicial del IRR (2026-05-30)
+
+Cierra el bridge config→motor (financiación · fricción · cap rate · **CAPEX**). El IRR ahora puede leer la **matriz CAPEX del admin** (`CAPEX_DEFAULTS` · 12 líneas €/hab por tier×categoría) como **coste de reforma**, en vez de un CAPEX hardcodeado a 0.
+
+- **Trigger = estado del activo (Mike):** `state === "needs_work"` → **reposición** (lee la matriz) · `new` / `renovated` → **estabilizado** → CAPEX **0**. Un solo concepto de estado gobierna **cap rate** (eje de renovación) **y** CAPEX. El estabilizado es el caso por defecto → **no-regresión exacta** (IRR idéntico a hoy).
+- **La matriz = total de reforma en €** (NO se descompone en el modelo de obra nueva): Σ líneas, respetando la **unidad de cada línea** — `per_key × habitaciones` · `per_m2 × m²` · `total` tal cual · `percent × asking`. Ese total entra como **`inputs.capex.reposition_capex_total_eur`** → se suma a `total_building_cost` → **CF[0] del IRR** (más inversión de reforma → IRR más bajo, correcto).
+- **El modelo de obra nueva del motor** (`structure_pct` etc.) queda **intacto**; solo se añade el camino de reforma en €/hab. Sin doble conteo.
+- **Agnóstico / tramos de tamaño:** la matriz usa sus propios tramos de habitaciones (`ROOM_TIERS`: 0-79 / 80-179 / 180+).
+- **Ejemplo (4★, +200 hab, `needs_work`, todo per_key):** Σ matriz `large`×`4star` = 72.900 €/hab × 200 = **14,58 M€** de reforma → al CF[0].
+
+**Estado del trigger (pendiente · no bloquea):** el flujo automático deriva `state` ∈ {new, renovated} (nunca `needs_work`), así que hoy la reposición sale **0** para todo hotel auto-valorado (no-regresión exacta). El camino está cableado + testeado; se activa cuando un activo se marca `needs_work` (futuro selector de "tipo de operación" / override de operador). La matriz vive en localStorage del panel; el motor lee los **defaults** (`CAPEX_DEFAULTS`, per_key) hasta que se persista el override server-side (mismo patrón que los otros paneles).

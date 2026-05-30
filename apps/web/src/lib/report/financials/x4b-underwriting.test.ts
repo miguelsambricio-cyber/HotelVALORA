@@ -32,6 +32,8 @@ import {
 import { DYNAMIC_CAP_RATE_POLICY_DEFAULTS } from "@/lib/admin/financials/dynamic-cap-rate-policy";
 import { resolveSegmentBase, SEGMENT_BASE_PRIORS_ES, SEGMENTS, priorFromBand } from "@/lib/admin/financials/segment-base-priors";
 import { estimateNoiAfterReplacement, impliedCapPct, summarizeImpliedCapBySegment } from "@/lib/admin/financials/implied-cap-check";
+import { repositionCapexForAsset, capexReformTotalEur, defaultCapexMatrixState } from "@/lib/admin/financials/capex-reform";
+import { capexTotalForCell } from "@/lib/admin/financials/defaults";
 
 // Barajas-style hotel under the national-USALI cascade (Level 2).
 const COSTAR_NATIONAL_ES = {
@@ -379,6 +381,38 @@ describe("X4b TRAMO 3 · HotelVALORA Score factor (compset-relative · ±0.15pp)
     const thin = computeScoreCapAdjustment({ hotel_quality: 9, compset_qualities: [8, 8] }, policy);
     expect(thin.adjustment_pp).toBe(0);
     expect(thin.status).toBe("compset_insufficient");
+  });
+});
+
+describe("X4b TRAMO 4 · reposition CAPEX (admin matrix → IRR · stabilised = 0)", () => {
+  it("trigger by state · stabilised (new/renovated) → 0 · needs_work → matrix total", () => {
+    expect(repositionCapexForAsset({ state: "renovated", category: "4star", rooms: 200, total_sqm: 9000 })).toBe(0);
+    expect(repositionCapexForAsset({ state: "new", category: "4star", rooms: 200, total_sqm: 9000 })).toBe(0);
+    const repo = repositionCapexForAsset({ state: "needs_work", category: "4star", rooms: 200, total_sqm: 9000 });
+    expect(repo).toBe(capexTotalForCell("large", "4star") * 200); // all per_key × rooms
+    expect(repo).toBe(14_580_000);
+  });
+
+  it("units · per_key × rooms vs per_m2 × m² (one line switched to €/m²)", () => {
+    const base = capexReformTotalEur({ tier: "large", category: "4star", rooms: 200, total_sqm: 9000 });
+    const st = defaultCapexMatrixState();
+    st.units["structure"] = "per_m2"; // 10,000 large/4★ → now × sqm instead of × rooms
+    const withSqm = capexReformTotalEur({ tier: "large", category: "4star", rooms: 200, total_sqm: 9000, state: st });
+    expect(withSqm).toBe(base - 10_000 * 200 + 10_000 * 9000);
+  });
+
+  it("NO-REGRESSION · stabilised reposition=0 → engine IRR identical to ZERO_CAPEX baseline", () => {
+    const { inputs } = buildInputs(6.5, 6.9, 7, buildFinancingTranches());
+    const withZero = runEngine(inputs).exit!.equity_irr_pct;
+    const withReposZero = runEngine({ ...inputs, capex: { ...inputs.capex, reposition_capex_total_eur: 0 } }).exit!.equity_irr_pct;
+    expect(withReposZero).toBeCloseTo(withZero, 10);
+  });
+
+  it("reposition CAPEX raises total_building_cost → lowers project IRR", () => {
+    const { inputs } = buildInputs(6.5, 6.9, 7, buildFinancingTranches());
+    const stabilized = runEngine(inputs);
+    const reposed = runEngine({ ...inputs, capex: { ...inputs.capex, reposition_capex_total_eur: 14_580_000 } });
+    expect(reposed.exit!.project_irr_pct).toBeLessThan(stabilized.exit!.project_irr_pct);
   });
 });
 
