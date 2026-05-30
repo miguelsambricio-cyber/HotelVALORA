@@ -71,8 +71,12 @@ export function PricingSection() {
       className="w-full bg-slate-50 border-t border-slate-200 landing-pricing"
     >
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        {/* Desktop · full feature cards (unchanged) */}
-        <div className="hidden md:grid md:grid-cols-3 gap-6 lg:gap-8 items-center">
+        {/* Desktop · 3 feature cards. Columns are capped at 320px and the group
+         *  is centered (justify-center) so each card hugs its content — the
+         *  spare width goes to the SIDES of the group, not inside the cards or
+         *  the gaps (option A). Scoped to this landing grid → the shared
+         *  PricingCard / its use on /compset are untouched. */}
+        <div className="hidden md:grid md:grid-cols-[repeat(3,minmax(0,320px))] md:justify-center gap-6 lg:gap-8 items-center">
           {PLANS.map((plan) => (
             <PricingCard key={plan.id} plan={plan} />
           ))}
