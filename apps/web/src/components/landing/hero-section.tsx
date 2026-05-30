@@ -9,10 +9,14 @@ import { HeroSearch } from "./hero-search";
 
 export function HeroSection() {
   return (
-    <section className="landing-hero flex flex-col items-center justify-center px-6 relative overflow-hidden bg-grid-dots bg-slate-100 py-8 md:py-10">
-      {/* Decorative ambient blobs */}
-      <div className="pointer-events-none absolute -bottom-48 -left-48 w-1/3 h-1/3 rounded-full bg-emerald-100/30 blur-[120px]" />
-      <div className="pointer-events-none absolute -top-48 -right-48 w-1/3 h-1/3 rounded-full bg-slate-200/40 blur-[120px]" />
+    <section className="landing-hero flex flex-col items-center justify-center px-6 relative z-20 bg-grid-dots bg-slate-100 py-8 md:py-10">
+      {/* Decorative ambient blobs · clipped to the hero by an INNER overflow
+       *  layer (NOT the section) so the search dropdown can overflow the hero
+       *  downward as a floating overlay without being clipped on mobile. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -bottom-48 -left-48 w-1/3 h-1/3 rounded-full bg-emerald-100/30 blur-[120px]" />
+        <div className="absolute -top-48 -right-48 w-1/3 h-1/3 rounded-full bg-slate-200/40 blur-[120px]" />
+      </div>
 
       {/* Headline — static, server-rendered */}
       <div className="w-full max-w-5xl text-center mb-5 relative z-10">
