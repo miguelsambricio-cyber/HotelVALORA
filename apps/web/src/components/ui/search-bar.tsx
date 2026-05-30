@@ -299,7 +299,9 @@ export function SearchBar({
         const dropdownInner = (
           <>
             {showDropdown && (
-              <ul>
+              // Cap at ~5 rows (≈66px each) then scroll inside the list. The
+              // "ver todos" button below stays pinned (it's outside this <ul>).
+              <ul className="max-h-[330px] overflow-y-auto overscroll-contain">
                 {results.map((hotel, i) => (
                   <ResultItem
                     key={hotel.id}
@@ -355,7 +357,7 @@ export function SearchBar({
                 width: overlayRect.width,
                 zIndex: 1000,
               }}
-              className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden max-h-[70svh] overflow-y-auto"
+              className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden"
             >
               {dropdownInner}
             </div>,
