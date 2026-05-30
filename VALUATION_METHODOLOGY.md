@@ -459,6 +459,8 @@ El cap de **entrada** y el de **salida** salen ambos del **motor de cap rate din
 - Activo viejo sin CAPEX → **salida más alta que entrada** (el comprador futuro tendrá que invertir; sin el plus de CAPEX, el yield de salida se ensancha).
 - Se **elimina** cualquier spread fijo de salida (+20 bps): el diferencial entrada↔salida lo determina el estado del activo a través del motor, no una constante.
 
+**Frescura medida AL AÑO DE SALIDA, no a hoy** (Mike · 2026-05-30 · `deriveExitState`): el estado de salida evalúa si la renovación tendrá **≤10 años EN EL AÑO DE VENTA proyectado** = `(hoy + hold) − año_reno`. La ventana de 10 años está **alineada con el hold típico (7)** por la lógica **value-add**: comprar `needs_work` → renovar en año 0 → vender a 7 → la reforma tiene 7 años a la salida (≤10) → sale **renovated**, el cap NO se ensancha. Con la vieja ventana de 5, una reforma de 7 años "caducaba" a la salida y penalizaba injustamente. Con hold >10 la reforma sí caduca → `needs_work` → el cap se ensancha (correcto). Estabilizado sin renovar: `(hoy+hold) − año_apertura` → un activo de 2020 vendido a 7 años (13) ya ha envejecido → `needs_work`. Nota: D1 (rampa FF&E) mide recencia a **hoy** (`deriveHasCapex`); D4 (exit-cap) la mide al **año de salida** — señales separadas a propósito.
+
 ### FUTURO (IP · NO implementar ahora) · Encaje de habitaciones por superficie
 
 Para la selección de edificio (sobre todo `hotelproject`): derivar el nº de habitaciones por categoría a partir de la superficie. Ratios brutos de referencia (m²/hab brutos · % zonas comunes · neto resultante):

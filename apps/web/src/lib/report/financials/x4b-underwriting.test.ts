@@ -34,7 +34,7 @@ import { resolveSegmentBase, SEGMENT_BASE_PRIORS_ES, SEGMENTS, priorFromBand } f
 import { estimateNoiAfterReplacement, impliedCapPct, summarizeImpliedCapBySegment } from "@/lib/admin/financials/implied-cap-check";
 import { repositionCapexForAsset, capexReformTotalEur, defaultCapexMatrixState } from "@/lib/admin/financials/capex-reform";
 import { capexTotalForCell } from "@/lib/admin/financials/defaults";
-import { deriveHasCapex, CAPEX_RECENCY_YEARS } from "./ffe-reserve";
+import { deriveHasCapex, deriveExitState, CAPEX_RECENCY_YEARS } from "./ffe-reserve";
 
 // Barajas-style hotel under the national-USALI cascade (Level 2).
 const COSTAR_NATIONAL_ES = {
@@ -399,6 +399,20 @@ describe("X4b · CAPEX recency window 5 → 10 years (Mike · 2026-05-30)", () =
   });
   it("no renovation date → hasCapex=false (the corpus-wide gap · still needs_work)", () => {
     expect(deriveHasCapex({ year_opened: y - 40, year_renovated_last: null })).toBe(false);
+  });
+
+  // Exit state measured AT THE EXIT YEAR (not today) · Mike value-add logic.
+  it("VALUE-ADD · buy needs_work → renovate y0 → sell y7 → exit 'renovated' (7≤10, cap NO widens)", () => {
+    expect(deriveExitState("needs_work", { year_opened: null, year_renovated_last: null }, 7)).toBe("renovated");
+  });
+  it("VALUE-ADD · hold 12 > window → reform expired at exit → 'needs_work' (cap widens)", () => {
+    expect(deriveExitState("needs_work", { year_opened: null, year_renovated_last: null }, 12)).toBe("needs_work");
+  });
+  it("STABILISED measured at exit · opened 2020 + hold 7 → 13y at sale > 10 → needs_work", () => {
+    expect(deriveExitState("renovated", { year_opened: 2020, year_renovated_last: null }, 7)).toBe("needs_work");
+  });
+  it("STABILISED · renovated 2y ago + hold 7 → 9y at sale ≤ 10 → still renovated (no widen)", () => {
+    expect(deriveExitState("renovated", { year_opened: 1990, year_renovated_last: y - 2 }, 7)).toBe("renovated");
   });
 });
 

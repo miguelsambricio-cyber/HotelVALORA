@@ -7,7 +7,8 @@ import {
   type DynamicCapRateResult,
 } from "@/lib/underwriting/cap-rate-engine";
 import type { AssetBasics, StarCategory, AssetState } from "@/lib/underwriting/types";
-import { deriveHasCapex } from "@/lib/report/financials/ffe-reserve";
+import { deriveExitState } from "@/lib/report/financials/ffe-reserve";
+import { FINANCIAL_STRUCTURE_ENGINE } from "@/lib/admin/financials/financial-structure-config";
 import type { ScoreContext } from "@/lib/admin/financials/score-cap-adjustment";
 
 /**
@@ -183,10 +184,12 @@ export function runForHotel(
     score_context: scoreContext,
   });
 
-  // D4 · exit cap from the asset's projected state at exit (shares the
-  // CAPEX signal with the FF&E ramp · deriveHasCapex). No fixed spread.
-  const hasCapex = deriveHasCapex(hotel);
-  const assetAtExit: AssetBasics = { ...asset, state: hasCapex ? "renovated" : "needs_work" };
+  // D4 · exit cap from the asset's projected state AT THE EXIT YEAR (not today):
+  // renovation freshness is measured at (today + hold) − reno/open year, so a
+  // value-add reform at year 0 still counts as "renovated" when hold ≤ window
+  // (10y, aligned with the typical hold). No fixed spread.
+  const exitState = deriveExitState(asset.state, hotel, FINANCIAL_STRUCTURE_ENGINE.hold_years);
+  const assetAtExit: AssetBasics = { ...asset, state: exitState };
   const resultExit = runDynamicCapRate({
     asset: assetAtExit,
     scenario_id: "base",

@@ -36,7 +36,8 @@ export function ffeReservePct(yearIndex0: number, hasCapex: boolean): number {
 }
 
 /**
- * Derive `hasCapex` from canonical opening/renovation years.
+ * Derive `hasCapex` from canonical opening/renovation years, measured AT TODAY.
+ * Drives the FF&E ramp (D1 · operating-year reserve · entry recency).
  * Premium operators can override the automatic calculation (HOOK · not
  * surfaced in UI this commit — `operatorOverride` is the wiring point).
  */
@@ -52,4 +53,37 @@ export function deriveHasCapex(
     signal.year_renovated_last != null &&
     currentYear - signal.year_renovated_last <= CAPEX_RECENCY_YEARS;
   return newBuild || recentReno;
+}
+
+/**
+ * Projected asset STATE AT THE EXIT YEAR (D4 · exit-cap freshness).
+ *
+ * Measures renovation age at the SALE year, NOT today (Mike · 2026-05-30): a
+ * value-add deal (buy needs_work → renovate at year 0 → sell at the hold) must
+ * still count as "renovated" at exit when the hold ≤ recency window. The 10-year
+ * window is ALIGNED with the typical hold so a reform done at the start of a
+ * 7-year hold has not "expired" at exit (7 ≤ 10 → exit cap does NOT widen).
+ *
+ *  - entryState "needs_work" (reposition/value-add): renovated at year 0 →
+ *    age at exit = holdYears.
+ *  - stabilised (new/renovated): age at exit = (currentYear + holdYears) −
+ *    (year_renovated_last ?? year_opened). No date → cannot prove freshness →
+ *    ages → "needs_work".
+ *  ≤ recency → "renovated" (exit ≈ entry) · else "needs_work" (exit cap widens).
+ */
+export function deriveExitState(
+  entryState: "new" | "renovated" | "needs_work",
+  signal: { year_opened: number | null; year_renovated_last: number | null },
+  holdYears: number,
+  recencyYears: number = CAPEX_RECENCY_YEARS,
+): "renovated" | "needs_work" {
+  let ageAtExit: number;
+  if (entryState === "needs_work") {
+    ageAtExit = holdYears; // value-add: the deal renovates at year 0 of the hold
+  } else {
+    const effectiveYear = signal.year_renovated_last ?? signal.year_opened;
+    if (effectiveYear == null) return "needs_work"; // no freshness evidence → ages
+    ageAtExit = new Date().getFullYear() + holdYears - effectiveYear;
+  }
+  return ageAtExit <= recencyYears ? "renovated" : "needs_work";
 }
