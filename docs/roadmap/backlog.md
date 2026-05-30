@@ -51,6 +51,11 @@ Capturados al cerrar el bridge config→motor (X4b · 4 tramos). Algunos ya tien
     asset-analysis · competitive-set · market-overview · executive-summary · financials: confirmar
     que consumen el cap/NOI/IRR del motor reconciliado (X4b) y no valores viejos/mock.
 12. **select-corpus** — EN HOLD (plan hecho). Retomar cuando se decida.
+13. **Poblar `year_renovated_last` del corpus → exit-cap se diferencia hotel a hotel** — ARREGLO DE
+    FONDO del exit-cap dinámico (D4). Hoy solo **8/226** ES tienen `year_renovated_last` (59/226
+    `year_opened`) → la mayoría cae a `needs_work` a la salida → +0,50 plano. La ventana de CAPEX
+    reciente se amplió a ≤10 años (2026-05-30), pero solo diferencia a los ~13 hoteles con fecha en
+    6-10y; el resto necesita el dato. Fuentes: Booking/CoStar/web oficial · reformas conocidas.
 
 ---
 

@@ -34,6 +34,7 @@ import { resolveSegmentBase, SEGMENT_BASE_PRIORS_ES, SEGMENTS, priorFromBand } f
 import { estimateNoiAfterReplacement, impliedCapPct, summarizeImpliedCapBySegment } from "@/lib/admin/financials/implied-cap-check";
 import { repositionCapexForAsset, capexReformTotalEur, defaultCapexMatrixState } from "@/lib/admin/financials/capex-reform";
 import { capexTotalForCell } from "@/lib/admin/financials/defaults";
+import { deriveHasCapex, CAPEX_RECENCY_YEARS } from "./ffe-reserve";
 
 // Barajas-style hotel under the national-USALI cascade (Level 2).
 const COSTAR_NATIONAL_ES = {
@@ -381,6 +382,23 @@ describe("X4b TRAMO 3 · HotelVALORA Score factor (compset-relative · ±0.15pp)
     const thin = computeScoreCapAdjustment({ hotel_quality: 9, compset_qualities: [8, 8] }, policy);
     expect(thin.adjustment_pp).toBe(0);
     expect(thin.status).toBe("compset_insufficient");
+  });
+});
+
+describe("X4b · CAPEX recency window 5 → 10 years (Mike · 2026-05-30)", () => {
+  const y = new Date().getFullYear();
+  it("window is 10 years", () => {
+    expect(CAPEX_RECENCY_YEARS).toBe(10);
+  });
+  it("renovation 8 years ago → hasCapex=true (recent · exits renovated) · was false under 5y", () => {
+    expect(deriveHasCapex({ year_opened: null, year_renovated_last: y - 8 })).toBe(true);  // within 10
+    expect(y - 8 > 5).toBe(true); // would have been false under the old 5y window
+  });
+  it("renovation 12 years ago → hasCapex=false (outside 10 · ages to needs_work)", () => {
+    expect(deriveHasCapex({ year_opened: null, year_renovated_last: y - 12 })).toBe(false);
+  });
+  it("no renovation date → hasCapex=false (the corpus-wide gap · still needs_work)", () => {
+    expect(deriveHasCapex({ year_opened: y - 40, year_renovated_last: null })).toBe(false);
   });
 });
 

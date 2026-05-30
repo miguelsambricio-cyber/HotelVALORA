@@ -12,8 +12,14 @@
 // the last CAPEX_RECENCY_YEARS counts; a Premium operator override
 // supersedes. Everything else (no data, or old opening/renovation) → flat 4%.
 
-/** Renovation/opening within this many years still counts as "recent CAPEX". */
-export const CAPEX_RECENCY_YEARS = 5;
+/**
+ * Renovation/opening within this many years still counts as "recent CAPEX".
+ * Single-source policy parameter (Mike · 2026-05-30: widened 5 → 10). Drives
+ * BOTH the FF&E ramp (D1) and the projected exit state (D4): an asset whose
+ * last CAPEX/opening is within this window exits "renovated" (exit ≈ entry);
+ * older or undated → "needs_work" (exit cap widens).
+ */
+export const CAPEX_RECENCY_YEARS = 10;
 
 /** Stabilised reserve for operating assets without CAPEX. */
 export const FFE_STABILIZED_PCT = 0.04;
