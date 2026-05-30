@@ -84,19 +84,22 @@ export function capexReformTotalEur(args: {
 }
 
 /**
- * Reposition CAPEX for an asset. Stabilised (new / renovated) → 0 (exact
- * no-regression). needs_work → the matrix total. The single result feeds
- * `inputs.capex.reposition_capex_total_eur`.
+ * Reposition CAPEX for an asset. Keyed off the DEAL TYPE flag `isReposition`
+ * (NOT the condition state) — decoupled (Mike · 2026-05-30) so an old asset
+ * held as-is (condition needs_work) does NOT auto-trigger reform CAPEX. Only a
+ * deliberate reposition deal adds the matrix total to the IRR CF[0]. Stabilised
+ * (isReposition false · the default today) → 0 (exact no-regression). Activated
+ * by the future deal-type selector (backlog #2).
  */
 export function repositionCapexForAsset(args: {
-  state: "new" | "renovated" | "needs_work";
+  isReposition: boolean;
   category: StarCategoryId;
   rooms: number;
   total_sqm: number;
   asking_price_eur?: number;
   matrix?: CapexMatrixState;
 }): number {
-  if (args.state !== "needs_work") return 0;
+  if (!args.isReposition) return 0;
   return capexReformTotalEur({
     tier: roomTierForRooms(args.rooms),
     category: args.category,

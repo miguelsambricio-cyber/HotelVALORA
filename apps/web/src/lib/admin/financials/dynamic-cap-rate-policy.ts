@@ -140,7 +140,7 @@ function flatMatrix(value: number): Record<StarCategoryId, Record<SizeTierId, nu
 // reference; these matrices reproduce its independent-axis deltas exactly:
 //   · Category: 5* −0.25 · 4* 0 · 3* +0.25   (category-only · flat across size)
 //   · Size:    +200 −0.10 · 100-199 0 · <100 +0.20   (size-only · flat across cat)
-//   · State:   new −0.10 · renovated 0 · needs_work +0.50
+//   · State:   new −0.20 · renovated −0.10 · needs_work 0  (REWARD-ONLY · no penalty)
 //   · Operator: branded −0.10 · independent +0.10
 //   · Liquidity: ≥6 deals −0.05 · 3-5 0 · <3 +0.20
 //   · Scenario: conservative +0.30 · base 0 · aggressive −0.20 · stress +0.60
@@ -170,10 +170,15 @@ export const DYNAMIC_CAP_RATE_POLICY_DEFAULTS: DynamicCapRatePolicy = {
     "5star": { small: 0.20, medium: 0.00, large: -0.10 },
   },
 
+  // REWARD-ONLY (Mike · 2026-05-30): no penalty for "no proof of recent reno".
+  // Sin prueba de renovación reciente = NEUTRO (0 · no se castiga la falta de
+  // dato). CON prueba (fecha ≤10y · a hoy en entrada, al año de venta en salida)
+  // = DESCUENTO. Los priors por segmento representan el NEUTRO (hotel sin reno
+  // probada); el renovado reciente baja desde ahí.
   renovation_adjustment: {
-    new: flatMatrix(-0.10),
-    renovated: flatMatrix(0),
-    needs_work: flatMatrix(0.50),
+    new: flatMatrix(-0.20),
+    renovated: flatMatrix(-0.10),
+    needs_work: flatMatrix(0),
   },
 
   scenario_adjustment: {

@@ -17,11 +17,12 @@ Capturados al cerrar el bridge config→motor (X4b · 4 tramos). Algunos ya tien
    cascada €/llave → tier experto editable → etiquetado · validado por el espejo de cap implícito.
    **Decisión pendiente:** factor submercado vs liquidez (complementarios o fundidos) — se decide al
    abrir el Tramo 5. Es un tramo entero · NO empezar hasta cerrar X4b.
-2. **Disparador "tipo de operación" (estabilizado / reposición)** — activa el CAPEX de reforma que
-   hoy está dormido. El camino matriz→`reposition_capex_total_eur`→CF[0] está cableado+testeado, pero
-   `state` se deriva siempre new/renovated (nunca `needs_work`) → reposición 0 para todo hotel
-   auto-valorado (no-regresión exacta). Falta un selector/override de tipo de operación que ponga
-   `state=needs_work`. ✓det
+2. **Disparador "tipo de operación" (estabilizado / reposición)** — activa el CAPEX de reforma + el
+   exit value-add, hoy dormidos. **Desacoplado de la condición** (2026-05-30): `repositionCapexForAsset`
+   y `deriveExitState` se gobiernan por un flag `isReposition` (deal type), NO por `state==="needs_work"`
+   (que ahora es condición age-derived, reward-only). Hoy `isReposition=false` siempre → reposición 0
+   + exit estabilizado (no-regresión). Falta el selector/override de tipo de operación que ponga
+   `isReposition=true` (value-add: reforma año 0 → reform CAPEX al CF[0] + exit renovated si hold≤10). ✓det
 3. **ADR por segmento (CoStar por clase)** — ancla los `segment_base_priors` de `expert_prior` a
    `calibrated_from_kpi` vía el espejo de cap implícito. El market snapshot trae ADR mezclado por
    submercado (sesga el NOI · lujo infravalorado). ✓det

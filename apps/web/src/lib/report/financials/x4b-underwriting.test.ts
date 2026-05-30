@@ -34,7 +34,7 @@ import { resolveSegmentBase, SEGMENT_BASE_PRIORS_ES, SEGMENTS, priorFromBand } f
 import { estimateNoiAfterReplacement, impliedCapPct, summarizeImpliedCapBySegment } from "@/lib/admin/financials/implied-cap-check";
 import { repositionCapexForAsset, capexReformTotalEur, defaultCapexMatrixState } from "@/lib/admin/financials/capex-reform";
 import { capexTotalForCell } from "@/lib/admin/financials/defaults";
-import { deriveHasCapex, deriveExitState, CAPEX_RECENCY_YEARS } from "./ffe-reserve";
+import { deriveHasCapex, deriveEntryState, deriveExitState, CAPEX_RECENCY_YEARS } from "./ffe-reserve";
 
 // Barajas-style hotel under the national-USALI cascade (Level 2).
 const COSTAR_NATIONAL_ES = {
@@ -204,9 +204,9 @@ describe("X4b TRAMO 3 · Dynamic Cap Rate policy connection (panel ↔ engine)",
       rates_regime: DEFAULT_RATES_REGIME, comparables: SEEDED_HOTEL_COMPS, side: "entry",
     });
 
-  it("Madrid Centre 4★ large renovated = upscale prior 5.75 + factors = 6.00% (3b method compression)", () => {
-    // Base 5.75 (upscale) − 0.10 size − 0.10 operator + 0.25 macro + 0.20 liquidity = 6.00.
-    expect(run(madridCentre, "base").used_pct).toBeCloseTo(6.00, 2);
+  it("Madrid Centre 4★ large + state=renovated → 5.90% (reward-only: renovated −0.10 discount)", () => {
+    // Base 5.75 (upscale) − 0.10 size − 0.10 operator + 0.25 macro + 0.20 liquidity − 0.10 reno = 5.90.
+    expect(run(madridCentre, "base").used_pct).toBeCloseTo(5.90, 2);
   });
 
   it("scenario sign CORRECTED · conservative WIDENS (higher cap → lower value) · aggressive tightens", () => {
@@ -401,26 +401,30 @@ describe("X4b · CAPEX recency window 5 → 10 years (Mike · 2026-05-30)", () =
     expect(deriveHasCapex({ year_opened: y - 40, year_renovated_last: null })).toBe(false);
   });
 
-  // Exit state measured AT THE EXIT YEAR (not today) · Mike value-add logic.
-  it("VALUE-ADD · buy needs_work → renovate y0 → sell y7 → exit 'renovated' (7≤10, cap NO widens)", () => {
-    expect(deriveExitState("needs_work", { year_opened: null, year_renovated_last: null }, 7)).toBe("renovated");
+  // Exit state measured AT THE EXIT YEAR (not today) · reward-only · reposition = deal flag.
+  it("VALUE-ADD (reposition flag) · renovate y0 → sell y7 → exit 'renovated' (7≤10)", () => {
+    expect(deriveExitState({ year_opened: null, year_renovated_last: null }, 7, { isReposition: true })).toBe("renovated");
   });
-  it("VALUE-ADD · hold 12 > window → reform expired at exit → 'needs_work' (cap widens)", () => {
-    expect(deriveExitState("needs_work", { year_opened: null, year_renovated_last: null }, 12)).toBe("needs_work");
+  it("VALUE-ADD · hold 12 > window → reform expired at exit → 'needs_work'", () => {
+    expect(deriveExitState({ year_opened: null, year_renovated_last: null }, 12, { isReposition: true })).toBe("needs_work");
   });
-  it("STABILISED measured at exit · opened 2020 + hold 7 → 13y at sale > 10 → needs_work", () => {
-    expect(deriveExitState("renovated", { year_opened: 2020, year_renovated_last: null }, 7)).toBe("needs_work");
+  it("STABILISED at exit · opened 2020 + hold 7 → 13y at sale > 10 → needs_work (neutral)", () => {
+    expect(deriveExitState({ year_opened: 2020, year_renovated_last: null }, 7)).toBe("needs_work");
   });
-  it("STABILISED · renovated 2y ago + hold 7 → 9y at sale ≤ 10 → still renovated (no widen)", () => {
-    expect(deriveExitState("renovated", { year_opened: 1990, year_renovated_last: y - 2 }, 7)).toBe("renovated");
+  it("STABILISED · renovated 2y ago + hold 7 → 9y at sale ≤ 10 → still renovated (keeps discount)", () => {
+    expect(deriveExitState({ year_opened: 1990, year_renovated_last: y - 2 }, 7)).toBe("renovated");
+  });
+  it("ENTRY=EXIT symmetry · old/undated asset → needs_work (neutral) at both ends (no +0.50)", () => {
+    const sig = { year_opened: 2014, year_renovated_last: null }; // NH-like
+    expect(deriveEntryState(sig)).toBe("needs_work");
+    expect(deriveExitState(sig, 7)).toBe("needs_work");
   });
 });
 
 describe("X4b TRAMO 4 · reposition CAPEX (admin matrix → IRR · stabilised = 0)", () => {
-  it("trigger by state · stabilised (new/renovated) → 0 · needs_work → matrix total", () => {
-    expect(repositionCapexForAsset({ state: "renovated", category: "4star", rooms: 200, total_sqm: 9000 })).toBe(0);
-    expect(repositionCapexForAsset({ state: "new", category: "4star", rooms: 200, total_sqm: 9000 })).toBe(0);
-    const repo = repositionCapexForAsset({ state: "needs_work", category: "4star", rooms: 200, total_sqm: 9000 });
+  it("trigger by DEAL FLAG · not reposition → 0 · reposition → matrix total", () => {
+    expect(repositionCapexForAsset({ isReposition: false, category: "4star", rooms: 200, total_sqm: 9000 })).toBe(0);
+    const repo = repositionCapexForAsset({ isReposition: true, category: "4star", rooms: 200, total_sqm: 9000 });
     expect(repo).toBe(capexTotalForCell("large", "4star") * 200); // all per_key × rooms
     expect(repo).toBe(14_580_000);
   });

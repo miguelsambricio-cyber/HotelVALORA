@@ -10,7 +10,7 @@ import type {
 } from "@/lib/underwriting/types";
 import { buildFinancialsSlice } from "./financials";
 import { computePL } from "@/lib/report/financials/calculations";
-import { deriveHasCapex } from "@/lib/report/financials/ffe-reserve";
+import { deriveHasCapex, deriveEntryState } from "@/lib/report/financials/ffe-reserve";
 import {
   resolveValuationMode,
   computeValuationFromNoi,
@@ -111,13 +111,8 @@ async function buildUnderwritingInputs(
       ? "4star"
       : "3star";
 
-  const currentYear = new Date().getFullYear();
-  const state: "new" | "renovated" | "needs_work" =
-    hotel.year_renovated_last && currentYear - hotel.year_renovated_last <= 7
-      ? "renovated"
-      : hotel.year_opened && currentYear - hotel.year_opened <= 5
-      ? "new"
-      : "renovated";
+  // Entry condition · age-aware, reward-only (same rule as the cap-rate runner).
+  const state = deriveEntryState(hotel);
 
   // ─── P&L · real CoStar P&L for this hotel ──
   const fin = await buildFinancialsSlice(hotel, marketKpi);
@@ -192,8 +187,11 @@ async function buildUnderwritingInputs(
     // Stabilised (new/renovated) → 0 → exact no-regression.
     capex: {
       ...ZERO_CAPEX,
+      // Reposition CAPEX is keyed off the DEAL flag (dormant → 0), NOT the
+      // condition state (decoupled · Mike 2026-05-30). Activated by the future
+      // deal-type selector (backlog #2).
       reposition_capex_total_eur: repositionCapexForAsset({
-        state,
+        isReposition: false,
         category,
         rooms,
         total_sqm,

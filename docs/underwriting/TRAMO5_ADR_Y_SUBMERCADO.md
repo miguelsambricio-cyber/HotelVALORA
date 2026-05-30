@@ -118,3 +118,28 @@ El ADR corrige el numerador (NOI), el submercado el denominador (cap); juntos da
 
 Ambos: **factores nuevos en la policy editable** + **cascada** + **validación por espejo de cap
 implícito** — misma arquitectura que X4b, sin reescribir el motor.
+
+---
+
+## 3 · Modelo de calidad del cap rate · confort + ubicación (diseño · NO implementar)
+
+Tres señales que Mike separó (2026-05-30) al cerrar el ajuste de renovación reward-only en X4b
+(el confort se sacó de X4b y se difiere aquí):
+
+- **UBICACIÓN — palanca estructural e IRREVERSIBLE.** Una reforma no cambia la ubicación; merece
+  más peso. **Recomendación a evaluar: subir su peso DENTRO del Score** (hoy Location 0,333),
+  **NO** sacarla como factor separado del cap → evita el **DOBLE CONTEO** (la ubicación contaría
+  dos veces: en el Score y como factor propio). Un solo canal, más peso.
+- **CONFORT como componente de CALIDAD** — ya está en el Score (Comfort 0,222). Ajustar su peso si
+  procede (mismo canal Score).
+- **CONFORT como DETECTOR de necesidad de renovación** — función NUEVA y distinta del componente de
+  calidad: confort bajo → activo cansado → marca `needs_work` aunque falte la fecha de renovación.
+  Esto SÍ podría ser un mecanismo aparte del Score (un detector de condición, no un peso de
+  calidad). A diseñar. (En X4b se descartó: el ajuste de renovación es reward-only, sin reno
+  probada = neutro, sin necesidad de detector — el detector solo aportaría si se quisiera volver a
+  un esquema con penalización por condición.)
+
+### DECISIÓN PENDIENTE (se decide al abrir el Tramo 5)
+¿Ubicación/confort **solo vía pesos del Score** (un canal, evita doble conteo), **o** confort como
+**detector de condición aparte** (mecanismo separado)? La primera es más simple y limpia; la
+segunda reintroduce una señal de condición. Mike lo decide al abrir el Tramo 5.
