@@ -64,8 +64,16 @@ export interface AssetBasics {
   intervention_sqm: number;
   market: string;
   submarket: string;
+  /** ISO country code · selects the per-market segment-base priors (3b). Defaults to ES. */
+  country?: string;
   category: StarCategory;
   state: AssetState;
+  /**
+   * Fine-grained market segment (chain_scale · 6 levels: luxury …economy).
+   * Drives the segment-based cap-rate BASE prior (X4b · TRAMO 3b). When
+   * absent, the base falls back to a star→segment default (labelled).
+   */
+  segment?: string;
 }
 
 // ─── Cap Rate engine I/O ──────────────────────────────────────────────
@@ -158,6 +166,13 @@ export interface UnderwritingInputs {
       insurance_pct: number;
     };
     contingency_pct: number;
+    /**
+     * Reposition CAPEX total (€) from the admin renovation matrix (X4b · TRAMO 4).
+     * Added to total_building_cost → CF[0] of the IRR. 0/undefined for a
+     * stabilised asset (no-regression). Set only for state="needs_work".
+     * Independent of the new-build hard/soft model above (no double-count).
+     */
+    reposition_capex_total_eur?: number;
   };
 
   pl_drivers: {

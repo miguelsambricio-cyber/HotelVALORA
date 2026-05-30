@@ -52,12 +52,12 @@ export async function buildReportObject(
     }
   })();
 
-  const financials = await buildFinancialsSlice(hotel, marketKpi);
-  const underwriting = buildUnderwritingSlice(hotel, marketKpi, engineRun);
-  const capex = buildCapexSlice(hotel);
-
   const tier: ReportTier = options.tier ?? "premium";
   const access = tierMatrixFor(tier);
+
+  const financials = await buildFinancialsSlice(hotel, marketKpi);
+  const underwriting = await buildUnderwritingSlice(hotel, marketKpi, engineRun, { tier });
+  const capex = buildCapexSlice(hotel);
 
   const now = new Date().toISOString();
   return {

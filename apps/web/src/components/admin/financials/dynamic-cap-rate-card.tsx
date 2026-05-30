@@ -10,10 +10,45 @@ import {
   SIZE_TIERS,
   computeForCell,
   type DynamicCapRatePolicy,
+  type LiquidityBandId,
+  type OperatorOptionId,
   type RenovationOptionId,
   type ScenarioOptionId,
   type SizeTierId,
 } from "@/lib/admin/financials/dynamic-cap-rate-policy";
+
+import {
+  computeScoreCapAdjustment,
+  type ScoreAdjustmentPolicy,
+} from "@/lib/admin/financials/score-cap-adjustment";
+import {
+  resolveSegmentBase,
+  priorFromBand,
+  SEGMENTS,
+  SUPPORTED_MARKETS,
+  type SegmentId,
+  type SegmentBasePriors,
+} from "@/lib/admin/financials/segment-base-priors";
+
+const SEGMENT_LABELS: Record<SegmentId, string> = {
+  luxury: "Luxury",
+  upper_upscale: "Upper Upscale",
+  upscale: "Upscale",
+  upper_midscale: "Upper Midscale",
+  midscale: "Midscale",
+  economy: "Economy",
+};
+
+const OPERATOR_OPTIONS: ReadonlyArray<{ id: OperatorOptionId; label: string }> = [
+  { id: "branded_chain", label: "Cadena de marca" },
+  { id: "independent", label: "Independiente" },
+];
+
+const LIQUIDITY_OPTIONS: ReadonlyArray<{ id: LiquidityBandId; label: string }> = [
+  { id: "deep_6plus", label: "Profunda · ≥6/12m" },
+  { id: "moderate_3_5", label: "Moderada · 3-5/12m" },
+  { id: "thin_below_3", label: "Fina · <3/12m" },
+];
 import type { StarCategoryId } from "@/lib/admin/financials/defaults";
 import { useDraftedOverrides } from "@/lib/admin/financials/use-overrides";
 import { SaveBar } from "./save-bar";
@@ -50,8 +85,10 @@ import { SaveBar } from "./save-bar";
 const ADMIN_PREVIEW_SAMPLE = {
   category: "4star" as StarCategoryId,
   size: "large" as SizeTierId,
-  renovation: "non-capex" as RenovationOptionId,
+  renovation: "renovated" as RenovationOptionId,
   scenario: "conservative" as ScenarioOptionId,
+  operator: "branded_chain" as OperatorOptionId,
+  liquidity: "thin_below_3" as LiquidityBandId,
   market: "Madrid Centro",
   euribor_12m_pct: 2.75,
 };
@@ -70,10 +107,28 @@ export function DynamicCapRateCard() {
   const [previewSize, setPreviewSize] = useState<SizeTierId>(ADMIN_PREVIEW_SAMPLE.size);
   const [previewReno, setPreviewReno] = useState<RenovationOptionId>(ADMIN_PREVIEW_SAMPLE.renovation);
   const [previewScn, setPreviewScn] = useState<ScenarioOptionId>(ADMIN_PREVIEW_SAMPLE.scenario);
+  const [previewOperator, setPreviewOperator] = useState<OperatorOptionId>(ADMIN_PREVIEW_SAMPLE.operator);
+  const [previewLiquidity, setPreviewLiquidity] = useState<LiquidityBandId>(ADMIN_PREVIEW_SAMPLE.liquidity);
+  const [previewSegment, setPreviewSegment] = useState<SegmentId>("upscale");
+  const [selectedMarket, setSelectedMarket] = useState<string>("ES");
+
+  // Priors for the SELECTED market (null when that market isn't populated yet ·
+  // never inherits another market's numbers). SAME structure the engine reads.
+  const marketPriors: SegmentBasePriors | null = policy.segment_base_priors_by_market[selectedMarket] ?? null;
+
+  // Base = the SELECTED segment's prior for the selected market (TRAMO 3b) ·
+  // falls back to the fixed base_market_yield_pct. Mirrors the engine exactly.
+  const segBase = useMemo(
+    () => resolveSegmentBase({
+      segment: previewSegment, category: previewCategory,
+      priors: marketPriors, fallbackPct: policy.base_market_yield_pct,
+    }),
+    [previewSegment, previewCategory, marketPriors, policy.base_market_yield_pct],
+  );
 
   const result = useMemo(
-    () => computeForCell(policy, previewCategory, previewSize, previewReno, previewScn, ADMIN_PREVIEW_SAMPLE.euribor_12m_pct),
-    [policy, previewCategory, previewSize, previewReno, previewScn],
+    () => computeForCell(policy, previewCategory, previewSize, previewReno, previewScn, ADMIN_PREVIEW_SAMPLE.euribor_12m_pct, previewOperator, previewLiquidity, segBase.base_pct),
+    [policy, previewCategory, previewSize, previewReno, previewScn, previewOperator, previewLiquidity, segBase.base_pct],
   );
 
   // Update helpers · operator-friendly mutation patterns.
@@ -82,6 +137,27 @@ export function DynamicCapRateCard() {
   }
   function setBaseSource(text: string) {
     ov.setDraft((p) => ({ ...p, base_market_yield_source: text }));
+  }
+  // Segment yield · edit the band of the SELECTED MARKET → prior auto-derives
+  // by the rule (midpoint − 0.25). Affects only the selected market.
+  function setSegmentBand(market: string, seg: SegmentId, patch: { band_low?: number; band_high?: number }) {
+    ov.setDraft((p) => {
+      const marketMap = p.segment_base_priors_by_market[market];
+      if (!marketMap) return p; // market not populated · nothing to edit
+      const cur = marketMap[seg];
+      const band_low = patch.band_low ?? cur.band_low;
+      const band_high = patch.band_high ?? cur.band_high;
+      return {
+        ...p,
+        segment_base_priors_by_market: {
+          ...p.segment_base_priors_by_market,
+          [market]: {
+            ...marketMap,
+            [seg]: { ...cur, band_low, band_high, base_pct: priorFromBand(band_low, band_high) },
+          },
+        },
+      };
+    });
   }
   function setMatrixCell(
     field: "category_adjustment" | "size_adjustment",
@@ -120,6 +196,15 @@ export function DynamicCapRateCard() {
         },
       },
     }));
+  }
+  function setOperator(option: OperatorOptionId, value: number) {
+    ov.setDraft((p) => ({ ...p, operator_adjustment: { ...p.operator_adjustment, [option]: round2(value) } }));
+  }
+  function setLiquidity(band: LiquidityBandId, value: number) {
+    ov.setDraft((p) => ({ ...p, liquidity_adjustment: { ...p.liquidity_adjustment, [band]: round2(value) } }));
+  }
+  function setScorePolicy(patch: Partial<ScoreAdjustmentPolicy>) {
+    ov.setDraft((p) => ({ ...p, score_adjustment: { ...p.score_adjustment, ...patch } }));
   }
   function setMacroBps(value: number) {
     ov.setDraft((p) => ({ ...p, macro_bps_per_100bps_euribor: round2(value) }));
@@ -165,12 +250,14 @@ export function DynamicCapRateCard() {
         previewSize={previewSize}
         previewReno={previewReno}
         previewScn={previewScn}
+        previewOperator={previewOperator}
+        previewLiquidity={previewLiquidity}
         market={ADMIN_PREVIEW_SAMPLE.market}
         euribor={ADMIN_PREVIEW_SAMPLE.euribor_12m_pct}
       />
 
       {/* ─── Preview controls ───────────────────────────────────────── */}
-      <div className="mb-5 mt-4 grid gap-3 rounded-md border border-slate-800/60 bg-slate-950/40 p-3 sm:grid-cols-4">
+      <div className="mb-5 mt-4 grid gap-3 rounded-md border border-slate-800/60 bg-slate-950/40 p-3 sm:grid-cols-3">
         <PreviewSelect
           label="Category"
           value={previewCategory}
@@ -194,12 +281,40 @@ export function DynamicCapRateCard() {
           options={RENOVATION_OPTIONS.map((r) => ({ id: r.id, label: r.label }))}
         />
         <PreviewSelect
+          label="Operator"
+          value={previewOperator}
+          onChange={(v) => setPreviewOperator(v as OperatorOptionId)}
+          options={OPERATOR_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
+        />
+        <PreviewSelect
+          label="Liquidity"
+          value={previewLiquidity}
+          onChange={(v) => setPreviewLiquidity(v as LiquidityBandId)}
+          options={LIQUIDITY_OPTIONS.map((o) => ({ id: o.id, label: o.label }))}
+        />
+        <PreviewSelect
+          label="Segment (base)"
+          value={previewSegment}
+          onChange={(v) => setPreviewSegment(v as SegmentId)}
+          options={SEGMENTS.map((s) => ({ id: s, label: SEGMENT_LABELS[s] }))}
+        />
+        <PreviewSelect
           label="Scenario"
           value={previewScn}
           onChange={(v) => setPreviewScn(v as ScenarioOptionId)}
           options={SCENARIO_OPTIONS.map((s) => ({ id: s.id, label: s.label }))}
         />
       </div>
+
+      {/* ─── Segment yield · base por segmento, por mercado (TRAMO 3b) ── */}
+      <SegmentYieldTable
+        marketPriors={marketPriors}
+        selectedMarket={selectedMarket}
+        previewSegment={previewSegment}
+        onMarketChange={setSelectedMarket}
+        onSegmentBandChange={(seg, patch) => setSegmentBand(selectedMarket, seg, patch)}
+        onPreviewSegmentChange={setPreviewSegment}
+      />
 
       {/* ─── Policy matrix ──────────────────────────────────────────── */}
       <PolicyMatrix
@@ -216,6 +331,13 @@ export function DynamicCapRateCard() {
         onScenarioCellChange={setScenarioCell}
         onPreviewRenoChange={setPreviewReno}
         onPreviewScnChange={setPreviewScn}
+        previewOperator={previewOperator}
+        previewLiquidity={previewLiquidity}
+        onOperatorChange={setOperator}
+        onLiquidityChange={setLiquidity}
+        onPreviewOperatorChange={setPreviewOperator}
+        onPreviewLiquidityChange={setPreviewLiquidity}
+        onScoreChange={setScorePolicy}
         onMacroBpsChange={setMacroBps}
         onMacroLtMeanChange={setMacroLtMean}
         euribor={ADMIN_PREVIEW_SAMPLE.euribor_12m_pct}
@@ -228,6 +350,8 @@ export function DynamicCapRateCard() {
         previewSize={previewSize}
         previewReno={previewReno}
         previewScn={previewScn}
+        previewOperator={previewOperator}
+        previewLiquidity={previewLiquidity}
         result={result}
         market={ADMIN_PREVIEW_SAMPLE.market}
         euribor={ADMIN_PREVIEW_SAMPLE.euribor_12m_pct}
@@ -244,6 +368,8 @@ function HeroBlock({
   previewSize,
   previewReno,
   previewScn,
+  previewOperator,
+  previewLiquidity,
   market,
   euribor,
 }: {
@@ -252,12 +378,16 @@ function HeroBlock({
   previewSize: SizeTierId;
   previewReno: RenovationOptionId;
   previewScn: ScenarioOptionId;
+  previewOperator: OperatorOptionId;
+  previewLiquidity: LiquidityBandId;
   market: string;
   euribor: number;
 }) {
   const sizeLabel = SIZE_TIERS.find((s) => s.id === previewSize)?.label ?? previewSize;
   const renoLabel = RENOVATION_OPTIONS.find((r) => r.id === previewReno)?.label ?? previewReno;
   const scnLabel = SCENARIO_OPTIONS.find((s) => s.id === previewScn)?.label ?? previewScn;
+  const operatorLabel = OPERATOR_OPTIONS.find((o) => o.id === previewOperator)?.label ?? previewOperator;
+  const liquidityLabel = LIQUIDITY_OPTIONS.find((o) => o.id === previewLiquidity)?.label ?? previewLiquidity;
 
   return (
     <div className="grid gap-4 rounded-xl border border-lime-300/30 bg-lime-300/5 p-4 lg:grid-cols-[1.1fr_1.4fr]">
@@ -269,17 +399,20 @@ function HeroBlock({
           {fmt(result.total)}%
         </p>
         <p className="mt-2 font-mono text-[11px] text-slate-300">
-          {previewCategory.replace("star", "*")} · {sizeLabel} keys · {renoLabel} · {scnLabel} · {market}
+          {previewCategory.replace("star", "*")} · {sizeLabel} keys · {renoLabel} · {operatorLabel} · {liquidityLabel} · {scnLabel} · {market}
         </p>
       </div>
       <div>
         <p className="font-headline text-[9.5px] font-bold uppercase tracking-[0.22em] text-slate-400">
           Formula
         </p>
-        <FormulaRow label="Base Market Yield" value={result.base} sign="+" />
+        <FormulaRow label="Base · prior de segmento" value={result.base} sign="+" />
         <FormulaRow label="Category Adjustment" value={result.category} sign={signed(result.category)} />
         <FormulaRow label="Size Adjustment" value={result.size} sign={signed(result.size)} />
         <FormulaRow label="Renovation Adjustment" value={result.renovation} sign={signed(result.renovation)} />
+        <FormulaRow label="Operator Adjustment" value={result.operator} sign={signed(result.operator)} />
+        <FormulaRow label="Liquidity Adjustment" value={result.liquidity} sign={signed(result.liquidity)} />
+        <FormulaRow label="HotelVALORA Score · ejemplo neutro (por hotel vs compset)" value={result.score} sign={signed(result.score)} />
         <FormulaRow label="Scenario Adjustment" value={result.scenario} sign={signed(result.scenario)} />
         <FormulaRow label={`Macro · Euribor ${euribor.toFixed(2)}%`} value={result.macro} sign={signed(result.macro)} />
         <div className="mt-1.5 flex items-baseline justify-between border-t border-lime-300/30 pt-1.5">
@@ -356,6 +489,13 @@ function PolicyMatrix({
   onScenarioCellChange,
   onPreviewRenoChange,
   onPreviewScnChange,
+  previewOperator,
+  previewLiquidity,
+  onOperatorChange,
+  onLiquidityChange,
+  onPreviewOperatorChange,
+  onPreviewLiquidityChange,
+  onScoreChange,
   onMacroBpsChange,
   onMacroLtMeanChange,
   euribor,
@@ -373,6 +513,13 @@ function PolicyMatrix({
   onScenarioCellChange: (option: ScenarioOptionId, cat: StarCategoryId, size: SizeTierId, v: number) => void;
   onPreviewRenoChange: (v: RenovationOptionId) => void;
   onPreviewScnChange: (v: ScenarioOptionId) => void;
+  previewOperator: OperatorOptionId;
+  previewLiquidity: LiquidityBandId;
+  onOperatorChange: (option: OperatorOptionId, v: number) => void;
+  onLiquidityChange: (band: LiquidityBandId, v: number) => void;
+  onPreviewOperatorChange: (v: OperatorOptionId) => void;
+  onPreviewLiquidityChange: (v: LiquidityBandId) => void;
+  onScoreChange: (patch: Partial<ScoreAdjustmentPolicy>) => void;
   onMacroBpsChange: (v: number) => void;
   onMacroLtMeanChange: (v: number) => void;
   euribor: number;
@@ -401,10 +548,10 @@ function PolicyMatrix({
           </tr>
         </thead>
         <tbody>
-          {/* Base Market Yield · single editable cell */}
+          {/* Base · fallback (the live base = segment prior · see Segment yield above) */}
           <tr className="border-t border-slate-800/60 bg-slate-900/30">
             <td className="sticky left-0 z-[1] bg-slate-950 px-3 py-2 align-top">
-              <div className="font-headline text-[11px] font-bold text-slate-100">Base Market Yield</div>
+              <div className="font-headline text-[11px] font-bold text-slate-100">Base · fallback</div>
               <input
                 type="text"
                 key={`base-source-${policy.base_market_yield_source}`}
@@ -415,7 +562,7 @@ function PolicyMatrix({
               />
             </td>
             <td className="px-2 py-2 text-right font-mono text-[10.5px] text-slate-500" colSpan={9}>
-              single value · applies to all cells
+              último recurso · solo si no hay prior de segmento · la base viva = prior de segmento (arriba)
             </td>
             <td className="px-2 py-2 text-right">
               <NumericCell value={policy.base_market_yield_pct} onChange={onBaseChange} tone="value" />
@@ -458,7 +605,39 @@ function PolicyMatrix({
             />
           ))}
 
-          {/* Scenario · group header + 3 radio sub-rows */}
+          {/* Operator · group header + flat radio sub-rows (single value per brand) */}
+          <GroupHeaderRow label="Operator adjustment" hint="Radio select · branded chain vs independent" />
+          {OPERATOR_OPTIONS.map((opt) => (
+            <FlatRadioRow
+              key={opt.id}
+              label={opt.label}
+              value={policy.operator_adjustment[opt.id]}
+              selected={previewOperator === opt.id}
+              onSelect={() => onPreviewOperatorChange(opt.id)}
+              onValueChange={(v) => onOperatorChange(opt.id, v)}
+              selectedValue={previewOperator === opt.id ? result.operator : null}
+            />
+          ))}
+
+          {/* Liquidity · group header + flat radio sub-rows (single value per band) */}
+          <GroupHeaderRow label="Liquidity adjustment" hint="Radio select · trailing-12m transaction depth" />
+          {LIQUIDITY_OPTIONS.map((opt) => (
+            <FlatRadioRow
+              key={opt.id}
+              label={opt.label}
+              value={policy.liquidity_adjustment[opt.id]}
+              selected={previewLiquidity === opt.id}
+              onSelect={() => onPreviewLiquidityChange(opt.id)}
+              onValueChange={(v) => onLiquidityChange(opt.id, v)}
+              selectedValue={previewLiquidity === opt.id ? result.liquidity : null}
+            />
+          ))}
+
+          {/* HotelVALORA Score · single row (not a grid · computed per hotel vs compset) */}
+          <GroupHeaderRow label="HotelVALORA Score adjustment" hint="vs compset · relativo · premio −0,30 / castigo +0,15 pp" />
+          <ScoreMatrixRow policy={policy.score_adjustment} onChange={onScoreChange} />
+
+          {/* Scenario · group header + radio sub-rows */}
           <GroupHeaderRow label="Scenario adjustment" hint="Radio select · operator scenario overlay" />
           {SCENARIO_OPTIONS.map((opt) => (
             <MatrixRadioRow
@@ -634,6 +813,52 @@ function MatrixRadioRow({
   );
 }
 
+function FlatRadioRow({
+  label,
+  value,
+  selected,
+  onSelect,
+  onValueChange,
+  selectedValue,
+}: {
+  label: string;
+  value: number;
+  selected: boolean;
+  onSelect: () => void;
+  onValueChange: (v: number) => void;
+  selectedValue: number | null;
+}) {
+  return (
+    <tr className="border-t border-slate-800/40">
+      <td className="sticky left-0 z-[1] bg-slate-950 px-3 py-1.5 pl-6">
+        <label className="flex cursor-pointer items-center gap-2">
+          <input type="radio" checked={selected} onChange={onSelect} className="h-3 w-3 accent-lime-300" />
+          <span className={`font-mono text-[11px] ${selected ? "font-bold text-lime-200" : "text-slate-300"}`}>
+            {label}
+          </span>
+        </label>
+      </td>
+      <td className="px-2 py-1.5 text-right" colSpan={9}>
+        <div className="flex justify-end">
+          <div className="w-20">
+            <NumericCell value={value} onChange={onValueChange} tone="adj-sub" />
+          </div>
+        </div>
+      </td>
+      <td className="px-2 py-1.5 text-right">
+        {selectedValue !== null ? (
+          <span className="font-mono text-[12px] font-extrabold tabular-nums text-lime-200">
+            {signed(selectedValue)}
+            {fmt(Math.abs(selectedValue))}%
+          </span>
+        ) : (
+          <span className="font-mono text-[10px] text-slate-600">—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 function GroupHeaderRow({ label, hint }: { label: string; hint: string }) {
   return (
     <tr className="border-t border-slate-700/60 bg-slate-900/40">
@@ -691,6 +916,175 @@ function NumericCell({
   );
 }
 
+// ─── Segment yield · base por segmento (TRAMO 3b) ────────────────────
+
+function SegmentYieldTable({
+  marketPriors,
+  selectedMarket,
+  previewSegment,
+  onMarketChange,
+  onSegmentBandChange,
+  onPreviewSegmentChange,
+}: {
+  marketPriors: SegmentBasePriors | null;
+  selectedMarket: string;
+  previewSegment: SegmentId;
+  onMarketChange: (market: string) => void;
+  onSegmentBandChange: (seg: SegmentId, patch: { band_low?: number; band_high?: number }) => void;
+  onPreviewSegmentChange: (seg: SegmentId) => void;
+}) {
+  const marketLabel = SUPPORTED_MARKETS.find((m) => m.code === selectedMarket)?.label ?? selectedMarket;
+  return (
+    <section className="mb-5 rounded-md border border-lime-300/20 bg-slate-950/40 p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-lime-300/80">
+            Base por segmento · Segment yield
+          </p>
+          <p className="mt-1 max-w-2xl font-mono text-[10.5px] leading-relaxed text-slate-400">
+            PRIOR institucional por segmento, <span className="text-slate-200">por mercado</span> (cada mercado, su tabla · no se aplica
+            el dato de un mercado a otro). Regla uniforme: <span className="text-slate-200">prior = punto medio de la banda − 0,25pp</span>.
+            €/llave + n = respaldo real (CoStar) · procedencia <code className="text-slate-300">expert_prior</code>.
+          </p>
+        </div>
+        <PreviewSelect
+          label="Mercado"
+          value={selectedMarket}
+          onChange={onMarketChange}
+          options={SUPPORTED_MARKETS.map((m) => ({ id: m.code, label: m.label }))}
+        />
+      </div>
+
+      {!marketPriors ? (
+        <div className="mt-3 rounded-md border border-amber-300/30 bg-amber-300/5 p-4 text-center">
+          <p className="font-headline text-[11px] font-bold uppercase tracking-[0.18em] text-amber-200/90">
+            {marketLabel} · mercado sin priors
+          </p>
+          <p className="mt-1 font-mono text-[10.5px] text-slate-400">
+            Pendiente de poblar. No se muestran los priors de otro mercado (España no se aplica aquí).
+            El motor tampoco fabrica base para este mercado hasta que se pueble + se abra el guard de país.
+          </p>
+        </div>
+      ) : (
+      <div className="mt-3 overflow-x-auto rounded-md border border-slate-800/60">
+        <table className="w-full border-collapse text-[11px]">
+          <thead>
+            <tr className="bg-slate-900/60 text-left text-slate-400">
+              {["Segmento", "Banda baja", "Banda alta", "Prior (regla)", "€/llave", "n tx", "Procedencia"].map((h) => (
+                <th key={h} className="px-3 py-2 font-headline text-[9px] font-bold uppercase tracking-[0.16em]">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {SEGMENTS.map((seg) => {
+              const p = marketPriors[seg];
+              const sel = seg === previewSegment;
+              return (
+                <tr
+                  key={seg}
+                  onClick={() => onPreviewSegmentChange(seg)}
+                  className={`cursor-pointer border-t border-slate-800/60 ${sel ? "bg-lime-300/10" : "hover:bg-slate-900/40"}`}
+                >
+                  <td className="px-3 py-1.5 font-headline text-[11px] font-bold text-slate-100">{SEGMENT_LABELS[seg]}</td>
+                  <td className="px-2 py-1 text-right"><div className="w-16"><ScoreKnob label="" value={p.band_low} onChange={(v) => onSegmentBandChange(seg, { band_low: v })} /></div></td>
+                  <td className="px-2 py-1 text-right"><div className="w-16"><ScoreKnob label="" value={p.band_high} onChange={(v) => onSegmentBandChange(seg, { band_high: v })} /></div></td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[12px] font-extrabold tabular-nums text-lime-200">{fmt(p.base_pct)}%</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[10.5px] text-slate-300">{p.eur_per_key ? `€${(p.eur_per_key / 1000).toFixed(0)}k` : "—"}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[10.5px] text-slate-400">{p.n_tx}</td>
+                  <td className="px-3 py-1.5 font-mono text-[9.5px] text-slate-500">{p.provenance}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      )}
+    </section>
+  );
+}
+
+// ─── HotelVALORA Score factor · single matrix row (compset-relative) ──
+
+function ScoreMatrixRow({
+  policy,
+  onChange,
+}: {
+  policy: ScoreAdjustmentPolicy;
+  onChange: (patch: Partial<ScoreAdjustmentPolicy>) => void;
+}) {
+  // Preview · synthesize a compset from mean + σ so the SELECTED cell shows a
+  // live adjustment (the engine computes the real one per hotel vs its compset).
+  const [subj, setSubj] = useState(8.6);
+  const [mean, setMean] = useState(8.0);
+  const [std, setStd] = useState(0.5);
+  const peers = [mean - std, mean - std, mean + std, mean + std]; // mean=mean · pop σ=std · n=4
+  const result = useMemo(
+    () => computeScoreCapAdjustment({ hotel_quality: subj, compset_qualities: peers }, policy),
+    [subj, mean, std, policy],
+  );
+
+  return (
+    <tr className="border-t border-slate-800/60 bg-slate-900/20">
+      <td className="sticky left-0 z-[1] bg-slate-950 px-3 py-2 align-top">
+        <div className="font-headline text-[11px] font-bold text-slate-100">HotelVALORA Score</div>
+        <div className="mt-0.5 font-mono text-[9px] italic text-slate-500">calidad sin Class · vs compset</div>
+      </td>
+      <td className="px-2 py-2" colSpan={9}>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+          <ScoreKnob label="Tope premio (−pp)" value={policy.max_premium_pp} onChange={(v) => onChange({ max_premium_pp: Math.abs(v) })} />
+          <ScoreKnob label="Tope castigo (+pp)" value={policy.max_penalty_pp} onChange={(v) => onChange({ max_penalty_pp: Math.abs(v) })} />
+          <ScoreKnob label="Paso premio" value={policy.premium_step_pp} onChange={(v) => onChange({ premium_step_pp: Math.abs(v) })} />
+          <ScoreKnob label="Paso castigo" value={policy.penalty_step_pp} onChange={(v) => onChange({ penalty_step_pp: Math.abs(v) })} />
+          {policy.sigma_cuts.map((c, i) => (
+            <ScoreKnob
+              key={i}
+              label={`σ-corte ${i + 1}`}
+              value={c}
+              onChange={(v) => {
+                const next = [...policy.sigma_cuts];
+                next[i] = v;
+                onChange({ sigma_cuts: next });
+              }}
+            />
+          ))}
+          <ScoreKnob label="Mín. compset N" value={policy.min_compset_n} onChange={(v) => onChange({ min_compset_n: Math.round(v) })} step={1} />
+          <span className="font-mono text-[9px] text-slate-600">vs compset · escalones −0,30 / +0,15pp</span>
+          <span className="mx-1 h-6 w-px bg-slate-700/60" />
+          <ScoreKnob label="prev · score" value={subj} onChange={setSubj} />
+          <ScoreKnob label="prev · media" value={mean} onChange={setMean} />
+          <ScoreKnob label="prev · σ" value={std} onChange={setStd} />
+          <span className="font-mono text-[9px] text-slate-600">{result.label}</span>
+        </div>
+      </td>
+      <td className="px-2 py-2 text-right align-middle">
+        <span className={`font-mono text-[12px] font-extrabold tabular-nums ${result.adjustment_pp < 0 ? "text-emerald-200" : result.adjustment_pp > 0 ? "text-amber-200" : "text-slate-500"}`}>
+          {result.adjustment_pp > 0 ? "+" : ""}{fmt(result.adjustment_pp)}%
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+function ScoreKnob({ label, value, onChange, step }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className="font-headline text-[8px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</span>
+      <input
+        type="number"
+        step={step ?? 0.05}
+        defaultValue={value}
+        key={`${label}-${value}`}
+        onBlur={(e) => {
+          const n = Number.parseFloat(e.target.value.replace(",", "."));
+          if (Number.isFinite(n)) onChange(n);
+          else e.target.value = String(value);
+        }}
+        className="w-20 rounded-sm border border-slate-700/60 bg-slate-900/40 px-1.5 py-1 text-right font-mono text-[10.5px] tabular-nums text-slate-100 focus:border-lime-300/60 focus:outline-none"
+      />
+    </label>
+  );
+}
+
 // ─── Rationale narrative panel ───────────────────────────────────────
 
 function RationalePanel({
@@ -699,6 +1093,8 @@ function RationalePanel({
   previewSize,
   previewReno,
   previewScn,
+  previewOperator,
+  previewLiquidity,
   result,
   market,
   euribor,
@@ -708,6 +1104,8 @@ function RationalePanel({
   previewSize: SizeTierId;
   previewReno: RenovationOptionId;
   previewScn: ScenarioOptionId;
+  previewOperator: OperatorOptionId;
+  previewLiquidity: LiquidityBandId;
   result: ReturnType<typeof computeForCell>;
   market: string;
   euribor: number;
@@ -715,12 +1113,17 @@ function RationalePanel({
   const sizeLabel = SIZE_TIERS.find((s) => s.id === previewSize)?.label ?? previewSize;
   const renoLabel = RENOVATION_OPTIONS.find((r) => r.id === previewReno)?.label ?? previewReno;
   const scnLabel = SCENARIO_OPTIONS.find((s) => s.id === previewScn)?.label ?? previewScn;
+  const operatorLabel = OPERATOR_OPTIONS.find((o) => o.id === previewOperator)?.label ?? previewOperator;
+  const liquidityLabel = LIQUIDITY_OPTIONS.find((o) => o.id === previewLiquidity)?.label ?? previewLiquidity;
 
   const lines: Array<{ label: string; value: string; tag?: string }> = [
-    { label: "Base Market Yield", value: `${fmt(policy.base_market_yield_pct)}%`, tag: market },
+    { label: "Base Market Yield", value: `${fmt(policy.base_market_yield_pct)}%`, tag: `${market} · comps (fallback)` },
     { label: "Category", value: `${previewCategory.replace("star", "*")} · ${categoryTier(previewCategory)}` },
     { label: "Size", value: `${sizeLabel} keys` },
     { label: "Renovation", value: renoLabel },
+    { label: "Operator", value: operatorLabel },
+    { label: "Liquidity", value: liquidityLabel },
+    { label: "HotelVALORA Score", value: "ejemplo neutro · por hotel vs compset" },
     { label: "Scenario", value: scnLabel },
     { label: "Macro", value: `Euribor 12M ${euribor.toFixed(2)}% (LT mean ${policy.macro_long_term_mean_pct.toFixed(2)}%)` },
   ];
@@ -755,6 +1158,8 @@ function RationalePanel({
           ({signed(result.category)}{fmt(Math.abs(result.category))}%),{" "}
           tamaño ({signed(result.size)}{fmt(Math.abs(result.size))}%),{" "}
           estado de renovación ({signed(result.renovation)}{fmt(Math.abs(result.renovation))}%),{" "}
+          operador ({signed(result.operator)}{fmt(Math.abs(result.operator))}%),{" "}
+          liquidez ({signed(result.liquidity)}{fmt(Math.abs(result.liquidity))}%),{" "}
           escenario {scnLabel.toLowerCase()} ({signed(result.scenario)}{fmt(Math.abs(result.scenario))}%) y{" "}
           régimen macro ({signed(result.macro)}{fmt(Math.abs(result.macro))}%), el cap rate dinámico
           recomendado para el activo seleccionado es{" "}

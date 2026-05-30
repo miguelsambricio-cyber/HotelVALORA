@@ -8,40 +8,94 @@ import type {
   UnderwritingBundle,
   ScenarioMeta,
 } from "@/lib/underwriting/types";
+import { buildFinancialsSlice } from "./financials";
+import { computePL } from "@/lib/report/financials/calculations";
+import { deriveHasCapex, deriveEntryState } from "@/lib/report/financials/ffe-reserve";
+import {
+  resolveValuationMode,
+  computeValuationFromNoi,
+} from "@/lib/report/financials/valuation";
+import { buildEnginePlDrivers } from "@/lib/report/financials/pl-drivers-bridge";
+import {
+  FINANCIAL_STRUCTURE_ENGINE,
+  buildFinancingTranches,
+} from "@/lib/admin/financials/financial-structure-config";
+import {
+  acquisitionPolicyForCountry,
+  acquisitionPolicyToEngineCosts,
+  sizeTierForRooms,
+} from "@/lib/admin/financials/acquisition-cost-policy";
+import { repositionCapexForAsset } from "@/lib/admin/financials/capex-reform";
+import type { Tier } from "@/lib/report/financials/types";
 import type { UnderwritingSlice, SectionProvenance } from "../types";
 
+export interface UnderwritingBuildOptions {
+  /** Viewer tier · drives the exit-year mode (FREE = TTM · PRO/PREMIUM = exit year). */
+  tier?: Tier;
+  /** Requested exit year (PRO/PREMIUM · default 7 · range 1..10). */
+  exitYear?: number | null;
+}
+
+const perKeyByChainScale: Record<string, number> = {
+  luxury: 800_000,
+  upper_upscale: 500_000,
+  upscale: 340_000,
+  upper_midscale: 250_000,
+  midscale: 200_000,
+  economy: 155_000,
+};
+
+/** Stabilised acquisition · no reposition CAPEX (X4b · Decision B). */
+const ZERO_CAPEX: UnderwritingInputs["capex"] = {
+  hard_cost: { structure_pct: 0, asset_content_pct: 0, mep_per_room: 0, exterior_pct: 0 },
+  soft_cost: {
+    licensing_pct: 0,
+    technical_consultant_pct: 0,
+    development_fee_pct: 0,
+    preopening_total: 0,
+    ffe_per_room: 0,
+    ose_per_room: 0,
+    insurance_pct: 0,
+  },
+  contingency_pct: 0,
+};
+
+interface BuiltInputs {
+  inputs: UnderwritingInputs;
+  rooms: number;
+  total_sqm: number;
+  entryValue: number;
+  entryCapPct: number;
+  costarResolved: boolean;
+  provenance: SectionProvenance;
+}
+
 /**
- * Derive `UnderwritingInputs` for a canonical hotel.
+ * X4b · derive engine `UnderwritingInputs` for a canonical hotel from the
+ * hotel's REAL CoStar P&L (closes F6/F7/F3-in-underwriting):
  *
- *  Strategy (per operator directive 2026-05-25 rule 1):
- *    - Asset block ← canonical (rooms · chain_scale → category · year → state)
- *    - Acquisition block ← engine cap-rate output + admin acquisition policy
- *      (Spanish notary/registry/AJD/ITP percentages are master values in
- *      `lib/admin/financials/acquisition-cost-policy.ts`)
- *    - CAPEX block ← admin CAPEX matrix (SCENARIO_BASE.inputs.capex retained
- *      as a fallback shape · per-room values come from admin CAPEX matrix
- *      via the capex slice when Phase B wires the bridge)
- *    - P&L drivers block ← rooms × ADR × occupancy × GOP-margin per period
- *      (Year 1 from canonical/marketKpi · subsequent years from operator-defined
- *      scenario growth · MVP keeps the SCENARIO_BASE growth curve)
- *    - Financing block ← admin financial structure defaults (LTV/LTC/rate)
- *    - Exit block ← engine exit cap rate (already canonical-aware)
- *    - Tax block ← Spanish defaults (CIT 25% · EBITDA limit 30% · floor 1M€)
- *
- *  MVP scope (Phase A · this file): wire the asset + acquisition blocks
- *  to canonical · keep the remaining blocks structurally identical to
- *  SCENARIO_BASE but parameterised so Phase B can refine drivers per
- *  hotel without breaking the engine contract.
+ *   - P&L drivers ← `computePL` (CoStar USALI cascade + facility-aware +
+ *     FF&E CAPEX ramp), mapped to the engine 11-year shape via the bridge.
+ *     Engine `ebitda_after_replacement` then equals the hotel's real NOI.
+ *   - Entry value ← NOI(Year 1) / entry cap, via the SAME `computeValuationFromNoi`
+ *     the Executive Summary uses (mode current_ttm) → identical value, by
+ *     construction, on both surfaces.
+ *   - Entry + exit cap ← runForHotel (D4): both fed as engine overrides so the
+ *     exit IRR uses the dynamic exit cap (the engine's own cap module runs the
+ *     same asset for both sides and would otherwise collapse exit = entry).
+ *   - CAPEX ← 0 (stabilised acquisition) → total_building_cost = entry value +
+ *     acquisition friction (Decision B). Reposition CAPEX is a future path.
+ *   - Financing / tax / depreciation ← SCENARIO_BASE (admin financial structure).
  */
-export function buildUnderwritingSlice(
+async function buildUnderwritingInputs(
   hotel: CanonicalHotelRow,
   marketKpi: MarketKpiBundle | null,
   engineRun: UnderwritingRunResult | null,
-): UnderwritingSlice {
+  opts: UnderwritingBuildOptions,
+): Promise<BuiltInputs> {
   const baseInputs = SCENARIO_BASE.inputs as UnderwritingInputs;
-  const baseComputed = SCENARIO_BASE.computed;
 
-  // ─── Asset block · canonical-driven ──
+  // ─── Asset block ──
   const rooms = hotel.total_keys ?? hotel.total_rooms ?? engineRun?.assetBasics.rooms ?? 150;
   const totalSqmFromEngine = engineRun?.assetBasics.total_sqm;
   const sqmPerKey = totalSqmFromEngine && engineRun?.assetBasics.rooms
@@ -57,35 +111,53 @@ export function buildUnderwritingSlice(
       ? "4star"
       : "3star";
 
-  const currentYear = new Date().getFullYear();
-  const state: "new" | "renovated" | "needs_work" =
-    hotel.year_renovated_last && currentYear - hotel.year_renovated_last <= 7
-      ? "renovated"
-      : hotel.year_opened && currentYear - hotel.year_opened <= 5
-      ? "new"
-      : "renovated";
+  // Entry condition · age-aware, reward-only (same rule as the cap-rate runner).
+  const state = deriveEntryState(hotel);
 
-  // ─── Acquisition block · engine-driven ──
-  // Use engine valuation when available · else fall back to SCENARIO_BASE
-  // pricing. Cap-rate engine output drives both asking_price + hotel_value
-  // + cap_rate.
-  // F3 SCOPE NOTE: the headline NOI/cap valuation lands in the Executive
-  // Summary mapper. The underwriting ENGINE value below stays €/key-derived
-  // on purpose: its P&L is still driven by static `pl_drivers` (F6), so
-  // feeding a NOI/cap value here would produce an IRR inconsistent with the
-  // engine's own cash flows. Wiring NOI/cap into the engine belongs with F6.
-  const perKeyByChainScale: Record<string, number> = {
-    luxury: 800_000,
-    upper_upscale: 500_000,
-    upscale: 340_000,
-    upper_midscale: 250_000,
-    midscale: 200_000,
-    economy: 155_000,
-  };
+  // ─── P&L · real CoStar P&L for this hotel ──
+  const fin = await buildFinancialsSlice(hotel, marketKpi);
+  const hasCapex = deriveHasCapex(hotel);
+  const pl = computePL(fin.assumptions, { hasCapex });
+  const costarResolved = !!fin.costar_resolved;
+  const plDrivers = buildEnginePlDrivers(pl, fin.assumptions, baseInputs.periods.length);
+
+  // ─── Caps (D4) · entry + dynamic exit from runForHotel ──
+  const entryCapPct = engineRun?.capRate.used_pct
+    ?? baseInputs.acquisition.cap_rate.manual_override_pct
+    ?? 6.25;
+  const exitCapPct = engineRun?.capRateExit.used_pct ?? entryCapPct;
+
+  // ─── Entry value · NOI(Y1)/entry cap · SAME helper as Executive Summary ──
+  // (mode current_ttm = current market value). Falls back to €/key only when
+  // X5 isn't satisfied (no CoStar ratios or no cap rate).
+  const noiValue = computeValuationFromNoi({
+    pl,
+    assumptions: fin.assumptions,
+    capRatePct: entryCapPct,
+    costarRatiosResolved: costarResolved,
+    mode: { kind: "current_ttm" },
+  });
   const perKey = perKeyByChainScale[hotel.chain_scale ?? ""] ?? 285_000;
-  const hotelValue = Math.round(rooms * perKey);
-  const askingPrice = Math.round(hotelValue * (baseInputs.acquisition.asking_price / baseInputs.acquisition.hotel_value));
-  const capRatePct = engineRun?.capRate.used_pct ?? baseInputs.acquisition.cap_rate.manual_override_pct ?? 6.25;
+  const entryValue = noiValue ?? Math.round(rooms * perKey);
+
+  // ─── Acquisition friction (TRAMO 2) · from the country's admin matrix ──
+  // CF[0] = entry value + friction (Decision B). Country-agnostic: resolve the
+  // policy by country code (only ES today). Falls back to SCENARIO_BASE costs
+  // when no policy for the country (the engine is ES-gated anyway).
+  const acqPolicy = acquisitionPolicyForCountry(hotel.country_code);
+  const acquisitionCosts = acqPolicy
+    ? acquisitionPolicyToEngineCosts(acqPolicy, category, sizeTierForRooms(rooms), {
+        asking_price_eur: entryValue,
+        rooms,
+        total_sqm,
+      })
+    : baseInputs.acquisition.costs;
+
+  // ─── Exit year · hold period from Financial Structure (admin) governs the
+  //     default; a tier exitYear override supersedes (Free=TTM≈1). ──
+  const requestedExit = opts.exitYear ?? FINANCIAL_STRUCTURE_ENGINE.hold_years;
+  const mode = resolveValuationMode(opts.tier ?? "premium", requestedExit);
+  const exitYear = mode.kind === "current_ttm" ? 1 : mode.year;
 
   const inputs: UnderwritingInputs = {
     ...baseInputs,
@@ -102,73 +174,110 @@ export function buildUnderwritingSlice(
     },
     acquisition: {
       ...baseInputs.acquisition,
-      asking_price: askingPrice,
-      hotel_value: hotelValue,
-      cap_rate: {
-        ...baseInputs.acquisition.cap_rate,
-        manual_override_pct: Number(capRatePct.toFixed(2)),
-      },
+      asking_price: entryValue,
+      hotel_value: entryValue,
+      // Friction from the country's admin acquisition-cost matrix (TRAMO 2).
+      costs: acquisitionCosts,
+      // Entry cap from runForHotel (D4) · pin as override so the engine's
+      // value/IRR use the same cap the Executive Summary used.
+      cap_rate: { manual_override_pct: Number(entryCapPct.toFixed(2)), use_dynamic: false },
     },
-    // capex/pl_drivers/financing/exit/tax · kept as SCENARIO_BASE for Phase A
-    // foundation. Phase B will derive these from canonical + admin master.
-  };
-
-  // Engine-derived summary (read-only convenience for non-engine consumers)
-  const summary = {
-    rooms,
-    total_sqm,
-    asking_price_eur: askingPrice,
-    cap_rate_pct: Number(capRatePct.toFixed(2)),
-    // IRR/MOIC come from the underwriting engine output · using the
-    // current SCENARIO_BASE.computed values until Phase B re-runs the
-    // engine with the new inputs.
-    project_irr_pct: baseComputed.exit?.project_irr_pct ?? null,
-    equity_irr_pct: baseComputed.exit?.equity_irr_pct ?? null,
-    moic: baseComputed.exit?.moic ?? null,
+    // CAPEX (TRAMO 4): new-build model stays zero; reposition CAPEX from the
+    // admin renovation matrix is added ONLY when state="needs_work" (reposition).
+    // Stabilised (new/renovated) → 0 → exact no-regression.
+    capex: {
+      ...ZERO_CAPEX,
+      // Reposition CAPEX is keyed off the DEAL flag (dormant → 0), NOT the
+      // condition state (decoupled · Mike 2026-05-30). Activated by the future
+      // deal-type selector (backlog #2).
+      reposition_capex_total_eur: repositionCapexForAsset({
+        isReposition: false,
+        category,
+        rooms,
+        total_sqm,
+        asking_price_eur: entryValue,
+      }),
+    },
+    // Real CoStar P&L (F6).
+    pl_drivers: plDrivers,
+    exit: {
+      ...baseInputs.exit,
+      year: exitYear,
+      // Dynamic exit cap from runForHotel (D4) · pinned so the exit IRR uses
+      // the state-projected exit yield instead of collapsing to entry.
+      cap_rate: { manual_override_pct: Number(exitCapPct.toFixed(2)), use_dynamic: false },
+    },
+    // Financing read from the Financial Structure admin config (TRAMO 1):
+    // LTV 65% · Euribor + 250 bps · interest-only bullet 5y · LTC 60%.
+    // Replaces the hardcoded SCENARIO_BASE tranches (125 bps / 10y bullet).
+    financing: {
+      tranches: buildFinancingTranches(FINANCIAL_STRUCTURE_ENGINE),
+      euribor_12m_pct: baseInputs.financing.euribor_12m_pct,
+    },
+    // tax / depreciation kept from SCENARIO_BASE.
   };
 
   const fallbackUsed: string[] = [];
   if (!hotel.total_keys && !hotel.total_rooms) fallbackUsed.push("rooms_heuristic");
-  if (!engineRun) fallbackUsed.push("engine_did_not_run · using base cap rate");
+  if (!engineRun) fallbackUsed.push("engine_did_not_run · base cap rate");
+  if (!costarResolved) fallbackUsed.push("no_costar_usali · €/key entry value");
   if (!marketKpi) fallbackUsed.push("no_market_kpi_resolved");
 
   const provenance: SectionProvenance = {
-    source: `canonical · chain_scale=${hotel.chain_scale ?? "unknown"} · category=${category} · state=${state}`,
+    source: `canonical · chain_scale=${hotel.chain_scale ?? "unknown"} · category=${category} · state=${state} · entry=${costarResolved ? "NOI/cap" : "€/key"}`,
     fallback_used: fallbackUsed,
     generated_at: new Date().toISOString(),
   };
 
-  return { inputs, summary, provenance };
+  return { inputs, rooms, total_sqm, entryValue, entryCapPct, costarResolved, provenance };
+}
+
+/**
+ * Build the read-only underwriting slice · runs the engine so the summary
+ * IRR/MOIC are the hotel's REAL figures (F7 · not the static SCENARIO_BASE).
+ */
+export async function buildUnderwritingSlice(
+  hotel: CanonicalHotelRow,
+  marketKpi: MarketKpiBundle | null,
+  engineRun: UnderwritingRunResult | null,
+  opts: UnderwritingBuildOptions = {},
+): Promise<UnderwritingSlice> {
+  const built = await buildUnderwritingInputs(hotel, marketKpi, engineRun, opts);
+  const computed = runEngine(built.inputs);
+  const summary = {
+    rooms: built.rooms,
+    total_sqm: built.total_sqm,
+    asking_price_eur: built.entryValue,
+    cap_rate_pct: Number(built.entryCapPct.toFixed(2)),
+    project_irr_pct: computed.exit?.project_irr_pct ?? null,
+    equity_irr_pct: computed.exit?.equity_irr_pct ?? null,
+    moic: computed.exit?.moic ?? null,
+  };
+  return { inputs: built.inputs, summary, provenance: built.provenance };
 }
 
 /**
  * Build a complete UnderwritingBundle (inputs + computed + meta + version)
  * from a canonical hotel · ready for `<UnderwritingShell bundle={…} />`.
- *
- * This is the bridge between the canonical layer and the existing
- * underwriting engine. It calls `runEngine(inputs)` to compute the full
- * schedule (P&L · BS · CF · DTA · investment · exit · IRR · MOIC) using
- * the canonical-derived inputs.
- *
- * Used by `/report/financials/underwriting/page.tsx` server component.
+ * Used by `/report/[reportId]/financials/underwriting/page.tsx`.
  */
-export function buildUnderwritingBundleFromCanonical(
+export async function buildUnderwritingBundleFromCanonical(
   hotel: CanonicalHotelRow,
   marketKpi: MarketKpiBundle | null,
   engineRun: UnderwritingRunResult | null,
-): UnderwritingBundle {
-  const slice = buildUnderwritingSlice(hotel, marketKpi, engineRun);
-  const inputs = slice.inputs as UnderwritingInputs;
+  opts: UnderwritingBuildOptions = {},
+): Promise<UnderwritingBundle> {
+  const built = await buildUnderwritingInputs(hotel, marketKpi, engineRun, opts);
   const meta: ScenarioMeta = {
     ...((SCENARIO_BASE.meta as ScenarioMeta) ?? {}),
     label: `Underwriting · ${hotel.canonical_name ?? "Hotel"}`,
     description: `Canonical-driven scenario for ${hotel.canonical_name ?? "this hotel"} · ${hotel.market_name ?? "—"} / ${hotel.submarket_name ?? "—"}`,
   };
-  const computed = runEngine(inputs);
+  const computed = runEngine(built.inputs);
   return {
     ...currentVersionTag(),
     meta,
-    inputs,
+    inputs: built.inputs,
     computed,
   };
 }

@@ -7,7 +7,9 @@ import {
   type DynamicCapRateResult,
 } from "@/lib/underwriting/cap-rate-engine";
 import type { AssetBasics, StarCategory, AssetState } from "@/lib/underwriting/types";
-import { deriveHasCapex } from "@/lib/report/financials/ffe-reserve";
+import { deriveEntryState, deriveExitState } from "@/lib/report/financials/ffe-reserve";
+import { FINANCIAL_STRUCTURE_ENGINE } from "@/lib/admin/financials/financial-structure-config";
+import type { ScoreContext } from "@/lib/admin/financials/score-cap-adjustment";
 
 /**
  * Cap-rate engine `runForHotel(canonical_id)` adapter.
@@ -80,16 +82,6 @@ function sqmPerKey(scale: string | null): number {
   }
 }
 
-function deriveAssetState(hotel: CanonicalHotelRow): AssetState {
-  const currentYear = new Date().getFullYear();
-  const renovated = hotel.year_renovated_last;
-  const opened = hotel.year_opened;
-  if (renovated && currentYear - renovated <= 7) return "renovated";
-  if (opened && currentYear - opened <= 5) return "new";
-  if (renovated || opened) return "renovated";
-  return "renovated";
-}
-
 function buildAssetBasics(hotel: CanonicalHotelRow): AssetBasics | null {
   const category = toStarCategory(hotel.star_rating, hotel.chain_scale);
   const market = hotel.market_name ?? hotel.city_normalized;
@@ -112,7 +104,11 @@ function buildAssetBasics(hotel: CanonicalHotelRow): AssetBasics | null {
     market,
     submarket,
     category,
-    state: deriveAssetState(hotel),
+    state: deriveEntryState(hotel),
+    // Country selects the per-market segment priors (3b · engine is ES-gated today).
+    country: hotel.country_code ?? undefined,
+    // Segment (chain_scale · 6 levels) drives the cap-rate base prior (3b).
+    segment: hotel.chain_scale ?? undefined,
   };
 }
 
@@ -152,7 +148,10 @@ const ENGINE_SUPPORTED_COUNTRIES: ReadonlySet<string> = new Set(["ES"]);
  *   - The canonical row lacks enough signal (no category or no market), OR
  *   - The hotel is outside the engine's country coverage (non-ES today).
  */
-export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | null {
+export function runForHotel(
+  hotel: CanonicalHotelRow,
+  scoreContext?: ScoreContext,
+): UnderwritingRunResult | null {
   const countryCode = (hotel.country_code ?? "").toUpperCase();
   if (!ENGINE_SUPPORTED_COUNTRIES.has(countryCode)) return null;
 
@@ -172,12 +171,15 @@ export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | n
     rates_regime: DEFAULT_RATES_REGIME,
     comparables: SEEDED_HOTEL_COMPS,
     side: "entry",
+    score_context: scoreContext,
   });
 
-  // D4 · exit cap from the asset's projected state at exit (shares the
-  // CAPEX signal with the FF&E ramp · deriveHasCapex). No fixed spread.
-  const hasCapex = deriveHasCapex(hotel);
-  const assetAtExit: AssetBasics = { ...asset, state: hasCapex ? "renovated" : "needs_work" };
+  // D4 · exit cap from the asset's projected condition AT THE EXIT YEAR (not
+  // today): freshness measured at (today + hold) − reno/open year. Reward-only
+  // (needs_work = neutral). Reposition/value-add is a DEAL flag (dormant here),
+  // decoupled from the condition. No fixed spread.
+  const exitState = deriveExitState(hotel, FINANCIAL_STRUCTURE_ENGINE.hold_years, { isReposition: false });
+  const assetAtExit: AssetBasics = { ...asset, state: exitState };
   const resultExit = runDynamicCapRate({
     asset: assetAtExit,
     scenario_id: "base",
@@ -185,6 +187,7 @@ export function runForHotel(hotel: CanonicalHotelRow): UnderwritingRunResult | n
     rates_regime: DEFAULT_RATES_REGIME,
     comparables: SEEDED_HOTEL_COMPS,
     side: "exit",
+    score_context: scoreContext,
   });
 
   return {
