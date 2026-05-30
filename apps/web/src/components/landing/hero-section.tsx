@@ -17,14 +17,16 @@ export function HeroSection() {
       {/* Headline — static, server-rendered */}
       <div className="w-full max-w-5xl text-center mb-5 relative z-10">
         <h1 className="font-display font-extrabold text-3xl md:text-5xl text-forest-900 tracking-tight mb-3 leading-tight">
-          VALORA HOTELES{" "}
-          <br className="hidden md:block" />
+          VALORA HOTELES
+          {/* Always break so the title is two clean lines on mobile AND desktop:
+              "VALORA HOTELES" / "EN SEGUNDOS" (never the auto-wrap "… EN" / "SEGUNDOS"). */}
+          <br />
           <span className="bg-gradient-to-br from-forest-900 to-forest-700 bg-clip-text text-transparent">
             EN SEGUNDOS
           </span>
         </h1>
         <p className="text-slate-500 text-sm md:text-base max-w-xl mx-auto font-light leading-relaxed">
-          Análisis institucional y escenarios de inversión en activos hoteleros
+          Análisis institucional y escenarios de inversión hotelera
         </p>
       </div>
 
