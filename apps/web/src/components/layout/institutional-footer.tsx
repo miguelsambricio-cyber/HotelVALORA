@@ -4,15 +4,16 @@
  * the auth surfaces. Print-hidden by design.
  *
  * Slim variant (`variant="slim"`) is for fullscreen "kiosk" pages such
- * as the favorites map and the landing, where the footer must stay
- * below the fold of a 100vh layout without dominating it.
+ * as the favorites map and the landing.
  *
- * Responsive (2026-05-30): MOBILE renders ONE centered line —
- *   "Términos · Privacidad · Contacto · © 2026 HotelVALORA" — links
- *   clickable, copyright is plain text, short copyright (no
- *   "Institutional"/tagline) so it never wraps at 360/390px. DESKTOP
- *   (md+) keeps the two-group layout: full copyright left, nav (all 4
- *   links) right.
+ * Order is unified across breakpoints (2026-05-30): COPYRIGHT FIRST, then
+ * the legal links (Términos · Privacidad · Contacto) — same story, same
+ * order on mobile and desktop. "Institucional" was removed from the footer
+ * (its home, if needed, is the top nav · not the legal/utility row).
+ *   · MOBILE: one centered line — "© 2026 HotelVALORA · Términos ·
+ *     Privacidad · Contacto" (copyright plain text, links clickable, short
+ *     copyright so it fits 360/390px).
+ *   · DESKTOP (md+): full copyright left, links right (copyright → links).
  */
 import { Fragment } from "react";
 import Link from "next/link";
@@ -24,14 +25,10 @@ export interface InstitutionalFooterProps {
 }
 
 const FOOTER_LINKS = [
-  { href: "/terms",         label: "Términos",      mobile: true  },
-  { href: "/privacy",       label: "Privacidad",    mobile: true  },
-  { href: "/contact",       label: "Contacto",      mobile: true  },
-  // Institutional is secondary · desktop-only (keeps the mobile line short).
-  { href: "/institutional", label: "Institucional", mobile: false },
+  { href: "/terms",   label: "Términos"   },
+  { href: "/privacy", label: "Privacidad" },
+  { href: "/contact", label: "Contacto"   },
 ] as const;
-
-const MOBILE_LINKS = FOOTER_LINKS.filter((l) => l.mobile);
 
 export function InstitutionalFooter({
   variant = "default",
@@ -46,23 +43,23 @@ export function InstitutionalFooter({
         className,
       )}
     >
-      {/* Mobile · ONE centered line · links (clickable) + short copyright (text). */}
+      {/* Mobile · ONE centered line · copyright FIRST, then the 3 links. */}
       <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap text-[10px] font-medium uppercase tracking-normal text-slate-400 md:hidden">
-        {MOBILE_LINKS.map((l) => (
+        <span>© 2026 HotelVALORA</span>
+        {FOOTER_LINKS.map((l) => (
           <Fragment key={l.href}>
+            <span aria-hidden className="text-slate-600">·</span>
             <Link
               href={l.href}
               className="py-2 text-slate-500 transition-colors hover:text-emerald-300"
             >
               {l.label}
             </Link>
-            <span aria-hidden className="text-slate-600">·</span>
           </Fragment>
         ))}
-        <span>© 2026 HotelVALORA</span>
       </div>
 
-      {/* Desktop (md+) · copyright left (full) · nav right · one row. */}
+      {/* Desktop (md+) · copyright FIRST (left, full) · links (right) · same order. */}
       <div className="mx-auto hidden max-w-7xl flex-row items-center justify-between gap-3 md:flex">
         <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
           © 2026 HotelVALORA Institutional · Underwriting-grade intelligence.
