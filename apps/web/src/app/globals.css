@@ -216,15 +216,17 @@
  * slim (48px). On viewports < 800px the height calc is dropped and
  * flex-grow takes over so content can scroll naturally on tablets
  * and short laptops where the single-screen guarantee is relaxed. */
-@media (min-width: 768px) and (min-height: 600px) {
+@media (min-width: 768px) and (min-height: 520px) {
   .landing-main {
     display: flex;
     flex-direction: column;
     /* Reserve header + footer. The 132px allowance covers the slim footer even
      * when its desktop copyright wraps to 2 lines at the 768–1023 width band
      * (~66px); ≥1024 the footer is ~31px and the page's min-h-[100svh] keeps it
-     * flush to the bottom. Gate lowered 800→600 so laptops (<800 tall) get this
-     * single-screen flex layout instead of overflowing block-flow. */
+     * flush to the bottom. Gate lowered 800→520 so even a 4K-scaled laptop at
+     * 300% (1280×720 CSS · ~630 usable, dipping toward ~560 with a bookmarks
+     * bar) stays in this single-screen flex layout instead of falling into
+     * overflowing block-flow at the old 600/800 cliff. */
     height: calc(100svh - 84px - 48px);
   }
   .landing-hero {
@@ -233,11 +235,26 @@
     flex: 1 1 auto;
     min-height: 0;
   }
+  /* Height-aware title cap on desktop: the width clamp still governs (≈40px at
+   * 1280, 48px ≥1920), but `min(…, 5.6vh)` shaves the title on SHORT viewports
+   * so the 2-line headline never tucks under the header at ~560px tall. No
+   * effect at ≥720px tall (5.6vh ≥ the clamp there). Mobile keeps the Tailwind
+   * clamp untouched (this rule is desktop-gated). */
+  .landing-hero h1 {
+    font-size: min(clamp(1.875rem, 1.2rem + 1.6vw, 3rem), 5.6vh);
+  }
   .landing-pricing {
     flex: 0 0 auto;
-    /* fluid band padding · tight on laptops, roomy on big monitors */
-    padding-top: clamp(0.75rem, 1.6vh, 1.5rem);
-    padding-bottom: clamp(0.75rem, 1.6vh, 1.5rem);
+    /* fluid band padding · tight on short laptops, roomy on big monitors */
+    padding-top: clamp(0.35rem, 1.4vh, 1.5rem);
+    padding-bottom: clamp(0.35rem, 1.4vh, 1.5rem);
+  }
+  /* Vertical-only card compression on short viewports (the 720-tall bottleneck
+   * is HEIGHT, not width — cards are already compact horizontally). Scoped to
+   * the landing band so the shared PricingCard on /compset is untouched. */
+  .landing-pricing article {
+    padding-top: clamp(0.5rem, 1.5vh, 1rem);
+    padding-bottom: clamp(0.5rem, 1.5vh, 1rem);
   }
 }
 
