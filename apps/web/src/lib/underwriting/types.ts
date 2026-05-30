@@ -64,6 +64,8 @@ export interface AssetBasics {
   intervention_sqm: number;
   market: string;
   submarket: string;
+  /** ISO country code · selects the per-market segment-base priors (3b). Defaults to ES. */
+  country?: string;
   category: StarCategory;
   state: AssetState;
   /**

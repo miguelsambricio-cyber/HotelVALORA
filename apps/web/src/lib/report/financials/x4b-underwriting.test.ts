@@ -230,6 +230,17 @@ describe("X4b TRAMO 3 · Dynamic Cap Rate policy connection (panel ↔ engine)",
     expect(base4.source).toBe("policy");
     expect(base4.delta_pct).toBe(5.75);
   });
+
+  it("base resolves PER MARKET · ES → prior · unpopulated market → labelled fallback (never inherits ES)", () => {
+    const es = run({ ...madridCentre, country: "ES", segment: "luxury", category: "5star" }, "base")
+      .adjustments.find((a) => a.id === "base")!;
+    expect(es.delta_pct).toBe(4.75); // ES luxury prior
+    const us = run({ ...madridCentre, country: "US", segment: "luxury", category: "5star" }, "base")
+      .adjustments.find((a) => a.id === "base")!;
+    // US not populated → fallback (NOT the ES luxury 4.75).
+    expect(us.delta_pct).toBe(DYNAMIC_CAP_RATE_POLICY_DEFAULTS.base_market_yield_pct);
+    expect(us.delta_pct).not.toBe(4.75);
+  });
 });
 
 describe("X4b TRAMO 3b · segment-prior base (calibrated with real €/key · not comp medians)", () => {

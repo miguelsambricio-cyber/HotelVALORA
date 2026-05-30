@@ -25,7 +25,9 @@ import {
   resolveSegmentBase,
   priorFromBand,
   SEGMENTS,
+  SUPPORTED_MARKETS,
   type SegmentId,
+  type SegmentBasePriors,
 } from "@/lib/admin/financials/segment-base-priors";
 
 const SEGMENT_LABELS: Record<SegmentId, string> = {
@@ -108,16 +110,20 @@ export function DynamicCapRateCard() {
   const [previewOperator, setPreviewOperator] = useState<OperatorOptionId>(ADMIN_PREVIEW_SAMPLE.operator);
   const [previewLiquidity, setPreviewLiquidity] = useState<LiquidityBandId>(ADMIN_PREVIEW_SAMPLE.liquidity);
   const [previewSegment, setPreviewSegment] = useState<SegmentId>("upscale");
+  const [selectedMarket, setSelectedMarket] = useState<string>("ES");
 
-  // Base = the SELECTED segment's prior (TRAMO 3b) · falls back to the fixed
-  // base_market_yield_pct when no priors. This is what the engine uses, so the
-  // panel preview mirrors it exactly.
+  // Priors for the SELECTED market (null when that market isn't populated yet ·
+  // never inherits another market's numbers). SAME structure the engine reads.
+  const marketPriors: SegmentBasePriors | null = policy.segment_base_priors_by_market[selectedMarket] ?? null;
+
+  // Base = the SELECTED segment's prior for the selected market (TRAMO 3b) ·
+  // falls back to the fixed base_market_yield_pct. Mirrors the engine exactly.
   const segBase = useMemo(
     () => resolveSegmentBase({
       segment: previewSegment, category: previewCategory,
-      priors: policy.segment_base_priors, fallbackPct: policy.base_market_yield_pct,
+      priors: marketPriors, fallbackPct: policy.base_market_yield_pct,
     }),
-    [previewSegment, previewCategory, policy.segment_base_priors, policy.base_market_yield_pct],
+    [previewSegment, previewCategory, marketPriors, policy.base_market_yield_pct],
   );
 
   const result = useMemo(
@@ -132,18 +138,23 @@ export function DynamicCapRateCard() {
   function setBaseSource(text: string) {
     ov.setDraft((p) => ({ ...p, base_market_yield_source: text }));
   }
-  // Segment yield · edit the market band → prior auto-derives by the rule
-  // (midpoint − 0.25), keeping the method uniform (no off-rule overrides).
-  function setSegmentBand(seg: SegmentId, patch: { band_low?: number; band_high?: number }) {
+  // Segment yield · edit the band of the SELECTED MARKET → prior auto-derives
+  // by the rule (midpoint − 0.25). Affects only the selected market.
+  function setSegmentBand(market: string, seg: SegmentId, patch: { band_low?: number; band_high?: number }) {
     ov.setDraft((p) => {
-      const cur = p.segment_base_priors[seg];
+      const marketMap = p.segment_base_priors_by_market[market];
+      if (!marketMap) return p; // market not populated · nothing to edit
+      const cur = marketMap[seg];
       const band_low = patch.band_low ?? cur.band_low;
       const band_high = patch.band_high ?? cur.band_high;
       return {
         ...p,
-        segment_base_priors: {
-          ...p.segment_base_priors,
-          [seg]: { ...cur, band_low, band_high, base_pct: priorFromBand(band_low, band_high) },
+        segment_base_priors_by_market: {
+          ...p.segment_base_priors_by_market,
+          [market]: {
+            ...marketMap,
+            [seg]: { ...cur, band_low, band_high, base_pct: priorFromBand(band_low, band_high) },
+          },
         },
       };
     });
@@ -295,11 +306,13 @@ export function DynamicCapRateCard() {
         />
       </div>
 
-      {/* ─── Segment yield · base por segmento (TRAMO 3b) ───────────── */}
+      {/* ─── Segment yield · base por segmento, por mercado (TRAMO 3b) ── */}
       <SegmentYieldTable
-        policy={policy}
+        marketPriors={marketPriors}
+        selectedMarket={selectedMarket}
         previewSegment={previewSegment}
-        onSegmentBandChange={setSegmentBand}
+        onMarketChange={setSelectedMarket}
+        onSegmentBandChange={(seg, patch) => setSegmentBand(selectedMarket, seg, patch)}
         onPreviewSegmentChange={setPreviewSegment}
       />
 
@@ -399,6 +412,7 @@ function HeroBlock({
         <FormulaRow label="Renovation Adjustment" value={result.renovation} sign={signed(result.renovation)} />
         <FormulaRow label="Operator Adjustment" value={result.operator} sign={signed(result.operator)} />
         <FormulaRow label="Liquidity Adjustment" value={result.liquidity} sign={signed(result.liquidity)} />
+        <FormulaRow label="HotelVALORA Score · ejemplo neutro (por hotel vs compset)" value={result.score} sign={signed(result.score)} />
         <FormulaRow label="Scenario Adjustment" value={result.scenario} sign={signed(result.scenario)} />
         <FormulaRow label={`Macro · Euribor ${euribor.toFixed(2)}%`} value={result.macro} sign={signed(result.macro)} />
         <div className="mt-1.5 flex items-baseline justify-between border-t border-lime-300/30 pt-1.5">
@@ -905,27 +919,53 @@ function NumericCell({
 // ─── Segment yield · base por segmento (TRAMO 3b) ────────────────────
 
 function SegmentYieldTable({
-  policy,
+  marketPriors,
+  selectedMarket,
   previewSegment,
+  onMarketChange,
   onSegmentBandChange,
   onPreviewSegmentChange,
 }: {
-  policy: DynamicCapRatePolicy;
+  marketPriors: SegmentBasePriors | null;
+  selectedMarket: string;
   previewSegment: SegmentId;
+  onMarketChange: (market: string) => void;
   onSegmentBandChange: (seg: SegmentId, patch: { band_low?: number; band_high?: number }) => void;
   onPreviewSegmentChange: (seg: SegmentId) => void;
 }) {
+  const marketLabel = SUPPORTED_MARKETS.find((m) => m.code === selectedMarket)?.label ?? selectedMarket;
   return (
     <section className="mb-5 rounded-md border border-lime-300/20 bg-slate-950/40 p-4">
-      <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-lime-300/80">
-        Base por segmento · Segment yield
-      </p>
-      <p className="mt-1 max-w-3xl font-mono text-[10.5px] leading-relaxed text-slate-400">
-        La base del cap rate es el PRIOR institucional por segmento (no una media de comps · las
-        transacciones reales no traen cap rate). Regla uniforme: <span className="text-slate-200">prior = punto medio de la banda − 0,25pp</span>.
-        Edita la banda de mercado → el prior se recalcula. €/llave + n = respaldo real (CoStar);
-        procedencia <code className="text-slate-300">expert_prior</code> hasta anclar con ADR por segmento.
-      </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="font-headline text-[10px] font-extrabold uppercase tracking-[0.22em] text-lime-300/80">
+            Base por segmento · Segment yield
+          </p>
+          <p className="mt-1 max-w-2xl font-mono text-[10.5px] leading-relaxed text-slate-400">
+            PRIOR institucional por segmento, <span className="text-slate-200">por mercado</span> (cada mercado, su tabla · no se aplica
+            el dato de un mercado a otro). Regla uniforme: <span className="text-slate-200">prior = punto medio de la banda − 0,25pp</span>.
+            €/llave + n = respaldo real (CoStar) · procedencia <code className="text-slate-300">expert_prior</code>.
+          </p>
+        </div>
+        <PreviewSelect
+          label="Mercado"
+          value={selectedMarket}
+          onChange={onMarketChange}
+          options={SUPPORTED_MARKETS.map((m) => ({ id: m.code, label: m.label }))}
+        />
+      </div>
+
+      {!marketPriors ? (
+        <div className="mt-3 rounded-md border border-amber-300/30 bg-amber-300/5 p-4 text-center">
+          <p className="font-headline text-[11px] font-bold uppercase tracking-[0.18em] text-amber-200/90">
+            {marketLabel} · mercado sin priors
+          </p>
+          <p className="mt-1 font-mono text-[10.5px] text-slate-400">
+            Pendiente de poblar. No se muestran los priors de otro mercado (España no se aplica aquí).
+            El motor tampoco fabrica base para este mercado hasta que se pueble + se abra el guard de país.
+          </p>
+        </div>
+      ) : (
       <div className="mt-3 overflow-x-auto rounded-md border border-slate-800/60">
         <table className="w-full border-collapse text-[11px]">
           <thead>
@@ -937,7 +977,7 @@ function SegmentYieldTable({
           </thead>
           <tbody>
             {SEGMENTS.map((seg) => {
-              const p = policy.segment_base_priors[seg];
+              const p = marketPriors[seg];
               const sel = seg === previewSegment;
               return (
                 <tr
@@ -958,6 +998,7 @@ function SegmentYieldTable({
           </tbody>
         </table>
       </div>
+      )}
     </section>
   );
 }
@@ -1082,6 +1123,7 @@ function RationalePanel({
     { label: "Renovation", value: renoLabel },
     { label: "Operator", value: operatorLabel },
     { label: "Liquidity", value: liquidityLabel },
+    { label: "HotelVALORA Score", value: "ejemplo neutro · por hotel vs compset" },
     { label: "Scenario", value: scnLabel },
     { label: "Macro", value: `Euribor 12M ${euribor.toFixed(2)}% (LT mean ${policy.macro_long_term_mean_pct.toFixed(2)}%)` },
   ];

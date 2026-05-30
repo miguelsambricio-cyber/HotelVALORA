@@ -24,7 +24,7 @@
 
 import type { StarCategoryId } from "./defaults";
 import type { ScoreAdjustmentPolicy } from "./score-cap-adjustment";
-import { SEGMENT_BASE_PRIORS_ES, type SegmentBasePriors } from "./segment-base-priors";
+import { SEGMENT_BASE_PRIORS_BY_COUNTRY, type SegmentBasePriors } from "./segment-base-priors";
 
 // ─── Matrix axes (single source) ──────────────────────────────────────
 
@@ -89,12 +89,15 @@ export interface DynamicCapRatePolicy {
   base_market_yield_source: string;
 
   /**
-   * Cap-rate BASE per segment (X4b · TRAMO 3b). Institutional priors
-   * calibrated with real €/key (NOT a median of comp cap rates · those
-   * don't exist). This is the primary base source; `base_market_yield_pct`
-   * is only the labelled last-resort fallback.
+   * Cap-rate BASE per segment, PER MARKET (X4b · TRAMO 3b). Institutional
+   * priors calibrated with real €/key (NOT a median of comp cap rates · those
+   * don't exist), keyed by country code. The engine resolves the asset's
+   * country entry; the admin selector edits one market at a time. A market
+   * absent from this map is "pending to populate" (never inherits another
+   * market's numbers). `base_market_yield_pct` is the labelled last-resort
+   * fallback. SAME structure the engine consumes — no parallel copy.
    */
-  segment_base_priors: SegmentBasePriors;
+  segment_base_priors_by_market: Record<string, SegmentBasePriors>;
 
   /** 9-cell category-adjustment matrix · per (category, size). */
   category_adjustment: Record<StarCategoryId, Record<SizeTierId, number>>;
@@ -150,7 +153,7 @@ export const DYNAMIC_CAP_RATE_POLICY_DEFAULTS: DynamicCapRatePolicy = {
   base_market_yield_pct: 6.50,
   base_market_yield_source: "Fallback último recurso · solo si no hay prior de segmento. La base viva sale del PRIOR institucional por segmento, calibrado con €/llave real (TRAMO 3b).",
 
-  segment_base_priors: SEGMENT_BASE_PRIORS_ES,
+  segment_base_priors_by_market: SEGMENT_BASE_PRIORS_BY_COUNTRY,
 
   // Category → 0 (X4b · TRAMO 3b). The segment is now in the BASE prior
   // (luxury/upscale/…), so a separate 5★/4★/3★ delta would DOUBLE-COUNT
@@ -215,6 +218,13 @@ export interface ComputedCellResult {
   renovation: number;
   operator: number;
   liquidity: number;
+  /**
+   * HotelVALORA Score delta. In this asset-agnostic preview it is NEUTRAL (0):
+   * the Score is compset-relative and computed per real hotel vs its compset.
+   * Listed so the preview is FAITHFUL to the engine (which applies it on real
+   * hotels), never omitted.
+   */
+  score: number;
   scenario: number;
   macro: number;
   total: number;
@@ -238,8 +248,9 @@ export function computeForCell(
   const op = policy.operator_adjustment[operator];
   const liq = policy.liquidity_adjustment[liquidity];
   const scn = policy.scenario_adjustment[scenario][category][size];
+  const score = 0; // neutral in the asset-agnostic preview (computed per hotel vs compset)
   const macroDeltaPct = ((euribor12mPct - policy.macro_long_term_mean_pct) / 100) * policy.macro_bps_per_100bps_euribor;
-  const total = basePct + cat + sz + ren + op + liq + scn + macroDeltaPct;
+  const total = basePct + cat + sz + ren + op + liq + score + scn + macroDeltaPct;
   return {
     base: basePct,
     category: cat,
@@ -247,6 +258,7 @@ export function computeForCell(
     renovation: ren,
     operator: op,
     liquidity: liq,
+    score,
     scenario: scn,
     macro: round2(macroDeltaPct),
     total: round2(total),

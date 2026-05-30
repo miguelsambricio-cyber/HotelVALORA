@@ -114,6 +114,8 @@ function buildAssetBasics(hotel: CanonicalHotelRow): AssetBasics | null {
     submarket,
     category,
     state: deriveAssetState(hotel),
+    // Country selects the per-market segment priors (3b · engine is ES-gated today).
+    country: hotel.country_code ?? undefined,
     // Segment (chain_scale · 6 levels) drives the cap-rate base prior (3b).
     segment: hotel.chain_scale ?? undefined,
   };

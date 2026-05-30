@@ -87,6 +87,19 @@ export const SEGMENT_BASE_PRIORS_BY_COUNTRY: Record<string, SegmentBasePriors> =
   ES: SEGMENT_BASE_PRIORS_ES,
 };
 
+/**
+ * Market catalogue for the admin selector. `populated` is derived at use-time
+ * from whether the (editable) policy map has that market's priors — a market
+ * listed here but absent from the policy renders as "pending to populate",
+ * NEVER with another market's numbers.
+ */
+export const SUPPORTED_MARKETS: ReadonlyArray<{ code: string; label: string }> = [
+  { code: "ES", label: "España · Madrid" },
+  { code: "US", label: "Estados Unidos · Nueva York" },
+  { code: "GB", label: "Reino Unido · Londres" },
+  { code: "FR", label: "Francia · París" },
+];
+
 /** Star → segment fallback when chain_scale is absent (conservative · labelled). */
 export function segmentFromStar(category: "3star" | "4star" | "5star"): SegmentId {
   return category === "5star" ? "upper_upscale" : category === "4star" ? "upscale" : "midscale";

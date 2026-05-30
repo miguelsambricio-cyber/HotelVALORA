@@ -48,10 +48,11 @@ export function buildAdjustments(
   // ── Base · SEGMENT PRIOR (TRAMO 3b · calibrated with real €/key) ──
   // The base is the institutional prior for the asset's segment (chain_scale),
   // NOT the median of comp cap rates (the real comps carry €/key, no cap rate).
+  const marketPriors = policy.segment_base_priors_by_market[(asset.country ?? "ES").toUpperCase()] ?? null;
   const segBase = resolveSegmentBase({
     segment: asset.segment,
     category: asset.category,
-    priors: policy.segment_base_priors,
+    priors: marketPriors,
     fallbackPct: policy.base_market_yield_pct,
   });
   adjustments.push({
