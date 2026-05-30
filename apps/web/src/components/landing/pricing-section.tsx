@@ -112,7 +112,10 @@ export function PricingSection() {
                       )}
                     </div>
                     <span className="mt-0.5 block truncate text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                      {plan.tier}
+                      {/* Descriptive subtitle when present (GRATIS → "Oferta por
+                       *  lanzamiento") so it doesn't repeat the "Recomendado"
+                       *  badge; Pro/Premium fall back to tier. */}
+                      {plan.subtitle ?? plan.tier}
                     </span>
                   </div>
                   <span
