@@ -138,6 +138,7 @@ export function SearchBar({
     top: number;
     left: number;
     width: number;
+    maxH: number;
   } | null>(null);
 
   const overlayOpen = overlayDropdown && (showDropdown || showEmpty);
@@ -151,7 +152,10 @@ export function SearchBar({
       const el = containerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setOverlayRect({ top: r.bottom + 12, left: r.left, width: r.width });
+      // Cap the dropdown to the space between the input and the viewport bottom
+      // so it never spills off short screens (e.g. 1280×720 · 4K@300% laptops).
+      const maxH = Math.max(160, window.innerHeight - r.bottom - 24);
+      setOverlayRect({ top: r.bottom + 12, left: r.left, width: r.width, maxH });
     };
     measure();
     window.addEventListener("resize", measure);
@@ -296,12 +300,22 @@ export function SearchBar({
       {(() => {
         if (!(showDropdown || showEmpty)) return null;
 
+        // List cap = min(5 rows ≈330px, viewport space minus the pinned button).
+        // The viewport clamp keeps the whole dropdown on-screen on short laptops.
+        const listMaxH =
+          overlayDropdown && overlayRect
+            ? Math.min(330, overlayRect.maxH - 56)
+            : 330;
+
         const dropdownInner = (
           <>
             {showDropdown && (
               // Cap at ~5 rows (≈66px each) then scroll inside the list. The
               // "ver todos" button below stays pinned (it's outside this <ul>).
-              <ul className="max-h-[330px] overflow-y-auto overscroll-contain">
+              <ul
+                style={{ maxHeight: listMaxH }}
+                className="overflow-y-auto overscroll-contain"
+              >
                 {results.map((hotel, i) => (
                   <ResultItem
                     key={hotel.id}
