@@ -24,7 +24,10 @@ export function HeroSection() {
        *  the search below cancels the search's downward shift, so the search stays
        *  put and only the title rises. Mobile keeps base mb-5 (title stays at top). */}
       <div className="w-full max-w-5xl text-center mb-5 md:mb-11 relative z-10">
-        <h1 className="font-display font-extrabold text-3xl md:text-5xl text-forest-900 tracking-tight mb-3 leading-tight">
+        {/* Fluid title — scales smoothly with viewport width instead of a hard
+            text-3xl→text-5xl jump at md. 30px floor (mobile, unchanged) → 48px
+            ceiling (≥1920) · ~41px at a 1366 laptop so the hero+cards fit at 100%. */}
+        <h1 className="font-display font-extrabold text-[clamp(1.875rem,1.2rem+1.6vw,3rem)] text-forest-900 tracking-tight mb-3 leading-tight">
           VALORA HOTELES
           {/* Always break so the title is two clean lines on mobile AND desktop:
               "VALORA HOTELES" / "EN SEGUNDOS" (never the auto-wrap "… EN" / "SEGUNDOS"). */}
