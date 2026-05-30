@@ -216,20 +216,28 @@
  * slim (48px). On viewports < 800px the height calc is dropped and
  * flex-grow takes over so content can scroll naturally on tablets
  * and short laptops where the single-screen guarantee is relaxed. */
-@media (min-width: 768px) and (min-height: 800px) {
+@media (min-width: 768px) and (min-height: 600px) {
   .landing-main {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 84px - 48px);
+    /* Reserve header + footer. The 132px allowance covers the slim footer even
+     * when its desktop copyright wraps to 2 lines at the 768–1023 width band
+     * (~66px); ≥1024 the footer is ~31px and the page's min-h-[100svh] keeps it
+     * flush to the bottom. Gate lowered 800→600 so laptops (<800 tall) get this
+     * single-screen flex layout instead of overflowing block-flow. */
+    height: calc(100svh - 84px - 48px);
   }
   .landing-hero {
-    flex: 1 1 55%;
-    min-height: 350px;
+    /* shrink-to-fit on short laptops (min-height:0) instead of a fixed 350px
+     * floor that forced overflow once the viewport was < ~800px tall. */
+    flex: 1 1 auto;
+    min-height: 0;
   }
   .landing-pricing {
     flex: 0 0 auto;
-    padding-top: 1.25rem;
-    padding-bottom: 1.25rem;
+    /* fluid band padding · tight on laptops, roomy on big monitors */
+    padding-top: clamp(0.75rem, 1.6vh, 1.5rem);
+    padding-bottom: clamp(0.75rem, 1.6vh, 1.5rem);
   }
 }
 
