@@ -2,6 +2,20 @@ import "server-only";
 import type { CanonicalHotelRow, MarketKpiBundle } from "@/lib/report/canonical-reader";
 import type { ExecutiveSummaryData } from "@/lib/report/executive-summary-data";
 import { runForHotel, type UnderwritingRunResult } from "@/lib/report/underwriting-runner";
+import { buildFinancialsSlice } from "@/lib/report/report-object/sections/financials";
+import { computePL } from "@/lib/report/financials/calculations";
+import {
+  resolveValuationMode,
+  computeValuationFromNoi,
+  noiForValuation,
+} from "@/lib/report/financials/valuation";
+
+export interface ExecutiveSummaryMapOptions {
+  /** Viewer tier · drives the valuation mode (FREE = current TTM · PRO/PREMIUM = exit year). */
+  tier?: "free" | "pro" | "premium";
+  /** Requested exit year (PRO/PREMIUM · default 7 · range 1..10). */
+  exitYear?: number | null;
+}
 
 /**
  * Phase 4 · canonical → ExecutiveSummaryData mapper.
@@ -145,10 +159,11 @@ function ttmFromAggregate(value: number, seedKey: string, jitterPct = 0.15): num
   });
 }
 
-export function mapCanonicalToExecutiveSummary(
+export async function mapCanonicalToExecutiveSummary(
   hotel: CanonicalHotelRow,
   marketKpi: MarketKpiBundle | null,
-): ExecutiveSummaryData {
+  opts: ExecutiveSummaryMapOptions = {},
+): Promise<ExecutiveSummaryData> {
   // Canonical-first · falls back to engine heuristic rooms when canonical
   // has neither total_keys nor total_rooms (~50 % of branded Madrid corpus
   // today). Without this fallback every value derived from `keys` (estimated
@@ -262,8 +277,32 @@ export function mapCanonicalToExecutiveSummary(
     ? engineRun.assetBasics.total_sqm / engineRun.assetBasics.rooms
     : 38;
   const totalSqm = engineRun?.assetBasics.total_sqm ?? keys * 38;
+  // ── F3 · valuation from NOI / cap rate (X4 CoStar ratios · X5 guard) ──
+  // Build the hotel's P&L (CoStar ratios + FF&E ramp) and capitalise the
+  // EBITDA after replacement at the cap rate. Mode by tier (D3): FREE =
+  // current market value (TTM NOI · entry cap); PRO/PREMIUM = exit-year NOI
+  // capitalised at the dynamic EXIT cap (D4). NOI/cap supersedes €/key;
+  // €/key survives only as the labelled fallback when X5 is not satisfied.
+  const fin = await buildFinancialsSlice(hotel, marketKpi);
+  const pl = computePL(fin.assumptions);
+  const valuationMode = resolveValuationMode(opts.tier ?? "free", opts.exitYear);
+  const capForValuation =
+    valuationMode.kind === "exit_year"
+      ? (engineRun?.capRateExit.used_pct ?? null)
+      : (engineRun?.capRate.used_pct ?? capRate);
+  const noiValue = computeValuationFromNoi({
+    pl,
+    assumptions: fin.assumptions,
+    capRatePct: capForValuation,
+    costarRatiosResolved: !!fin.costar_resolved,
+    mode: valuationMode,
+  });
+  const noiForYear = fin.costar_resolved
+    ? Math.round(noiForValuation(pl, fin.assumptions, valuationMode))
+    : null;
+
   const estimatedValue: number | null =
-    perRoom !== null && keys > 0 ? Math.round(perRoom * keys) : null;
+    noiValue ?? (perRoom !== null && keys > 0 ? Math.round(perRoom * keys) : null);
 
   // GOP margin · global hospitality benchmarks by chain_scale. Kept as a
   // number because the per-scale GOP percentages (luxury 35% → economy 44%)
@@ -280,10 +319,14 @@ export function mapCanonicalToExecutiveSummary(
   };
   const gopMargin = gopByScale(hotel.chain_scale);
 
+  // EBITDA after replacement = the REAL NOI from the P&L (F3), not the old
+  // inverted `value × cap`. Falls back to the inverted estimate only when
+  // CoStar ratios are absent (no P&L NOI to show).
   const ebitdaAfterReplacement: number | null =
-    estimatedValue !== null && capRate !== null
+    noiForYear ??
+    (estimatedValue !== null && capRate !== null
       ? Math.round((estimatedValue * capRate) / 100)
-      : null;
+      : null);
 
   // Engine confidence band drives the valuation range (institutional p25/p75 spread).
   // When capRate is null, the band has no anchor and the range collapses to null.

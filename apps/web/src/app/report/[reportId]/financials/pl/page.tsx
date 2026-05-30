@@ -11,7 +11,6 @@ import {
 } from "@/lib/report/canonical-reader";
 import { buildFinancialsSlice } from "@/lib/report/report-object";
 import { getReportById } from "@/lib/report/report-session";
-import { isProvisionalTemplate } from "@/lib/report/financials/coverage";
 
 export const metadata: Metadata = {
   title: "5-Year P&L Forecast — HotelVALORA",
@@ -36,8 +35,11 @@ async function loadAssumptions(reportId: string) {
     hotel.submarket_name,
     { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
   );
-  const slice = buildFinancialsSlice(hotel, marketKpi);
-  const provisional = isProvisionalTemplate(hotel);
+  const slice = await buildFinancialsSlice(hotel, marketKpi);
+  // X4 · provisional unless the EXACT CoStar submarket row resolved. Single
+  // source of truth = pnl_template (via the slice), not the stale build-time
+  // JSON in coverage.ts (now superseded).
+  const provisional = slice.source_level !== "submarket";
   return {
     initialAssumptions: slice.assumptions,
     hotelLabel: hotel.canonical_name ?? "Hotel",

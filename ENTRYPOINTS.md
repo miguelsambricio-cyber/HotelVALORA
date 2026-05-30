@@ -522,6 +522,7 @@ Top-level documents every new collaborator should read first. Kept at repo root 
 | ~~`docs/financial-engine.md`~~ | ⚠️ deprecated · Python engine frozen · use `docs/underwriting/*` |
 | ~~`docs/underwriting.md`~~ | ⚠️ deprecated · backend valuation model frozen · use `docs/underwriting/*` (TS engine) |
 | `docs/underwriting/` (folder) | Canonical TS engine architecture · temporal-model · phase-model · IRR layers · dynamic-cap-rate-engine · divergences |
+| `docs/underwriting/AUDIT_MOTOR_FINANCIERO.md` | Auditoría solo-lectura del motor financiero (2026-05-29) · fidelidad metodología · completitud 6 páginas · integridad datos · rendimiento · doble fuente de verdad código↔Excel↔metodología |
 | `docs/data-pipeline.md` | ETL flow, import modes, staging tables |
 | `docs/normalization.md` | Multilingual pipeline, `_key()`, geography |
 | `docs/alias-registry.md` | Alias tables, conflict detection |

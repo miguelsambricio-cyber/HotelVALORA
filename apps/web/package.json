@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "bootstrap:admin": "node scripts/bootstrap-admin.mjs",
     "verify:auth": "node scripts/verify-auth-config.mjs"
   },
@@ -64,6 +65,7 @@
     "playwright": "^1.60.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   }
 }

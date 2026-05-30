@@ -56,10 +56,12 @@ export function buildAdjustments(
   adjustments.push(liquidityAdjustment(evidence));
   // ── Scenario ──
   adjustments.push(scenarioAdjustment(scenarioId));
-  // ── Side (exit terminal hedge) ──
-  if (side === "exit") {
-    adjustments.push(sideAdjustment(side));
-  }
+  // ── Side ──
+  // D4 (2026-05-30): the fixed +20 bps exit hedge is REMOVED. The
+  // entry↔exit cap-rate difference is now driven by the asset's projected
+  // STATE at exit (passed via `asset.state` by the runner's exit run),
+  // not by a flat spread. `side` is retained for labeling/audit only.
+  void side;
 
   return adjustments;
 }
@@ -202,17 +204,6 @@ function scenarioAdjustment(scenarioId: string): CapRateAdjustment {
         : labelTag === "Aggressive"
           ? "Aggressive overlay · tight pricing · acquisition narrative"
           : "Base case · no scenario overlay",
-    source: "policy",
-  };
-}
-
-function sideAdjustment(side: "entry" | "exit"): CapRateAdjustment {
-  return {
-    id: "side",
-    category: "side",
-    label: "Side · exit terminal hedge",
-    delta_pct: 0.20,
-    rationale: "Exit yield trades wider than entry to hedge terminal market regime risk",
     source: "policy",
   };
 }

@@ -43,8 +43,19 @@
 
 import type { FiveYears, PLAssumptions, PLComputed, PLLineItemId } from "./types";
 import { SCENARIO_PRESETS } from "./assumptions";
+import { ffeReservePct } from "./ffe-reserve";
 
 const YEARS = 5 as const;
+
+/** Options for the P&L computation that don't live on the assumption store. */
+export interface ComputePLOptions {
+  /**
+   * Drives the FF&E reserve ramp (D1/D2). When the asset has CAPEX (new
+   * build or recent renovation, or operator-set) the reserve ramps
+   * 2%→3%→4%; otherwise it is a flat 4%. Default false (stabilised asset).
+   */
+  hasCapex?: boolean;
+}
 
 /**
  * Departmental expense split — what fraction is treated as fixed payroll
@@ -54,8 +65,9 @@ const YEARS = 5 as const;
  */
 const DEPT_PAYROLL_FIXED_SHARE = 0.3;
 
-export function computePL(a: PLAssumptions): PLComputed {
+export function computePL(a: PLAssumptions, opts: ComputePLOptions = {}): PLComputed {
   const preset = SCENARIO_PRESETS[a.activeScenario];
+  const hasCapex = opts.hasCapex ?? a.hasCapex ?? false;
 
   // ── 1. Year-by-year Occupancy / ADR / RevPAR ──────────────────────────
   const occupancy: number[] = new Array(YEARS);
@@ -122,7 +134,10 @@ export function computePL(a: PLAssumptions): PLComputed {
   const otherInfl = (y: number) => Math.pow(1 + a.expenseInflation.other, y);
   const utilInfl = (y: number) => Math.pow(1 + a.expenseInflation.utilities, y);
 
-  const expAdminY1 = totalRevenue[0] * a.ratios.expAdmin;
+  // Admin & general base = ROOMS revenue (USALI methodology §3.1: "s/ habitaciones").
+  // This is the base that reproduces the CoStar GOP in the reconciliation
+  // cross-check; the other undistributed lines stay on total revenue.
+  const expAdminY1 = revRooms[0] * a.ratios.expAdmin;
   const expSmY1 = totalRevenue[0] * a.ratios.expSalesMarketing;
   const expPmY1 = totalRevenue[0] * a.ratios.expPropertyMaint;
   const expUtilY1 = totalRevenue[0] * a.ratios.expUtilities;
@@ -146,16 +161,26 @@ export function computePL(a: PLAssumptions): PLComputed {
   );
 
   // ── 7. Non-operating + EBITDA ─────────────────────────────────────────
-  // Mgmt fee + FF&E reserve are typically % of revenue contracts (variable).
-  // Property tax & insurance is slow-moving / indexed to property value
-  // (modelled as `other` inflation from Year-1 base).
+  // Mgmt fee is a % of revenue contract (variable). Property tax & insurance
+  // are slow-moving / indexed to property value (modelled as `other`
+  // inflation from Year-1 base).
+  //
+  // EBITDA (pre-replacement · headline)  = GOP − mgmt − property_tax − insurance
+  //   (HotelVALORA model: NO IT, NO rent · VALUATION_METHODOLOGY.md annex).
+  // EBITDA after replacement (valuation) = EBITDA − FF&E reserve (CAPEX ramp).
+  //   FF&E is an operator_assumption (NOT CoStar): flat 4% without CAPEX,
+  //   ramp 2→3→4 with CAPEX (`ffeReservePct`, see ffe-reserve.ts).
   const expMgmtFee = totalRevenue.map((t) => t * a.ratios.expMgmtFee);
-  const expFfeReserve = totalRevenue.map((t) => t * a.ratios.expFfeReserve);
   const expPropertyTaxY1 = totalRevenue[0] * a.ratios.expPropertyTax;
   const expPropertyTax = times(YEARS, (y) => expPropertyTaxY1 * otherInfl(y));
+  const expInsuranceY1 = totalRevenue[0] * a.ratios.expInsurance;
+  const expInsurance = times(YEARS, (y) => expInsuranceY1 * otherInfl(y));
+  const expFfeReserve = times(YEARS, (y) => ffeReservePct(y, hasCapex) * totalRevenue[y]);
+
   const ebitda = gop.map(
-    (g, i) => g - expMgmtFee[i] - expPropertyTax[i] - expFfeReserve[i],
+    (g, i) => g - expMgmtFee[i] - expPropertyTax[i] - expInsurance[i],
   );
+  const ebitdaAfterReplacement = ebitda.map((e, i) => e - expFfeReserve[i]);
   const ebitdaMargin = ebitda.map((e, i) =>
     totalRevenue[i] > 0 ? e / totalRevenue[i] : 0,
   );
@@ -184,6 +209,7 @@ export function computePL(a: PLAssumptions): PLComputed {
 
     "exp-mgmt-fee": toFive(expMgmtFee),
     "exp-property-tax": toFive(expPropertyTax),
+    "exp-insurance": toFive(expInsurance),
     "exp-ffe-reserve": toFive(expFfeReserve),
   };
 
@@ -193,6 +219,7 @@ export function computePL(a: PLAssumptions): PLComputed {
       totalRevenue: toFive(totalRevenue),
       gop: toFive(gop),
       ebitda: toFive(ebitda),
+      ebitdaAfterReplacement: toFive(ebitdaAfterReplacement),
       ebitdaMargin: toFive(ebitdaMargin),
     },
   };

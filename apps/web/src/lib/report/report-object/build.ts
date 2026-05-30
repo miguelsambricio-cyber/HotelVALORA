@@ -52,7 +52,7 @@ export async function buildReportObject(
     }
   })();
 
-  const financials = buildFinancialsSlice(hotel, marketKpi);
+  const financials = await buildFinancialsSlice(hotel, marketKpi);
   const underwriting = buildUnderwritingSlice(hotel, marketKpi, engineRun);
   const capex = buildCapexSlice(hotel);
 

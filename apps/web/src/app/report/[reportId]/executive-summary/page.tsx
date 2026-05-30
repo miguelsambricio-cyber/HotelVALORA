@@ -49,7 +49,7 @@ async function loadExecutiveSummaryData(
     hotel.submarket_name,
     { country_code: hotel.country_code, chain_scale: hotel.chain_scale },
   );
-  const data = mapCanonicalToExecutiveSummary(hotel, marketKpi);
+  const data = await mapCanonicalToExecutiveSummary(hotel, marketKpi);
 
   const engineRun = (() => {
     try { return runForHotel(hotel); } catch { return null; }

@@ -18,10 +18,20 @@
  */
 
 export const SCHEMA_VERSION = "1.1.0" as const;
-export const ENGINE_VERSION = "0.2.0" as const;
+export const ENGINE_VERSION = "0.3.0" as const;
 
 /**
  * Version history · most recent first.
+ *
+ * 0.3.0 (2026-05-30) · X4 + F3 · CoStar P&L wiring + NOI/cap valuation.
+ *   · computePL now reads CoStar USALI ratios from pnl_template (÷100) instead
+ *     of the Stitch constants · adds an insurance line · A&G base = rooms revenue.
+ *   · EBITDA split: pre-replacement (headline) vs after-replacement (valuation).
+ *   · FF&E reserve is a CAPEX-driven ramp (2→3→4) / flat 4%, operator_assumption.
+ *   · Executive Summary value = NOI / cap rate (was €/key × keys).
+ *   · Cap-rate engine: fixed +20 bps exit hedge removed · exit cap re-derived
+ *     from the asset's projected state (D4).
+ *   · P&L semantics changed → snapshots from 0.2.0 recompute differently.
  *
  * 0.2.0 (2026-05-19) · Project + Equity IRR layer separation.
  *   · Project IRR semantics changed: NOW unlevered · pre-tax (EBITDA + gross exit only).

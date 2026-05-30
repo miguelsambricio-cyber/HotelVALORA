@@ -246,11 +246,15 @@ export function expandYear1ToMonthly(
   const monthlyExpMgmtFee = monthlyTotalRev.map(
     (t) => t * assumptions.ratios.expMgmtFee,
   );
-  const monthlyExpFfeReserve = monthlyTotalRev.map(
-    (t) => t * assumptions.ratios.expFfeReserve,
+  // FF&E reserve from the CAPEX-ramp-aware computed P&L (not the constant).
+  const monthlyExpFfeReserve = DAYS_IN_MONTH.map((_, i) =>
+    distributePro(computed.lineItems["exp-ffe-reserve"][0], i),
   );
   const monthlyExpPropertyTax = DAYS_IN_MONTH.map((_, i) =>
     distributePro(computed.lineItems["exp-property-tax"][0], i),
+  );
+  const monthlyExpInsurance = DAYS_IN_MONTH.map((_, i) =>
+    distributePro(computed.lineItems["exp-insurance"][0], i),
   );
 
   // ── 10. Aggregates ──────────────────────────────────────────────────
@@ -265,9 +269,10 @@ export function expandYear1ToMonthly(
       monthlyExpPm[i] -
       monthlyExpUtilities[i],
   );
+  // EBITDA pre-replacement (aligned with computePL): GOP − mgmt − tax − insurance.
   const monthlyEbitda = monthlyGop.map(
     (g, i) =>
-      g - monthlyExpMgmtFee[i] - monthlyExpPropertyTax[i] - monthlyExpFfeReserve[i],
+      g - monthlyExpMgmtFee[i] - monthlyExpPropertyTax[i] - monthlyExpInsurance[i],
   );
   const monthlyEbitdaMargin = monthlyEbitda.map((e, i) =>
     monthlyTotalRev[i] > 0 ? e / monthlyTotalRev[i] : 0,
@@ -297,6 +302,7 @@ export function expandYear1ToMonthly(
 
     "exp-mgmt-fee": monthlyExpMgmtFee,
     "exp-property-tax": monthlyExpPropertyTax,
+    "exp-insurance": monthlyExpInsurance,
     "exp-ffe-reserve": monthlyExpFfeReserve,
   };
 

@@ -73,6 +73,10 @@ export interface SectionProvenance {
 export interface FinancialsSlice {
   assumptions: PLAssumptions;
   provenance: SectionProvenance;
+  /** X4 · CoStar template provenance level for the source pill. */
+  source_level?: "submarket" | "national" | "derived" | "no_data";
+  /** X4/X5 · true when real CoStar/derived ratios resolved (not hard default). */
+  costar_resolved?: boolean;
 }
 
 /** Underwriting scenario inputs · derived from canonical + admin financial structure.
