@@ -134,10 +134,87 @@ function rowToRatios(r: PnlTemplateRow, ffeBaseline: number): PLAssumptions["rat
   };
 }
 
+// Recursive PostgREST-ish query type · chainable `.eq`, thenable `.limit`.
+type PnlQuery = {
+  select: (cols: string) => PnlQuery;
+  eq: (c: string, v: string) => PnlQuery;
+  limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
+};
+
+function toResolved(
+  row: PnlTemplateRow,
+  level: PnlSourceLevel,
+  ffeBaseline: number,
+  matched: { submarket: string | null; class: string | null; segmentation_type: string },
+): ResolvedPnlRatios {
+  return {
+    ratios: rowToRatios(row, ffeBaseline),
+    source_level: level,
+    data_source: row.data_source,
+    costar_resolved: true,
+    stated: {
+      gop_pct: row.gop_pct == null ? null : n(row.gop_pct) / 100,
+      ebitda_pct: row.ebitda_pct == null ? null : n(row.ebitda_pct) / 100,
+    },
+    matched,
+  };
+}
+
 /**
- * Resolve the CoStar USALI ratios for a canonical hotel. Exact lookup by
- * (country, market, submarket, class, segmentation_type); the row's own
- * `data_source` yields the provenance level. No row → no_data.
+ * Level-2 fallback · the country's submarket-INVARIANT USALI for a
+ * segmentation_type. National %s don't depend on the submarket, so any row of
+ * the right `data_source` for the country IS the national template:
+ *   · hotel              → costar_national  (CoStar national USALI)
+ *   · apartahotel/hostel → derived_mvp_rule (national MVP profile per type)
+ * Prefers a class match · falls back to any class (national %s are
+ * class-invariant in the current dataset). Market-agnostic: no country named.
+ */
+async function queryCountryUsali(
+  sb: { from: (t: string) => PnlQuery },
+  country: string,
+  klass: string | null,
+  seg: string,
+): Promise<PnlTemplateRow | null> {
+  const source = seg === "hotel" ? "costar_national" : "derived_mvp_rule";
+  // National %s are class-invariant, so an unknown class (chain_scale='unknown',
+  // ~half the corpus today) still resolves the national template.
+  for (const withClass of [true, false]) {
+    let q: PnlQuery = sb
+      .from("pnl_template")
+      .select(COLS)
+      .eq("country", country)
+      .eq("data_source", source)
+      .eq("segmentation_type", seg);
+    if (withClass && klass) q = q.eq("class", klass);
+    const r = await q.limit(1);
+    if (!r.error && r.data && r.data.length > 0) {
+      const row = r.data[0] as PnlTemplateRow;
+      if (row.rooms_revenue_pct !== null) return row;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the USALI ratios for a canonical hotel via a 3-level coverage
+ * cascade (market-agnostic · resolves País→Mercado→Submercado from the data,
+ * never names a market — see VALUATION_METHODOLOGY.md):
+ *
+ *   1. SUBMARKET own USALI → exact (country, market, submarket, class, seg)
+ *      row tagged `costar_submarket_aggregate` → "dato de submercado".
+ *   2. NATIONAL applied     → no own submarket USALI, but the country has a
+ *      national template → apply it over the submarket's real ADR/occ/RevPAR
+ *      (the market-data layer supplies those · the caller) → "USALI nacional
+ *      aplicado" (approximate report).
+ *   3. no_data              → no national USALI for the country either.
+ *
+ * Change vs. the original X4 reader (2026-05-30): the original returned
+ * no_data when no exact submarket row existed. Now a missing submarket row
+ * with a national template available resolves to level 2, not no_data —
+ * only the true absence of a national template falls to level 3. Existing
+ * per-submarket `costar_national` rows still resolve via step 1 (same level)
+ * and are now OPTIONAL: step 2 derives the same national template (e.g. for
+ * Barajas/Hortaleza, which has market data but no pnl_template row).
  */
 export async function resolvePnlTemplate(
   hotel: CanonicalHotelRow,
@@ -148,58 +225,48 @@ export async function resolvePnlTemplate(
   const submarket = hotel.submarket_name;
   const klass = classLabel(hotel.chain_scale);
   const seg = toTemplateSegmentation(hotel.segmentation_type ?? "hotel");
-  if (!country || !market || !submarket || !klass) return NO_DATA;
+  // Class is NOT required: it's needed only for the submarket-specific level 1.
+  // Level 2 (national) is class-invariant, so unknown-class hotels still resolve.
+  if (!country || !market || !submarket) return NO_DATA;
 
-  const sb = createAnonServerSupabaseClient() as unknown as {
-    from: (t: string) => {
-      select: (cols: string) => {
-        eq: (c: string, v: string) => {
-          eq: (c: string, v: string) => {
-            eq: (c: string, v: string) => {
-              eq: (c: string, v: string) => {
-                eq: (c: string, v: string) => {
-                  limit: (n: number) => Promise<{ data: unknown[] | null; error: unknown }>;
-                };
-              };
-            };
-          };
-        };
-      };
-    };
-  };
+  const sb = createAnonServerSupabaseClient() as unknown as { from: (t: string) => PnlQuery };
+  const matched = { submarket, class: klass, segmentation_type: seg };
 
-  const res = await sb
-    .from("pnl_template")
-    .select(COLS)
-    .eq("country", country)
-    .eq("market", market)
-    .eq("submarket", submarket)
-    .eq("class", klass)
-    .eq("segmentation_type", seg)
-    .limit(1);
+  // ── Level 1 (+ any existing per-submarket national row) · exact submarket ──
+  // Requires a known class (the submarket row is keyed by class). Unknown
+  // class skips straight to the national fallback.
+  if (klass) {
+    const exact = await sb
+      .from("pnl_template")
+      .select(COLS)
+      .eq("country", country)
+      .eq("market", market)
+      .eq("submarket", submarket)
+      .eq("class", klass)
+      .eq("segmentation_type", seg)
+      .limit(1);
+    if (!exact.error && exact.data && exact.data.length > 0) {
+      const row = exact.data[0] as PnlTemplateRow;
+      if (row.rooms_revenue_pct !== null) {
+        const level = levelFromDataSource(row.data_source);
+        if (level !== "no_data") return toResolved(row, level, ffeBaseline, matched);
+      }
+    }
+  }
 
-  if (res.error || !res.data || res.data.length === 0) return NO_DATA;
-  const row = res.data[0] as PnlTemplateRow;
-  if (row.rooms_revenue_pct === null) return NO_DATA;
+  // ── Level 2 · national USALI fallback (no own submarket row) ──
+  const nat = await queryCountryUsali(sb, country, klass, seg);
+  if (nat) return toResolved(nat, levelFromDataSource(nat.data_source), ffeBaseline, matched);
 
-  const level = levelFromDataSource(row.data_source);
-  if (level === "no_data") return NO_DATA;
-
-  return {
-    ratios: rowToRatios(row, ffeBaseline),
-    source_level: level,
-    data_source: row.data_source,
-    costar_resolved: true,
-    stated: { gop_pct: row.gop_pct == null ? null : n(row.gop_pct) / 100, ebitda_pct: row.ebitda_pct == null ? null : n(row.ebitda_pct) / 100 },
-    matched: { submarket, class: klass, segmentation_type: seg },
-  };
+  // ── Level 3 · no national USALI for this country → no_data ──
+  return NO_DATA;
 }
 
 /** Human-readable label for the report's source pill. */
 export function sourceLevelLabel(level: PnlSourceLevel): string {
   switch (level) {
     case "submarket": return "Dato de submercado CoStar";
-    case "national": return "Fallback nacional CoStar";
+    case "national": return "USALI nacional aplicado";
     case "derived": return "Estimación por tipo de activo (modelo HotelVALORA)";
     case "no_data": return "Cobertura CoStar pendiente";
   }

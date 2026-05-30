@@ -470,3 +470,30 @@ Para la selección de edificio (sobre todo `hotelproject`): derivar el nº de ha
 | 5★ | ≥55 | ~40% | ~33 |
 
 Planta baja = lobby / zonas comunes; habitaciones en plantas superiores; cálculo sobre **superficie bruta sobre rasante** y **tamaño de planta**. Esto da sentido futuro al `segmentation_type = 'hotelproject'` (partir de un edificio y derivar el programa de habitaciones). Pendiente de implementación; aquí queda solo como propiedad intelectual del método.
+
+---
+
+## ANEXO · Cascada de cobertura USALI (3 niveles, agnóstica al mercado · firmado 2026-05-30)
+
+Define QUÉ USALI aplica el motor a un activo según la cobertura disponible. Agnóstica: resuelve por la jerarquía **País → Mercado → Submercado** leyendo de los datos, sin nombrar ningún mercado en el código. Surge de la auditoría DATA-INTEGRITY-SUBMARKETS (la capa de datos de mercado estaba completa para los 8 submercados de Madrid; la capa USALI solo tenía fila propia para algunos).
+
+### Las dos capas (no confundir)
+
+- **Datos de mercado** (ADR / ocupación / RevPAR por submercado): snapshot CoStar (`market_snapshots`). Numerador real del P&L.
+- **% USALI** (estructura ingresos/gastos): `pnl_template`. Forma del P&L. Puede existir a nivel submercado o solo nacional.
+
+### La cascada (etiqueta visible en cada nivel)
+
+1. **Nivel 1 · USALI de submercado propio.** El submercado tiene su tabla USALI real → se usa. Etiqueta **"dato de submercado"**. (Ej. Madrid Centre.)
+2. **Nivel 2 · USALI nacional aplicado.** No hay USALI de submercado propio PERO hay datos de mercado del submercado **y** el país tiene USALI nacional → se aplica el **USALI nacional sobre el ADR/ocupación/RevPAR REALES del submercado**. Etiqueta **"USALI nacional aplicado"** (aproximado, NO "pendiente"). (Ej. Barajas/Hortaleza.)
+3. **Nivel 3 · no_data.** Solo si el país tampoco tiene USALI nacional. Etiqueta **"cobertura pendiente"**.
+
+Los % nacionales son **invariantes por submercado y por clase** (son la estructura del país), así que el Nivel 2 funciona también para activos con clase desconocida. La clase solo es requisito del Nivel 1 (submercado, segmentado por clase).
+
+### Agnosticismo y escalado
+
+La regla no nombra España ni Madrid. Si entra Nueva York: si EEUU tiene USALI nacional pero Manhattan aún no tiene USALI de submercado, Manhattan cae automáticamente en Nivel 2 (USALI nacional US sobre el ADR/occ real de Manhattan), sin tocar código. Las filas `costar_national` por submercado que pudieran existir son **opcionales**: el Nivel 2 deriva el mismo template nacional cuando faltan.
+
+### Consecuencia para el guard de honestidad
+
+Refina la sección 1 y el guard de país: "sin fila de submercado en `pnl_template`" ya **no** equivale a no_data. Solo es no_data la ausencia de USALI nacional del país (Nivel 3). Mientras haya datos de mercado + USALI nacional, el informe se sirve como aproximación nacional **etiquetada**, nunca como pendiente.

@@ -127,6 +127,37 @@ describe("EBITDA reconciliation (cross-check §7)", () => {
   });
 });
 
+describe("USALI coverage cascade · Level 2 national applied (Barajas)", () => {
+  // Level 2: a submarket with NO own USALI (Barajas/Hortaleza) but with real
+  // market data gets the NATIONAL USALI applied over its real ADR/occ/RevPAR.
+  // The ratios are the national set; the market data is Barajas's own.
+  function barajasLevel2(): PLAssumptions {
+    return {
+      ...getDefaultAssumptions(),
+      ratios: { ...COSTAR_NATIONAL_ES },
+      rooms: 150,
+      occupancyYear1: 0.7648, // Barajas real occ (snapshot)
+      adrYear1: 112.62,       // Barajas real ADR (snapshot)
+    };
+  }
+
+  it("produces a coherent P&L · RevPAR matches the submarket, margins in [0,1] (×100 guard)", () => {
+    const pl = computePL(barajasLevel2(), { hasCapex: false });
+    // RevPAR Y1 = ADR × occ ≈ 86.13 (Barajas snapshot RevPAR)
+    expect(pl.lineItems.revpar[0]).toBeCloseTo(112.62 * 0.7648, 2);
+    const rev = pl.results.totalRevenue[0];
+    expect(pl.results.gop[0] / rev).toBeGreaterThan(0.30);
+    expect(pl.results.gop[0] / rev).toBeLessThan(0.45);
+    // ×100 guard: EBITDA margins stay sane
+    expect(pl.results.ebitda[0] / rev).toBeGreaterThan(0);
+    expect(pl.results.ebitda[0] / rev).toBeLessThan(1);
+    expect(pl.results.ebitdaAfterReplacement[0] / rev).toBeGreaterThan(0);
+    expect(pl.results.ebitdaAfterReplacement[0] / rev).toBeLessThan(1);
+    // EBITDA after replacement (valuation NOI) is positive
+    expect(pl.results.ebitdaAfterReplacement[0]).toBeGreaterThan(0);
+  });
+});
+
 describe("Valuation (F3 · D3 · X5)", () => {
   it("resolveValuationMode: free→TTM, pro→year 7 default, clamp 1..10", () => {
     expect(resolveValuationMode("free")).toEqual({ kind: "current_ttm" });
