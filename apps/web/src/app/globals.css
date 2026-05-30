@@ -245,9 +245,14 @@
  * the top. The desktop rule above is height-gated, which fails on phones (the
  * browser chrome eats viewport height < 800px) → content clumped up top. Here
  * `landing-main` (flex-grow on <main>) becomes a column with space-between so
- * hero+search sit up top (with air) and the 3 pricing rows anchor to the bottom
- * (PREMIUM touching the slim footer). The page uses 100svh so it fits the small
- * viewport (chrome shown) without scroll.
+ * hero+search sit up top (with air) and the 3 pricing rows anchor to the bottom.
+ *
+ * `min-height: calc(100svh - 61px)` makes the hero+search+cards block fill the
+ * FIRST screen exactly (61px = the mobile AppHeader, measured stable at 360/390).
+ * The slim footer (a sibling AFTER <main>) is therefore pushed JUST BELOW the
+ * fold — visible only on a small scroll — while the 3 cards stay fully visible
+ * on load. The page wrapper's min-h-[100svh] still allows the wrapper to grow
+ * past the viewport to accommodate that off-screen footer.
  * MUST come AFTER the default `.landing-pricing` rule so its padding-bottom:0
  * wins by source order (equal specificity). */
 @media (max-width: 767px) {
@@ -255,6 +260,7 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    min-height: calc(100svh - 61px);
   }
   .landing-hero {
     flex: 0 1 auto;
