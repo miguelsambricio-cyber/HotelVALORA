@@ -25,7 +25,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
     <article
       aria-label={`Plan ${plan.name}`}
       className={cn(
-        "relative bg-white p-5 rounded-2xl group overflow-hidden transition-all flex flex-col justify-between",
+        "relative bg-white p-4 rounded-2xl group overflow-hidden transition-all flex flex-col justify-between",
         plan.featured
           ? "border-2 border-forest-900 shadow-xl scale-[1.02] z-20"
           : "border border-slate-200 shadow-sm hover:shadow-md"
@@ -45,7 +45,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
 
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
-        <div className="mb-3">
+        <div className="mb-2">
           {plan.featured ? (
             <span className="inline-block px-2.5 py-0.5 bg-forest-900 text-white text-[9px] font-bold tracking-[0.2em] rounded-full uppercase mb-2">
               {plan.tier}
@@ -58,7 +58,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
 
           <h3
             className={cn(
-              "text-2xl font-extrabold text-forest-900 tracking-tight",
+              "text-xl font-extrabold text-forest-900 tracking-tight",
               !plan.featured && "mt-1"
             )}
           >
@@ -73,7 +73,7 @@ export function PricingCard({ plan }: { plan: PricingPlan }) {
         </div>
 
         {/* Features */}
-        <ul className="space-y-1.5 mb-4 flex-grow" aria-label={`Características del plan ${plan.name}`}>
+        <ul className="space-y-1 mb-3 flex-grow" aria-label={`Características del plan ${plan.name}`}>
           {plan.features.map((feature) => (
             <li
               key={feature.text}

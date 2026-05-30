@@ -216,7 +216,7 @@
  * slim (48px). On viewports < 800px the height calc is dropped and
  * flex-grow takes over so content can scroll naturally on tablets
  * and short laptops where the single-screen guarantee is relaxed. */
-@media (min-height: 800px) {
+@media (min-width: 768px) and (min-height: 800px) {
   .landing-main {
     display: flex;
     flex-direction: column;
@@ -230,6 +230,28 @@
     flex: 0 0 auto;
     padding-top: 1.25rem;
     padding-bottom: 1.25rem;
+  }
+}
+
+/* MOBILE (< md) · distribute the whole visible height instead of stacking from
+ * the top. The desktop rule above is height-gated, which fails on phones (the
+ * browser chrome eats viewport height < 800px) → content clumped up top. Here
+ * `landing-main` (flex-grow on <main>) becomes a column with space-between so
+ * hero+search sit up top (with air) and the 3 pricing rows anchor to the bottom
+ * (PREMIUM touching the slim footer). The page uses 100svh so it fits the small
+ * viewport (chrome shown) without scroll. */
+@media (max-width: 767px) {
+  .landing-main {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .landing-hero {
+    flex: 0 1 auto;
+    padding-top: 2.25rem; /* aire arriba */
+  }
+  .landing-pricing {
+    flex: 0 0 auto;
   }
 }
 
