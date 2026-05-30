@@ -23,6 +23,14 @@ interface SearchBarProps {
   onMapView?: () => void;
   placeholder?: string;
   className?: string;
+  /**
+   * When true, the text field and the map button stay on the SAME ROW at
+   * every width (input flex:1 · map button fixed 48×48 square). Default
+   * false preserves the legacy responsive stack (map button drops below
+   * the input on mobile) used by the /compset panel search. The landing
+   * hero opts in. (Mike's hard requirement #1.)
+   */
+  mapAlwaysInline?: boolean;
 }
 
 // ── Star rating display ───────────────────────────────────────────────────────
@@ -91,6 +99,7 @@ export function SearchBar({
   onMapView,
   placeholder = "Nombre o dirección del hotel...",
   className,
+  mapAlwaysInline = false,
 }: SearchBarProps) {
   const uid = useId();
   const { query, setQuery, results, isLoading, isOpen, setIsOpen, clear } =
@@ -157,9 +166,14 @@ export function SearchBar({
     <div ref={containerRef} className={cn("relative", className)}>
       {/* ── Input shell ─────────────────────────────────────────────────── */}
       <div className="glass-effect p-1.5 rounded-2xl shadow-[0_20px_40px_-12px_rgba(6,44,28,0.08)] border border-white">
-        <div className="flex flex-col md:flex-row gap-1 bg-white/40 rounded-xl p-1">
+        <div
+          className={cn(
+            "flex gap-1 bg-white/40 rounded-xl p-1",
+            mapAlwaysInline ? "flex-row items-center" : "flex-col md:flex-row",
+          )}
+        >
           {/* Text field */}
-          <label className="flex-grow flex items-center px-5 py-3 gap-3">
+          <label className="flex-grow min-w-0 flex items-center px-4 sm:px-5 py-3 gap-3">
             {isLoading ? (
               <Loader2
                 size={20}
@@ -207,12 +221,15 @@ export function SearchBar({
           </label>
 
           {/* Map action */}
-          <div className="flex gap-1 p-0.5">
+          <div className={cn("flex gap-1 p-0.5", mapAlwaysInline ? "shrink-0" : "")}>
             <button
               type="button"
               aria-label="Ver en mapa"
               onClick={onMapView}
-              className="flex items-center justify-center h-10 w-10 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200 transition-colors"
+              className={cn(
+                "flex items-center justify-center bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200 transition-colors",
+                mapAlwaysInline ? "h-12 w-12" : "h-10 w-10",
+              )}
             >
               <Map size={20} />
             </button>

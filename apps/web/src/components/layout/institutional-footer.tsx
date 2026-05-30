@@ -21,10 +21,13 @@ export interface InstitutionalFooterProps {
 }
 
 const FOOTER_LINKS = [
-  { href: "/terms",         label: "Términos"      },
-  { href: "/privacy",       label: "Privacidad"    },
-  { href: "/contact",       label: "Contacto"      },
-  { href: "/institutional", label: "Institucional" },
+  { href: "/terms",         label: "Términos",      mobile: true  },
+  { href: "/privacy",       label: "Privacidad",    mobile: true  },
+  { href: "/contact",       label: "Contacto",      mobile: true  },
+  // Institutional is a secondary link · hidden on mobile so the legal row
+  // stays a single clean line (Términos · Privacidad · Contacto). Desktop
+  // shows all four unchanged.
+  { href: "/institutional", label: "Institucional", mobile: false },
 ] as const;
 
 export function InstitutionalFooter({
@@ -40,13 +43,15 @@ export function InstitutionalFooter({
         className,
       )}
     >
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 md:flex-row">
-        <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
+      {/* Mobile: links row on top, copyright below (centered, small, muted).
+       *  Desktop (md+): unchanged — copyright left, nav right on one row. */}
+      <div className="mx-auto flex max-w-7xl flex-col-reverse items-center justify-between gap-2 md:flex-row md:gap-3">
+        <span className="text-center text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400 md:text-[10px] md:tracking-[0.18em]">
           © 2026 HotelVALORA Institutional · Underwriting-grade intelligence.
         </span>
-        <nav aria-label="Footer" className="flex flex-wrap justify-center gap-5">
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-0.5">
           {FOOTER_LINKS.map((l) => (
-            <FooterLink key={l.href} href={l.href}>
+            <FooterLink key={l.href} href={l.href} mobileHidden={!l.mobile}>
               {l.label}
             </FooterLink>
           ))}
@@ -59,14 +64,20 @@ export function InstitutionalFooter({
 function FooterLink({
   href,
   children,
+  mobileHidden = false,
 }: {
   href: string;
   children: React.ReactNode;
+  /** When true, hidden below md (keeps the mobile legal row to one clean line). */
+  mobileHidden?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300"
+      className={cn(
+        "items-center py-1.5 text-[10px] uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-emerald-300",
+        mobileHidden ? "hidden md:inline-flex" : "inline-flex",
+      )}
     >
       {children}
     </Link>

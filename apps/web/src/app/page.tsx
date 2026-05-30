@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800 selection:bg-forest-900/20 selection:text-forest-900">
-      <LandingHeader />
+      <LandingHeader mobileNav="menu" />
 
       <main className="flex-grow landing-main">
         <HeroSection />

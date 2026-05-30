@@ -64,6 +64,7 @@ export function HeroSearch({ className }: HeroSearchProps) {
       onSelect={handleSelect}
       onViewAll={handleViewAll}
       onMapView={handleMapView}
+      mapAlwaysInline
     />
   );
 }

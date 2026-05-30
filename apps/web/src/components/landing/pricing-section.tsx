@@ -5,8 +5,10 @@
  * replace `PLANS` with an async fetch and mark the component async.
  */
 
+import Link from "next/link";
 import { PricingCard } from "@/components/ui/pricing-card";
 import type { PricingPlan } from "@/types/hotel-search";
+import { cn } from "@/lib/utils";
 
 /**
  * Routing contract (post-QA #001 entry-flow wiring):
@@ -69,11 +71,65 @@ export function PricingSection() {
       className="w-full bg-slate-50 border-t border-slate-200 landing-pricing"
     >
       <div className="max-w-7xl mx-auto px-6 md:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-center">
+        {/* Desktop · full feature cards (unchanged) */}
+        <div className="hidden md:grid md:grid-cols-3 gap-6 lg:gap-8 items-center">
           {PLANS.map((plan) => (
             <PricingCard key={plan.id} plan={plan} />
           ))}
         </div>
+
+        {/* Mobile · compact rows · tier + name + button, NO features.
+         *  Whole row + button share ONE destination = plan.href (same as
+         *  desktop · Mike-confirmed): GRATIS → /compset (start the flow ·
+         *  the free plan isn't "contracted", it's used), Pro → /pricing#pro,
+         *  Premium → /pricing#premium. GRATIS is the featured row (accent
+         *  border + "Recomendado" badge + filled "Empezar ahora"); Pro/Premium
+         *  outline "Seleccionar". (Mike's req #2 · the 3 fit without scroll.) */}
+        <ul className="md:hidden flex flex-col gap-2.5" aria-label="Planes y precios">
+          {PLANS.map((plan) => {
+            const featured = Boolean(plan.featured);
+            return (
+              <li key={plan.id}>
+                <Link
+                  href={plan.href}
+                  aria-label={`Plan ${plan.name}`}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 transition-transform active:scale-[0.99]",
+                    featured
+                      ? "border-2 border-forest-900 shadow-md"
+                      : "border border-slate-200 shadow-sm",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-extrabold tracking-tight text-forest-900">
+                        {plan.name}
+                      </span>
+                      {featured && (
+                        <span className="inline-block rounded-full bg-forest-900 px-2 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.16em] text-white">
+                          Recomendado
+                        </span>
+                      )}
+                    </div>
+                    <span className="mt-0.5 block truncate text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                      {plan.tier}
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-lg px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.14em]",
+                      featured
+                        ? "bg-forest-900 text-white shadow-sm"
+                        : "border-2 border-forest-900 text-forest-900",
+                    )}
+                  >
+                    {featured ? "Empezar ahora" : "Seleccionar"}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </section>
   );
