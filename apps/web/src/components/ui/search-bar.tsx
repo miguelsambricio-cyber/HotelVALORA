@@ -7,6 +7,7 @@ import {
   useId,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { Search, Map, Loader2, X, Star, ArrowRight } from "lucide-react";
 import { useHotelSearch } from "@/lib/hooks/use-hotel-search";
 import type { HotelSearchHit } from "@/types/hotel-search";
@@ -31,6 +32,17 @@ interface SearchBarProps {
    * hero opts in. (Mike's hard requirement #1.)
    */
   mapAlwaysInline?: boolean;
+  /**
+   * When true, the results dropdown is rendered in a PORTAL to <body> with
+   * `position: fixed`, anchored to the input's bounding box. This makes it a
+   * true floating overlay that escapes EVERY ancestor clip in the page tree
+   * (overflow:hidden/clip/auto, fixed heights, justify-between distribution,
+   * transform/filter containing-blocks). The landing hero opts in — its
+   * search lives inside a height-distributed `landing-main` that clipped the
+   * legacy `absolute` dropdown on mobile. Default false keeps the legacy
+   * in-flow `absolute` dropdown used by the /compset panel search.
+   */
+  overlayDropdown?: boolean;
 }
 
 // ── Star rating display ───────────────────────────────────────────────────────
@@ -100,6 +112,7 @@ export function SearchBar({
   placeholder = "Nombre o dirección del hotel...",
   className,
   mapAlwaysInline = false,
+  overlayDropdown = false,
 }: SearchBarProps) {
   const uid = useId();
   const { query, setQuery, results, isLoading, isOpen, setIsOpen, clear } =
@@ -109,19 +122,60 @@ export function SearchBar({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Portaled dropdown lives outside the container tree, so its own ref is
+  // needed for the outside-click test (otherwise clicking a result closes it).
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const showDropdown = isOpen && (results.length > 0 || isLoading);
   const showEmpty = isOpen && !isLoading && query.trim().length > 0 && results.length === 0;
+
+  // ── Portal/overlay geometry ────────────────────────────────────────────────
+  // Mounted gate: createPortal needs `document`, absent during SSR.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const [overlayRect, setOverlayRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const overlayOpen = overlayDropdown && (showDropdown || showEmpty);
+
+  // Anchor the fixed overlay to the input shell. The `!overlayRect` null-gate
+  // in render avoids any mispositioned flash, so useEffect timing suffices.
+  // Recompute on scroll/resize while open.
+  useEffect(() => {
+    if (!overlayOpen) return;
+    const measure = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setOverlayRect({ top: r.bottom + 12, left: r.left, width: r.width });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [overlayOpen, results.length, showEmpty]);
 
   // Reset active index when results change
   useEffect(() => {
     setActiveIndex(-1);
   }, [results]);
 
-  // Close on outside click
+  // Close on outside click — accounts for the portaled dropdown living
+  // outside the container's DOM subtree.
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (
+        !containerRef.current?.contains(t) &&
+        !dropdownRef.current?.contains(t)
+      ) {
         setIsOpen(false);
         setActiveIndex(-1);
       }
@@ -238,52 +292,90 @@ export function SearchBar({
       </div>
 
       {/* ── Results dropdown ─────────────────────────────────────────────── */}
-      {(showDropdown || showEmpty) && (
-        <div
-          role="listbox"
-          id={listboxId}
-          aria-label="Resultados de búsqueda"
-          className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden z-50"
-        >
-          {showDropdown && (
-            <ul>
-              {results.map((hotel, i) => (
-                <ResultItem
-                  key={hotel.id}
-                  id={`${uid}-option-${i}`}
-                  hotel={hotel}
-                  isActive={i === activeIndex}
-                  onMouseEnter={() => setActiveIndex(i)}
-                  onSelect={handleSelect}
-                />
-              ))}
-            </ul>
-          )}
+      {/* Inner content is identical for both render modes. */}
+      {(() => {
+        if (!(showDropdown || showEmpty)) return null;
 
-          {showEmpty && (
-            <div className="px-5 py-6 text-center text-sm text-slate-400">
-              No se encontraron hoteles para{" "}
-              <span className="font-semibold text-slate-600">
-                &ldquo;{query}&rdquo;
-              </span>
-            </div>
-          )}
+        const dropdownInner = (
+          <>
+            {showDropdown && (
+              <ul>
+                {results.map((hotel, i) => (
+                  <ResultItem
+                    key={hotel.id}
+                    id={`${uid}-option-${i}`}
+                    hotel={hotel}
+                    isActive={i === activeIndex}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    onSelect={handleSelect}
+                  />
+                ))}
+              </ul>
+            )}
 
-          {onViewAll && results.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                onViewAll(query);
-                setIsOpen(false);
+            {showEmpty && (
+              <div className="px-5 py-6 text-center text-sm text-slate-400">
+                No se encontraron hoteles para{" "}
+                <span className="font-semibold text-slate-600">
+                  &ldquo;{query}&rdquo;
+                </span>
+              </div>
+            )}
+
+            {onViewAll && results.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  onViewAll(query);
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center justify-between px-5 py-3 text-xs font-semibold text-forest-700 bg-slate-50 border-t border-slate-100 hover:bg-slate-100 transition-colors"
+              >
+                <span>Ver todos los resultados para &ldquo;{query}&rdquo;</span>
+                <ArrowRight size={14} />
+              </button>
+            )}
+          </>
+        );
+
+        // Overlay mode (landing): portal to <body>, position: fixed anchored to
+        // the input box → escapes every ancestor clip. z above all page chrome.
+        if (overlayDropdown) {
+          if (!mounted || !overlayRect) return null;
+          return createPortal(
+            <div
+              ref={dropdownRef}
+              role="listbox"
+              id={listboxId}
+              aria-label="Resultados de búsqueda"
+              style={{
+                position: "fixed",
+                top: overlayRect.top,
+                left: overlayRect.left,
+                width: overlayRect.width,
+                zIndex: 1000,
               }}
-              className="w-full flex items-center justify-between px-5 py-3 text-xs font-semibold text-forest-700 bg-slate-50 border-t border-slate-100 hover:bg-slate-100 transition-colors"
+              className="bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden max-h-[70svh] overflow-y-auto"
             >
-              <span>Ver todos los resultados para &ldquo;{query}&rdquo;</span>
-              <ArrowRight size={14} />
-            </button>
-          )}
-        </div>
-      )}
+              {dropdownInner}
+            </div>,
+            document.body,
+          );
+        }
+
+        // Legacy in-flow mode (/compset panel): absolute, relative to container.
+        return (
+          <div
+            ref={dropdownRef}
+            role="listbox"
+            id={listboxId}
+            aria-label="Resultados de búsqueda"
+            className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden z-50"
+          >
+            {dropdownInner}
+          </div>
+        );
+      })()}
     </div>
   );
 }
