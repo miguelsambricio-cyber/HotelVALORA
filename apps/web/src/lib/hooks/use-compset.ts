@@ -37,6 +37,10 @@ export function useCompset(referenceHotelId = "ref-001"): UseCompsetReturn {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        // Clear any stale subject/competitors so the UI never shows a wrong
+        // (placeholder) hotel behind the error — the subject failed to resolve.
+        setCompetitors([]);
+        setSuggested([]);
         setError(
           err instanceof Error ? err.message : "Error cargando compset"
         );

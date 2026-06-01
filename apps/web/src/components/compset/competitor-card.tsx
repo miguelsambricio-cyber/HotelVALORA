@@ -20,17 +20,6 @@ function StarRow({ count }: { count: number }) {
   );
 }
 
-function KpiPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase leading-none mb-0.5">
-        {label}
-      </span>
-      <span className="text-[11px] font-bold text-slate-700 leading-none">{value}</span>
-    </div>
-  );
-}
-
 interface CompetitorCardProps {
   hotel: CompetitorHotel;
   variant: "active" | "suggested";
@@ -91,19 +80,17 @@ export function CompetitorCard({
         )}
       </div>
 
-      {/* KPI bar */}
-      <div className="grid grid-cols-4 gap-1 bg-slate-50 rounded-lg px-2 py-1.5">
-        <KpiPill label="ADR"    value={`€${hotel.adr}`}       />
-        <KpiPill label="RevPAR" value={`€${hotel.revpar}`}    />
-        <KpiPill label="Occ"    value={`${hotel.occupancy}%`} />
-        <div className="flex flex-col items-center">
-          <span className="text-[9px] font-bold tracking-wider text-slate-400 uppercase leading-none mb-0.5">
-            Cat.
+      {/* Info strip · brand · submarket (left) + distance to subject (right).
+       *  D2-Option-2 · no per-hotel ADR/RevPAR/Occ (the corpus has none). */}
+      <div className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-2.5 py-1.5">
+        <span className="min-w-0 truncate text-[10px] font-medium text-slate-500">
+          {[hotel.brand, hotel.submarket].filter(Boolean).join(" · ") || "—"}
+        </span>
+        {hotel.distanceKm != null && (
+          <span className="shrink-0 text-[10px] font-bold tabular-nums text-forest-900">
+            {hotel.distanceKm.toFixed(1).replace(".", ",")} km
           </span>
-          <span className="text-[9px] font-semibold text-slate-600 text-center leading-tight">
-            {hotel.category}
-          </span>
-        </div>
+        )}
       </div>
     </div>
   );
