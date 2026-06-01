@@ -4,6 +4,29 @@ One entry per completed feature or significant task. Most recent first.
 
 ---
 
+## 2026-06-01 — feat(master): M1 merge de campos CoStar con procedencia · `hotel_field_provenance`
+
+Rama `feat/master-m1-merge`. Merge de los datos CoStar a las 108 filas canónicas con `costar_property_id`, con trazabilidad y prioridad de fuente. Solo Supabase — `main`/select-corpus intactos.
+
+- **M1.1** · `hotel_source_record(source='costar_inmueble')` para los 108 (payload crudo: rooms, clase, escala, año constr./reforma, m², plantas, estado, propietario real/registrado, marca, matriz, operador) → 280 source-records CoStar totales.
+- **M1.2** · DDL aditivo `hotel_canonical.gross_building_sqm numeric` (m²).
+- **M1.3** · backfill de procedencia de los campos M0 (`costar_property_id` 108 + `total_rooms` 108, 41 superseded por manual).
+- **M1.4** · merge real. Rellenos en huecos (no clobber): `year_renovated_last` 65, `chain_scale`/`segment` 45 unknowns, `gross_building_sqm` 108, `ownership_structure` 77, `brand` 13 nulos, `property_kind='hotel'` 108. `year_built` (año edificio CoStar) → payload, NO pisa `year_opened`.
+- **Política por campo (prioridad manual > CoStar > resto):** `year_opened` (año reflag), `chain_scale` curados, one-offs del Ritz → **manual gana** (CoStar no pisa). `total_rooms` → arbitrado por web en discrepancias grandes: CoStar gana (Novotel 790, Meliá Serrano 312, AC Atocha 161, Atocha Tapestry 46, Westin Cuzco 287, Marriott Princesa 414, NH Nacional 206, Catalonia Goya 92); manual gana (Fénix 215, Aloft 139); **Catalonia Atocha 142 = override sticky de Mike** (`override_by`=auth user · CoStar 138 no lo pisa nunca). M0 había clobbered 23 rooms manuales → corregido.
+- **Impacto valoraciones (~61 de 108, on-demand en el informe):** 30 activan `hasCapex` (reforma ≥2016 → rampa FF&E D1 + descuento renovación cap-rate D4), 45 mueven €/llave (chain_scale unknown→tier), 3 por rooms corregido. **Front sin regresión:** `front_visible`=226, coords intactas; único campo front-read tocado = `brand` (13 etiquetas null→marca, aditivo).
+- **Revert M1.4:** restaurar columnas a su estado pre-merge requiere snapshot (no lo hay); revert práctico = re-derivar desde provenance superseded, o `UPDATE` puntual. Las inserciones de procedencia se revierten con `DELETE FROM hotel_field_provenance WHERE source='costar_inmueble' AND created_at::date='2026-06-01'` (+ las 1 override manual_operator de Catalonia con override_by).
+
+## 2026-06-01 — feat(master): M0 identidad + inventario · `hotel_canonical` 226 → 398 (CoStar Excel Madrid)
+
+Rama `feat/master-m0-identity`. Establece el **master único por hotel** desde el CoStar export `1.1 ... INMUEBLES LISTA HOTELES MADRID.xlsx` (364 inmuebles). Solo cambios en Supabase (DB) — `main`/select-corpus de prod intactos.
+
+- **Back-fill (108 CLAROS):** matcher por dirección v2/v3 (calle+número+CP+submercado, nombre secundario) casó 107 + Social Hub (dudoso aprobado, nº portal 26↔28) → `costar_property_id` 0→108, `total_rooms` 65→131. Hallazgo verificado: el Excel **no es superset** del corpus (solapa ~110; ausentes todo el cinturón aeropuerto/Barajas + DoubleTree/Mercure/Senator/Hospes/Atlántico/Brach…) — los 116 sin-gemelo son ausencias reales, no fallos del matcher.
+- **Parte B (172 promovidas):** filas Excel Hotel+Hostel sin gemelo (146 hotel + 26 hostel), `data_quality_tier='costar_only'`, **sin lat/lng** → fuera de buscador/compset (`loadSearchCorpus` filtra coords · `front_visible` = 226, cero regresión). Apartamentos con servicios excluidos (borde operador). Guarda anti-duplicado (costar_id/slug/dirección) excluyó 1 (Social Hub, ya casado).
+- **DDL aditivo:** enum `quality_tier_enum += 'costar_only'`; columna `hotel_canonical.property_kind text` (hotel/hostel/apartment, universal). Cada promovida → `hotel_source_record(source='costar_inmueble')` con payload CoStar crudo (172).
+- **`status` mapeado desde `estado` CoStar** (no blanket active): active 135 · closed 23 (14 demolidos + 9 proyectos abandonados) · planned 7 · under_construction 4 · unverified 3. `chain_scale`/`segment` desde col "Clase"; `year_opened`/`year_renovated_last` desde año constr./reforma; m²/escala/plantas en payload.
+- **Revert:** `DELETE hotel_source_record WHERE source='costar_inmueble'` + `DELETE hotel_canonical WHERE data_quality_tier='costar_only' AND primary_source='costar_inmueble'`.
+- Pendiente: portar generador a `services/costar/master/ingest_costar_inmuebles.py` · decisión purga de los 23 closed · M1 (merge campos m²/año/escala con provenance).
+
 ## 2026-05-30 — feat(financial-engine): X4 + F3 · cablear % CoStar (`pnl_template`) → `computePL` + valoración NOI/cap
 
 Rama `feat/x4-f3-costar-pnl-wiring` (pendiente de revisión humana · no mergeado). Cierra el núcleo del informe de punta a punta detectado en la auditoría (`docs/underwriting/AUDIT_MOTOR_FINANCIERO.md`, X4/F3/X5).

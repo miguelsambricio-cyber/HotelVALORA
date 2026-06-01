@@ -4,6 +4,13 @@ Three buckets: **Future ideas** · **Blocked** · **Technical debt**. Anything e
 
 ---
 
+## Master por hotel · M0/M1 pendings (2026-06-01)
+
+1. **M0.B · promover los 96 "Apartamento con servicios"** — promoción diferida (decisión Mike): mismo proceso verificado que los 172 de M0 (`data_quality_tier='costar_only'`, sin coords, fuera del front, mismas guardas anti-duplicado costar_id/slug/dirección). Ejecutar DESPUÉS de cerrar M1. `property_kind='apartment'`.
+2. **`property_kind` de aparthoteles mal clasificados** — el Grupo 2 (~varios de los 108 que CoStar marca *Apartamento con servicios* pero entraron al corpus como hotel: limehome, Skyline Plaza España, Hyatt Regency Residences, Juan Bravo, Eric Vökel, Feelathome, Aspasios, Bob W, Smartr…) se MANTIENE como `property_kind='hotel'` por ahora (decisión consciente · no tocar el front). **Revisar y reclasificar a 'apartment' cuando se active el segmento apartamentos**, para que el master sea coherente ese día.
+
+---
+
 ## X4b · Underwriting bridge + TRAMO 5 pendings (2026-05-30)
 
 Capturados al cerrar el bridge config→motor (X4b · 4 tramos). Algunos ya tienen fila detallada en
