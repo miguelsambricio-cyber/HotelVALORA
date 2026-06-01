@@ -66,7 +66,7 @@ export function RecommendedAssetCard({
               ))}
             </span>
             <span className="text-[9px] font-semibold text-slate-400 truncate">
-              {hotel.category}
+              {hotel.submarket}
             </span>
           </div>
         </div>
@@ -82,23 +82,13 @@ export function RecommendedAssetCard({
         />
       </div>
 
-      {/* Dense KPI strip · 3 cols (ADR · RevPAR · Occ) */}
-      <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-md px-1.5 py-1">
-        {[
-          { label: "ADR", value: `€${hotel.adr}` },
-          { label: "RevPAR", value: `€${hotel.revpar}` },
-          { label: "Occ", value: `${hotel.occupancy}%` },
-        ].map(({ label, value }) => (
-          <div key={label} className="flex flex-col items-center">
-            <span className="text-[8px] font-bold tracking-wider text-slate-400 uppercase leading-none mb-0.5">
-              {label}
-            </span>
-            <span className="text-[10px] font-bold text-slate-700 leading-none">
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* Brand strip · D2-Option-2 · no per-hotel ADR/RevPAR/Occ (corpus has
+       *  none). Hidden for independents (no brand) so the tile stays clean. */}
+      {hotel.brand && (
+        <div className="truncate rounded-md bg-slate-50 px-2 py-1 text-[10px] font-medium text-slate-500">
+          {hotel.brand}
+        </div>
+      )}
     </button>
   );
 }

@@ -41,10 +41,19 @@ function toCompetitorHotel(h: MadridHotelEntry): CompetitorHotel {
   };
 }
 
-/** Canonical default reference hotel for /compset when no ?ref param. */
-export const REFERENCE_HOTEL: CompetitorHotel = toCompetitorHotel(
-  MADRID_HOTELS.find((h) => h.id === DEFAULT_MADRID_HOTEL_ID) ?? MADRID_HOTELS[0],
-);
+/**
+ * Neutral loading placeholder for `useCompset` initial state · NOT a real
+ * hotel (B3 · removes the last silent-Bless default). The real subject loads
+ * from `/api/hotels/compset` within ~1s; on failure the error screen renders.
+ * Coordinates = Madrid centre so the map's initial frame is sane during load.
+ */
+export const REFERENCE_HOTEL: CompetitorHotel = {
+  id: "",
+  name: "",
+  city: "Madrid",
+  stars: 0,
+  coordinates: { lng: -3.7038, lat: 40.4168 },
+};
 
 /**
  * Backwards-compat exports · used by older /compset render paths
@@ -94,26 +103,37 @@ export const RECOMMENDED_MADRID_ANCHORS: CompetitorHotel[] =
     .map(toCompetitorHotel);
 
 /**
- * Fetches the compset for a given reference hotel · Madrid registry.
+ * Fetches the compset for a subject slug from the REAL corpus (B2).
  *
- * Honours the `hotelId` argument (default: canonical Bless Hotel
- * Madrid) so the search → /compset?ref flow drives a per-subject map.
- *
- * Tier 3 swap path: replace this body with a Supabase query.
+ * Calls `/api/hotels/compset?ref=<slug>` which resolves the subject against
+ * `hotel_canonical` and computes the nearest ±1★ competitors by Haversine on
+ * real coordinates. The subject is ALWAYS the requested hotel — when the slug
+ * doesn't resolve this THROWS (the route 404s); the `useCompset` hook surfaces
+ * a visible error. It NEVER substitutes a default hotel (the silent Bless
+ * fallback is gone).
  */
 export async function fetchCompset(hotelId: string): Promise<{
   referenceHotel: CompetitorHotel;
   competitors: CompetitorHotel[];
   suggested: CompetitorHotel[];
 }> {
-  // Simulate realistic network latency · matches previous behaviour so
-  // skeleton/loading states still animate.
-  await new Promise<void>((r) => setTimeout(r, 400));
-
-  const { subject, competitors, suggested } = buildCompsetForHotel(hotelId);
-  return {
-    referenceHotel: toCompetitorHotel(subject),
-    competitors: competitors.map(toCompetitorHotel),
-    suggested: suggested.map(toCompetitorHotel),
-  };
+  const res = await fetch(`/api/hotels/compset?ref=${encodeURIComponent(hotelId)}`);
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(`No se pudo cargar el hotel "${hotelId}"`);
+    }
+    let detail = "";
+    try {
+      const j = (await res.json()) as { error?: string };
+      detail = j?.error ? ` (${j.error})` : "";
+    } catch {
+      /* ignore */
+    }
+    throw new Error(`No se pudo cargar el compset${detail}`);
+  }
+  return res.json() as Promise<{
+    referenceHotel: CompetitorHotel;
+    competitors: CompetitorHotel[];
+    suggested: CompetitorHotel[];
+  }>;
 }

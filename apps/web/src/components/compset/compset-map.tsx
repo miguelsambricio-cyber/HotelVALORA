@@ -12,7 +12,9 @@ import { HVMapToolbar }    from "./hv-map-toolbar";
 import { MapLegend }       from "./map-legend";
 import { CompetitorPanel }        from "./competitor-panel";
 import { AssetSelectionPanel }    from "./asset-selection-panel";
-import { ALL_MADRID_AS_COMPETITORS, DEFAULT_LAYERS } from "@/lib/api/compset";
+import { DEFAULT_LAYERS } from "@/lib/api/compset";
+import { loadCorpusClient, corpusToCompetitor } from "@/lib/hotels/corpus-client";
+import type { CompetitorHotel } from "@/types/compset";
 
 // Phase 2 feature flag · Vercel env var · default OFF (production behavior
 // unchanged). Strict equality on "true" · any other value falls back to false.
@@ -128,6 +130,31 @@ function AnalysisMode({ referenceHotelId }: { referenceHotelId?: string }) {
     setInspectedHotelId((prev) => (prev === hotelId ? null : hotelId));
   }
 
+  // Fail VISIBLE · when the subject slug doesn't resolve the hook reports an
+  // error. Render it as the whole surface — NEVER fall through to the map with
+  // the placeholder hotel (no silent Bless · B2 requirement).
+  if (error) {
+    return (
+      <section
+        aria-label="Mapa de competidores"
+        className="relative w-full overflow-hidden compset-map-container bg-slate-100 flex items-center justify-center px-6"
+      >
+        <div className="max-w-md text-center rounded-2xl border border-red-200 bg-red-50 px-8 py-10 shadow-sm">
+          <p className="text-sm font-bold text-red-700">{error}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            El hotel solicitado no está en el corpus. Vuelve a explorar y elige otro activo.
+          </p>
+          <a
+            href="/compset"
+            className="mt-5 inline-block rounded-lg border-2 border-forest-900 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-forest-900 transition-colors hover:bg-forest-900 hover:text-white"
+          >
+            Volver a explorar
+          </a>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-label="Mapa de competidores"
@@ -224,6 +251,24 @@ function ExploreMode() {
   const [layersPanelOpen, setLayersPanelOpen] = useState(false);
   const [hotelsPanelOpen, setHotelsPanelOpen] = useState(true);
 
+  // B3 · explore the FULL 226-hotel corpus (not the old 18-hotel array).
+  // Fetched once client-side from the shared corpus cache; drives both the
+  // map pins and the AssetSelectionPanel list.
+  const [exploreHotels, setExploreHotels] = useState<CompetitorHotel[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    loadCorpusClient()
+      .then((corpus) => {
+        if (!cancelled) setExploreHotels(corpus.map(corpusToCompetitor));
+      })
+      .catch(() => {
+        if (!cancelled) setExploreHotels([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Auto-open hotels panel when a pin is inspected · matches the pre-Phase-2.E
   // internal behaviour of AssetSelectionPanel.
   useEffect(() => {
@@ -258,7 +303,7 @@ function ExploreMode() {
           mode="explore"
           viewState={viewState}
           onViewStateChange={setViewState}
-          exploreHotels={ALL_MADRID_AS_COMPETITORS}
+          exploreHotels={exploreHotels}
           onPinClick={handlePinClick}
           inspectedHotelId={inspectedHotelId}
           layers={layers}
@@ -298,7 +343,7 @@ function ExploreMode() {
       {/* Right panel · corner-flush (top-0 right-0) · clamp bottom-44
        *  to clear the BR toolbar · close X lives in the panel header */}
       <AssetSelectionPanel
-        recommended={ALL_MADRID_AS_COMPETITORS}
+        recommended={exploreHotels}
         inspectedHotelId={inspectedHotelId}
         onInspect={setInspectedHotelId}
         onCommit={commitSelection}

@@ -54,22 +54,32 @@ function HotelPopup({
           {hotel.name}
         </p>
         <StarRow count={hotel.stars} />
-        <p className="text-[10px] text-slate-500 mt-0.5 mb-2">{hotel.category}</p>
+        <p className="text-[10px] text-slate-500 mt-0.5 mb-2">
+          {hotel.category ?? hotel.submarket ?? ""}
+        </p>
 
-        <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg px-2 py-1.5">
-          {[
-            { label: "ADR",    value: `€${hotel.adr}`       },
-            { label: "RevPAR", value: `€${hotel.revpar}`    },
-            { label: "Occ",    value: `${hotel.occupancy}%` },
-          ].map(({ label, value }) => (
-            <div key={label} className="flex flex-col items-center">
-              <span className="text-[8px] font-bold tracking-wider text-slate-400 uppercase leading-none mb-0.5">
-                {label}
-              </span>
-              <span className="text-[10px] font-bold text-slate-700">{value}</span>
-            </div>
-          ))}
-        </div>
+        {/* KPI grid only when per-hotel KPIs exist (report data). Corpus hotels
+         *  carry none (D2) → show the submarket instead of "€undefined". */}
+        {hotel.adr != null ? (
+          <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg px-2 py-1.5">
+            {[
+              { label: "ADR",    value: `€${hotel.adr}`       },
+              { label: "RevPAR", value: `€${hotel.revpar}`    },
+              { label: "Occ",    value: `${hotel.occupancy}%` },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-col items-center">
+                <span className="text-[8px] font-bold tracking-wider text-slate-400 uppercase leading-none mb-0.5">
+                  {label}
+                </span>
+                <span className="text-[10px] font-bold text-slate-700">{value}</span>
+              </div>
+            ))}
+          </div>
+        ) : hotel.submarket ? (
+          <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-[10px] font-medium text-slate-500">
+            {hotel.submarket}
+          </div>
+        ) : null}
       </div>
     </Popup>
   );

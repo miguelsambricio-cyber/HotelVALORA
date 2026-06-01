@@ -3,7 +3,7 @@ import { LandingHeader } from "@/components/landing/landing-header";
 import { InstitutionalFooter } from "@/components/layout/institutional-footer";
 import { CompsetMap } from "@/components/compset/compset-map";
 import { CompsetPricing } from "@/components/compset/compset-pricing";
-import { findHotelById, findHotelByQuery } from "@/lib/data/madrid-hotels";
+import { findCorpusBySlug, findCorpusByQuery } from "@/lib/hotels/corpus-reader";
 
 export const metadata: Metadata = {
   title: "Mapa de Competidores | HotelVALORA",
@@ -33,20 +33,30 @@ interface PageProps {
  * client component receives `mode` as an explicit prop so there's
  * no client-side flicker between states.
  */
-export default function CompsetPage({ searchParams }: PageProps) {
+export default async function CompsetPage({ searchParams }: PageProps) {
   const refParam = searchParams?.ref?.trim() ?? "";
   const qParam = searchParams?.q?.trim() ?? "";
 
-  // Resolution order:
-  //   1. ?ref=<id>     · exact lookup
-  //   2. ?q=<text>     · soft-match against canonical Madrid registry
-  //   3. (none/no-match) · null · activates EXPLORE mode
-  const resolvedHotelId =
-    (refParam && findHotelById(refParam)?.id) ||
-    (qParam && findHotelByQuery(qParam)?.id) ||
-    null;
-
-  const mode = resolvedHotelId ? "analysis" : "explore";
+  // Resolution against the REAL 226-hotel corpus · hotel_canonical:
+  //   - ?ref=<slug> that RESOLVES        → analysis (that hotel)
+  //   - ?ref=<slug> that does NOT resolve → analysis with the bad slug, so the
+  //     client fetch 404s and surfaces a VISIBLE error (an explicit ref to a
+  //     non-existent hotel is a dead link · the user gets a clear error, never
+  //     a silent default).
+  //   - ?q=<text> (no ref) that soft-matches → analysis
+  //   - everything else (no ref, vague/empty q) → EXPLORE
+  // NEVER a default hotel (no silent Bless). The same slug drives the report,
+  // so the compset subject and the report subject are identical by construction.
+  let subject = null;
+  let refBroken = false;
+  if (refParam) {
+    subject = await findCorpusBySlug(refParam);
+    refBroken = subject === null;
+  } else if (qParam) {
+    subject = await findCorpusByQuery(qParam);
+  }
+  const resolvedHotelId = subject?.slug ?? (refBroken ? refParam : null);
+  const mode = subject || refBroken ? "analysis" : "explore";
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-100 text-slate-800">

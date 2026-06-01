@@ -1,47 +1,33 @@
 /**
- * Hotel search adapter — Tier 2 Madrid-mock implementation.
+ * Hotel search adapter — Tier 3 · real corpus (select-corpus · A1).
  *
- * Reads the canonical Madrid registry from lib/data/madrid-hotels.ts
- * and maps to the HotelSearchHit shape consumed by useHotelSearch /
- * SearchBar / HeroSearch.
+ * The landing search now filters the FULL canonical Madrid corpus (226 hotels
+ * from `hotel_canonical`) instead of the static 18-hotel mock. Architecture
+ * (D1): the slim corpus is fetched ONCE from `/api/hotels/search-corpus`,
+ * cached at module scope in the browser, and filtered LOCALLY on every
+ * keystroke — instant, no per-keystroke network round-trip, no artificial
+ * latency. 226 rows is tiny; local filtering beats hitting Supabase per key.
  *
- * Why a mock today:
- *   · No Supabase `hotel_canonical` table is wired to production yet.
- *   · The agent-2 enrichment workstream has 200+ canonical Madrid
- *     hotels staged on their branch but the migration is operator-gated.
- *   · Tier 3 (real DB) replaces the body of `searchHotels()` with a
- *     Supabase or FastAPI call · the public signature stays identical.
+ * Public contract is unchanged: `searchHotels(query, limit)` → `HotelSearchHit[]`
+ * with `id = slug` (the same slug the report resolver + compset consume), so
+ * `SearchBar` / `HeroSearch` / `useHotelSearch` need no changes.
  *
- * Tier 2 design goals (this file):
- *   · Match the institutional vocabulary the operator types ·
- *     "Bless Hotel Madrid" · "Eurostars Madrid Tower" · "Plaza España" ·
- *     "Castellana" · "Salamanca" should all surface relevant hits.
- *   · Be the same source of truth as the /compset workflow so a search
- *     selection lands on a coherent map experience.
- *
- * Future Tier 3 swap (when Supabase is ready):
- *
- *   import { apiClient } from "./client";
- *   const res = await apiClient.get("/hotels/search", {
- *     params: { q: query, limit, city: "Madrid" },
- *   });
- *   return res.data.data.map(toHotelSearchHit);
+ * Future server-search swap (when the corpus outgrows local filtering): the
+ * route accepts `?q=` + debounce and returns only matches; this function calls
+ * it instead of filtering locally — signature stays identical.
  */
 
-import {
-  MADRID_HOTELS,
-  type MadridHotelEntry,
-} from "@/lib/data/madrid-hotels";
 import type { HotelSearchHit } from "@/types/hotel-search";
+import { loadCorpusClient, type CorpusHit } from "@/lib/hotels/corpus-client";
 
-function toHit(h: MadridHotelEntry): HotelSearchHit {
+function toHit(h: CorpusHit): HotelSearchHit {
   return {
-    id: h.id,
+    id: h.slug,
     name: h.name,
     city: "Madrid",
     country: "ES",
-    brand: h.brand ?? null,
-    operator: h.operator ?? null,
+    brand: h.brand,
+    operator: h.operator,
     star_rating: h.stars,
   };
 }
@@ -50,34 +36,28 @@ export async function searchHotels(
   query: string,
   limit = 8,
 ): Promise<HotelSearchHit[]> {
-  // Simulate realistic network latency · keeps the loading spinner honest.
-  await new Promise((r) => setTimeout(r, 120 + Math.random() * 80));
-
   const q = query.toLowerCase().trim();
   if (!q) return [];
 
-  // Tokenise the query so multi-word searches ("madrid centro" · "plaza
-  // españa") match any hotel containing each token in name / brand /
-  // operator / district / address. Improves perception vs strict
-  // substring match.
+  const corpus = await loadCorpusClient();
+
+  // Tokenise so multi-word searches ("senator barajas", "plaza españa") match
+  // a hotel containing each token across name / brand / operator / submarket.
   const tokens = q.split(/\s+/).filter(Boolean);
 
-  const scored = MADRID_HOTELS
+  const scored = corpus
     .map((h) => {
-      const haystack = [
-        h.name,
-        h.brand ?? "",
-        h.operator ?? "",
-        h.district,
-        h.address,
-        h.category,
-      ]
+      // WORD-boundary match: split the searchable fields into words and match a
+      // token only when some WORD starts with it. "riu" hits "Riu Plaza" but NOT
+      // "audito[riu]m" / "at[riu]m" (no word starts with "riu"). Splits on
+      // whitespace + common punctuation (comma · hyphen · slash · &).
+      const words = [h.name, h.brand ?? "", h.operator ?? "", h.submarket ?? ""]
         .join(" ")
-        .toLowerCase();
-
-      const matches = tokens.filter((t) => haystack.includes(t)).length;
-      // Tier-1 boost: exact name prefix match scores higher · feels
-      // closer to autocomplete intent.
+        .toLowerCase()
+        .split(/[\s,.\-/&()]+/)
+        .filter(Boolean);
+      const matches = tokens.filter((t) => words.some((w) => w.startsWith(t))).length;
+      // Name-prefix boost · feels closer to autocomplete intent.
       const namePrefixBoost = h.name.toLowerCase().startsWith(q) ? 5 : 0;
       return { hotel: h, score: matches * 10 + namePrefixBoost };
     })

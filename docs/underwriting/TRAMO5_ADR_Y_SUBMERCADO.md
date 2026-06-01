@@ -143,3 +143,50 @@ Tres señales que Mike separó (2026-05-30) al cerrar el ajuste de renovación r
 ¿Ubicación/confort **solo vía pesos del Score** (un canal, evita doble conteo), **o** confort como
 **detector de condición aparte** (mecanismo separado)? La primera es más simple y limpia; la
 segunda reintroduce una señal de condición. Mike lo decide al abrir el Tramo 5.
+
+---
+
+## 4 · ADR diario por hotel · visión de producto + lección de 2023
+
+> Complementa la §1 (ADR para valoración). Aquí el ADR diario por hotel se mira como **feature de
+> producto** (poblar las tarjetas de selección de activo y de competidor), no solo como input del
+> NOI. Misma fuente (`hotel_rate_daily`), dos consumidores: el motor (§1) y la UI de compset.
+
+### VISIÓN
+Capturar una **ESTIMACIÓN de ADR diario por hotel** vía **agentes que corren automáticamente cada
+día** (RapidAPI/Booking → poblar `hotel_rate_daily` → **medias internas** trailing 30/90d).
+- **Dónde se muestra:** en las **tarjetas de selección de activo** y de **competidor** del `/compset`.
+- **Etiquetado obligatorio:** SIEMPRE como **"ADR estimado"** — es **precio de escaparate Booking
+  (BAR/rack), NO ADR realizado** · sesgo al alza conocido (ver §1 "Booking es BAR, no ADR achieved").
+  Nunca presentar como dato realizado del hotel.
+- **Uso:** que el usuario **construya su compset según sus preferencias** viendo el ADR estimado de
+  cada candidato (hoy, por decisión D2, las tarjetas muestran marca + submercado + distancia +
+  estrellas, SIN ADR — porque no hay dato por hotel en ningún sitio; esto es lo que lo desbloquea).
+- **DIFERENCIADOR:** STR **no** da ADR individual por hotel; esto **sí**. Ventaja competitiva.
+
+### LECCIÓN DE 2023 — autopsia del backup metcub (2026-06-01)
+El intento previo (DB `metcub`, `docs/0. Software 2024 HOTEL REPORT...`) **NO capturó ADR por
+hotel**. La tabla `properties_propertyrates` (107.545 filas) **colapsó a una plantilla de CATEGORÍA
+por estrellas**, no por activo:
+- **44 series distintas** para 1.287 hoteles; las 10 más comunes cubren **1.253/1.287**. **28 hoteles
+  5★ comparten byte-a-byte la serie −36/67/153**; **188 hoteles 4★** comparten −28/53/122; etc. →
+  Bless = Mandarin Oriental Ritz = Eurostars Tower con el mismo número (imposible si fuera real).
+- **Densidad falsa:** ~106 puntos **mensuales** 2015-2023 (1 día/mes, hueco 31d), **no 365/año**.
+- **Precios NEGATIVOS** (−36, −29…) → **bug de parseo** sin validación.
+- Solo distinguía `guests` + `breakfast`, **sin tipo de habitación**.
+- (`properties_propertyoccupancy` y `properties_adrseries` estaban **vacías** — cero ocupación/ADR.)
+
+**El nuevo sistema DEBE:**
+- **(a)** guardar precio genuinamente **POR HOTEL** (clave por `hotel_id` real · `booking_id` propio),
+  nunca un valor de categoría replicado.
+- **(b)** **validar/descartar negativos y outliers** (rango plausible por clase · filtro de saltos).
+- **(c)** **normalizar** tipo de habitación + ocupación (LOS/pax) + desayuno antes de promediar
+  (aislar "doble estándar, 2 pax, sin desayuno" como cesta comparable).
+- **(d)** capturar **densidad intra-año real** (fechas muestreadas forward 30-90d con estacionalidad),
+  **no 1 punto/mes**.
+
+### TODO Tramo 5 (antes de montar la barrida nueva)
+Hacer una **autopsia más profunda del scraper Python de 2023** (`metcub-datos-delivery.zip`:
+`booking.py`, `giata.py`, `hotel_codes.py`, `match_giata_booking.py`, `csv_import_rates.py`) para
+extraer el **resto de errores concretos** (por qué colapsó a categoría, de dónde salen los negativos,
+cómo emparejaba GIATA↔Booking) y no repetirlos en el sistema nuevo.
